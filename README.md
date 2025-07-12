@@ -1,128 +1,70 @@
-# Turborepo starter with shadcn/ui
+# ☁️ Openinary
 
-![Static Badge](https://img.shields.io/badge/shadcn%2Fui-2.1.2-blue?link=https%3A%2F%2Fgithub.com%2Fshadcn%2Fui)
+**Cloudinary, but open source. Powered by Cloudflare.**
 
-This is Turborepo starter with shadcn/ui pre-configured.
+Openinary is an open source, Cloudflare-native media CDN that lets you upload, transform, and deliver images (and soon videos) from the edge — without vendor lock-in, usage limits, or opaque pricing.
 
-> [!NOTE]
-> This example uses `pnpm` as package manager.
+Built for developers, no-code builders, and indie creators who want fast, modern, self-hostable media infrastructure.
 
-[npm version](https://github.com/dan5py/turborepo-shadcn-ui/tree/npm)
-[bun version](https://github.com/dan5py/turborepo-shadcn-ui/tree/bun)
+---
 
-## Using this example
+## 🚀 Why Openinary?
 
-Clone the repository:
+Most media CDNs are closed, expensive, and built for enterprise.
 
-```sh
-git clone https://github.com/dan5py/turborepo-shadcn-ui.git
-```
+We’re building Openinary to be:
 
-Install dependencies:
+- **💡 Open** — MIT-licensed, transparent, easy to contribute to
+- **⚡ Fast** — edge-first with Cloudflare Workers, R2 and KV
+- **🧩 Modular** — easily pluggable in any stack or tool
+- **🎯 Focused** — just the essentials: upload, transform, deliver
 
-```sh
-cd turborepo-shadcn-ui
-pnpm install
-```
+---
 
-### Add ui components
+## 🔧 Planned Stack
 
-Use the pre-made script:
+| Layer       | Tool                        |
+|-------------|-----------------------------|
+| CDN & Logic | **Cloudflare Workers**      |
+| Storage     | **Cloudflare R2**           |
+| Cache/store | **KV**, **D1** (optional)   |
+| UI          | React + Tailwind (via Pages)|
+| Upload UX   | REST API + drag & drop UI   |
+| Infra       | Wrangler CLI                |
 
-```sh
-pnpm ui add <component-name>
-```
+---
 
-> This works just like the `shadcn/ui` CLI.
+## 📦 Key Features (MVP Scope)
 
-### Add a new app
+- [x] Upload media via API
+- [x] Serve media from R2
+- [x] Transform images on-the-fly via URL
+- [ ] UI for uploads + previews
+- [ ] Metadata storage in D1
+- [ ] Edge caching via KV
+- [ ] Optional presigned uploads
+- [ ] Deployable in 1 command
 
-Turborepo offer a simple command to add a new app:
+---
 
-```sh
-pnpm turbo gen workspace --name <app-name>
-```
+## 💡 Example Use Cases
 
-This will create a new empty app in the `apps` directory.
+- You’re building a personal site and need fast image delivery.
+- You’re a no-code tool developer looking to offer media uploads.
+- You’re self-hosting a blog, app or internal tool with image needs.
+- You want to escape Cloudinary's limits and take control.
 
-If you want, you can copy an existing app with:
+---
 
-```sh
-pnpm turbo gen workspace --name <app-name> --copy
-```
+## 🤝 Contributing
 
-> [!NOTE]
-> Remember to run `pnpm install` after copying an app.
+We’re just getting started — and we’d love your help!
 
-## What's inside?
+Whether you're into backend, UI, devtools, or docs, you’re welcome.
+Start by checking the [issues](https://github.com/openinary/openinary/issues) or say hi in Discussions.
 
-This Turborepo includes the following packages/apps:
+---
 
-### Apps and Packages
+## 📄 License
 
-- `web`: a [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library (🚀 powered by **shadcn/ui**)
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```sh
-cd turborepo-shadcn-ui
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```sh
-cd turborepo-shadcn-ui
-pnpm dev
-```
-
-### Remote Caching
-
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
-
-```
-cd turborepo-shadcn-ui
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```sh
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
-
-Learn more about shadcn/ui:
-
-- [Documentation](https://ui.shadcn.com/docs)
+MIT. Use it freely. Fork it. Improve it. Let’s build it together.
