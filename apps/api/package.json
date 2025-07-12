@@ -1,0 +1,15 @@
+{
+  "name": "api",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev src/index.ts",
+    "deploy": "wrangler deploy --minify src/index.ts",
+    "deploy:staging": "wrangler deploy --minify src/index.ts --env staging"
+  },
+  "dependencies": {
+    "hono": "^3.4.1"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
