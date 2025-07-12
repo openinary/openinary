@@ -1,0 +1,22 @@
+{
+  "name": "turborepo-shadcn-ui",
+  "version": "1.5.1",
+  "private": false,
+  "license": "MIT",
+  "scripts": {},
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/publisher": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "prettier": "catalog:",
+    "turbo": "2.1.1"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.17.0"
+  },
+  "volta": {
+    "node": "20.17.0",
+    "pnpm": "9.12.0"
+  }
+}
