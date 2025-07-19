@@ -1,0 +1,16 @@
+{
+  "name": "api",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev --remote src/index.ts",
+    "deploy": "wrangler deploy --minify src/index.ts",
+    "deploy:staging": "wrangler deploy --minify src/index.ts --env staging"
+  },
+  "dependencies": {
+    "hono": "^3.4.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "wrangler": "^3.0.0"
+  }
+}
