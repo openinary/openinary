@@ -89,6 +89,10 @@ http://localhost:3000/cdn/resize:800x600/crop:fit/image.jpg
 http://localhost:3000/cdn/resize:800x600/crop:fill/image.jpg
 http://localhost:3000/cdn/resize:800x600/crop:pad/image.jpg
 
+# Image with crop mode and gravity/focus
+http://localhost:3000/cdn/resize:800x600/crop:fill/gravity:face/image.jpg
+http://localhost:3000/cdn/resize:800x600/crop:crop/gravity:north/image.jpg
+
 # Image with crop mode and background color (for pad mode)
 http://localhost:3000/cdn/resize:800x600/crop:pad/background:ff0000/image.jpg
 
@@ -101,8 +105,8 @@ http://localhost:3000/cdn/resize:1280x720/video.mp4
 # Video with quality (0-100)
 http://localhost:3000/cdn/resize:640x480/quality:50/video.mp4
 
-# Parameter combination
-http://localhost:3000/cdn/resize:800x600/crop:fit/quality:75/image.png
+# Parameter combination with gravity
+http://localhost:3000/cdn/resize:800x600/crop:fit/gravity:face/quality:75/image.png
 ```
 
 ### Available Parameters
@@ -114,6 +118,14 @@ http://localhost:3000/cdn/resize:800x600/crop:fit/quality:75/image.png
   - **`scale`**: Scale to exact dimensions, ignoring aspect ratio
   - **`crop`**: Resize and crop to exact dimensions, maintaining aspect ratio
   - **`pad`**: Resize to fit within dimensions and pad with background color
+- **`gravity:POSITION`**: Focus/gravity for cropping (images only, works with `fill` and `crop` modes)
+  - **`center`**: Focus on the center of the image (default)
+  - **`north`**: Focus on the top of the image
+  - **`south`**: Focus on the bottom of the image
+  - **`east`**: Focus on the right side of the image
+  - **`west`**: Focus on the left side of the image
+  - **`face`**: Automatically focus on faces or interesting features
+  - **`auto`**: Automatically focus on high-contrast areas
 - **`background:COLOR`**: Background color for pad mode (hex format, e.g., `ffffff` for white)
 - **`quality:VALUE`**: Controls quality (0-100)
   - **Images**: JPEG quality (100 = best quality, larger file)

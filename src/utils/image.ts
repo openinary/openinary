@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 
 export type CropMode = 'fill' | 'fit' | 'scale' | 'crop' | 'pad';
+export type GravityMode = 'center' | 'north' | 'south' | 'east' | 'west' | 'face' | 'auto';
 
 export const transformImage = async (inputPath: string, params: any) => {
   const image = sharp(inputPath);
@@ -13,15 +14,41 @@ export const transformImage = async (inputPath: string, params: any) => {
     // Default crop mode is 'fill' if not specified
     const cropMode: CropMode = params.crop || 'fill';
     
+    // Parse gravity/focus parameter
+    const gravity: GravityMode = params.gravity || 'center';
+    
     const resizeOptions: sharp.ResizeOptions = {
       width,
       height,
     };
 
+    // Map gravity to Sharp position values
+    const getSharpPosition = (gravity: GravityMode): string => {
+      switch (gravity) {
+        case 'center':
+          return 'center';
+        case 'north':
+          return 'top';
+        case 'south':
+          return 'bottom';
+        case 'east':
+          return 'right';
+        case 'west':
+          return 'left';
+        case 'face':
+          return 'attention'; // Sharp's attention strategy focuses on interesting features
+        case 'auto':
+          return 'entropy'; // Sharp's entropy strategy focuses on high-contrast areas
+        default:
+          return 'center';
+      }
+    };
+
     switch (cropMode) {
       case 'fill':
-        // Resize to fill the entire area, cropping if necessary (default Sharp behavior)
+        // Resize to fill the entire area, cropping if necessary
         resizeOptions.fit = 'cover';
+        resizeOptions.position = getSharpPosition(gravity);
         break;
       
       case 'fit':
@@ -38,7 +65,7 @@ export const transformImage = async (inputPath: string, params: any) => {
       case 'crop':
         // Resize and crop to exact dimensions, maintaining aspect ratio
         resizeOptions.fit = 'cover';
-        resizeOptions.position = 'center';
+        resizeOptions.position = getSharpPosition(gravity);
         break;
       
       case 'pad':
@@ -64,6 +91,7 @@ export const transformImage = async (inputPath: string, params: any) => {
       default:
         // Default to fill mode
         resizeOptions.fit = 'cover';
+        resizeOptions.position = getSharpPosition(gravity);
     }
 
     image.resize(resizeOptions);
