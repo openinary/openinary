@@ -72,8 +72,8 @@ cdn.get('/*', async (c) => {
   if (storage) {
     // If a cloud provider is configured, use EXCLUSIVELY the cloud
     try {
+      // Checking cloud for original file
       fileExistsInCloud = await storage.existsOriginal(filePath);
-      console.log(`🔍 Checking cloud for original file: ${filePath} - ${fileExistsInCloud ? 'Found' : 'Not found'}`);
     } catch (error) {
       console.warn('Error checking cloud storage for original file:', error);
     }
@@ -162,15 +162,12 @@ cdn.get('/*', async (c) => {
     // Save to cloud cache (if configured)
     if (storage) {
       try {
-        const cloudUrl = await storage.upload(filePath, params, buffer, contentType);
-        console.log(`☁️ Uploaded to cloud cache: ${cloudUrl}`);
-        
+        const cloudUrl = await storage.upload(filePath, params, buffer, contentType);        
         // In cloud mode, immediately delete local cache after upload
         try {
           const fs = await import('fs');
           if (fs.existsSync(cachePath)) {
             fs.unlinkSync(cachePath);
-            console.log(`🧹 Cleaned local cache immediately: ${cachePath}`);
           }
         } catch (error) {
           console.warn('Failed to cleanup local cache:', error);

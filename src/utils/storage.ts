@@ -67,19 +67,15 @@ export class CloudStorage {
    */
   async existsOriginal(originalPath: string): Promise<boolean> {
     try {
-      console.log(`🔍 Checking cloud storage for: ${originalPath}`);
-      console.log(`📍 Bucket: ${this.config.bucketName}`);
-      console.log(`📍 Endpoint: ${this.config.endpoint}`);
-      
       await this.s3Client.send(new HeadObjectCommand({
         Bucket: this.config.bucketName,
         Key: originalPath,
       }));
       return true;
     } catch (error: any) {
-      console.log(`❌ Cloud storage error for ${originalPath}:`, error.message);
+      console.error(`❌ Cloud storage error for ${originalPath}:`, error.message);
       if (error.$metadata) {
-        console.log(`📊 Error metadata:`, error.$metadata);
+        console.error(`📊 Error metadata:`, error.$metadata);
       }
       return false;
     }

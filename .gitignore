@@ -97,4 +97,4 @@ Thumbs.db
 *.tsbuildinfo
 
 # Documentation
-ROADMAP.mdx
+docs*

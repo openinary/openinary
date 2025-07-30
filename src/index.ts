@@ -20,7 +20,6 @@ const cleanupLocalCacheIfCloudMode = () => {
           const filePath = path.join(cacheDir, file);
           fs.unlinkSync(filePath);
         });
-        console.log(`🧹 Cleaned ${files.length} local cache files (cloud mode active)`);
       } catch (error) {
         console.warn('Failed to cleanup local cache on startup:', error);
       }

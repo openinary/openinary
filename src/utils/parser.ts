@@ -4,7 +4,9 @@ export const parseParams = (path: string) => {
 
   segments.forEach((segment) => {
     if (segment.includes(':')) {
-      const [key, value] = segment.split(':');
+      const colonIndex = segment.indexOf(':');
+      const key = segment.substring(0, colonIndex);
+      const value = segment.substring(colonIndex + 1); // Get everything after the first colon
       params[key] = value;
     }
   });
