@@ -1,38 +1,38 @@
-# Image & Video Server avec Stockage Cloud
+# Image & Video Server with Cloud Storage
 
-Ce serveur permet de traiter et servir des images et vidéos avec support pour le stockage cloud (AWS S3 ou Cloudflare R2).
+This server allows you to process and serve images and videos with support for cloud storage (AWS S3 or Cloudflare R2).
 
-## Fonctionnalités
+## Features
 
-- ✅ Redimensionnement d'images (JPEG, PNG, WebP, AVIF, GIF)
-- ✅ Transformation de vidéos (MP4, MOV, WebM)
-- ✅ Cache local et cloud (AWS S3 / Cloudflare R2) pour les performances
-- ✅ Stockage cloud optionnel (recommandé)
+- ✅ Image resizing (JPEG, PNG, WebP, AVIF, GIF)
+- ✅ Video transformation (MP4, MOV, WebM)
+- ✅ Local and cloud cache (AWS S3 / Cloudflare R2) for performance
+- ✅ Optional cloud storage (recommended)
 
-## Configuration du Stockage Cloud
+## Cloud Storage Configuration
 
-### 1. Copier le fichier d'environnement
+### 1. Copy the environment file
 
 ```bash
 cp .env.example .env
 ```
 
-### 2. Configuration du Provider Cloud
+### 2. Cloud Provider Configuration
 
-⚠️ **Important** : Choisissez **UNE SEULE** option parmi les trois ci-dessous :
+⚠️ **Important**: Choose **ONLY ONE** option from the three below:
 
-#### Option A : Mode Local (Aucun provider cloud)
+#### Option A: Local Mode (No cloud provider)
 
-Laissez le fichier `.env` vide ou ne définissez pas `STORAGE_PROVIDER` :
+Leave the `.env` file empty or don't define `STORAGE_PROVIDER`:
 
 ```env
-# Aucune configuration cloud = mode local uniquement
-# Les fichiers doivent être placés dans le dossier public/
+# No cloud configuration = local mode only
+# Files must be placed in the public/ folder
 ```
 
-#### Option B : AWS S3
+#### Option B: AWS S3
 
-Éditez le fichier `.env` :
+Edit the `.env` file:
 
 ```env
 STORAGE_PROVIDER=aws
@@ -43,15 +43,15 @@ STORAGE_BUCKET_NAME=your-bucket-name
 STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
 ```
 
-**Étapes AWS :**
-1. Créez un bucket S3 dans la console AWS
-2. Configurez les permissions publiques si nécessaire
-3. Créez un utilisateur IAM avec les permissions S3
-4. Récupérez les clés d'accès
+**AWS Steps:**
+1. Create an S3 bucket in the AWS console
+2. Configure public permissions if necessary
+3. Create an IAM user with S3 permissions
+4. Retrieve the access keys
 
-#### Option C : Cloudflare R2
+#### Option C: Cloudflare R2
 
-Éditez le fichier `.env` :
+Edit the `.env` file:
 
 ```env
 STORAGE_PROVIDER=cloudflare
@@ -63,129 +63,129 @@ STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 STORAGE_PUBLIC_URL=https://your-custom-domain.com
 ```
 
-**Étapes Cloudflare R2 :**
-1. Créez un bucket R2 dans le dashboard Cloudflare
-2. Générez des tokens API R2
-3. Configurez un domaine personnalisé (optionnel)
-4. Récupérez l'endpoint de votre compte
+**Cloudflare R2 Steps:**
+1. Create an R2 bucket in the Cloudflare dashboard
+2. Generate R2 API tokens
+3. Configure a custom domain (optional)
+4. Retrieve your account endpoint
 
-## Utilisation
+## Usage
 
-### Démarrage
+### Getting Started
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-### Exemples d'URLs
+### URL Examples
 
 ```
-# Redimensionnement d'image
+# Image resizing
 http://localhost:3000/cdn/resize:640x480/image.png
 
-# Image avec qualité (0-100)
+# Image with quality (0-100)
 http://localhost:3000/cdn/resize:800x600/quality:80/image.jpg
 
-# Transformation de vidéo
+# Video transformation
 http://localhost:3000/cdn/resize:1280x720/video.mp4
 
-# Vidéo avec qualité (0-100)
+# Video with quality (0-100)
 http://localhost:3000/cdn/resize:640x480/quality:50/video.mp4
 
-# Combinaison de paramètres
+# Parameter combination
 http://localhost:3000/cdn/resize:800x600/quality:75/image.png
 ```
 
-### Paramètres Disponibles
+### Available Parameters
 
-- **`resize:WIDTHxHEIGHT`** : Redimensionne l'image ou la vidéo
-- **`quality:VALUE`** : Contrôle la qualité (0-100)
-  - **Images** : Qualité JPEG (100 = meilleure qualité, plus gros fichier)
-  - **Vidéos** : Qualité H.264 via CRF (100 = meilleure qualité, plus gros fichier)
+- **`resize:WIDTHxHEIGHT`**: Resizes the image or video
+- **`quality:VALUE`**: Controls quality (0-100)
+  - **Images**: JPEG quality (100 = best quality, larger file)
+  - **Videos**: H.264 quality via CRF (100 = best quality, larger file)
 
-## Fonctionnement du Cache
+## Cache Operation
 
-Le serveur utilise un système de cache adapté au mode configuré :
+The server uses a cache system adapted to the configured mode:
 
-### Mode Cloud (AWS S3 ou Cloudflare R2)
-1. **Cache cloud** : Les fichiers transformés sont stockés dans un dossier `cache/` dans votre bucket
-2. **Cache local temporaire** : Utilisé uniquement pendant le traitement, supprimé immédiatement après upload
-3. **Hiérarchie** : Cache cloud → Traitement à la demande → Upload vers cloud
+### Cloud Mode (AWS S3 or Cloudflare R2)
+1. **Cloud cache**: Transformed files are stored in a `cache/` folder in your bucket
+2. **Temporary local cache**: Used only during processing, deleted immediately after upload
+3. **Hierarchy**: Cloud cache → On-demand processing → Upload to cloud
 
-### Mode Local
-1. **Cache local uniquement** : Les fichiers transformés sont stockés dans le dossier `temp/`
-2. **Hiérarchie** : Cache local → Traitement à la demande
+### Local Mode
+1. **Local cache only**: Transformed files are stored in the `temp/` folder
+2. **Hierarchy**: Local cache → On-demand processing
 
-### Modes de fonctionnement :
+### Operating modes:
 
-#### 🌐 Mode Cloud (Provider configuré)
-Quand un provider cloud est configuré, le serveur utilise **EXCLUSIVEMENT** le stockage cloud :
-1. **Cache cloud** : Vérifie d'abord si le fichier transformé existe dans `cache/` du bucket
-2. **Cache local** : Si pas dans le cloud, vérifie le cache local
-3. **Traitement** : Si pas en cache, télécharge le fichier original depuis le cloud, le traite et sauvegarde dans les deux caches
+#### 🌐 Cloud Mode (Provider configured)
+When a cloud provider is configured, the server uses **EXCLUSIVELY** cloud storage:
+1. **Cloud cache**: First checks if the transformed file exists in the bucket's `cache/`
+2. **Local cache**: If not in cloud, checks local cache
+3. **Processing**: If not cached, downloads the original file from cloud, processes it and saves in both caches
 
-⚠️ **Important** : Les fichiers du dossier `public/` local sont **ignorés** quand un provider cloud est configuré.
+⚠️ **Important**: Files in the local `public/` folder are **ignored** when a cloud provider is configured.
 
-#### 📁 Mode Local (Aucun provider configuré)
-Quand aucun provider cloud n'est configuré :
-1. **Cache local** : Vérifie le cache local
-2. **Traitement** : Si pas en cache, traite le fichier depuis le dossier `public/` local
+#### 📁 Local Mode (No provider configured)
+When no cloud provider is configured:
+1. **Local cache**: Checks local cache
+2. **Processing**: If not cached, processes the file from the local `public/` folder
 
-### Structure des fichiers :
+### File structure:
 
-#### 🌐 Mode Cloud (Provider configuré)
+#### 🌐 Cloud Mode (Provider configured)
 ```
 your-bucket/
-├── cache/                   # Fichiers transformés (générés automatiquement)
-│   ├── a1b2c3d4.jpg         # Image redimensionnée + hash des paramètres
-│   ├── e5f6g7h8.mp4         # Vidéo transformée + hash des paramètres
+├── cache/                   # Transformed files (automatically generated)
+│   ├── a1b2c3d4.jpg         # Resized image + parameter hash
+│   ├── e5f6g7h8.mp4         # Transformed video + parameter hash
 │   └── ...
-├── folderName/              # Vos dossiers
+├── folderName/              # Your folders
 │   ├── image.png            # Images
-│   ├── video.mp4            # Vidéos
-│   ├── logo.jpg             # Autres fichiers
+│   ├── video.mp4            # Videos
+│   ├── logo.jpg             # Other files
 │   └── ...
-└── autres-fichiers.jpg      # Fichiers à la racine
+└── other-files.jpg          # Files at root
 ```
 
-#### 📁 Mode Local (Aucun provider configuré)
+#### 📁 Local Mode (No provider configured)
 ```
 media-api/
-├── public/                  # TOUS vos fichiers originaux
+├── public/                  # ALL your original files
 │   ├── image.png            # Images
-│   ├── video.mp4            # Vidéos
-│   ├── logo.jpg             # Autres fichiers
+│   ├── video.mp4            # Videos
+│   ├── logo.jpg             # Other files
 │   └── ...
-├── cache/                   # Cache local (généré automatiquement)
-│   ├── hash1234             # Fichiers transformés
+├── cache/                   # Local cache (automatically generated)
+│   ├── hash1234             # Transformed files
 │   └── ...
-└── src/                     # Code source
+└── src/                     # Source code
 ```
 
-## Avantages
+## Advantages
 
-- **Performance** : Cache local pour un accès rapide
-- **Scalabilité** : Stockage cloud pour partager entre instances
-- **Sécurité** : Mode cloud exclusif pour éviter les conflits entre sources
-- **Simplicité** : Un seul mode actif à la fois (local, cloudflare R2 ou AWS S3)
-- **Flexibilité** : Fonctionne avec ou sans stockage cloud
+- **Performance**: Local cache for fast access
+- **Scalability**: Cloud storage to share between instances
+- **Security**: Exclusive cloud mode to avoid conflicts between sources
+- **Simplicity**: Only one active mode at a time (local, Cloudflare R2 or AWS S3)
+- **Flexibility**: Works with or without cloud storage
 
-## Variables d'Environnement
+## Environment Variables
 
-| Variable | Description | Requis |
-|----------|-------------|---------|
-| `STORAGE_PROVIDER` | `aws` ou `cloudflare` | Non |
-| `STORAGE_REGION` | Région du stockage | Si provider défini |
-| `STORAGE_ACCESS_KEY_ID` | Clé d'accès | Si provider défini |
-| `STORAGE_SECRET_ACCESS_KEY` | Clé secrète | Si provider défini |
-| `STORAGE_BUCKET_NAME` | Nom du bucket | Si provider défini |
-| `STORAGE_ENDPOINT` | Endpoint (R2 uniquement) | Pour Cloudflare R2 |
-| `STORAGE_PUBLIC_URL` | URL publique du bucket | Optionnel |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `STORAGE_PROVIDER` | `aws` or `cloudflare` | No |
+| `STORAGE_REGION` | Storage region | If provider defined |
+| `STORAGE_ACCESS_KEY_ID` | Access key | If provider defined |
+| `STORAGE_SECRET_ACCESS_KEY` | Secret key | If provider defined |
+| `STORAGE_BUCKET_NAME` | Bucket name | If provider defined |
+| `STORAGE_ENDPOINT` | Endpoint (R2 only) | For Cloudflare R2 |
+| `STORAGE_PUBLIC_URL` | Public bucket URL | Optional |
 
 ## Logs
 
-Le serveur affiche des logs pour indiquer d'où viennent les fichiers :
-- `📦 Serving from cloud cache` : Fichier servi depuis le cache cloud
-- `💾 Serving from local cache` : Fichier servi depuis le cache local
-- `☁️ Uploaded to cloud cache` : Fichier uploadé vers le cache cloud
+The server displays logs to indicate where files come from:
+- `📦 Serving from cloud cache`: File served from cloud cache
+- `💾 Serving from local cache`: File served from local cache
+- `☁️ Uploaded to cloud cache`: File uploaded to cloud cache

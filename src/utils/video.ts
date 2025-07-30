@@ -16,15 +16,15 @@ export const transformVideo = async (inputPath: string, params: any): Promise<Bu
       command = command.size(`${w}x${h}`);
     }
 
-    // Contrôle de la qualité vidéo via CRF (Constant Rate Factor)
-    // CRF: 0 = lossless, 23 = défaut, 51 = qualité la plus basse
-    // Pour simplifier, on convertit quality (0-100) vers CRF (51-0)
+    // Video quality control via CRF (Constant Rate Factor)
+    // CRF: 0 = lossless, 23 = default, 51 = lowest quality
+    // For simplicity, we convert quality (0-100) to CRF (51-0)
     if (params.quality) {
       const quality = parseInt(params.quality);
-      // Convertir quality (0-100) vers CRF (51-0)
-      // quality 100 = CRF 18 (très haute qualité)
-      // quality 50 = CRF 28 (qualité moyenne)
-      // quality 10 = CRF 45 (basse qualité)
+      // Convert quality (0-100) to CRF (51-0)
+      // quality 100 = CRF 18 (very high quality)
+      // quality 50 = CRF 28 (medium quality)
+      // quality 10 = CRF 45 (low quality)
       const crf = Math.round(51 - (quality / 100) * 33);
       command = command.videoCodec('libx264').addOption('-crf', crf.toString());
     }

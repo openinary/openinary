@@ -8,8 +8,8 @@ export interface StorageConfig {
   accessKeyId: string;
   secretAccessKey: string;
   bucketName: string;
-  endpoint?: string; // Pour Cloudflare R2
-  publicUrl?: string; // URL publique du bucket
+  endpoint?: string; // For Cloudflare R2
+  publicUrl?: string; // Public URL of the bucket
 }
 
 export class CloudStorage {
@@ -27,7 +27,7 @@ export class CloudStorage {
       },
     };
 
-    // Configuration spécifique pour Cloudflare R2
+    // Specific configuration for Cloudflare R2
     if (config.provider === 'cloudflare' && config.endpoint) {
       clientConfig.endpoint = config.endpoint;
       clientConfig.forcePathStyle = true;
@@ -37,7 +37,7 @@ export class CloudStorage {
   }
 
   /**
-   * Génère une clé unique pour le fichier basée sur le chemin et les paramètres
+   * Generates a unique key for the file based on path and parameters
    */
   private generateKey(originalPath: string, params: any): string {
     const paramsString = JSON.stringify(params);
@@ -47,7 +47,7 @@ export class CloudStorage {
   }
 
   /**
-   * Vérifie si un fichier existe dans le bucket
+   * Checks if a file exists in the bucket
    */
   async exists(originalPath: string, params: any): Promise<boolean> {
     try {
@@ -63,7 +63,7 @@ export class CloudStorage {
   }
 
   /**
-   * Vérifie si un fichier original (non traité) existe dans le bucket
+   * Checks if an original (unprocessed) file exists in the bucket
    */
   async existsOriginal(originalPath: string): Promise<boolean> {
     try {
@@ -86,7 +86,7 @@ export class CloudStorage {
   }
 
   /**
-   * Récupère un fichier original (non traité) depuis le bucket
+   * Retrieves an original (unprocessed) file from the bucket
    */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
     const response = await this.s3Client.send(new GetObjectCommand({
@@ -98,7 +98,7 @@ export class CloudStorage {
       throw new Error('File not found');
     }
 
-    // Convertit le stream en buffer
+    // Converts the stream to buffer
     const chunks: Uint8Array[] = [];
     const reader = response.Body.transformToWebStream().getReader();
     
@@ -112,7 +112,7 @@ export class CloudStorage {
   }
 
   /**
-   * Upload un fichier vers le bucket
+   * Uploads a file to the bucket
    */
   async upload(originalPath: string, params: any, buffer: Buffer, contentType: string): Promise<string> {
     const key = this.generateKey(originalPath, params);
@@ -122,10 +122,10 @@ export class CloudStorage {
       Key: key,
       Body: buffer,
       ContentType: contentType,
-      CacheControl: 'public, max-age=31536000', // Cache 1 an
+      CacheControl: 'public, max-age=31536000', // Cache 1 year
     }));
 
-    // Retourne l'URL publique
+    // Returns the public URL
     if (this.config.publicUrl) {
       return `${this.config.publicUrl}/${key}`;
     } else {
@@ -134,7 +134,7 @@ export class CloudStorage {
   }
 
   /**
-   * Récupère un fichier depuis le bucket
+   * Retrieves a file from the bucket
    */
   async download(originalPath: string, params: any): Promise<Buffer> {
     const key = this.generateKey(originalPath, params);
@@ -148,7 +148,7 @@ export class CloudStorage {
       throw new Error('File not found');
     }
 
-    // Convertit le stream en buffer
+    // Converts the stream to buffer
     const chunks: Uint8Array[] = [];
     const reader = response.Body.transformToWebStream().getReader();
     
@@ -162,7 +162,7 @@ export class CloudStorage {
   }
 
   /**
-   * Génère une URL signée pour accès temporaire (optionnel)
+   * Generates a signed URL for temporary access (optional)
    */
   async getSignedUrl(originalPath: string, params: any, expiresIn: number = 3600): Promise<string> {
     const key = this.generateKey(originalPath, params);
@@ -178,12 +178,12 @@ export class CloudStorage {
   }
 }
 
-// Configuration par défaut (à personnaliser via variables d'environnement)
+// Default configuration (to be customized via environment variables)
 export function createStorageClient(): CloudStorage | null {
   const provider = process.env.STORAGE_PROVIDER as 'aws' | 'cloudflare';
   
   if (!provider) {
-    return null; // Pas de stockage cloud configuré
+    return null; // No cloud storage configured
   }
 
   const config: StorageConfig = {
@@ -192,11 +192,11 @@ export function createStorageClient(): CloudStorage | null {
     accessKeyId: process.env.STORAGE_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY || '',
     bucketName: process.env.STORAGE_BUCKET_NAME || '',
-    endpoint: process.env.STORAGE_ENDPOINT, // Pour Cloudflare R2
+    endpoint: process.env.STORAGE_ENDPOINT, // For Cloudflare R2
     publicUrl: process.env.STORAGE_PUBLIC_URL,
   };
 
-  // Validation des paramètres requis
+  // Validation of required parameters
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
     console.warn('Storage configuration incomplete. Cloud storage disabled.');
     return null;

@@ -22,7 +22,7 @@ cdn.get('/*', async (c) => {
   let originalPath = `./public/${filePath}`;
   const ext = filePath.split('.').pop();
 
-  // Fonction pour définir le Content-Type
+  // Function to set Content-Type
   const setContentType = (extension: string) => {
     if (extension?.match(/jpe?g|jpeg/)) {
       c.header('Content-Type', 'image/jpeg');
@@ -43,7 +43,7 @@ cdn.get('/*', async (c) => {
     }
   };
 
-  // 1. Vérifier d'abord dans le cache cloud (si configuré)
+  // 1. Check cloud cache first (if configured)
   if (storage) {
     try {
       if (await storage.exists(filePath, params)) {
@@ -57,7 +57,7 @@ cdn.get('/*', async (c) => {
     }
   }
 
-  // 2. Vérifier dans le cache local
+  // 2. Check local cache
   if (await existsInCache(cachePath)) {
     console.log(`💾 Serving from local cache: ${filePath}`);
     const cachedBuffer = await readFromCache(cachePath);
@@ -65,12 +65,12 @@ cdn.get('/*', async (c) => {
     return c.body(cachedBuffer);
   }
 
-  // 3. Vérifier si le fichier original existe
+  // 3. Check if original file exists
   let fileExistsLocally = false;
   let fileExistsInCloud = false;
   
   if (storage) {
-    // Si un provider cloud est configuré, on utilise EXCLUSIVEMENT le cloud
+    // If a cloud provider is configured, use EXCLUSIVELY the cloud
     try {
       fileExistsInCloud = await storage.existsOriginal(filePath);
       console.log(`🔍 Checking cloud for original file: ${filePath} - ${fileExistsInCloud ? 'Found' : 'Not found'}`);
@@ -83,7 +83,7 @@ cdn.get('/*', async (c) => {
       return c.text(`File not found: ${filePath}. Make sure the file exists in your cloud storage bucket.`, 404);
     }
   } else {
-    // Si aucun provider cloud n'est configuré, on utilise les fichiers locaux
+    // If no cloud provider is configured, use local files
     fileExistsLocally = existsSync(originalPath);
     
     if (!fileExistsLocally) {
@@ -97,13 +97,13 @@ cdn.get('/*', async (c) => {
     let buffer;
     let contentType = '';
     
-    // Déterminer la source du fichier
+    // Determine file source
     if (storage) {
-      // Provider cloud configuré : utiliser EXCLUSIVEMENT le cloud
+      // Cloud provider configured: use EXCLUSIVELY the cloud
       console.log(`☁️ Processing from cloud file: ${filePath}`);
       const sourceBuffer = await storage.downloadOriginal(filePath);
       
-      // Sauvegarder temporairement le fichier localement pour le traitement
+      // Temporarily save the file locally for processing
       const fs = await import('fs');
       const path = await import('path');
       const tempDir = './temp';
@@ -114,7 +114,7 @@ cdn.get('/*', async (c) => {
       fs.writeFileSync(tempPath, sourceBuffer);
       originalPath = tempPath;
     } else {
-      // Aucun provider cloud : utiliser les fichiers locaux
+      // No cloud provider: use local files
       console.log(`📁 Processing from local file: ${originalPath}`);
     }
     
@@ -144,7 +144,7 @@ cdn.get('/*', async (c) => {
       return c.text('Unsupported file type', 400);
     }
 
-    // Nettoyer le fichier temporaire si utilisé (quand provider cloud configuré)
+    // Clean up temporary file if used (when cloud provider configured)
     if (storage) {
       try {
         const fs = await import('fs');
@@ -156,16 +156,16 @@ cdn.get('/*', async (c) => {
       }
     }
 
-    // Sauvegarder dans le cache local (temporaire en mode cloud)
+    // Save to local cache (temporary in cloud mode)
     await saveToCache(cachePath, buffer);
 
-    // Sauvegarder dans le cache cloud (si configuré)
+    // Save to cloud cache (if configured)
     if (storage) {
       try {
         const cloudUrl = await storage.upload(filePath, params, buffer, contentType);
         console.log(`☁️ Uploaded to cloud cache: ${cloudUrl}`);
         
-        // En mode cloud, supprimer immédiatement le cache local après upload
+        // In cloud mode, immediately delete local cache after upload
         try {
           const fs = await import('fs');
           if (fs.existsSync(cachePath)) {

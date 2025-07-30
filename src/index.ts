@@ -8,7 +8,7 @@ import path from 'path';
 
 const app = new Hono();
 
-// Fonction de nettoyage du cache local en mode cloud
+// Function to clean local cache in cloud mode
 const cleanupLocalCacheIfCloudMode = () => {
   const storage = createStorageClient();
   if (storage) {
@@ -35,7 +35,7 @@ const port = process.env.PORT || 3000;
 
 console.log(`🚀 Server starting on port ${port}`);
 
-// Nettoyer le cache local au démarrage si en mode cloud
+// Clean local cache on startup if in cloud mode
 cleanupLocalCacheIfCloudMode();
 
 serve({

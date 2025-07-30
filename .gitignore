@@ -95,3 +95,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Documentation
+ROADMAP.mdx
