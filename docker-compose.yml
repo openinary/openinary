@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  media-api:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # Optionnel : monter le dossier cache pour la persistance
+      - ./cache:/app/cache
+      # Optionnel : monter le dossier public pour les fichiers statiques
+      - ./public:/app/public
+    environment:
+      - NODE_ENV=production

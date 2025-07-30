@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "baseUrl": "./",
+    "outDir": "dist",
+    "types": ["node"],
+    "lib": ["ES2022"]
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "media-api",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "setup-storage": "node setup-storage.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.855.0",
+    "@aws-sdk/s3-request-presigner": "^3.855.0",
+    "@hono/node-server": "^1.8.0",
+    "dotenv": "^17.2.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "hono": "^4.0.0",
+    "sharp": "^0.33.0"
+  },
+  "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/node": "^24.1.0",
+    "tsx": "^4.7.0"
+  }
+}
