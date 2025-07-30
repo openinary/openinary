@@ -84,6 +84,14 @@ pnpm dev
 # Image resizing
 http://localhost:3000/cdn/resize:640x480/image.png
 
+# Image with crop mode
+http://localhost:3000/cdn/resize:800x600/crop:fit/image.jpg
+http://localhost:3000/cdn/resize:800x600/crop:fill/image.jpg
+http://localhost:3000/cdn/resize:800x600/crop:pad/image.jpg
+
+# Image with crop mode and background color (for pad mode)
+http://localhost:3000/cdn/resize:800x600/crop:pad/background:ff0000/image.jpg
+
 # Image with quality (0-100)
 http://localhost:3000/cdn/resize:800x600/quality:80/image.jpg
 
@@ -94,12 +102,19 @@ http://localhost:3000/cdn/resize:1280x720/video.mp4
 http://localhost:3000/cdn/resize:640x480/quality:50/video.mp4
 
 # Parameter combination
-http://localhost:3000/cdn/resize:800x600/quality:75/image.png
+http://localhost:3000/cdn/resize:800x600/crop:fit/quality:75/image.png
 ```
 
 ### Available Parameters
 
 - **`resize:WIDTHxHEIGHT`**: Resizes the image or video
+- **`crop:MODE`**: Image crop mode (images only)
+  - **`fill`**: Resize to fill the entire area, cropping if necessary (default)
+  - **`fit`**: Resize to fit within the dimensions, maintaining aspect ratio
+  - **`scale`**: Scale to exact dimensions, ignoring aspect ratio
+  - **`crop`**: Resize and crop to exact dimensions, maintaining aspect ratio
+  - **`pad`**: Resize to fit within dimensions and pad with background color
+- **`background:COLOR`**: Background color for pad mode (hex format, e.g., `ffffff` for white)
 - **`quality:VALUE`**: Controls quality (0-100)
   - **Images**: JPEG quality (100 = best quality, larger file)
   - **Videos**: H.264 quality via CRF (100 = best quality, larger file)
