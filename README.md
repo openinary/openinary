@@ -99,14 +99,25 @@ http://localhost:3000/cdn/resize:800x600/crop:pad/background:ff0000/image.jpg
 # Image with quality (0-100)
 http://localhost:3000/cdn/resize:800x600/quality:80/image.jpg
 
+# Image with rotation
+http://localhost:3000/cdn/rotate:45/image.jpg
+http://localhost:3000/cdn/rotate:auto/image.jpg
+
+# Image with rotation and background color
+http://localhost:3000/cdn/rotate:45/background:ff0000/image.jpg
+http://localhost:3000/cdn/resize:400x400/background:ffffff/rotate:45/crop:fill/image.png
+
+# Image with rotation and transparent background (PNG/WebP)
+http://localhost:3000/cdn/rotate:30/background:transparent/image.png
+
 # Video transformation
 http://localhost:3000/cdn/resize:1280x720/video.mp4
 
 # Video with quality (0-100)
 http://localhost:3000/cdn/resize:640x480/quality:50/video.mp4
 
-# Parameter combination with gravity
-http://localhost:3000/cdn/resize:800x600/crop:fit/gravity:face/quality:75/image.png
+# Parameter combination with gravity and rotation
+http://localhost:3000/cdn/resize:800x600/crop:fit/gravity:face/rotate:90/quality:75/image.png
 ```
 
 ### Available Parameters
@@ -126,7 +137,10 @@ http://localhost:3000/cdn/resize:800x600/crop:fit/gravity:face/quality:75/image.
   - **`west`**: Focus on the left side of the image
   - **`face`**: Automatically focus on faces or interesting features
   - **`auto`**: Automatically focus on high-contrast areas
-- **`background:COLOR`**: Background color for pad mode (hex format, e.g., `ffffff` for white)
+- **`background:COLOR`**: Background color for pad mode and rotation (hex format, e.g., `ffffff` for white, or `transparent` for PNG/WebP)
+- **`rotate:ANGLE`**: Image rotation (images only)
+  - **`auto`**: Auto-rotate based on EXIF orientation data
+  - **`45`**, **`90`**, **`180`**, **`270`**: Custom rotation angles in degrees
 - **`quality:VALUE`**: Controls quality (0-100)
   - **Images**: JPEG quality (100 = best quality, larger file)
   - **Videos**: H.264 quality via CRF (100 = best quality, larger file)

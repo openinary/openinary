@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { getCachePath, existsInCache, saveToCache, readFromCache } from '../utils/cache';
 import { parseParams } from '../utils/parser';
-import { transformImage } from '../utils/image';
+import { transformImage } from '../utils/image/index';
 import { transformVideo } from '../utils/video';
 import { createStorageClient } from '../utils/storage';
 import { existsSync } from 'fs';
