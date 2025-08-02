@@ -99,6 +99,14 @@ http://localhost:3000/cdn/resize:800x600/crop:pad/background:ff0000/image.jpg
 # Image with quality (0-100)
 http://localhost:3000/cdn/resize:800x600/quality:80/image.jpg
 
+# Image with specific format
+http://localhost:3000/cdn/format:webp/image.jpg
+http://localhost:3000/cdn/format:avif/image.png
+http://localhost:3000/cdn/format:jpeg/image.png
+
+# Image with format and quality
+http://localhost:3000/cdn/resize:800x600/format:webp/quality:85/image.jpg
+
 # Image with rotation
 http://localhost:3000/cdn/rotate:45/image.jpg
 http://localhost:3000/cdn/rotate:auto/image.jpg
@@ -141,8 +149,14 @@ http://localhost:3000/cdn/resize:800x600/crop:fit/gravity:face/rotate:90/quality
 - **`rotate:ANGLE`**: Image rotation (images only)
   - **`auto`**: Auto-rotate based on EXIF orientation data
   - **`45`**, **`90`**, **`180`**, **`270`**: Custom rotation angles in degrees
+- **`format:FORMAT`**: Output format (images only)
+  - **Default**: AVIF (if browser supports it), otherwise WebP, then JPEG
+  - **`avif`**: Modern format with excellent compression
+  - **`webp`**: Modern format with good compression and wide support
+  - **`jpeg`** or **`jpg`**: Traditional format with universal support
+  - **`png`**: Lossless format, ideal for images with transparency
 - **`quality:VALUE`**: Controls quality (0-100)
-  - **Images**: JPEG quality (100 = best quality, larger file)
+  - **Images**: Quality setting for the output format (100 = best quality, larger file)
   - **Videos**: H.264 quality via CRF (100 = best quality, larger file)
 
 ## Cache Operation

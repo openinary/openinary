@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
-import { getCachePath, existsInCache, saveToCache, readFromCache } from '../utils/cache';
+import { getCachePath, existsInCache, saveToCache, readFromCache, SmartCache } from '../utils/cache';
 import { parseParams } from '../utils/parser';
 import { transformImage } from '../utils/image/index';
 import { transformVideo } from '../utils/video';
 import { createStorageClient } from '../utils/storage';
+import { Compression } from '../utils/image/compression';
 import { existsSync } from 'fs';
 
 const cdn = new Hono();
 const storage = createStorageClient();
+const compression = new Compression();
 
 cdn.get('/*', async (c) => {
   const path = c.req.path;
@@ -92,10 +94,11 @@ cdn.get('/*', async (c) => {
     }
   }
 
-  // 4. Traitement et stockage
+  // 4. Processing and storage
   try {
     let buffer;
     let contentType = '';
+    let optimizationResult;
     
     // Determine file source
     if (storage) {
@@ -119,18 +122,50 @@ cdn.get('/*', async (c) => {
     }
     
     if (ext?.match(/jpe?g|png|webp|avif|gif/)) {
-      buffer = await transformImage(originalPath, params);
-      if (ext?.match(/jpe?g|jpeg/)) {
-        contentType = 'image/jpeg';
-      } else if (ext?.match(/png/)) {
-        contentType = 'image/png';
-      } else if (ext?.match(/webp/)) {
-        contentType = 'image/webp';
-      } else if (ext?.match(/avif/)) {
-        contentType = 'image/avif';
-      } else if (ext?.match(/gif/)) {
-        contentType = 'image/gif';
+      const userAgent = c.req.header('User-Agent');
+      const acceptHeader = c.req.header('Accept');
+      
+      // Basic processing with existing parameters
+      const basicBuffer = await transformImage(originalPath, params);
+      
+      // Temporary save for advanced optimization
+      const fs = await import('fs');
+      const tempOptimPath = originalPath + '.temp';
+      fs.writeFileSync(tempOptimPath, basicBuffer);
+      
+      try {
+        // Advanced optimization
+        optimizationResult = await compression.optimizeForDelivery(
+          tempOptimPath,
+          params,
+          userAgent,
+          acceptHeader
+        );
+        
+        buffer = optimizationResult.buffer;
+        contentType = `image/${optimizationResult.format}`;
+                
+        // Cleanup temporary file
+        fs.unlinkSync(tempOptimPath);
+      } catch (error) {
+        console.warn('Advanced compression failed, using basic:', error);
+        buffer = basicBuffer;
+        if (ext?.match(/jpe?g|jpeg/)) {
+          contentType = 'image/jpeg';
+        } else if (ext?.match(/png/)) {
+          contentType = 'image/png';
+        } else if (ext?.match(/webp/)) {
+          contentType = 'image/webp';
+        } else if (ext?.match(/avif/)) {
+          contentType = 'image/avif';
+        } else if (ext?.match(/gif/)) {
+          contentType = 'image/gif';
+        }
+        
+        // Cleanup in case of error
+        try { fs.unlinkSync(tempOptimPath); } catch {}
       }
+      
     } else if (ext?.match(/mp4|mov|webm/)) {
       buffer = await transformVideo(originalPath, params);
       if (ext?.match(/mp4/)) {
@@ -156,28 +191,55 @@ cdn.get('/*', async (c) => {
       }
     }
 
-    // Save to local cache (temporary in cloud mode)
-    await saveToCache(cachePath, buffer);
+    const fileSize = buffer.length;
+    await SmartCache.trackRequest(filePath, fileSize);
+    const shouldKeepLocal = await SmartCache.shouldKeepLocal(filePath, fileSize);
+    
+    // Save to local cache (conditionally)
+    if (shouldKeepLocal) {
+      await saveToCache(cachePath, buffer);
+      console.log(`💾 Keeping in local cache: ${filePath}`);
+    } else {
+      console.log(`🗑️ Skipping local cache: ${filePath}`);
+    }
 
     // Save to cloud cache (if configured)
     if (storage) {
       try {
-        const cloudUrl = await storage.upload(filePath, params, buffer, contentType);        
-        // In cloud mode, immediately delete local cache after upload
-        try {
-          const fs = await import('fs');
-          if (fs.existsSync(cachePath)) {
-            fs.unlinkSync(cachePath);
+        const cloudUrl = await storage.upload(filePath, params, buffer, contentType);
+        
+        if (!shouldKeepLocal) {
+          try {
+            const fs = await import('fs');
+            if (fs.existsSync(cachePath)) {
+              fs.unlinkSync(cachePath);
+              console.log(`🧹 Removed from local cache: ${filePath}`);
+            }
+          } catch (error) {
+            console.warn('Failed to cleanup local cache:', error);
           }
-        } catch (error) {
-          console.warn('Failed to cleanup local cache:', error);
         }
       } catch (error) {
         console.warn('Failed to upload to cloud cache:', error);
       }
     }
 
+    if (Math.random() < 0.01) { // 1% chance of cache cleanup
+      if (await SmartCache.shouldCleanupCache()) {
+        console.log('🧹 Starting cache cleanup...');
+        await SmartCache.performCleanup();
+      }
+    }
+
     setContentType(ext || '');
+    
+    if (optimizationResult) {
+      c.header('X-Original-Size', optimizationResult.originalSize.toString());
+      c.header('X-Optimized-Size', optimizationResult.optimizedSize.toString());
+      c.header('X-Compression-Ratio', optimizationResult.compressionRatio.toFixed(2));
+      c.header('X-Savings-Percent', optimizationResult.savings.toFixed(1));
+    }
+    
     return c.body(buffer);
   } catch (error) {
     console.error('Processing error:', error);

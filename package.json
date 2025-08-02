@@ -4,8 +4,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "setup-storage": "node setup-storage.js"
+    "dev": "tsx src/server.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.855.0",
