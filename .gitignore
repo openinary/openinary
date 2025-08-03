@@ -71,6 +71,7 @@ dist
 .storybook-out
 
 # Temporary folders
+cache
 tmp/
 temp/
 
