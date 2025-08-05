@@ -1,23 +1,35 @@
 {
-  "name": "media-api",
+  "name": "openinary-monorepo",
   "version": "1.0.0",
-  "type": "module",
-  "main": "src/index.ts",
+  "description": "Openinary Media API Monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "tsx src/server.ts"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.855.0",
-    "@aws-sdk/s3-request-presigner": "^3.855.0",
-    "@hono/node-server": "^1.8.0",
-    "dotenv": "^17.2.1",
-    "fluent-ffmpeg": "^2.1.2",
-    "hono": "^4.0.0",
-    "sharp": "^0.33.0"
+    "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --filter shared build && pnpm --filter api build && pnpm --filter web build",
+    "build:api": "pnpm --filter api build",
+    "build:web": "pnpm --filter web build",
+    "start": "concurrently \"pnpm --filter api start\" \"pnpm --filter web start\"",
+    "start:api": "pnpm --filter api start",
+    "start:web": "pnpm --filter web start",
+    "test": "pnpm --filter api test && pnpm --filter web test",
+    "lint": "pnpm --filter api lint && pnpm --filter web lint",
+    "clean": "pnpm --filter api clean && pnpm --filter web clean",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down"
   },
   "devDependencies": {
-    "@types/fluent-ffmpeg": "^2.1.27",
-    "@types/node": "^24.1.0",
-    "tsx": "^4.7.0"
-  }
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.6"
 }

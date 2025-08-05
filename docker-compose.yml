@@ -1,16 +1,38 @@
 version: '3.8'
 
 services:
-  media-api:
-    build: .
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
     ports:
       - "3000:3000"
     env_file:
-      - .env
+      - apps/api/.env
     volumes:
       # Optionnel : monter le dossier cache pour la persistance
-      - ./cache:/app/cache
+      - ./apps/api/cache:/app/apps/api/cache
       # Optionnel : monter le dossier public pour les fichiers statiques
-      - ./public:/app/public
+      - ./apps/api/public:/app/apps/api/public
     environment:
       - NODE_ENV=production
+    networks:
+      - openinary-network
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - API_BASE_URL=http://api:3000
+    depends_on:
+      - api
+    networks:
+      - openinary-network
+
+networks:
+  openinary-network:
+    driver: bridge
