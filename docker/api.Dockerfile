@@ -1,7 +1,7 @@
-FROM node:20-alpine
+FROM node:20
 
 # Installer ffmpeg pour le traitement vidéo
-RUN apk add --no-cache ffmpeg
+RUN apt update && apt install -y ffmpeg
 
 # Installer pnpm globalement
 RUN npm install -g pnpm

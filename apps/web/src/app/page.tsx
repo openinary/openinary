@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { CDN_BASE_URL, formatFileSize, isImageFile, isVideoFile } from 'shared';
 
 export default function Home() {
@@ -44,7 +45,7 @@ export default function Home() {
             🎨 Openinary
           </h1>
           <p className="text-xl text-gray-600">
-            Plateforme de transformation d'images et vidéos
+            Plateforme de transformation d&apos;images et vidéos
           </p>
           <p className="text-sm text-gray-500 mt-2">
             Monorepo avec API (port 3000) et Frontend (port 3001)
@@ -111,11 +112,13 @@ export default function Home() {
                   
                   {selectedFile && isImageFile(selectedFile.name) && (
                     <div className="border rounded-lg overflow-hidden">
-                      <img
+                      <Image
                         src={transformedUrl}
                         alt="Transformed"
+                        width={400}
+                        height={300}
                         className="w-full h-auto"
-                        onError={() => console.log('Erreur de chargement de l\'image')}
+                        onError={() => console.log("Erreur de chargement de l\\'image")}
                       />
                     </div>
                   )}
