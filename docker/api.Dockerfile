@@ -1,27 +1,33 @@
-FROM node:20
+FROM node:20-alpine
 
 # Installer ffmpeg pour le traitement vidéo
-RUN apt update && apt install -y ffmpeg
+RUN apk add --no-cache ffmpeg
 
 # Installer pnpm globalement
 RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copier les fichiers de dépendances d'abord pour optimiser le cache Docker
-COPY package.json pnpm-lock.yaml ./
+# Copier les fichiers de configuration du monorepo
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Installer les dépendances
-RUN pnpm install
+# Copier les packages partagés
+COPY packages/ ./packages/
 
-# Copier le reste du code source
-COPY . .
+# Copier l'API
+COPY apps/api/ ./apps/api/
 
-# Créer le dossier cache s'il n'existe pas
-RUN mkdir -p cache
+# Installer toutes les dépendances du monorepo
+RUN pnpm install --frozen-lockfile
 
-# Exposer le port (optionnel mais bonne pratique)
+# Créer les dossiers nécessaires
+RUN mkdir -p apps/api/cache apps/api/public
+
+# Changer vers le répertoire de l'API
+WORKDIR /app/apps/api
+
+# Exposer le port
 EXPOSE 3000
 
-# Commande par défaut
-CMD ["pnpm", "dev"]
+# Commande par défaut pour la production
+CMD ["pnpm", "start"]
