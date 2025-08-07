@@ -1,4 +1,4 @@
-import { StorageConfig } from './types';
+import { StorageConfig } from 'shared';
 import { CloudStorage } from './cloud-storage';
 
 /**

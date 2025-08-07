@@ -1,16 +1,10 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
+import { CacheStats } from 'shared';
 
 // Cache directory
 const CACHE_DIR = './cache';
-
-// Smart cache statistics
-interface CacheStats {
-  requests: Map<string, { count: number; lastAccess: number; totalSize: number }>;
-  totalCacheSize: number;
-  maxCacheSize: number;
-}
 
 export class SmartCache {
   private static stats: CacheStats = {

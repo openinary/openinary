@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { CropMode, GravityMode } from './types';
+import { CropMode, GravityMode } from 'shared';
 import { getSharpPosition } from './gravity';
 import { parseBackgroundColor } from './background';
 

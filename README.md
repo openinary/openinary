@@ -35,19 +35,19 @@ pnpm dev
 
 ```bash
 # Simple resizing
-http://localhost:3000/cdn/resize:800x600/image.jpg
+http://localhost:3000/t/resize:800x600/image.jpg
 
 # With cropping and quality
-http://localhost:3000/cdn/resize:400x400/crop:fill/quality:85/image.png
+http://localhost:3000/t/resize:400x400/crop:fill/quality:85/image.png
 
 # Optimized modern format
-http://localhost:3000/cdn/resize:1200x800/format:webp/quality:90/photo.jpg
+http://localhost:3000/t/resize:1200x800/format:webp/quality:90/photo.jpg
 
 # Change ratio with automatic focus on face
-http://localhost:3000/cdn/ratio:1:1/gravity:face/portrait.jpg
+http://localhost:3000/t/ratio:1:1/gravity:face/portrait.jpg
 
 # Compressed video
-http://localhost:3000/cdn/resize:1280x720/quality:75/video.mp4
+http://localhost:3000/t/resize:1280x720/quality:75/video.mp4
 ```
 
 ## 🛠️ Local Development

@@ -14,7 +14,8 @@
     "dotenv": "^17.2.1",
     "fluent-ffmpeg": "^2.1.2",
     "hono": "^4.0.0",
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.0",
+    "shared": "workspace:*"
   },
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.27",

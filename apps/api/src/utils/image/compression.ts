@@ -1,22 +1,5 @@
 import sharp from 'sharp';
-import { TransformParams, ImageFormat } from './types';
-
-interface ImageAnalysis {
-  hasText: boolean;
-  hasSharpEdges: boolean;
-  isPhotographic: boolean;
-  dominantColors: number;
-  complexity: number;
-}
-
-interface OptimizationResult {
-  buffer: Buffer;
-  format: string;
-  originalSize: number;
-  optimizedSize: number;
-  savings: number;
-  compressionRatio: number;
-}
+import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
 
 export class Compression {
   private static readonly FORMAT_PRIORITIES = {

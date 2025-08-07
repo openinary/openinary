@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { TransformParams } from './types';
+import { TransformParams } from 'shared';
 import { applyAspectRatio } from './aspect-ratio';
 import { applyResize } from './resize';
 import { applyRotation } from './rotation';

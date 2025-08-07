@@ -1,4 +1,4 @@
-import { BackgroundColor } from './types';
+import { BackgroundColor } from 'shared';
 
 /**
  * Parse background color from hex format or "transparent" keyword

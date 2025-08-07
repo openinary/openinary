@@ -1,48 +1,70 @@
-// Types partagés entre l'API et le frontend
+export type CropMode = "fill" | "fit" | "scale" | "crop" | "pad";
+export type GravityMode =
+  | "center"
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "face"
+  | "auto";
+export type ImageFormat = "avif" | "webp" | "jpeg" | "jpg" | "png";
 
-export interface ImageTransformParams {
-  width?: number;
-  height?: number;
-  quality?: number;
-  format?: 'jpeg' | 'png' | 'webp' | 'avif';
-  fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
+export interface BackgroundColor {
+  r: number;
+  g: number;
+  b: number;
+  alpha: number;
 }
 
-export interface VideoTransformParams {
-  width?: number;
-  height?: number;
-  quality?: number;
-  format?: 'mp4' | 'webm';
-  duration?: number;
-  startTime?: number;
+export interface TransformParams {
+  aspect?: string;
+  resize?: string;
+  crop?: CropMode;
+  gravity?: GravityMode;
+  rotate?: string | number;
+  background?: string;
+  quality?: string | number;
+  format?: ImageFormat;
 }
 
-export interface MediaFile {
-  id: string;
-  name: string;
-  path: string;
-  type: 'image' | 'video';
-  size: number;
-  mimeType: string;
-  createdAt: Date;
-  updatedAt: Date;
+export interface StorageConfig {
+  provider: "aws" | "cloudflare";
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketName: string;
+  endpoint?: string; // For Cloudflare R2
+  publicUrl?: string; // Public URL of the bucket
 }
 
-export interface TransformRequest {
-  filePath: string;
-  params: ImageTransformParams | VideoTransformParams;
+export interface CacheEntry {
+  exists: boolean;
+  timestamp: number;
+  etag?: string;
 }
 
-export interface TransformResponse {
-  success: boolean;
-  url?: string;
-  error?: string;
-  processedAt: Date;
+export interface CacheStats {
+  requests: Map<
+    string,
+    { count: number; lastAccess: number; totalSize: number }
+  >;
+  totalCacheSize: number;
+  maxCacheSize: number;
 }
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  timestamp: Date;
+export interface ImageAnalysis {
+  hasText: boolean;
+  hasSharpEdges: boolean;
+  isPhotographic: boolean;
+  dominantColors: number;
+  complexity: number;
+}
+
+export interface OptimizationResult {
+  buffer: Buffer;
+  format: string;
+  originalSize: number;
+  optimizedSize: number;
+  savings: number;
+  compressionRatio: number;
 }

@@ -1,4 +1,4 @@
-import { StorageConfig } from './types';
+import { StorageConfig } from 'shared';
 import { StorageCache } from './cache';
 import { KeyGenerator } from './key-generator';
 import { S3ClientWrapper } from './s3-client';
