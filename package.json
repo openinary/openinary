@@ -8,24 +8,26 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
+    "dev": "turbo run dev",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
-    "build": "pnpm --filter shared build && pnpm --filter api build && pnpm --filter web build",
+    "build": "turbo run build",
     "build:api": "pnpm --filter api build",
     "build:web": "pnpm --filter web build",
     "start": "concurrently \"pnpm --filter api start\" \"pnpm --filter web start\"",
     "start:api": "pnpm --filter api start",
     "start:web": "pnpm --filter web start",
-    "test": "pnpm --filter api test && pnpm --filter web test",
-    "lint": "pnpm --filter api lint && pnpm --filter web lint",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
     "clean": "pnpm --filter api clean && pnpm --filter web clean",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "turbo": "^2.5.5"
   },
   "engines": {
     "node": ">=18.0.0",

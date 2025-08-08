@@ -97,5 +97,9 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 
+# Turborepo
+.turbo
+
 # Documentation
 docs*
+.vercel

@@ -9,7 +9,7 @@ import {
 import { parseParams } from "../utils/parser";
 import { transformImage } from "../utils/image/index";
 import { transformVideo } from "../utils/video";
-import { createStorageClient } from "../utils/storage";
+import { createStorageClient } from "../utils/storage/index";
 import { Compression } from "../utils/image/compression";
 import { existsSync } from "fs";
 

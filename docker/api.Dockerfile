@@ -26,6 +26,9 @@ RUN mkdir -p apps/api/cache apps/api/public
 # Changer vers le répertoire de l'API
 WORKDIR /app/apps/api
 
+# Compiler l'API
+RUN pnpm build
+
 # Exposer le port
 EXPOSE 3000
 
