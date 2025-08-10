@@ -14,7 +14,7 @@
     "build": "turbo run build",
     "build:api": "pnpm --filter api build",
     "build:web": "pnpm --filter web build",
-    "start": "concurrently \"pnpm --filter api start\" \"pnpm --filter web start\"",
+    "start": "turbo run start",
     "start:api": "pnpm --filter api start",
     "start:web": "pnpm --filter web start",
     "test": "turbo run test",
@@ -26,7 +26,6 @@
     "docker:down": "docker-compose down"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
     "turbo": "^2.5.5"
   },
   "engines": {

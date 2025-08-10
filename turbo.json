@@ -22,6 +22,11 @@
     "test": {
       "outputs": ["coverage/**"],
       "inputs": ["src/**", "test/**", "*.config.js"]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
     }
   },
   "globalDependencies": [
