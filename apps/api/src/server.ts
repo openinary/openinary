@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import app from "./index";
-import { createStorageClient } from "./utils/storage";
+import { createStorageClient } from "./utils/storage/index";
 import fs from "fs";
 import path from "path";
 
