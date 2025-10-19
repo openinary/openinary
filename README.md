@@ -16,7 +16,7 @@ Transform your media on-the-fly with a simple and powerful API. Resizing, optimi
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/openinary/openinary.git
 cd openinary
 
 # Install all dependencies (apps + packages)
@@ -115,12 +115,6 @@ STORAGE_SECRET_ACCESS_KEY=your_aws_secret_key
 STORAGE_BUCKET_NAME=your-bucket-name
 STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
 ```
-
-## 🌐 Deployment
-
-To deploy on Render.com or other platforms, check the detailed guide:
-
-📖 **[Complete deployment guide](doc-link)**
 
 ## 📁 Project Structure
 
