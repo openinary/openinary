@@ -1,18 +1,18 @@
-# 🎨 Openinary
+# Openinary
 
 **Modern image and video processing server with cloud storage**
 
 Transform your media on-the-fly with a simple and powerful API. Resizing, optimized formats, smart caching, and cloud storage (AWS S3 / Cloudflare R2).
 
-## ✨ Features
+## Features
 
-- 🖼️ **Images**: Resizing, cropping, rotation, modern formats (AVIF, WebP)
-- 🎥 **Videos**: Transformation, compression, resizing
-- ☁️ **Cloud Storage**: AWS S3 and Cloudflare R2 support
-- ⚡ **Smart caching**: Local + cloud for optimal performance
-- 🏗️ **Monorepo**: API + Next.js Frontend in unified workspace
+- **Images**: Resizing, cropping, rotation, modern formats (AVIF, WebP)
+- **Videos**: Transformation, compression, resizing
+- **Cloud Storage**: AWS S3 and Cloudflare R2 support
+- **Smart caching**: Local + cloud for optimal performance
+- **Monorepo**: API + Next.js Frontend in unified workspace
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone the repository
@@ -31,7 +31,7 @@ pnpm dev
 - API: http://localhost:3000
 - Frontend: http://localhost:3001
 
-## 📸 Usage Examples
+# Usage Examples
 
 ```bash
 # Simple resizing
@@ -50,7 +50,7 @@ http://localhost:3000/t/ratio:1:1/gravity:face/portrait.jpg
 http://localhost:3000/t/resize:1280x720/quality:75/video.mp4
 ```
 
-## 🛠️ Local Development
+## Local Development
 
 ```bash
 # Start everything
@@ -67,7 +67,7 @@ pnpm build
 pnpm lint
 ```
 
-## 🐳 Docker
+## Docker
 
 ```bash
 # Start with Docker
@@ -77,13 +77,13 @@ docker compose up --build
 docker compose up -d --build
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Local Mode (default)
 
 Place your files in `apps/api/public/`
 
-⚠️ **Production Warning**: Local mode is **NOT recommended for production** as files in the `public/` folder will be overwritten on each deployment/build. For production environments, always use cloud storage (S3 or R2).
+**Production Warning**: Local mode is **NOT recommended for production** as files in the `public/` folder will be overwritten on each deployment/build. For production environments, always use cloud storage (S3 or R2).
 
 ### Cloud Mode
 
@@ -116,7 +116,7 @@ STORAGE_BUCKET_NAME=your-bucket-name
 STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 openinary/

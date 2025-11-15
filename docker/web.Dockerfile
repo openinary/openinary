@@ -1,32 +1,32 @@
 FROM node:20-alpine
 
-# Installer pnpm globalement
+# Install pnpm globally
 RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copier les fichiers de configuration workspace
+# Copy workspace configuration files
 COPY pnpm-workspace.yaml ./
 COPY package.json ./
 
-# Copier les packages partagés
+# Copy shared packages
 COPY packages/ ./packages/
 
-# Copier les fichiers de dépendances du frontend
+# Copy frontend dependency files
 COPY apps/web/package.json ./apps/web/
 
-# Installer les dépendances
+# Install dependencies
 RUN pnpm install
 
-# Copier le code source du frontend
+# Copy frontend source code
 COPY apps/web/ ./apps/web/
 
-# Build de l'application
+# Build application
 WORKDIR /app/apps/web
 RUN pnpm build
 
-# Exposer le port
+# Expose port
 EXPOSE 3001
 
-# Commande par défaut
+# Default command
 CMD ["pnpm", "start"]

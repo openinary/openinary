@@ -1,2 +1,2 @@
-// Export des types et utilitaires partagés
+// Export shared types and utilities
 export * from "./types";

@@ -10,9 +10,9 @@ services:
     env_file:
       - apps/api/.env
     volumes:
-      # Optionnel : monter le dossier cache pour la persistance
+      # Optional: mount cache folder for persistence
       - ./apps/api/cache:/app/apps/api/cache
-      # Optionnel : monter le dossier public pour les fichiers statiques
+      # Optional: mount public folder for static files
       - ./apps/api/public:/app/apps/api/public
     environment:
       - NODE_ENV=production

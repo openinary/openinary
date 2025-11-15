@@ -6,13 +6,13 @@ const path = require('path');
 function addJsExtensionsInFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   
-  // Regex pour trouver les imports/exports relatifs sans extension
+  // Regex to find relative imports/exports without extension
   const importRegex = /(import\s+.*?\s+from\s+['"])(\.[^'"]*?)(?<!\.js)(['"])/g;
   const exportRegex = /(export\s+.*?\s+from\s+['"])(\.[^'"]*?)(?<!\.js)(['"])/g;
   
   let hasChanges = false;
   let newContent = content.replace(importRegex, (match, prefix, importPath, suffix) => {
-    // Vérifier si le fichier existe avec extension .js
+    // Check if the file exists with .js extension
     const fullPath = path.resolve(path.dirname(filePath), importPath + '.js');
     if (fs.existsSync(fullPath)) {
       hasChanges = true;
@@ -22,7 +22,7 @@ function addJsExtensionsInFile(filePath) {
   });
   
   newContent = newContent.replace(exportRegex, (match, prefix, exportPath, suffix) => {
-    // Vérifier si le fichier existe avec extension .js
+    // Check if the file exists with .js extension
     const fullPath = path.resolve(path.dirname(filePath), exportPath + '.js');
     if (fs.existsSync(fullPath)) {
       hasChanges = true;
@@ -52,7 +52,7 @@ function walkDirectory(dir) {
   }
 }
 
-// Ajouter les extensions dans le dossier dist
+// Add extensions in the dist folder
 const distPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distPath)) {
   console.log('🔧 Adding .js extensions to compiled files...');

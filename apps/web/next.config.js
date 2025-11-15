@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    // Désactiver ESLint pendant la construction pour Docker
+    // Disable ESLint during build for Docker
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Désactiver les erreurs TypeScript pendant la construction pour Docker
+    // Disable TypeScript errors during build for Docker
     ignoreBuildErrors: true,
   },
 }

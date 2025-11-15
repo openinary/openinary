@@ -1,68 +1,68 @@
 # Image Processing Module
 
-Ce module a été refactorisé pour améliorer la maintenabilité du code en divisant les fonctionnalités en sous-modules spécialisés.
+This module has been refactored to improve code maintainability by dividing functionality into specialized sub-modules.
 
 ## Structure
 
 ```
 src/utils/image/
-├── index.ts           # Point d'entrée principal et orchestration
-├── types.ts           # Types et interfaces TypeScript
-├── gravity.ts         # Gestion du positionnement et de la gravité
-├── background.ts      # Gestion des couleurs de fond
-├── aspect-ratio.ts    # Transformation du ratio d'aspect
-├── resize.ts          # Redimensionnement et modes de crop
-├── rotation.ts        # Rotation des images
-└── quality.ts         # Gestion de la qualité
+├── index.ts           # Main entry point and orchestration
+├── types.ts           # TypeScript types and interfaces
+├── gravity.ts         # Position and gravity management
+├── background.ts      # Background color management
+├── aspect-ratio.ts    # Aspect ratio transformation
+├── resize.ts          # Resizing and crop modes
+├── rotation.ts        # Image rotation
+└── quality.ts         # Quality management
 ```
 
 ## Modules
 
 ### `types.ts`
-Définit tous les types TypeScript utilisés dans le module :
-- `CropMode` : Modes de recadrage ('fill', 'fit', 'scale', 'crop', 'pad')
-- `GravityMode` : Modes de positionnement ('center', 'north', 'south', etc.)
-- `BackgroundColor` : Interface pour les couleurs de fond
-- `TransformParams` : Interface pour les paramètres de transformation
+Defines all TypeScript types used in the module:
+- `CropMode`: Crop modes ('fill', 'fit', 'scale', 'crop', 'pad')
+- `GravityMode`: Positioning modes ('center', 'north', 'south', etc.)
+- `BackgroundColor`: Interface for background colors
+- `TransformParams`: Interface for transformation parameters
 
 ### `gravity.ts`
-Gère la conversion des modes de gravité vers les positions Sharp :
-- `getSharpPosition()` : Convertit les modes de gravité en positions Sharp
+Handles conversion of gravity modes to Sharp positions:
+- `getSharpPosition()`: Converts gravity modes to Sharp positions
 
 ### `background.ts`
-Gère l'analyse et la conversion des couleurs de fond :
-- `parseBackgroundColor()` : Parse les couleurs hex et le mot-clé "transparent"
+Handles analysis and conversion of background colors:
+- `parseBackgroundColor()`: Parses hex colors and the "transparent" keyword
 
 ### `aspect-ratio.ts`
-Gère les transformations de ratio d'aspect :
-- `applyAspectRatio()` : Applique une transformation de ratio d'aspect
+Handles aspect ratio transformations:
+- `applyAspectRatio()`: Applies an aspect ratio transformation
 
 ### `resize.ts`
-Gère le redimensionnement avec différents modes :
-- `applyResize()` : Applique le redimensionnement selon le mode spécifié
+Handles resizing with different modes:
+- `applyResize()`: Applies resizing according to the specified mode
 
 ### `rotation.ts`
-Gère la rotation des images :
-- `applyRotation()` : Applique la rotation (angle ou auto)
+Handles image rotation:
+- `applyRotation()`: Applies rotation (angle or auto)
 
 ### `quality.ts`
-Gère les paramètres de qualité :
-- `applyQuality()` : Applique les paramètres de qualité JPEG
+Handles quality parameters:
+- `applyQuality()`: Applies JPEG quality parameters
 
 ### `index.ts`
-Point d'entrée principal qui :
-- Orchestre toutes les transformations
-- Maintient la compatibilité avec l'API existante
-- Réexporte tous les types pour la compatibilité
+Main entry point that:
+- Orchestrates all transformations
+- Maintains compatibility with the existing API
+- Re-exports all types for compatibility
 
-## Compatibilité
+## Compatibility
 
-Le fichier `image.ts` original réexporte maintenant toutes les fonctionnalités du nouveau module modulaire, garantissant une compatibilité totale avec le code existant.
+The original `image.ts` file now re-exports all functionality from the new modular module, ensuring full compatibility with existing code.
 
-## Avantages
+## Benefits
 
-1. **Maintenabilité** : Chaque fonctionnalité est isolée dans son propre fichier
-2. **Testabilité** : Chaque module peut être testé indépendamment
-3. **Réutilisabilité** : Les modules peuvent être importés individuellement
-4. **Lisibilité** : Le code est plus facile à comprendre et à naviguer
-5. **Extensibilité** : Nouvelles fonctionnalités peuvent être ajoutées facilement
+1. **Maintainability**: Each functionality is isolated in its own file
+2. **Testability**: Each module can be tested independently
+3. **Reusability**: Modules can be imported individually
+4. **Readability**: Code is easier to understand and navigate
+5. **Extensibility**: New features can be added easily
