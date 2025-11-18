@@ -3,8 +3,8 @@ FROM node:20
 # Install ffmpeg for video processing
 RUN apt update && apt install -y ffmpeg
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Enable Corepack to use the pnpm version specified in package.json
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
 
