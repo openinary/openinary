@@ -55,7 +55,7 @@ t.get("/*", async (c) => {
   if (storage) {
     try {
       if (await storage.exists(filePath, params)) {
-        console.log(`📦 Serving from cloud cache: ${filePath}`);
+        console.log(`Serving from cloud cache: ${filePath}`);
         const buffer = await storage.download(filePath, params);
         setContentType(ext || "");
         return c.body(buffer);
@@ -67,7 +67,7 @@ t.get("/*", async (c) => {
 
   // 2. Check local cache
   if (await existsInCache(cachePath)) {
-    console.log(`💾 Serving from local cache: ${filePath}`);
+    console.log(`Serving from local cache: ${filePath}`);
     const cachedBuffer = await readFromCache(cachePath);
     setContentType(ext || "");
     return c.body(cachedBuffer);
@@ -87,7 +87,7 @@ t.get("/*", async (c) => {
     }
 
     if (!fileExistsInCloud) {
-      console.error(`❌ File not found in cloud storage: ${filePath}`);
+      console.error(`File not found in cloud storage: ${filePath}`);
       return c.text(
         `File not found: ${filePath}. Make sure the file exists in your cloud storage bucket.`,
         404
@@ -98,7 +98,7 @@ t.get("/*", async (c) => {
     fileExistsLocally = existsSync(originalPath);
 
     if (!fileExistsLocally) {
-      console.error(`❌ File not found locally: ${filePath}`);
+      console.error(`File not found locally: ${filePath}`);
       return c.text(
         `File not found: ${filePath}. Make sure the file exists in the public folder or configure cloud storage.`,
         404
@@ -115,7 +115,7 @@ t.get("/*", async (c) => {
     // Determine file source
     if (storage) {
       // Cloud provider configured: use EXCLUSIVELY the cloud
-      console.log(`☁️ Processing from cloud file: ${filePath}`);
+      console.log(`Processing from cloud file: ${filePath}`);
       const sourceBuffer = await storage.downloadOriginal(filePath);
 
       // Temporarily save the file locally for processing
@@ -130,7 +130,7 @@ t.get("/*", async (c) => {
       originalPath = tempPath;
     } else {
       // No cloud provider: use local files
-      console.log(`📁 Processing from local file: ${originalPath}`);
+      console.log(`Processing from local file: ${originalPath}`);
     }
 
     if (ext?.match(/jpe?g|png|webp|avif|gif/)) {
@@ -214,9 +214,9 @@ t.get("/*", async (c) => {
     // Save to local cache (conditionally)
     if (shouldKeepLocal) {
       await saveToCache(cachePath, buffer);
-      console.log(`💾 Keeping in local cache: ${filePath}`);
+      console.log(`Keeping in local cache: ${filePath}`);
     } else {
-      console.log(`🗑️ Skipping local cache: ${filePath}`);
+      console.log(`Skipping local cache: ${filePath}`);
     }
 
     // Save to cloud cache (if configured)
@@ -234,7 +234,7 @@ t.get("/*", async (c) => {
             const fs = await import("fs");
             if (fs.existsSync(cachePath)) {
               fs.unlinkSync(cachePath);
-              console.log(`🧹 Removed from local cache: ${filePath}`);
+              console.log(`Removed from local cache: ${filePath}`);
             }
           } catch (error) {
             console.warn("Failed to cleanup local cache:", error);
@@ -248,7 +248,7 @@ t.get("/*", async (c) => {
     if (Math.random() < 0.01) {
       // 1% chance of cache cleanup
       if (await SmartCache.shouldCleanupCache()) {
-        console.log("🧹 Starting cache cleanup...");
+        console.log("Starting cache cleanup...");
         await SmartCache.performCleanup();
       }
     }

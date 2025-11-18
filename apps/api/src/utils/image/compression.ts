@@ -22,11 +22,11 @@ export class Compression {
     const originalBuffer = await sharp(inputPath).toBuffer();
     const originalSize = originalBuffer.length;
     
-    // 🧠 CONTENT ANALYSIS
+    // CONTENT ANALYSIS
     const analysis = await this.analyzeImage(inputPath);
     const metadata = await sharp(inputPath).metadata();
     
-    // 🎯 OPTIMAL FORMAT DETERMINATION
+    // OPTIMAL FORMAT DETERMINATION
     const optimalFormat = this.determineOptimalFormat(
       analysis, 
       originalSize, 
@@ -35,7 +35,7 @@ export class Compression {
       params.format
     );
     
-    // 📐 OPTIMAL QUALITY CALCULATION
+    // OPTIMAL QUALITY CALCULATION
     const optimalQuality = this.calculateOptimalQuality(
       analysis, 
       originalSize, 
@@ -44,7 +44,7 @@ export class Compression {
         
     let pipeline = sharp(inputPath);
     
-    // 🚀 PRELIMINARY OPTIMIZATIONS
+    // PRELIMINARY OPTIMIZATIONS
     
     // Resolution reduction only for extremely large files (increased threshold)
     if (originalSize > 5 * 1024 * 1024) { // > 5MB
@@ -60,7 +60,7 @@ export class Compression {
     // Remove metadata to save space
     pipeline = pipeline.withMetadata();
     
-    // 🎨 FORMAT AND COMPRESSION APPLICATION
+    // FORMAT AND COMPRESSION APPLICATION
     switch (optimalFormat) {
       case 'avif':
         pipeline = pipeline.avif({
@@ -160,7 +160,7 @@ export class Compression {
     const supportsAVIF = this.supportsFormat('avif', userAgent, acceptHeader);
     const supportsWebP = this.supportsFormat('webp', userAgent, acceptHeader);
     
-    // 🚀 NEW DEFAULT: Prefer AVIF by default if supported
+    // NEW DEFAULT: Prefer AVIF by default if supported
     if (supportsAVIF) {
       return 'avif';
     }

@@ -42,7 +42,7 @@ export class SmartCache {
   }
 
   static async performCleanup(): Promise<void> {
-    console.log('🧹 Performing cache cleanup...');
+    console.log('Performing cache cleanup...');
     
     // Get all cache entries sorted by last access time
     const entries = Array.from(this.stats.requests.entries())
@@ -67,7 +67,7 @@ export class SmartCache {
       }
     }
     
-    console.log(`🧹 Cache cleanup completed. Removed ${toRemove.length} entries.`);
+    console.log(`Cache cleanup completed. Removed ${toRemove.length} entries.`);
   }
 }
 
@@ -112,7 +112,7 @@ export async function saveToCache(cachePath: string, buffer: Buffer): Promise<vo
     // Update cache size tracking
     SmartCache['stats'].totalCacheSize += buffer.length;
     
-    console.log(`💾 Saved to cache: ${cachePath} (${buffer.length} bytes)`);
+    console.log(`Saved to cache: ${cachePath} (${buffer.length} bytes)`);
   } catch (error) {
     console.warn(`Failed to save to cache ${cachePath}:`, error);
   }
@@ -137,7 +137,7 @@ export async function initializeCache(): Promise<void> {
   try {
     if (!existsSync(CACHE_DIR)) {
       await fs.mkdir(CACHE_DIR, { recursive: true });
-      console.log(`📁 Created cache directory: ${CACHE_DIR}`);
+      console.log(`Created cache directory: ${CACHE_DIR}`);
     }
   } catch (error) {
     console.warn('Failed to initialize cache directory:', error);

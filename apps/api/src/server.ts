@@ -32,7 +32,7 @@ const dirs = ["./cache", "./temp"];
 dirs.forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    console.log(`📁 Created directory: ${dir}`);
+    console.log(`Created directory: ${dir}`);
   }
 });
 
@@ -40,4 +40,4 @@ serve({
   fetch: app.fetch,
 });
 
-console.log(`✅ Server running at http://localhost:3000`);
+console.log(`Server running at http://localhost:3000`);

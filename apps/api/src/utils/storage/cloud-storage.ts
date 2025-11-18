@@ -20,14 +20,14 @@ export class CloudStorage {
     const cacheKey = `exists:${key}`;
     const cached = this.cache.get(cacheKey);
     
-    // 🚀 OPTIMIZATION: Cache hit = 0 Class B operation
+    // OPTIMIZATION: Cache hit = 0 Class B operation
     if (cached) {
-      console.log(`💾 Cache hit for exists check: ${key}`);
+      console.log(`Cache hit for exists check: ${key}`);
       return cached.exists;
     }
     
     // Only if not in cache
-    console.log(`☁️ Checking R2 for: ${key}`);
+    console.log(`Checking R2 for: ${key}`);
     const exists = await this.s3Client.objectExists(key);
     
     this.cache.set(cacheKey, {
@@ -46,11 +46,11 @@ export class CloudStorage {
     const cached = this.cache.get(cacheKey);
     
     if (cached) {
-      console.log(`💾 Cache hit for original exists check: ${originalPath}`);
+      console.log(`Cache hit for original exists check: ${originalPath}`);
       return cached.exists;
     }
     
-    console.log(`☁️ Checking R2 for original: ${originalPath}`);
+    console.log(`Checking R2 for original: ${originalPath}`);
     try {
       const exists = await this.s3Client.objectExists(originalPath);
       
@@ -61,9 +61,9 @@ export class CloudStorage {
       
       return exists;
     } catch (error: any) {
-      console.error(`❌ Cloud storage error for ${originalPath}:`, error.message);
+      console.error(`Cloud storage error for ${originalPath}:`, error.message);
       if (error.$metadata) {
-        console.error(`📊 Error metadata:`, error.$metadata);
+        console.error(`Error metadata:`, error.$metadata);
       }
       
       this.cache.set(cacheKey, {
@@ -95,7 +95,7 @@ export class CloudStorage {
       timestamp: Date.now()
     });
     
-    console.log(`✅ Cache updated after upload: ${key}`);
+    console.log(`Cache updated after upload: ${key}`);
 
     // Returns the public URL
     return this.s3Client.getPublicUrl(key);
@@ -126,6 +126,6 @@ export class CloudStorage {
       this.cache.delete(`exists:${key}`);
     }
     this.cache.delete(`original:${originalPath}`);
-    console.log(`🗑️ Cache invalidated for: ${originalPath}`);
+    console.log(`Cache invalidated for: ${originalPath}`);
   }
 }

@@ -33,7 +33,7 @@ function addJsExtensionsInFile(filePath) {
   
   if (hasChanges) {
     fs.writeFileSync(filePath, newContent);
-    console.log(`✅ Added .js extensions in: ${path.relative(process.cwd(), filePath)}`);
+    console.log(`Added .js extensions in: ${path.relative(process.cwd(), filePath)}`);
   }
 }
 
@@ -55,9 +55,9 @@ function walkDirectory(dir) {
 // Add extensions in the dist folder
 const distPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distPath)) {
-  console.log('🔧 Adding .js extensions to compiled files...');
+  console.log('Adding .js extensions to compiled files...');
   walkDirectory(distPath);
-  console.log('✨ Done!');
+  console.log('Done!');
 } else {
-  console.log('❌ Dist folder not found');
+  console.log('Dist folder not found');
 }

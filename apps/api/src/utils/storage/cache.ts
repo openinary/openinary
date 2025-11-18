@@ -96,7 +96,7 @@ export class StorageCache {
     }
     
     if (cleaned > 0) {
-      console.log(`🧹 Cache cleanup: ${cleaned} entries removed`);
+      console.log(`Cache cleanup: ${cleaned} entries removed`);
     }
   }
 }
