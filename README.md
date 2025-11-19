@@ -87,16 +87,34 @@ Place your files in `apps/api/public/`
 
 ### Cloud Mode
 
+Openinary supports **any S3-compatible storage provider** with a universal configuration. No need to specify the provider - it's automatically detected!
+
 Copy and configure:
 
 ```bash
 cp apps/api/.env.example apps/api/.env
 ```
 
-**Cloudflare R2 :**
+#### Universal S3 Configuration
+
+The configuration automatically detects your provider:
+
+* **With STORAGE_ENDPOINT**: S3-compatible provider (Cloudflare R2, Minio, DigitalOcean Spaces, Wasabi, etc.)
+* **Without STORAGE_ENDPOINT**: AWS S3 standard
+
+**AWS S3:**
 
 ```env
-STORAGE_PROVIDER=cloudflare
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=your_aws_access_key
+STORAGE_SECRET_ACCESS_KEY=your_aws_secret_key
+STORAGE_BUCKET_NAME=your-bucket-name
+STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
+```
+
+**Cloudflare R2:**
+
+```env
 STORAGE_REGION=auto
 STORAGE_ACCESS_KEY_ID=your_r2_access_key
 STORAGE_SECRET_ACCESS_KEY=your_r2_secret_key
@@ -105,16 +123,20 @@ STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 STORAGE_PUBLIC_URL=https://your-custom-domain.com
 ```
 
-**AWS S3 :**
+**Other S3-Compatible Providers:**
+
+Works with **Minio**, **DigitalOcean Spaces**, **Wasabi**, **Backblaze B2**, and any other S3-compatible service:
 
 ```env
-STORAGE_PROVIDER=aws
 STORAGE_REGION=us-east-1
-STORAGE_ACCESS_KEY_ID=your_aws_access_key
-STORAGE_SECRET_ACCESS_KEY=your_aws_secret_key
+STORAGE_ACCESS_KEY_ID=your_access_key
+STORAGE_SECRET_ACCESS_KEY=your_secret_key
 STORAGE_BUCKET_NAME=your-bucket-name
-STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
+STORAGE_ENDPOINT=https://your-s3-compatible-endpoint.com
+STORAGE_PUBLIC_URL=https://your-cdn-domain.com
 ```
+
+> **Key difference**: Set `STORAGE_ENDPOINT` for any non-AWS S3-compatible provider. For AWS S3, leave it empty.
 
 ## Project Structure
 
