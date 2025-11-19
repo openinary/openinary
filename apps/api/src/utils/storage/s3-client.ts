@@ -23,10 +23,10 @@ export class S3ClientWrapper {
       },
     };
 
-    // Specific configuration for Cloudflare R2
-    if (config.provider === 'cloudflare' && config.endpoint) {
+    // Universal S3-compatible configuration
+    if (config.endpoint) {
       clientConfig.endpoint = config.endpoint;
-      clientConfig.forcePathStyle = true;
+      clientConfig.forcePathStyle = true; // Required for most S3-compatible providers
     }
 
     this.s3Client = new S3Client(clientConfig);
@@ -141,9 +141,16 @@ export class S3ClientWrapper {
   getPublicUrl(key: string): string {
     if (this.config.publicUrl) {
       return `${this.config.publicUrl}/${key}`;
-    } else {
-      return `https://${this.config.bucketName}.s3.${this.config.region}.amazonaws.com/${key}`;
     }
+    
+    // For custom endpoints, construct URL from endpoint
+    if (this.config.endpoint) {
+      const endpointUrl = this.config.endpoint.replace(/\/$/, '');
+      return `${endpointUrl}/${this.config.bucketName}/${key}`;
+    }
+    
+    // Default AWS S3 URL format
+    return `https://${this.config.bucketName}.s3.${this.config.region}.amazonaws.com/${key}`;
   }
 
   /**

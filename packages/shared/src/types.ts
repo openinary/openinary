@@ -28,12 +28,12 @@ export interface TransformParams {
 }
 
 export interface StorageConfig {
-  provider: "aws" | "cloudflare";
+  provider?: string; // Optional, for backward compatibility only
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
   bucketName: string;
-  endpoint?: string; // For Cloudflare R2
+  endpoint?: string; // Required for non-AWS providers (R2, Minio, etc.)
   publicUrl?: string; // Public URL of the bucket
 }
 
