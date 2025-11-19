@@ -23,6 +23,7 @@
     "next": "15.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-dropzone": "^14.3.8",
     "shared": "workspace:*",
     "tailwind-merge": "^3.3.1"
   },

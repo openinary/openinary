@@ -1,21 +1,20 @@
 "use client";
 
 import { Section } from "@/components/section";
+import { UploadSection } from "@/components/upload-section";
 import { StorageTree } from "@/components/storage-tree";
-import Image from "next/image";
+import { LogoLink } from "@/components/logo-link";
 
 export default function HomePage() {
   return (
     <div className="relative min-h-screen bg-background">
+      
       <Section />
-      <StorageTree />
-      <Image
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-40"
-        src="/openinary.svg"
-        alt="Openinary"
-        width={80}
-        height={80}
-      />
+      <section className="flex flex-row gap-4 px-6 py-8">
+        <UploadSection />
+        <StorageTree />
+      </section>
+      <LogoLink />
     </div>
   );
 }

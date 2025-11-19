@@ -36,6 +36,22 @@ interface UploadError {
 }
 
 /**
+ * Sanitizes file path to prevent directory traversal attacks
+ */
+function sanitizePath(filepath: string): string {
+  // Remove leading slashes and any parent directory references
+  let sanitized = filepath.replace(/^\/+/, '').replace(/\.\./g, '');
+  
+  // Normalize path separators to forward slashes
+  sanitized = sanitized.replace(/\\/g, '/');
+  
+  // Remove any remaining dangerous patterns
+  sanitized = sanitized.replace(/\/+/g, '/'); // Multiple slashes
+  
+  return sanitized;
+}
+
+/**
  * Validates file type based on MIME type and extension
  */
 function validateFileType(filename: string, mimeType: string): boolean {
@@ -103,14 +119,17 @@ upload.post("/", async (c) => {
         continue;
       }
 
-      const filename = file.name;
+      // Get relative path if available (for folder uploads), otherwise use filename
+      const rawPath = (file as any).webkitRelativePath || file.name;
+      const filePath = sanitizePath(rawPath);
+      const filename = path.basename(filePath);
       const mimeType = file.type;
       const fileSize = file.size;
 
       // Validate file size
       if (fileSize > MAX_FILE_SIZE) {
         failedUploads.push({
-          filename,
+          filename: filePath,
           error: `File size exceeds limit of 50MB (size: ${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
         });
         continue;
@@ -119,7 +138,7 @@ upload.post("/", async (c) => {
       // Validate file type
       if (!validateFileType(filename, mimeType)) {
         failedUploads.push({
-          filename,
+          filename: filePath,
           error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, png, webp, avif, gif) and videos (mp4, mov, webm)`,
         });
         continue;
@@ -135,32 +154,32 @@ upload.post("/", async (c) => {
 
         // Upload based on storage configuration
         if (storage) {
-          // Upload to cloud storage
-          const url = await storage.uploadOriginal(filename, buffer, contentType);
-          console.log(`Uploaded to cloud: ${filename} -> ${url}`);
+          // Upload to cloud storage with full path
+          const url = await storage.uploadOriginal(filePath, buffer, contentType);
+          console.log(`Uploaded to cloud: ${filePath} -> ${url}`);
           
           successfulUploads.push({
             filename,
-            path: filename,
+            path: filePath,
             size: fileSize,
-            url: `/t/${filename}`,
+            url: `/t/${filePath}`,
           });
         } else {
-          // Save locally
-          await saveFileLocally(filename, buffer);
-          console.log(`Saved locally: ${filename}`);
+          // Save locally with full path
+          await saveFileLocally(filePath, buffer);
+          console.log(`Saved locally: ${filePath}`);
           
           successfulUploads.push({
             filename,
-            path: filename,
+            path: filePath,
             size: fileSize,
-            url: `/t/${filename}`,
+            url: `/t/${filePath}`,
           });
         }
       } catch (error) {
-        console.error(`Failed to upload ${filename}:`, error);
+        console.error(`Failed to upload ${filePath}:`, error);
         failedUploads.push({
-          filename,
+          filename: filePath,
           error: error instanceof Error ? error.message : "Unknown error",
         });
       }
