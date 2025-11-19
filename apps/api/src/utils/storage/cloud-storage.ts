@@ -13,6 +13,13 @@ export class CloudStorage {
   }
 
   /**
+   * Lists objects in storage (cloud only)
+   */
+  async list(prefix?: string): Promise<{ key: string; size?: number }[]> {
+    return await this.s3Client.listObjects(prefix);
+  }
+
+  /**
    * Checks file existence with intelligent caching
    */
   async exists(originalPath: string, params: any): Promise<boolean> {
@@ -79,6 +86,24 @@ export class CloudStorage {
    */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
     return await this.s3Client.downloadObject(originalPath);
+  }
+
+  /**
+   * Uploads an original (unprocessed) file to the bucket
+   */
+  async uploadOriginal(filePath: string, buffer: Buffer, contentType: string): Promise<string> {
+    await this.s3Client.uploadObject(filePath, buffer, contentType);
+
+    // Mark the file as existing in the cache
+    this.cache.set(`original:${filePath}`, {
+      exists: true,
+      timestamp: Date.now()
+    });
+    
+    console.log(`Uploaded original file to cloud: ${filePath}`);
+
+    // Returns the public URL
+    return this.s3Client.getPublicUrl(filePath);
   }
 
   /**

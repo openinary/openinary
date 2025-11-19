@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { StorageConfig } from 'shared';
 
@@ -65,6 +71,41 @@ export class S3ClientWrapper {
     }
 
     return Buffer.concat(chunks);
+  }
+
+  /**
+   * Lists objects under an optional prefix
+   */
+  async listObjects(prefix?: string): Promise<{ key: string; size?: number }[]> {
+    const results: { key: string; size?: number }[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: this.config.bucketName,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        })
+      );
+
+      if (response.Contents) {
+        for (const object of response.Contents) {
+          if (object.Key) {
+            results.push({
+              key: object.Key,
+              size: object.Size,
+            });
+          }
+        }
+      }
+
+      continuationToken = response.IsTruncated
+        ? response.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    return results;
   }
 
   /**
