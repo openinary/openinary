@@ -138,8 +138,18 @@ storageRoute.get("/", async (c) => {
     let root: StorageNode;
 
     if (storageClient) {
-      const objects = await storageClient.list();
-      root = buildTreeFromKeys(objects);
+      // List only objects in the public/ folder
+      const objects = await storageClient.list("public/");
+      
+      // Remove the public/ prefix from all keys
+      const publicObjects = objects
+        .filter(obj => obj.key.startsWith("public/"))
+        .map(obj => ({
+          ...obj,
+          key: obj.key.substring(7) // Remove "public/" prefix (7 characters)
+        }));
+      
+      root = buildTreeFromKeys(publicObjects);
     } else {
       const publicDir = path.join(".", "public");
       root = buildLocalTree(publicDir);

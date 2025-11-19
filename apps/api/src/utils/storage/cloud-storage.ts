@@ -57,9 +57,11 @@ export class CloudStorage {
       return cached.exists;
     }
     
-    console.log(`Checking R2 for original: ${originalPath}`);
+    // Add public/ prefix for storage
+    const storageKey = `public/${originalPath}`;
+    console.log(`Checking R2 for original: ${storageKey}`);
     try {
-      const exists = await this.s3Client.objectExists(originalPath);
+      const exists = await this.s3Client.objectExists(storageKey);
       
       this.cache.set(cacheKey, {
         exists,
@@ -85,14 +87,18 @@ export class CloudStorage {
    * Retrieves an original (unprocessed) file from the bucket
    */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
-    return await this.s3Client.downloadObject(originalPath);
+    // Add public/ prefix for storage
+    const storageKey = `public/${originalPath}`;
+    return await this.s3Client.downloadObject(storageKey);
   }
 
   /**
    * Uploads an original (unprocessed) file to the bucket
    */
   async uploadOriginal(filePath: string, buffer: Buffer, contentType: string): Promise<string> {
-    await this.s3Client.uploadObject(filePath, buffer, contentType);
+    // Add public/ prefix for storage
+    const storageKey = `public/${filePath}`;
+    await this.s3Client.uploadObject(storageKey, buffer, contentType);
 
     // Mark the file as existing in the cache
     this.cache.set(`original:${filePath}`, {
@@ -100,10 +106,10 @@ export class CloudStorage {
       timestamp: Date.now()
     });
     
-    console.log(`Uploaded original file to cloud: ${filePath}`);
+    console.log(`Uploaded original file to cloud: ${storageKey}`);
 
-    // Returns the public URL
-    return this.s3Client.getPublicUrl(filePath);
+    // Returns the public URL (without public/ prefix since it's internal)
+    return this.s3Client.getPublicUrl(storageKey);
   }
 
   /**
