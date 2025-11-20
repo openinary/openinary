@@ -19,8 +19,9 @@ services:
     networks:
       - openinary-network
 
-  # Full Stack (API + Web + Nginx) - Default (no profile needed)
+  # Full Stack (API + Web + Nginx) - Profile: full
   openinary:
+    profiles: ["full"]
     build:
       context: .
       dockerfile: docker/full.Dockerfile

@@ -34,6 +34,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 COPY apps/web/ ./apps/web/
 WORKDIR /app/apps/web
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_API_BASE_URL=/api
 RUN pnpm build
 
 # Stage 3: Final monolithic image

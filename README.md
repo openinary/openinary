@@ -88,7 +88,7 @@ docker compose --profile api down
 
 **Access**: API available at http://localhost:3000
 
-### Mode 2: Full Stack with Nginx (Default)
+### Mode 2: Full Stack with Nginx
 
 Deploy the complete stack (API + Next.js frontend) with nginx as a reverse proxy. All traffic goes through port 3000:
 
@@ -96,14 +96,14 @@ Deploy the complete stack (API + Next.js frontend) with nginx as a reverse proxy
 - `/api` → Hono API
 
 ```bash
-# Start full stack (default mode)
-docker compose up --build
+# Start full stack
+docker compose --profile full up --build
 
 # Run in background
-docker compose up -d --build
+docker compose --profile full up -d --build
 
 # Stop
-docker compose down
+docker compose --profile full down
 ```
 
 **Access**: Everything available at http://localhost:3000
