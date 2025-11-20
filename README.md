@@ -67,15 +67,55 @@ pnpm build
 pnpm lint
 ```
 
-## Docker
+## Docker Deployment
+
+Openinary supports two Docker deployment modes using profiles:
+
+### Mode 1: API Standalone
+
+Deploy only the API service. Ideal for backend-only deployments or when using a separate frontend.
 
 ```bash
-# Start with Docker
+# Start API only
+docker compose --profile api up --build
+
+# Run in background
+docker compose --profile api up -d --build
+
+# Stop
+docker compose --profile api down
+```
+
+**Access**: API available at http://localhost:3000
+
+### Mode 2: Full Stack with Nginx (Default)
+
+Deploy the complete stack (API + Next.js frontend) with nginx as a reverse proxy. All traffic goes through port 3000:
+
+- `/` → Next.js frontend
+- `/api` → Hono API
+
+```bash
+# Start full stack (default mode)
 docker compose up --build
 
 # Run in background
 docker compose up -d --build
+
+# Stop
+docker compose down
 ```
+
+**Access**: Everything available at http://localhost:3000
+- Frontend: http://localhost:3000
+- API: http://localhost:3000/api
+
+**Architecture**:
+- Nginx listens on port 3000 (public entry point)
+- Next.js runs in standalone mode (internal port 3001)
+- API Hono runs on internal port 3002
+- Nginx proxies requests to the appropriate service
+- All services managed by supervisord in a single container
 
 ## Configuration
 

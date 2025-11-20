@@ -12,7 +12,16 @@ function addJsExtensionsInFile(filePath) {
   
   let hasChanges = false;
   let newContent = content.replace(importRegex, (match, prefix, importPath, suffix) => {
-    // Check if the file exists with .js extension
+    // First check if it's a directory with an index.js
+    const dirPath = path.resolve(path.dirname(filePath), importPath);
+    const indexPath = path.join(dirPath, 'index.js');
+    
+    if (fs.existsSync(indexPath) && fs.statSync(dirPath).isDirectory()) {
+      hasChanges = true;
+      return prefix + importPath + '/index.js' + suffix;
+    }
+    
+    // Otherwise check if the file exists with .js extension
     const fullPath = path.resolve(path.dirname(filePath), importPath + '.js');
     if (fs.existsSync(fullPath)) {
       hasChanges = true;
@@ -22,7 +31,16 @@ function addJsExtensionsInFile(filePath) {
   });
   
   newContent = newContent.replace(exportRegex, (match, prefix, exportPath, suffix) => {
-    // Check if the file exists with .js extension
+    // First check if it's a directory with an index.js
+    const dirPath = path.resolve(path.dirname(filePath), exportPath);
+    const indexPath = path.join(dirPath, 'index.js');
+    
+    if (fs.existsSync(indexPath) && fs.statSync(dirPath).isDirectory()) {
+      hasChanges = true;
+      return prefix + exportPath + '/index.js' + suffix;
+    }
+    
+    // Otherwise check if the file exists with .js extension
     const fullPath = path.resolve(path.dirname(filePath), exportPath + '.js');
     if (fs.existsSync(fullPath)) {
       hasChanges = true;

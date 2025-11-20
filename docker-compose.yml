@@ -1,5 +1,7 @@
 services:
+  # API Only - Profile: api
   api:
+    profiles: ["api"]
     build:
       context: .
       dockerfile: docker/api.Dockerfile
@@ -17,17 +19,23 @@ services:
     networks:
       - openinary-network
 
-  web:
+  # Full Stack (API + Web + Nginx) - Default (no profile needed)
+  openinary:
     build:
       context: .
-      dockerfile: docker/web.Dockerfile
+      dockerfile: docker/full.Dockerfile
     ports:
-      - "3001:3001"
+      - "3000:3000"
+    env_file:
+      - apps/api/.env
+    volumes:
+      # Optional: mount cache folder for persistence
+      - ./apps/api/cache:/app/apps/api/cache
+      # Optional: mount public folder for static files
+      - ./apps/api/public:/app/apps/api/public
     environment:
       - NODE_ENV=production
-      - API_BASE_URL=http://api:3000
-    depends_on:
-      - api
+      - NEXT_PUBLIC_API_BASE_URL=/api
     networks:
       - openinary-network
 

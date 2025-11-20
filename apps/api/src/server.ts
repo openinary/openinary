@@ -36,8 +36,11 @@ dirs.forEach((dir) => {
   }
 });
 
+const port = Number(process.env.PORT) || 3000;
+
 serve({
   fetch: app.fetch,
+  port,
 });
 
-console.log(`Server running at http://localhost:3000`);
+console.log(`Server running at http://localhost:${port}`);
