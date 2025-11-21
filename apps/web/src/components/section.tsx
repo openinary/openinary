@@ -52,12 +52,3 @@ export function Section() {
     </section>
   );
 }
-
-
-
-
-
-
-
-
-
