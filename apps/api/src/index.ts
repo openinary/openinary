@@ -3,24 +3,55 @@ import { cors } from "hono/cors";
 import transform from "./routes/transform";
 import upload from "./routes/upload";
 import storageRoute from "./routes/storage";
+import apiKeys from "./routes/api-keys";
+import health from "./routes/health";
+import { apiKeyAuth } from "./middleware/auth";
 
 const app = new Hono();
 
-// CORS
+// CORS - Allow credentials for session cookies
 app.use(
   "/*",
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    origin: (origin) => {
+      // Allow requests from Next.js app or configured origins
+      const allowedOrigins = [
+        "http://localhost:3001", // Next.js dev
+        "http://localhost:3000", // API itself
+        process.env.CORS_ORIGIN,
+      ].filter(Boolean);
+
+      if (!origin || allowedOrigins.includes("*")) {
+        return origin || "*";
+      }
+
+      return allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+    },
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowHeaders: ["Content-Type", "Authorization", "Cookie"],
+    credentials: true, // Important: allow cookies
+    exposeHeaders: ["Set-Cookie"],
   })
 );
 
-// Routes
-app.get("/", (c) => c.text("Server is running."));
+// Public routes (no authentication required)
+app.get("/", (c) => c.text("Openinary API Server is running."));
+
+// Health check routes
+app.route("/health", health);
+
+// Protected routes - require API key authentication
+// Apply middleware before routing
+app.use("/t/*", apiKeyAuth);
 app.route("/t", transform);
+
+app.use("/upload/*", apiKeyAuth);
 app.route("/upload", upload);
+
+app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
-app.get("/health", (c) => c.text("ok"));
+
+// API key management routes (also protected)
+app.route("/api-keys", apiKeys);
 
 export default app;

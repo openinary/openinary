@@ -94,9 +94,5 @@ export class StorageCache {
         cleaned++;
       });
     }
-    
-    if (cleaned > 0) {
-      console.log(`Cache cleanup: ${cleaned} entries removed`);
-    }
   }
 }

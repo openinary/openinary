@@ -29,12 +29,10 @@ export class CloudStorage {
     
     // OPTIMIZATION: Cache hit = 0 Class B operation
     if (cached) {
-      console.log(`Cache hit for exists check: ${key}`);
       return cached.exists;
     }
     
     // Only if not in cache
-    console.log(`Checking R2 for: ${key}`);
     const exists = await this.s3Client.objectExists(key);
     
     this.cache.set(cacheKey, {
@@ -53,13 +51,11 @@ export class CloudStorage {
     const cached = this.cache.get(cacheKey);
     
     if (cached) {
-      console.log(`Cache hit for original exists check: ${originalPath}`);
       return cached.exists;
     }
     
     // Add public/ prefix for storage
     const storageKey = `public/${originalPath}`;
-    console.log(`Checking R2 for original: ${storageKey}`);
     try {
       const exists = await this.s3Client.objectExists(storageKey);
       
@@ -105,8 +101,6 @@ export class CloudStorage {
       exists: true,
       timestamp: Date.now()
     });
-    
-    console.log(`Uploaded original file to cloud: ${storageKey}`);
 
     // Returns the public URL (without public/ prefix since it's internal)
     return this.s3Client.getPublicUrl(storageKey);
@@ -125,9 +119,6 @@ export class CloudStorage {
       exists: true,
       timestamp: Date.now()
     });
-    
-    console.log(`Cache updated after upload: ${key}`);
-
     // Returns the public URL
     return this.s3Client.getPublicUrl(key);
   }
@@ -157,6 +148,5 @@ export class CloudStorage {
       this.cache.delete(`exists:${key}`);
     }
     this.cache.delete(`original:${originalPath}`);
-    console.log(`Cache invalidated for: ${originalPath}`);
   }
 }

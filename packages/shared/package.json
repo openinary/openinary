@@ -6,15 +6,38 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
+    "./auth": {
+      "types": "./src/auth.ts",
+      "import": "./dist/auth.js",
+      "default": "./dist/auth.js"
+    },
+    "./auth-client": {
+      "types": "./src/auth-client-only.ts",
+      "import": "./dist/auth-client-only.js",
+      "default": "./dist/auth-client-only.js"
+    }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/add-js-extensions.cjs",
     "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-auth": "^1.1.9",
+    "better-sqlite3": "^11.8.1"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/better-sqlite3": "^7.6.12"
   }
 }

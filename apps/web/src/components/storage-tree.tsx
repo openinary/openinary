@@ -30,6 +30,7 @@ export function StorageTree() {
       try {
         const res = await fetch(`${baseUrl}/storage`, {
           signal: controller.signal,
+          credentials: 'include',
         });
 
         if (!res.ok) {
@@ -114,7 +115,7 @@ export function StorageTree() {
   }, []);
 
   return (
-    <section className="px-6 flex-1">
+    <section className="flex-1">
       <div className="space-y-2">
         <h2 className="text-left text-xl font-semibold">Storage content</h2>
         {loading && (

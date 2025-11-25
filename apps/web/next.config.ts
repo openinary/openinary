@@ -14,6 +14,26 @@ const nextConfig: NextConfig = {
     // Disable TypeScript errors during build for Docker
     ignoreBuildErrors: true,
   },
+  async headers() {
+    // In production, use specific allowed origin from env, otherwise allow localhost for dev
+    const allowedOrigin = 
+      process.env.NODE_ENV === "production"
+        ? process.env.ALLOWED_ORIGIN! || process.env.BETTER_AUTH_URL! 
+        : "http://localhost:3001";
+
+    return [
+      {
+        // Apply CORS headers to all API routes
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Credentials", value: "true" },
+          { key: "Access-Control-Allow-Origin", value: allowedOrigin },
+          { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT,OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

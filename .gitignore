@@ -103,3 +103,10 @@ Thumbs.db
 # Documentation
 docs*
 .vercel
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+data/
+apps/*/data/

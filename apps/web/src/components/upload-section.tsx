@@ -71,6 +71,7 @@ export function UploadSection() {
       const response = await fetch(`${apiUrl}/upload`, {
         method: "POST",
         body: formData,
+        credentials: 'include',
       });
 
       const data: UploadResponse = await response.json();
@@ -103,7 +104,7 @@ export function UploadSection() {
   };
 
   return (
-    <section className="px-6 flex-1">
+    <section className="flex-1">
       <div className="space-y-2">
         <div>
           <h2 className="text-left text-xl font-semibold">

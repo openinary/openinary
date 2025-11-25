@@ -1,150 +1,102 @@
 # Openinary
 
-**Modern image and video processing server with cloud storage**
+Open-source, self-hostable alternative to Cloudinary for image and video processing with on-the-fly transformations.
 
-Transform your media on-the-fly with a simple and powerful API. Resizing, optimized formats, smart caching, and cloud storage (AWS S3 / Cloudflare R2).
+## What is Openinary?
+
+Openinary is an open-source media processing platform that gives you complete control over your assets. Transform, optimize, and serve your images and videos through a simple API, without depending on proprietary services.
+
+**Why Openinary?**
+- **Open-source**: Transparent and modifiable code
+- **Self-hosted**: Deploy on your infrastructure
+- **No vendor lock-in**: Your data, your rules
+- **Performance**: Built-in cache and automatic optimizations
 
 ## Features
 
-- **Images**: Resizing, cropping, rotation, modern formats (AVIF, WebP)
-- **Videos**: Transformation, compression, resizing
-- **Cloud Storage**: AWS S3 and Cloudflare R2 support
-- **Smart caching**: Local + cloud for optimal performance
-- **Monorepo**: API + Next.js Frontend in unified workspace
+- **On-the-fly transformations**: Resize, crop, and rotate images and videos via URL
+- **Intelligent optimization**: Automatic conversion to WebP, AVIF, and modern video codecs
+- **Built-in cache**: Ultra-fast delivery with automatic caching system
+- **S3-compatible storage**: Native support for AWS S3, Cloudflare R2, Minio, DigitalOcean Spaces
+- **Simple API**: Transformations via URL parameters, API key authentication
 
 ## Quick Start
+
+### Prerequisites
+- Docker 20.x+
+- Docker Compose 2.x+
+
+### Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/openinary/openinary.git
 cd openinary
 
-# Install all dependencies (apps + packages)
-pnpm install
-
-# Start development (API + Frontend)
-pnpm dev
-```
-
-**Development URLs:**
-
-- API: http://localhost:3000
-- Frontend: http://localhost:3001
-
-# Usage Examples
-
-```bash
-# Simple resizing
-http://localhost:3000/t/resize:800x600/image.jpg
-
-# With cropping and quality
-http://localhost:3000/t/resize:400x400/crop:fill/quality:85/image.png
-
-# Optimized modern format
-http://localhost:3000/t/resize:1200x800/format:webp/quality:90/photo.jpg
-
-# Change ratio with automatic focus on face
-http://localhost:3000/t/ratio:1:1/gravity:face/portrait.jpg
-
-# Compressed video
-http://localhost:3000/t/resize:1280x720/quality:75/video.mp4
-```
-
-## Local Development
-
-```bash
-# Start everything
-pnpm dev
-
-# Or separately
-pnpm dev:api    # API only
-pnpm dev:web    # Frontend only
-
-# Build all
-pnpm build
-
-# Lint all
-pnpm lint
-```
-
-## Docker Deployment
-
-Openinary supports two Docker deployment modes using profiles:
-
-### Mode 1: API Standalone
-
-Deploy only the API service. Ideal for backend-only deployments or when using a separate frontend.
-
-```bash
-# Start API only
-docker compose --profile api up --build
-
-# Run in background
-docker compose --profile api up -d --build
-
-# Stop
-docker compose --profile api down
-```
-
-**Access**: API available at http://localhost:3000
-
-### Mode 2: Full Stack with Nginx
-
-Deploy the complete stack (API + Next.js frontend) with nginx as a reverse proxy. All traffic goes through port 3000:
-
-- `/` → Next.js frontend
-- `/api` → Hono API
-
-```bash
-# Start full stack
+# Full mode (Dashboard + API)
 docker compose --profile full up --build
 
-# Run in background
-docker compose --profile full up -d --build
-
-# Stop
-docker compose --profile full down
+# API-only mode
+docker compose --profile api up --build
 ```
 
-**Access**: Everything available at http://localhost:3000
-- Frontend: http://localhost:3000
-- API: http://localhost:3000/api
+### Initial Setup
 
-**Architecture**:
-- Nginx listens on port 3000 (public entry point)
-- Next.js runs in standalone mode (internal port 3001)
-- API Hono runs on internal port 3002
-- Nginx proxies requests to the appropriate service
-- All services managed by supervisord in a single container
+**Full mode:**
+1. Open http://localhost:3000
+2. Visit `/setup` to create admin account
+3. Go to `/api-keys` to generate an API key
 
-## Configuration
+**API mode:**
+- API key is automatically generated and displayed in Docker logs (save immediately)
 
-### Local Mode (default)
+## Usage Examples
 
-Place your files in `apps/api/public/`
-
-**Production Warning**: Local mode is **NOT recommended for production** as files in the `public/` folder will be overwritten on each deployment/build. For production environments, always use cloud storage (S3 or R2).
-
-### Cloud Mode
-
-Openinary supports **any S3-compatible storage provider** with a universal configuration. No need to specify the provider - it's automatically detected!
-
-Copy and configure:
+### Images
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+# Simple resize
+GET /t/resize:800x600/image.jpg
+
+# Smart cropping with face detection
+GET /t/resize:400x400/crop:fill/gravity:face/portrait.jpg
+
+# Format conversion + optimization
+GET /t/resize:1200x800/format:avif/quality:80/photo.jpg
+
+# Aspect ratio with automatic detection
+GET /t/aspect:16:9/gravity:auto/resize:1920x1080/banner.jpg
 ```
 
-#### Universal S3 Configuration
+### Videos
 
-The configuration automatically detects your provider:
+```bash
+# HD optimization
+GET /t/resize:1280x720/quality:80/video.mp4
 
-* **With STORAGE_ENDPOINT**: S3-compatible provider (Cloudflare R2, Minio, DigitalOcean Spaces, Wasabi, etc.)
-* **Without STORAGE_ENDPOINT**: AWS S3 standard
+# Low resolution preview
+GET /t/resize:640x360/quality:60/preview.mp4
 
-**AWS S3:**
+# Full HD high quality
+GET /t/resize:1920x1080/quality:90/movie.mp4
+```
 
-```env
+### Authentication
+
+All requests require an authentication header:
+
+```bash
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "http://localhost:3000/t/resize:800x600/image.jpg"
+```
+
+## S3-Compatible Configuration
+
+Openinary supports any S3-compatible storage. Configure via environment variables in `apps/api/.env`:
+
+### AWS S3
+
+```bash
 STORAGE_REGION=us-east-1
 STORAGE_ACCESS_KEY_ID=your_aws_access_key
 STORAGE_SECRET_ACCESS_KEY=your_aws_secret_key
@@ -152,9 +104,9 @@ STORAGE_BUCKET_NAME=your-bucket-name
 STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
 ```
 
-**Cloudflare R2:**
+### Cloudflare R2
 
-```env
+```bash
 STORAGE_REGION=auto
 STORAGE_ACCESS_KEY_ID=your_r2_access_key
 STORAGE_SECRET_ACCESS_KEY=your_r2_secret_key
@@ -163,11 +115,9 @@ STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 STORAGE_PUBLIC_URL=https://your-custom-domain.com
 ```
 
-**Other S3-Compatible Providers:**
+### Other S3-Compatible Providers
 
-Works with **Minio**, **DigitalOcean Spaces**, **Wasabi**, **Backblaze B2**, and any other S3-compatible service:
-
-```env
+```bash
 STORAGE_REGION=us-east-1
 STORAGE_ACCESS_KEY_ID=your_access_key
 STORAGE_SECRET_ACCESS_KEY=your_secret_key
@@ -176,17 +126,8 @@ STORAGE_ENDPOINT=https://your-s3-compatible-endpoint.com
 STORAGE_PUBLIC_URL=https://your-cdn-domain.com
 ```
 
-> **Key difference**: Set `STORAGE_ENDPOINT` for any non-AWS S3-compatible provider. For AWS S3, leave it empty.
+**Note:** The presence of `STORAGE_ENDPOINT` automatically enables S3-compatible mode. Without endpoint, it's standard AWS S3.
 
-## Project Structure
+## Resources
 
-```
-openinary/
-├── apps/
-│   ├── api/          # Media processing API
-│   └── web/          # Next.js Frontend
-├── packages/
-│   └── shared/       # Shared types and utilities
-├── docker/           # Optimized Dockerfiles
-└── docker-compose.yml
-```
+[Full Documentation](https://docs.openinary.com) | [Issues](https://github.com/openinary/openinary/issues) | [Contact](https://x.com/initflorian)

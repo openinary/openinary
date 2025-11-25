@@ -7,15 +7,22 @@ services:
       dockerfile: docker/api.Dockerfile
     ports:
       - "3000:3000"
-    env_file:
-      - apps/api/.env
     volumes:
-      # Optional: mount cache folder for persistence
-      - ./apps/api/cache:/app/apps/api/cache
-      # Optional: mount public folder for static files
-      - ./apps/api/public:/app/apps/api/public
+      # Mount cache folder for persistence
+      - cache-data:/app/apps/api/cache
+      # Mount public folder for static files
+      - public-files:/app/apps/api/public
+      # Mount data folder for shared auth database
+      - db-data:/app/data
+      # Mount backup folder for database backups
+      - backup-data:/backup
+    env_file:
+      - ./apps/api/.env
     environment:
       - NODE_ENV=production
+      - MODE=api
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
     networks:
       - openinary-network
 
@@ -27,19 +34,35 @@ services:
       dockerfile: docker/full.Dockerfile
     ports:
       - "3000:3000"
-    env_file:
-      - apps/api/.env
     volumes:
-      # Optional: mount cache folder for persistence
-      - ./apps/api/cache:/app/apps/api/cache
-      # Optional: mount public folder for static files
-      - ./apps/api/public:/app/apps/api/public
+      # Mount cache folder for persistence
+      - cache-data:/app/apps/api/cache
+      # Mount public folder for static files
+      - public-files:/app/apps/api/public
+      # Mount shared data folder for auth database persistence
+      - db-data:/app/data
+      # Also mount for web standalone path (for backwards compatibility)
+      - db-data:/app/web-standalone/data
+      # Mount backup folder for database backups
+      - backup-data:/backup
+    env_file:
+      - ./apps/api/.env
+      - ./apps/web/.env
     environment:
       - NODE_ENV=production
+      - MODE=fullstack
       - NEXT_PUBLIC_API_BASE_URL=/api
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
     networks:
       - openinary-network
 
 networks:
   openinary-network:
     driver: bridge
+
+volumes:
+  cache-data:
+  public-files:
+  db-data:
+  backup-data:
