@@ -130,4 +130,4 @@ STORAGE_PUBLIC_URL=https://your-cdn-domain.com
 
 ## Resources
 
-[Full Documentation](https://docs.openinary.com) | [Issues](https://github.com/openinary/openinary/issues) | [Contact](https://x.com/initflorian)
+[Full Documentation](https://docs.openinary.dev) | [Issues](https://github.com/openinary/openinary/issues) | [Contact](https://x.com/initflorian)
