@@ -68,7 +68,7 @@ async function performRestore() {
 
   // Check if backup file is provided
   if (!BACKUP_FILE) {
-    console.error('❌ Error: No backup file specified');
+    console.error('Error: No backup file specified');
     console.log('');
     console.log(`Usage: node ${basename(__filename)} <backup_file>`);
     console.log('');
@@ -79,11 +79,11 @@ async function performRestore() {
 
   // Check if backup file exists
   if (!existsSync(BACKUP_FILE)) {
-    console.error(`❌ Error: Backup file not found: ${BACKUP_FILE}`);
+    console.error(`Error: Backup file not found: ${BACKUP_FILE}`);
     process.exit(1);
   }
 
-  console.log('🔄 Database Restore');
+  console.log('Database Restore');
   console.log(`  Backup file: ${BACKUP_FILE}`);
   console.log(`  Target database: ${DB_PATH}`);
   console.log('');
@@ -94,7 +94,7 @@ async function performRestore() {
   try {
     // Check if file is compressed
     if (BACKUP_FILE.endsWith('.gz')) {
-      console.log('  📦 Backup is compressed, decompressing...');
+      console.log('Backup is compressed, decompressing...');
       
       const compressedData = readFileSync(BACKUP_FILE);
       const decompressed = await gunzipAsync(compressedData);
@@ -104,19 +104,19 @@ async function performRestore() {
       writeFileSync(tempFile, decompressed);
       BACKUP_TO_RESTORE = tempFile;
       
-      console.log('  ✓ Decompressed to temporary file');
+      console.log('Decompressed to temporary file');
     }
     
     // Verify backup file is a valid SQLite database
-    console.log('  🔍 Verifying backup file integrity...');
+    console.log('Verifying backup file integrity...');
     const testDb = new Database(BACKUP_TO_RESTORE, { readonly: true });
     const integrityCheck = testDb.prepare('PRAGMA integrity_check').get();
     testDb.close();
     
     if (integrityCheck && integrityCheck['integrity_check'] === 'ok') {
-      console.log('  ✓ Backup file is valid');
+      console.log('Backup file is valid');
     } else {
-      console.error('  ❌ Backup file is corrupted or invalid!');
+      console.error('Backup file is corrupted or invalid!');
       
       // Clean up temporary file if created
       if (tempFile && existsSync(tempFile)) {
@@ -129,7 +129,7 @@ async function performRestore() {
     // Backup current database before restoring
     let dbBackupBeforeRestore = null;
     if (existsSync(DB_PATH)) {
-      console.log('  💾 Backing up current database before restore...');
+      console.log('Backing up current database before restore...');
       
       const now = new Date();
       const timestamp = now.toISOString()
@@ -140,7 +140,7 @@ async function performRestore() {
       
       dbBackupBeforeRestore = `${DB_PATH}.before-restore-${timestamp}`;
       await copyFile(DB_PATH, dbBackupBeforeRestore);
-      console.log(`  ✓ Current database backed up to: ${dbBackupBeforeRestore}`);
+      console.log(`Current database backed up to: ${dbBackupBeforeRestore}`);
     }
     
     // Ensure data directory exists
@@ -151,7 +151,7 @@ async function performRestore() {
     }
     
     // Perform restore
-    console.log('  📥 Restoring database...');
+    console.log('Restoring database...');
     await copyFile(BACKUP_TO_RESTORE, DB_PATH);
     
     // Set proper permissions (Unix only)
@@ -160,18 +160,18 @@ async function performRestore() {
       try {
         await chmod(DB_PATH, 0o600);
       } catch (error) {
-        console.warn(`  ⚠️  Could not set permissions: ${error.message}`);
+        console.warn(`Could not set permissions: ${error.message}`);
       }
     }
     
     // Verify restored database
-    console.log('  🔍 Verifying restored database...');
+    console.log('Verifying restored database...');
     const restoredDb = new Database(DB_PATH, { readonly: true });
     const restoredIntegrityCheck = restoredDb.prepare('PRAGMA integrity_check').get();
     restoredDb.close();
     
     if (restoredIntegrityCheck && restoredIntegrityCheck['integrity_check'] === 'ok') {
-      console.log('  ✓ Restored database is valid');
+      console.log('Restored database is valid');
       
       // Clean up temporary decompressed file if created
       if (tempFile && existsSync(tempFile)) {
@@ -179,22 +179,22 @@ async function performRestore() {
       }
       
       console.log('');
-      console.log('✅ Database restored successfully!');
+      console.log('Database restored successfully!');
       console.log('');
       console.log(`  Restored from: ${BACKUP_FILE}`);
       if (dbBackupBeforeRestore) {
-        console.log(`  Previous database saved as: ${dbBackupBeforeRestore}`);
+        console.log(`Previous database saved as: ${dbBackupBeforeRestore}`);
       }
       console.log('');
-      console.log('⚠️  Note: You may need to restart your application for changes to take effect.');
+      console.log('Note: You may need to restart your application for changes to take effect.');
     } else {
-      console.error('  ❌ Restored database is corrupted!');
+      console.error('Restored database is corrupted!');
       
       // Restore the backup we made
       if (dbBackupBeforeRestore && existsSync(dbBackupBeforeRestore)) {
-        console.log('  🔄 Restoring previous database...');
+        console.log('Restoring previous database...');
         await copyFile(dbBackupBeforeRestore, DB_PATH);
-        console.log('  ✓ Previous database restored');
+        console.log('Previous database restored');
       }
       
       // Clean up temporary file if created
@@ -205,7 +205,7 @@ async function performRestore() {
       process.exit(1);
     }
   } catch (error) {
-    console.error('❌ Restore failed!', error.message);
+    console.error('Restore failed!', error.message);
     
     // Clean up temporary file if created
     if (tempFile && existsSync(tempFile)) {
@@ -222,7 +222,8 @@ async function performRestore() {
 
 // Run the restore
 performRestore().catch((error) => {
-  console.error('❌ Restore failed!', error.message);
+  console.error('Restore failed!', error.message);
   process.exit(1);
 });
+
 

@@ -20,7 +20,7 @@ const projectRoot = join(__dirname, '..');
 const envPath = join(projectRoot, 'apps', 'api', '.env');
 const envTemplatePath = join(projectRoot, 'apps', 'api', 'env.template');
 
-console.log('🔧 Initializing environment...');
+console.log('Initializing environment...');
 
 // Read existing .env file or create from template
 let envContent = '';
@@ -28,7 +28,7 @@ if (existsSync(envPath)) {
   envContent = readFileSync(envPath, 'utf-8');
 } else if (existsSync(envTemplatePath)) {
   envContent = readFileSync(envTemplatePath, 'utf-8');
-  console.log('  ℹ️  Creating .env from template...');
+  console.log('Creating .env from template...');
 }
 
 // Check if BETTER_AUTH_SECRET is set in environment or file
@@ -49,7 +49,7 @@ const needsGeneration = !secretFromEnv ||
   ));
 
 if (needsGeneration && !secretFromEnv) {
-  console.log('🔑 Generating BETTER_AUTH_SECRET...');
+  console.log('Generating BETTER_AUTH_SECRET...');
   
   // Generate 32-byte (256-bit) hex secret
   const secret = crypto.randomBytes(32).toString('hex');
@@ -71,11 +71,11 @@ if (needsGeneration && !secretFromEnv) {
   
   // Write updated .env file
   writeFileSync(envPath, envContent, 'utf-8');
-  console.log('✅ BETTER_AUTH_SECRET generated successfully');
+  console.log('BETTER_AUTH_SECRET generated successfully');
   console.log(`   Saved to: ${envPath}`);
 } else {
   if (secretFromEnv && secretFromEnv !== '' && secretFromEnv !== 'build-time-secret-will-be-replaced') {
-    console.log('✅ Using existing BETTER_AUTH_SECRET from environment');
+    console.log('Using existing BETTER_AUTH_SECRET from environment');
     
     // Also update .env file if it exists to keep it in sync
     if (existsSync(envPath)) {
@@ -93,10 +93,10 @@ if (needsGeneration && !secretFromEnv) {
       writeFileSync(envPath, envContent, 'utf-8');
     }
   } else if (existingSecret && existingSecret !== '' && existingSecret !== 'your-secret-key-here-generate-with-openssl-rand-hex-32' && existingSecret !== 'build-time-secret-will-be-replaced') {
-    console.log('✅ Using existing BETTER_AUTH_SECRET from .env file');
+    console.log('Using existing BETTER_AUTH_SECRET from .env file');
   } else {
     // Fallback: generate if nothing valid exists
-    console.log('🔑 Generating BETTER_AUTH_SECRET...');
+    console.log('Generating BETTER_AUTH_SECRET...');
     const secret = crypto.randomBytes(32).toString('hex');
     if (secretMatch) {
       envContent = envContent.replace(
@@ -110,10 +110,10 @@ if (needsGeneration && !secretFromEnv) {
       envContent += `BETTER_AUTH_SECRET=${secret}\n`;
     }
     writeFileSync(envPath, envContent, 'utf-8');
-    console.log('✅ BETTER_AUTH_SECRET generated successfully');
+    console.log('BETTER_AUTH_SECRET generated successfully');
     console.log(`   Saved to: ${envPath}`);
   }
 }
 
-console.log('✅ Environment initialized');
+console.log('Environment initialized');
 
