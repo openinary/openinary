@@ -28,17 +28,18 @@ RUN pnpm install --frozen-lockfile
 RUN mkdir -p apps/api/cache apps/api/public /app/data /backup && \
     chown -R node:node /app /backup
 
+# Make wrapper script executable
+RUN chmod +x /app/scripts/init-env-wrapper.sh
+
 # Build shared package first (API depends on it)
 RUN pnpm --filter shared build
 # Build API using workspace filter
 RUN pnpm --filter api build
 
-# Make scripts executable
-RUN chmod +x scripts/secure-db.sh scripts/init-env.sh
-
-# Set default environment variables (will be overridden by docker-compose or init-env.sh)
+# Set default environment variables (will be overridden by docker-compose or init-env.js)
 ENV BETTER_AUTH_SECRET=""
 ENV BETTER_AUTH_URL="http://localhost:3000"
+ENV DOCKER_CONTAINER="true"
 
 # Switch to non-root user
 USER node
@@ -49,5 +50,5 @@ EXPOSE 3000
 # Change to API directory for runtime
 WORKDIR /app/apps/api
 
-# Source init script to export env vars, run security script and start server
-CMD ["/bin/bash", "-c", "source ../../scripts/init-env.sh && ../../scripts/secure-db.sh && pnpm start"]
+# Run init script wrapper to set env vars, run security script and start server
+CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && pnpm start"]

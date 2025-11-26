@@ -73,8 +73,8 @@ COPY scripts/ ./scripts/
 RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data /backup /var/log/supervisor && \
     chown -R node:node /app /backup
 
-# Make scripts executable
-RUN chmod +x scripts/secure-db.sh scripts/backup-db.sh scripts/init-env.sh 2>/dev/null || true
+# Make wrapper script executable
+RUN chmod +x /app/scripts/init-env-wrapper.sh
 
 # Copy nginx configuration
 COPY docker/nginx.conf /etc/nginx/nginx.conf
@@ -83,7 +83,7 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Setup cron job for daily database backup (2 AM)
-RUN echo "0 2 * * * node /app/scripts/backup-db.sh >> /var/log/backup.log 2>&1" | crontab -u node -
+RUN echo "0 2 * * * node /app/scripts/backup-db.js >> /var/log/backup.log 2>&1" | crontab -u node -
 
 # Expose port
 EXPOSE 3000
@@ -92,11 +92,12 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV API_PORT=3002
 ENV WEB_PORT=3001
-# Set default BETTER_AUTH_SECRET (will be overridden by init-env.sh if needed)
+# Set default BETTER_AUTH_SECRET (will be overridden by init-env.js if needed)
 ENV BETTER_AUTH_SECRET=""
 ENV BETTER_AUTH_URL="http://localhost:3000"
 ENV MODE="fullstack"
+ENV DOCKER_CONTAINER="true"
 
-# Source init script to export env vars, run security script before starting supervisor
-CMD ["/bin/bash", "-c", "source /app/scripts/init-env.sh && /app/scripts/secure-db.sh && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+# Run init script wrapper to set env vars, run security script before starting supervisor
+CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
 
