@@ -2,3 +2,9 @@
 *.cjs linguist-detectable=false
 *.mjs linguist-detectable=false
 *.jsx linguist-detectable=false
+*.sh linguist-detectable=false
+*.bash linguist-detectable=false
+*.zsh linguist-detectable=false
+*.ps1 linguist-detectable=false
+*.bat linguist-detectable=false
+*.cmd linguist-detectable=false
