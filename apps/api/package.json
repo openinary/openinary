@@ -19,6 +19,8 @@
     "dotenv": "^17.2.1",
     "fluent-ffmpeg": "^2.1.2",
     "hono": "^4.10.3",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.1.2",
     "shared": "workspace:*",
     "sharp": "^0.33.0",
     "zod": "^4.1.12"

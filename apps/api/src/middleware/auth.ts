@@ -1,5 +1,6 @@
 import { Context, Next } from "hono";
 import { auth } from "shared/auth";
+import logger from "../utils/logger";
 
 // Define the variables that will be available in the context
 export type AuthVariables = {
@@ -21,14 +22,7 @@ export type AuthVariables = {
  * Structured audit logger for security events
  */
 function auditLog(event: string, data: Record<string, any>) {
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    event,
-    ...data,
-  };
-  
-  // Log as JSON for easy parsing and monitoring
-  console.log('[Audit] ' + JSON.stringify(logEntry));
+  logger.info({ event, ...data }, "[Audit]");
 }
 
 /**
@@ -139,7 +133,7 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
       }
     }
   } catch (error) {
-    console.error("Session verification error:", error);
+    logger.error({ error }, "Session verification error");
   }
 
   // Neither API key nor session is valid

@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 import { CacheStats } from 'shared';
+import logger from './logger';
 
 // Cache directory
 const CACHE_DIR = './cache';
@@ -42,7 +43,7 @@ export class SmartCache {
   }
 
   static async performCleanup(): Promise<void> {
-    console.log('Performing cache cleanup...');
+    logger.info('Performing cache cleanup...');
     
     // Get all cache entries sorted by last access time
     const entries = Array.from(this.stats.requests.entries())
@@ -63,11 +64,11 @@ export class SmartCache {
         }
         this.stats.requests.delete(filePath);
       } catch (error) {
-        console.warn(`Failed to cleanup cache file ${cachePath}:`, error);
+        logger.warn({ error, cachePath }, 'Failed to cleanup cache file');
       }
     }
     
-    console.log(`Cache cleanup completed. Removed ${toRemove.length} entries.`);
+    logger.info({ removedCount: toRemove.length }, 'Cache cleanup completed');
   }
 }
 
@@ -112,9 +113,9 @@ export async function saveToCache(cachePath: string, buffer: Buffer): Promise<vo
     // Update cache size tracking
     SmartCache['stats'].totalCacheSize += buffer.length;
     
-    console.log(`Saved to cache: ${cachePath} (${buffer.length} bytes)`);
+    logger.debug({ cachePath, size: buffer.length }, 'Saved to cache');
   } catch (error) {
-    console.warn(`Failed to save to cache ${cachePath}:`, error);
+    logger.warn({ error, cachePath }, 'Failed to save to cache');
   }
 }
 
@@ -125,7 +126,7 @@ export async function readFromCache(cachePath: string): Promise<Buffer> {
   try {
     return await fs.readFile(cachePath);
   } catch (error) {
-    console.warn(`Failed to read from cache ${cachePath}:`, error);
+    logger.warn({ error, cachePath }, 'Failed to read from cache');
     throw error;
   }
 }
@@ -137,10 +138,10 @@ export async function initializeCache(): Promise<void> {
   try {
     if (!existsSync(CACHE_DIR)) {
       await fs.mkdir(CACHE_DIR, { recursive: true });
-      console.log(`Created cache directory: ${CACHE_DIR}`);
+      logger.info({ cacheDir: CACHE_DIR }, 'Created cache directory');
     }
   } catch (error) {
-    console.warn('Failed to initialize cache directory:', error);
+    logger.warn({ error, cacheDir: CACHE_DIR }, 'Failed to initialize cache directory');
   }
 }
 

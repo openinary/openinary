@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { auth } from "shared/auth";
 import { apiKeyAuth, AuthVariables } from "../middleware/auth";
+import logger from "../utils/logger";
 
 const apiKeys = new Hono<AuthVariables>();
 
@@ -61,7 +62,7 @@ apiKeys.post("/create", async (c) => {
       500
     );
   } catch (error) {
-    console.error("Error creating API key:", error);
+    logger.error({ error }, "Error creating API key");
     return c.json(
       {
         error: "Internal server error",
@@ -106,7 +107,7 @@ apiKeys.get("/list", async (c) => {
       keys,
     });
   } catch (error) {
-    console.error("Error listing API keys:", error);
+    logger.error({ error }, "Error listing API keys");
     return c.json(
       {
         error: "Internal server error",
@@ -174,7 +175,7 @@ apiKeys.delete("/:keyId", async (c) => {
       message: "API key deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting API key:", error);
+    logger.error({ error, keyId }, "Error deleting API key");
     return c.json(
       {
         error: "Internal server error",
@@ -247,7 +248,7 @@ apiKeys.patch("/:keyId", async (c) => {
       message: "API key updated successfully",
     });
   } catch (error) {
-    console.error("Error updating API key:", error);
+    logger.error({ error, keyId }, "Error updating API key");
     return c.json(
       {
         error: "Internal server error",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET() {
       });
     }
   } catch (error) {
-    console.error("Error checking setup status:", error);
+    logger.error("Error checking setup status", { error });
     return NextResponse.json(
       { error: "Failed to check setup status" },
       { status: 500 }

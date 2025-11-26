@@ -3,6 +3,7 @@ import { getCachePath } from "../utils/cache";
 import { parseParams } from "../utils/parser";
 import { createStorageClient } from "../utils/storage/index";
 import { Compression } from "../utils/image/compression";
+import logger from "../utils/logger";
 import {
   setContentTypeHeader,
   checkCloudCache,
@@ -50,7 +51,7 @@ t.get("/*", async (c) => {
   // 3. Verify original file exists
   const fileCheck = await verifyFileExists(storage, filePath, localPath);
   if (!fileCheck.exists) {
-    console.error(`File not found: ${filePath}`);
+    logger.error({ filePath }, "File not found");
     return c.text(fileCheck.error || "File not found", 404);
   }
 
@@ -116,7 +117,7 @@ t.get("/*", async (c) => {
 
     return c.body(new Uint8Array(buffer));
   } catch (error) {
-    console.error("Processing error:", error);
+    logger.error({ error, filePath }, "Processing error");
     return c.text(
       `Processing failed: ${
         error instanceof Error ? error.message : "Unknown error"

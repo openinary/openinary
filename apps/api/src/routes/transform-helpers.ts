@@ -5,6 +5,7 @@ import { parseParams } from "../utils/parser";
 import { transformImage } from "../utils/image/index";
 import { transformVideo } from "../utils/video";
 import { Compression } from "../utils/image/compression";
+import logger from "../utils/logger";
 import {
   existsInCache,
   saveToCache,
@@ -53,11 +54,11 @@ export async function checkCloudCache(
 
   try {
     if (await storage.exists(filePath, params)) {
-      console.log(`Serving from cloud cache: ${filePath}`);
+      logger.debug({ filePath }, "Serving from cloud cache");
       return await storage.download(filePath, params);
     }
   } catch (error) {
-    console.warn("Cloud cache error, falling back to local cache:", error);
+    logger.warn({ error, filePath }, "Cloud cache error, falling back to local cache");
   }
 
   return null;
@@ -70,7 +71,7 @@ export async function checkLocalCache(
   cachePath: string
 ): Promise<Buffer | null> {
   if (await existsInCache(cachePath)) {
-    console.log(`Serving from local cache: ${cachePath}`);
+    logger.debug({ cachePath }, "Serving from local cache");
     return await readFromCache(cachePath);
   }
 
@@ -97,7 +98,7 @@ export async function verifyFileExists(
       }
       return { exists: true, isCloud: true };
     } catch (error) {
-      console.warn("Error checking cloud storage for original file:", error);
+      logger.warn({ error, filePath }, "Error checking cloud storage for original file");
       return {
         exists: false,
         isCloud: true,
@@ -126,7 +127,7 @@ export async function prepareSourceFile(
   localPath: string
 ): Promise<string> {
   if (storage) {
-    console.log(`Processing from cloud file: ${filePath}`);
+    logger.debug({ filePath }, "Processing from cloud file");
     const sourceBuffer = await storage.downloadOriginal(filePath);
 
     // Temporarily save the file locally for processing
@@ -140,7 +141,7 @@ export async function prepareSourceFile(
     fs.writeFileSync(tempPath, sourceBuffer);
     return tempPath;
   } else {
-    console.log(`Processing from local file: ${localPath}`);
+    logger.debug({ localPath }, "Processing from local file");
     return localPath;
   }
 }
@@ -183,7 +184,7 @@ export async function processImage(
       optimizationResult,
     };
   } catch (error) {
-    console.warn("Advanced compression failed, using basic:", error);
+    logger.warn({ error, originalPath }, "Advanced compression failed, using basic");
 
     // Determine content type from extension
     const ext = originalPath.split(".").pop()?.toLowerCase();
@@ -247,9 +248,9 @@ export async function saveToCaches(
   // Save to local cache (conditionally)
   if (shouldKeepLocal) {
     await saveToCache(cachePath, buffer);
-    console.log(`Keeping in local cache: ${filePath}`);
+    logger.debug({ filePath }, "Keeping in local cache");
   } else {
-    console.log(`Skipping local cache: ${filePath}`);
+    logger.debug({ filePath }, "Skipping local cache");
   }
 
   // Save to cloud cache (if configured)
@@ -262,14 +263,14 @@ export async function saveToCaches(
           const fs = await import("fs");
           if (fs.existsSync(cachePath)) {
             fs.unlinkSync(cachePath);
-            console.log(`Removed from local cache: ${filePath}`);
+            logger.debug({ filePath }, "Removed from local cache");
           }
         } catch (error) {
-          console.warn("Failed to cleanup local cache:", error);
+          logger.warn({ error, filePath }, "Failed to cleanup local cache");
         }
       }
     } catch (error) {
-      console.warn("Failed to upload to cloud cache:", error);
+      logger.warn({ error, filePath }, "Failed to upload to cloud cache");
     }
   }
 }
@@ -284,7 +285,7 @@ export async function cleanupTempFile(filePath: string): Promise<void> {
       fs.unlinkSync(filePath);
     }
   } catch (error) {
-    console.warn("Failed to cleanup temp file:", error);
+    logger.warn({ error, filePath }, "Failed to cleanup temp file");
   }
 }
 
@@ -295,7 +296,7 @@ export async function performPeriodicCacheCleanup(): Promise<void> {
   if (Math.random() < 0.01) {
     // 1% chance of cache cleanup
     if (await SmartCache.shouldCleanupCache()) {
-      console.log("Starting cache cleanup...");
+      logger.info("Starting cache cleanup...");
       await SmartCache.performCleanup();
     }
   }

@@ -6,6 +6,7 @@ import { auth } from "shared/auth";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import logger from "./utils/logger";
 
 // Function to clean local cache in cloud mode on startup
 const cleanupLocalCacheIfCloudMode = () => {
@@ -20,7 +21,7 @@ const cleanupLocalCacheIfCloudMode = () => {
           fs.unlinkSync(filePath);
         });
       } catch (error) {
-        console.warn("Failed to cleanup local cache on startup:", error);
+        logger.warn({ error }, "Failed to cleanup local cache on startup");
       }
     }
   }
@@ -34,7 +35,7 @@ const dirs = ["./cache", "./temp"];
 dirs.forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    console.log(`Created directory: ${dir}`);
+    logger.info({ dir }, "Created directory");
   }
 });
 
@@ -48,17 +49,17 @@ async function initializeAuth() {
     // In fullstack mode, never create users automatically
     if (mode === "fullstack") {
       if (users.count === 0) {
-        console.log("No users found. Please visit /setup to create your first admin account.\n");
+        logger.info("No users found. Please visit /setup to create your first admin account.");
       } else {
-        console.log(`Database initialized (FULLSTACK mode). Found ${users.count} user(s).`);
+        logger.info({ userCount: users.count }, "Database initialized (FULLSTACK mode)");
       }
       return;
     }
     
     // In API standalone mode, generate API key only (no exposed credentials)
     if (users.count === 0) {
-      console.log("\nRunning in API STANDALONE mode");
-      console.log("Generating initial API key...\n");
+      logger.info("Running in API STANDALONE mode");
+      logger.info("Generating initial API key...");
       
       // Create a system user (required for API key association)
       // This user is internal only - credentials are never exposed or used
@@ -84,22 +85,17 @@ async function initializeAuth() {
         });
         
         if (apiKeyResult && "key" in apiKeyResult) {
-          console.log("┌─────────────────────────────────────────────────────────────────┐");
-          console.log("│                  Initial API Key Generated                      │");
-          console.log("├─────────────────────────────────────────────────────────────────┤");
-          console.log("│                                                                 │");
-          console.log(`│  API Key: ${apiKeyResult.key}                                   │`);
-          console.log("│                                                                 │");
-          console.log("│  Save this key now! It will not be shown again.                 │");
-          console.log("│                                                                 │");
-          console.log("└─────────────────────────────────────────────────────────────────┘\n");
+          logger.info(
+            { apiKeyId: apiKeyResult.id },
+            "┌─────────────────────────────────────────────────────────────────┐\n│                  Initial API Key Generated                      │\n├─────────────────────────────────────────────────────────────────┤\n│                                                                 │\n│  API Key: " + apiKeyResult.key + "                                   │\n│                                                                 │\n│  Save this key now! It will not be shown again.                 │\n│                                                                 │\n└─────────────────────────────────────────────────────────────────┘"
+          );
         }
       }
     } else {
-      console.log(`Database initialized (API STANDALONE mode). Found ${users.count} user(s).`);
+      logger.info({ userCount: users.count }, "Database initialized (API STANDALONE mode)");
     }
   } catch (error) {
-    console.error("Error initializing authentication:", error);
+    logger.error({ error }, "Error initializing authentication");
   }
 }
 
@@ -113,4 +109,4 @@ serve({
   port,
 });
 
-console.log(`Server running at http://localhost:${port}`);
+logger.info({ port }, "Server running");

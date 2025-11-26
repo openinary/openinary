@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
+import logger from "@/lib/logger";
 
 const loginFormSchema = z.object({
   email: z
@@ -82,7 +83,7 @@ export default function LoginPage() {
           setCheckingSetup(false);
         }
       } catch (err) {
-        console.error("Error checking auth/setup:", err);
+        logger.error("Error checking auth/setup", { error: err });
         if (!isMounted) return;
         
         // On error, still check setup status to avoid being stuck
@@ -99,7 +100,7 @@ export default function LoginPage() {
             setCheckingSetup(false);
           }
         } catch (setupErr) {
-          console.error("Error checking setup:", setupErr);
+          logger.error("Error checking setup", { error: setupErr });
           // Always unblock the UI after timeout/error to prevent infinite loading
           if (isMounted) {
             setCheckingSetup(false);
@@ -111,7 +112,7 @@ export default function LoginPage() {
     // Add a fallback timeout to ensure we never stay stuck
     timeoutId = setTimeout(() => {
       if (isMounted) {
-        console.warn("Auth check timeout - unblocking UI");
+        logger.warn("Auth check timeout - unblocking UI");
         setCheckingSetup(false);
       }
     }, 5000); // 5 second absolute timeout
@@ -153,11 +154,11 @@ export default function LoginPage() {
         // This prevents issues with cookie synchronization after login
         window.location.href = "/";
       } else {
-        console.error("[Login] Sign in failed - no data in result");
+        logger.error("[Login] Sign in failed - no data in result");
         throw new Error("Sign in failed - please try again");
       }
     } catch (err: any) {
-      console.error("[Login] Sign in error:", err);
+      logger.error("[Login] Sign in error", { error: err });
       setError(err.message || "Incorrect email or password");
     }
   };

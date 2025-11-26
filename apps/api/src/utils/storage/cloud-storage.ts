@@ -2,6 +2,7 @@ import { StorageConfig } from 'shared';
 import { StorageCache } from './cache';
 import { KeyGenerator } from './key-generator';
 import { S3ClientWrapper } from './s3-client';
+import logger from '../logger';
 
 export class CloudStorage {
   private s3Client: S3ClientWrapper;
@@ -66,10 +67,14 @@ export class CloudStorage {
       
       return exists;
     } catch (error: any) {
-      console.error(`Cloud storage error for ${originalPath}:`, error.message);
-      if (error.$metadata) {
-        console.error(`Error metadata:`, error.$metadata);
-      }
+      logger.error(
+        { 
+          error: error.message, 
+          originalPath,
+          metadata: error.$metadata 
+        },
+        "Cloud storage error"
+      );
       
       this.cache.set(cacheKey, {
         exists: false,

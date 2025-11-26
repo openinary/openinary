@@ -1,5 +1,6 @@
 import { StorageConfig } from 'shared';
 import { CloudStorage } from './cloud-storage';
+import logger from '../logger';
 
 /**
  * Consolidated factory function
@@ -15,7 +16,7 @@ export function createStorageClient(): CloudStorage | null {
   };
 
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
-    console.warn('Storage configuration incomplete. Cloud storage disabled.');
+    logger.warn('Storage configuration incomplete. Cloud storage disabled.');
     return null;
   }
 

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage";
 import fs from "fs";
 import path from "path";
+import logger from "../utils/logger";
 
 type StorageNode = {
   name: string;
@@ -159,7 +160,7 @@ storageRoute.get("/", async (c) => {
 
     return c.json(treeData);
   } catch (error) {
-    console.error("Failed to list storage contents:", error);
+    logger.error({ error }, "Failed to list storage contents");
     return c.json(
       {
         error: "Failed to list storage contents",

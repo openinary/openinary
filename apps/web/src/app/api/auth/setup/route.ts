@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
+import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("Error creating admin account:", error);
+    logger.error("Error creating admin account", { error });
     return NextResponse.json(
       { error: error.message || "An error occurred while creating the account" },
       { status: 500 }

@@ -17,6 +17,7 @@ import {
 } from "./ui/form";
 import { CopyInput } from "./ui/copy-input";
 import { authClient } from "@/lib/auth-client";
+import logger from "@/lib/logger";
 
 const apiKeyFormSchema = z.object({
   name: z.string().min(1, {
@@ -79,7 +80,7 @@ export function ApiKeyManager() {
         setKeys(result.data as ApiKey[]);
       }
     } catch (err) {
-      console.error("Error loading API keys:", err);
+      logger.error("Error loading API keys", { error: err });
       setError("Failed to load API keys");
     } finally {
       setLoading(false);
@@ -108,7 +109,7 @@ export function ApiKeyManager() {
         setError(result.error.message || "Failed to create API key");
       }
     } catch (err) {
-      console.error("Error creating API key:", err);
+      logger.error("Error creating API key", { error: err });
       setError("Failed to create API key");
     }
   };
@@ -129,7 +130,7 @@ export function ApiKeyManager() {
         setError(result.error.message || "Failed to delete API key");
       }
     } catch (err) {
-      console.error("Error deleting API key:", err);
+      logger.error("Error deleting API key", { error: err, keyId });
       setError("Failed to delete API key");
     }
   };
@@ -147,7 +148,7 @@ export function ApiKeyManager() {
         setError(result.error.message || "Failed to update API key");
       }
     } catch (err) {
-      console.error("Error updating API key:", err);
+      logger.error("Error updating API key", { error: err, keyId });
       setError("Failed to update API key");
     }
   };

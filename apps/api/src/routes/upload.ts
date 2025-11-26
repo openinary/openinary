@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage/index";
 import fs from "fs";
 import path from "path";
+import logger from "../utils/logger";
 
 const upload = new Hono();
 const storage = createStorageClient();
@@ -156,7 +157,7 @@ upload.post("/", async (c) => {
         if (storage) {
           // Upload to cloud storage with full path
           const url = await storage.uploadOriginal(filePath, buffer, contentType);
-          console.log(`Uploaded to cloud: ${filePath} -> ${url}`);
+          logger.info({ filePath, url }, "Uploaded to cloud");
           
           successfulUploads.push({
             filename,
@@ -167,7 +168,7 @@ upload.post("/", async (c) => {
         } else {
           // Save locally with full path
           await saveFileLocally(filePath, buffer);
-          console.log(`Saved locally: ${filePath}`);
+          logger.info({ filePath }, "Saved locally");
           
           successfulUploads.push({
             filename,
@@ -177,7 +178,7 @@ upload.post("/", async (c) => {
           });
         }
       } catch (error) {
-        console.error(`Failed to upload ${filePath}:`, error);
+        logger.error({ error, filePath }, "Failed to upload");
         failedUploads.push({
           filename: filePath,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -207,7 +208,7 @@ upload.post("/", async (c) => {
       }, 400);
     }
   } catch (error) {
-    console.error("Upload error:", error);
+    logger.error({ error }, "Upload error");
     return c.json(
       {
         success: false,

@@ -20,6 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
+import logger from "@/lib/logger";
 // import { ShaderAnimation } from "@/components/ui/shader-animation";
 
 const setupFormSchema = z
@@ -103,7 +104,7 @@ export default function SetupPage() {
           setCheckingSetup(false);
         }
       } catch (err) {
-        console.error("Error checking auth/setup:", err);
+        logger.error("Error checking auth/setup", { error: err });
         setCheckingSetup(false);
       }
     };
