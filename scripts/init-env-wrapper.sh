@@ -3,7 +3,7 @@
 # This ensures BETTER_AUTH_SECRET is available as an environment variable
 
 # Run init-env.js to generate/update .env file
-node /app/scripts/init-env.js
+cd /app && node scripts/init-env.js || echo "Warning: init-env.js failed, continuing with existing environment variables"
 
 # Load .env file and export variables to current shell and child processes
 if [ -f /app/apps/api/.env ]; then
@@ -30,4 +30,3 @@ if [ -z "$BETTER_AUTH_SECRET" ] || [ "$BETTER_AUTH_SECRET" = "" ]; then
     export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET}"
   fi
 fi
-

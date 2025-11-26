@@ -42,7 +42,7 @@ export class S3ClientWrapper {
         Key: key,
       }));
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

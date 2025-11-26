@@ -30,7 +30,7 @@ function tableExists(db: Database.Database, tableName: string): boolean {
       )
       .get(tableName);
     return !!result;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

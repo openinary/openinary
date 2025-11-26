@@ -163,7 +163,7 @@ apiKeys.delete("/:keyId", async (c) => {
     }
 
     // Delete the key
-    const result = await auth.api.deleteApiKey({
+    await auth.api.deleteApiKey({
       body: {
         keyId,
       },

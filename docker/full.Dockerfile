@@ -73,8 +73,9 @@ COPY scripts/ ./scripts/
 RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data /backup /var/log/supervisor && \
     chown -R node:node /app /backup
 
-# Make wrapper script executable
-RUN chmod +x /app/scripts/init-env-wrapper.sh
+# Make wrapper script executable and fix line endings (CRLF to LF)
+RUN chmod +x /app/scripts/init-env-wrapper.sh && \
+    sed -i 's/\r$//' /app/scripts/init-env-wrapper.sh || true
 
 # Copy nginx configuration
 COPY docker/nginx.conf /etc/nginx/nginx.conf
@@ -99,5 +100,6 @@ ENV MODE="fullstack"
 ENV DOCKER_CONTAINER="true"
 
 # Run init script wrapper to set env vars, run security script before starting supervisor
-CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+# Source the wrapper script to export env vars, then run secure-db and start supervisor
+CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && cd /app && node scripts/secure-db.js && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
 

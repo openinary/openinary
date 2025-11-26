@@ -28,7 +28,7 @@ export class SmartCache {
     }
   }
 
-  static async shouldKeepLocal(filePath: string, fileSize: number): Promise<boolean> {
+  static async shouldKeepLocal(filePath: string, _fileSize: number): Promise<boolean> {
     const stats = this.stats.requests.get(filePath);
     if (!stats) return false;
 

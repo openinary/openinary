@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { authClient } from "shared/auth";
 import Database from "better-sqlite3";
 import path from "path";
 

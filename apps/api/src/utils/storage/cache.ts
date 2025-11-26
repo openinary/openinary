@@ -71,7 +71,6 @@ export class StorageCache {
    */
   private cleanup(): void {
     const now = Date.now();
-    let cleaned = 0;
     
     for (const [key, value] of this.existsCache.entries()) {
       const age = now - value.timestamp;
@@ -79,7 +78,6 @@ export class StorageCache {
       
       if (age > ttl) {
         this.existsCache.delete(key);
-        cleaned++;
       }
     }
     
@@ -91,7 +89,6 @@ export class StorageCache {
       const toRemove = entries.slice(0, Math.floor(entries.length * 0.2));
       toRemove.forEach(([key]) => {
         this.existsCache.delete(key);
-        cleaned++;
       });
     }
   }
