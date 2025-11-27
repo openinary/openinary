@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "./ui/form";
 import { CopyInput } from "./ui/copy-input";
+import { Separator } from "./ui/separator";
 import { authClient } from "@/lib/auth-client";
 import logger from "@/lib/logger";
 
@@ -192,7 +193,7 @@ export function ApiKeyManager() {
       )}
 
       {/* Create New Key */}
-      <div className="border rounded-lg p-6">
+      <div>
         <h3 className="text-lg font-semibold mb-4">Create New API Key</h3>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onCreateKey)} className="space-y-4">
@@ -239,8 +240,10 @@ export function ApiKeyManager() {
         </Form>
       </div>
 
+      <Separator />
+
       {/* Existing Keys */}
-      <div className="border rounded-lg p-6">
+      <div>
         <h3 className="text-lg font-semibold mb-4">Your API Keys</h3>
         {loading ? (
           <p className="text-sm text-gray-500">Loading...</p>
@@ -251,7 +254,7 @@ export function ApiKeyManager() {
             {keys.map((key) => (
               <div
                 key={key.id}
-                className="border rounded-lg p-4 flex items-center justify-between"
+                className="flex items-center justify-between"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">

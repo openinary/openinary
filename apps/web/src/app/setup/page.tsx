@@ -324,6 +324,7 @@ export default function SetupPage() {
             alt="Openinary"
             width={120}
             height={120}
+            className="dark:invert"
           />
         </div>
         <div className="text-center">

@@ -14,6 +14,7 @@ export function LogoLink() {
         alt="Openinary"
         width={80}
         height={80}
+        className="dark:invert"
       />
     </Link>
   );

@@ -123,8 +123,8 @@ apiKeys.get("/list", async (c) => {
  * DELETE /api-keys/:keyId
  */
 apiKeys.delete("/:keyId", async (c) => {
+  const keyId = c.req.param("keyId");
   try {
-    const keyId = c.req.param("keyId");
     const user = c.get("user");
 
     if (!user?.id) {
@@ -191,8 +191,8 @@ apiKeys.delete("/:keyId", async (c) => {
  * PATCH /api-keys/:keyId
  */
 apiKeys.patch("/:keyId", async (c) => {
+  const keyId = c.req.param("keyId");
   try {
-    const keyId = c.req.param("keyId");
     const body = await c.req.json();
     const { name, enabled } = body;
     const user = c.get("user");

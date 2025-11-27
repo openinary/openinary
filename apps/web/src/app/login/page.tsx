@@ -182,6 +182,7 @@ export default function LoginPage() {
             alt="Openinary"
             width={120}
             height={120}
+            className="dark:invert"
           />
         </div>
         <div className="text-center">
