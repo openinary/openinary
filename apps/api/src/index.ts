@@ -40,11 +40,12 @@ app.get("/", (c) => c.text("Openinary API Server is running."));
 // Health check routes
 app.route("/health", health);
 
-// Protected routes - require API key authentication
-// Apply middleware before routing
-app.use("/t/*", apiKeyAuth);
+// Public routes - no authentication required
+// Image transformation route is public for easy access to transformed images
 app.route("/t", transform);
 
+// Protected routes - require API key authentication
+// Apply middleware before routing
 app.use("/upload/*", apiKeyAuth);
 app.route("/upload", upload);
 
