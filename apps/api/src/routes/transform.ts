@@ -15,6 +15,7 @@ import {
   saveToCaches,
   cleanupTempFile,
   performPeriodicCacheCleanup,
+  determineContentType,
 } from "./transform-helpers";
 
 const t = new Hono();
@@ -30,21 +31,47 @@ t.get("/*", async (c) => {
   const fileSegments = segments.filter((segment) => !segment.includes(":"));
   const filePath = fileSegments.join("/");
 
-  const cachePath = getCachePath(path);
+  let cachePath = getCachePath(path);
   const localPath = `./public/${filePath}`;
   const ext = filePath.split(".").pop();
 
+  // Get browser support info for format optimization
+  const userAgent = c.req.header("User-Agent");
+  const acceptHeader = c.req.header("Accept");
+  
+  // Determine optimal format if not explicitly specified
+  // This ensures cache keys include the format for proper cache hits
+  let effectiveParams = { ...params };
+  if (!params.format && ext?.match(/jpe?g|png|webp|avif|gif/)) {
+    const optimalFormat = compression.determineOptimalFormatForCache(
+      userAgent,
+      acceptHeader,
+      ext
+    );
+    effectiveParams = { ...params, format: optimalFormat };
+    
+    // Update cache path to include the optimal format
+    const pathWithFormat = path.replace(
+      /\/t\/(.*)$/,
+      `/t/format:${optimalFormat}/$1`
+    );
+    cachePath = getCachePath(pathWithFormat);
+  }
+  
   // 1. Check cloud cache first (if configured)
-  const cloudCacheBuffer = await checkCloudCache(storage, filePath, params);
+  const cloudCacheBuffer = await checkCloudCache(storage, filePath, effectiveParams);
   if (cloudCacheBuffer) {
-    setContentTypeHeader(c, ext);
+    // For cloud cache, we trust it has the right format since it's based on params
+    const contentType = await determineContentType(effectiveParams, cloudCacheBuffer, ext);
+    setContentTypeHeader(c, contentType);
     return c.body(new Uint8Array(cloudCacheBuffer));
   }
 
-  // 2. Check local cache
+  // 2. Check local cache (now includes format in key when format is auto-determined)
   const localCacheBuffer = await checkLocalCache(cachePath);
   if (localCacheBuffer) {
-    setContentTypeHeader(c, ext);
+    const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
+    setContentTypeHeader(c, contentType);
     return c.body(new Uint8Array(localCacheBuffer));
   }
 
@@ -67,11 +94,9 @@ t.get("/*", async (c) => {
 
     // Process based on file type
     if (ext?.match(/jpe?g|png|webp|avif|gif/)) {
-      const userAgent = c.req.header("User-Agent");
-      const acceptHeader = c.req.header("Accept");
       const result = await processImage(
         sourcePath,
-        params,
+        effectiveParams, // Use effectiveParams which includes auto-determined format
         userAgent,
         acceptHeader,
         compression
@@ -96,14 +121,14 @@ t.get("/*", async (c) => {
       await cleanupTempFile(sourcePath);
     }
 
-    // Save to caches
-    await saveToCaches(storage, filePath, params, cachePath, buffer, contentType);
+    // Save to caches (use effectiveParams to ensure format is included in cache key)
+    await saveToCaches(storage, filePath, effectiveParams, cachePath, buffer, contentType);
 
     // Periodic cache cleanup
     await performPeriodicCacheCleanup();
 
-    // Set response headers
-    setContentTypeHeader(c, ext);
+    // Set response headers (use the actual content-type from processing, not the original extension)
+    setContentTypeHeader(c, contentType);
 
     if (optimizationResult) {
       c.header("X-Original-Size", optimizationResult.originalSize.toString());

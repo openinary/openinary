@@ -5,7 +5,9 @@ import { useMemo } from "react";
 
 export function Examples() {
   const exampleUrls = useMemo(() => {
-    const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/api$/, "");
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""
+    // In Docker, transform routes are exposed directly at /t (without /api prefix)
+    const baseUrl = apiBaseUrl === "/api" ? "" : apiBaseUrl.replace(/\/api$/, "")
     return [
       {
         title: "Resize image to 300x200",

@@ -39,7 +39,7 @@ export function AssetDetailsSidebar({
     isDeleting,
     mediaUrl,
     previewUrl,
-    apiBaseUrl,
+    transformBaseUrl,
     handleCopyUrl,
     handleDownload,
     handleOpenInNewTab,
@@ -108,7 +108,7 @@ export function AssetDetailsSidebar({
               </TabsContent>
 
               <TabsContent value="transformations" className="space-y-4 mt-4">
-                <AssetTransformationsTab asset={asset} apiBaseUrl={apiBaseUrl} />
+                <AssetTransformationsTab asset={asset} apiBaseUrl={transformBaseUrl} />
               </TabsContent>
 
               <TabsContent value="metadata" className="space-y-4 mt-4">

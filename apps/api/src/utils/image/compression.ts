@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
+import logger from '../logger';
 
 export class Compression {
   private static readonly FORMAT_PRIORITIES = {
@@ -11,6 +12,7 @@ export class Compression {
 
   /**
    * Optimizes an image with intelligent compression
+   * If format is not explicitly specified, encodes in all supported formats and returns the smallest one
    */
   async optimizeForDelivery(
     inputPath: string, 
@@ -26,27 +28,162 @@ export class Compression {
     const analysis = await this.analyzeImage(inputPath);
     const metadata = await sharp(inputPath).metadata();
     
-    // OPTIMAL FORMAT DETERMINATION
-    const optimalFormat = this.determineOptimalFormat(
-      analysis, 
-      originalSize, 
-      userAgent, 
-      acceptHeader,
-      params.format
-    );
+    // If format is explicitly specified, use it directly (no size comparison needed)
+    if (params.format) {
+      const explicitFormat = params.format === 'jpg' ? 'jpeg' : params.format;
+      const optimalQuality = this.calculateOptimalQuality(
+        analysis, 
+        originalSize, 
+        explicitFormat
+      );
+      
+      let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
+      
+      // Apply the explicit format
+      pipeline = this.applyFormat(pipeline, explicitFormat, optimalQuality);
+      
+      const optimizedBuffer = await pipeline.toBuffer();
+      const optimizedSize = optimizedBuffer.length;
+      const savings = ((originalSize - optimizedSize) / originalSize) * 100;
+      const compressionRatio = originalSize / optimizedSize;
+      
+      return {
+        buffer: optimizedBuffer,
+        format: explicitFormat,
+        originalSize,
+        optimizedSize,
+        savings,
+        compressionRatio
+      };
+    }
     
-    // OPTIMAL QUALITY CALCULATION
-    const optimalQuality = this.calculateOptimalQuality(
-      analysis, 
-      originalSize, 
-      optimalFormat
-    );
+    // FORMAT SIZE COMPARISON: Encode in all supported formats and compare sizes
+    const supportsAVIF = this.supportsFormat('avif', userAgent, acceptHeader);
+    const supportsWebP = this.supportsFormat('webp', userAgent, acceptHeader);
+    
+    logger.debug({ 
+      userAgent, 
+      acceptHeader, 
+      supportsAVIF, 
+      supportsWebP 
+    }, 'Browser format support detection');
+    
+    const formatsToTest: ImageFormat[] = [];
+    const originalFormat = metadata.format;
+    const hasTransparency = metadata.hasAlpha;
+    
+    // Modern browsers: Test AVIF, WebP, and JPEG (plus PNG if original is PNG)
+    if (supportsAVIF) {
+      formatsToTest.push('avif', 'webp', 'jpeg');
+      // If original is PNG, also test PNG to compare sizes (AVIF/WebP support transparency too)
+      if (originalFormat === 'png') {
+        formatsToTest.push('png');
+        logger.debug('Testing formats: AVIF, WebP, JPEG, PNG (original is PNG)');
+      } else {
+        logger.debug('Testing formats: AVIF, WebP, JPEG');
+      }
+    }
+    // Browsers with WebP but not AVIF: Test WebP and JPEG (plus PNG if original is PNG)
+    else if (supportsWebP) {
+      formatsToTest.push('webp', 'jpeg');
+      // If original is PNG, also test PNG to compare sizes (WebP supports transparency)
+      if (originalFormat === 'png') {
+        formatsToTest.push('png');
+        logger.debug('Testing formats: WebP, JPEG, PNG (original is PNG)');
+      } else {
+        logger.debug('Testing formats: WebP, JPEG');
+      }
+    }
+    // Older browsers: Use JPEG/PNG (keep original format if PNG for transparency)
+    else {
+      // Preserve PNG for transparency, otherwise use JPEG
+      if (originalFormat === 'png' && hasTransparency) {
+        formatsToTest.push('png');
+        logger.debug('Testing format: PNG (preserving transparency, legacy browser)');
+      } else {
+        formatsToTest.push('jpeg');
+        logger.debug('Testing format: JPEG (legacy browser)');
+      }
+    }
+    
+    // Encode in all formats and compare sizes
+    const results: Array<{ format: ImageFormat; buffer: Buffer; size: number }> = [];
+    
+    for (const format of formatsToTest) {
+      try {
+        const quality = this.calculateOptimalQuality(analysis, originalSize, format);
+        let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
+        pipeline = this.applyFormat(pipeline, format, quality);
         
+        const buffer = await pipeline.toBuffer();
+        results.push({
+          format,
+          buffer,
+          size: buffer.length
+        });
+      } catch (error) {
+        // If encoding fails for a format, skip it
+        logger.debug({ error, format }, `Failed to encode in ${format}, skipping`);
+      }
+    }
+    
+    // Find the smallest format
+    if (results.length === 0) {
+      // Fallback: use JPEG
+      const quality = this.calculateOptimalQuality(analysis, originalSize, 'jpeg');
+      let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
+      pipeline = this.applyFormat(pipeline, 'jpeg', quality);
+      const buffer = await pipeline.toBuffer();
+      
+      return {
+        buffer,
+        format: 'jpeg',
+        originalSize,
+        optimizedSize: buffer.length,
+        savings: ((originalSize - buffer.length) / originalSize) * 100,
+        compressionRatio: originalSize / buffer.length
+      };
+    }
+    
+    // Sort by size and pick the smallest
+    results.sort((a, b) => a.size - b.size);
+    const bestResult = results[0];
+    
+    // Normalize format (jpg -> jpeg)
+    const normalizedFormat = bestResult.format === 'jpg' ? 'jpeg' : bestResult.format;
+    
+    logger.debug({ 
+      testedFormats: results.map(r => ({ format: r.format, size: r.size })),
+      selectedFormat: normalizedFormat,
+      selectedSize: bestResult.size,
+      originalSize
+    }, 'Format size comparison results');
+    
+    const savings = ((originalSize - bestResult.size) / originalSize) * 100;
+    const compressionRatio = originalSize / bestResult.size;
+    
+    return {
+      buffer: bestResult.buffer,
+      format: normalizedFormat,
+      originalSize,
+      optimizedSize: bestResult.size,
+      savings,
+      compressionRatio
+    };
+  }
+  
+  /**
+   * Prepares the base pipeline with preliminary optimizations
+   */
+  private preparePipeline(
+    inputPath: string,
+    analysis: ImageAnalysis,
+    metadata: sharp.Metadata,
+    originalSize: number
+  ): sharp.Sharp {
     let pipeline = sharp(inputPath);
     
-    // PRELIMINARY OPTIMIZATIONS
-    
-    // Resolution reduction only for extremely large files (increased threshold)
+    // Resolution reduction only for extremely large files
     if (originalSize > 5 * 1024 * 1024) { // > 5MB
       const maxDimension = this.getMaxDimension(analysis);
       if (metadata.width! > maxDimension || metadata.height! > maxDimension) {
@@ -60,61 +197,54 @@ export class Compression {
     // Remove metadata to save space
     pipeline = pipeline.withMetadata();
     
-    // FORMAT AND COMPRESSION APPLICATION
-    switch (optimalFormat) {
+    return pipeline;
+  }
+  
+  /**
+   * Applies format encoding to the pipeline
+   */
+  private applyFormat(
+    pipeline: sharp.Sharp,
+    format: ImageFormat,
+    quality: number
+  ): sharp.Sharp {
+    switch (format) {
       case 'avif':
-        pipeline = pipeline.avif({
-          quality: optimalQuality,
+        return pipeline.avif({
+          quality,
           effort: 1, 
           chromaSubsampling: '4:2:0'
         });
-        break;
         
       case 'webp':
-        pipeline = pipeline.webp({
-          quality: optimalQuality,
+        return pipeline.webp({
+          quality,
           effort: 1, 
-          smartSubsample: false // Disable for speed
+          smartSubsample: false
         });
-        break;
         
       case 'jpeg':
-        pipeline = pipeline.jpeg({
-          quality: optimalQuality,
+      case 'jpg':
+        return pipeline.jpeg({
+          quality,
           progressive: false, 
           mozjpeg: false,
           chromaSubsampling: '4:2:0'
         });
-        break;
         
       case 'png':
-        pipeline = pipeline.png({
+        return pipeline.png({
           compressionLevel: 3, 
           adaptiveFiltering: false 
         });
-        break;
         
       default:
-        // PNG fallback for transparency (optimized for speed)
-        pipeline = pipeline.png({
-          compressionLevel: 3, // Faster compression
-          adaptiveFiltering: false // Disable for speed
+        // PNG fallback
+        return pipeline.png({
+          compressionLevel: 3,
+          adaptiveFiltering: false
         });
     }
-    
-    const optimizedBuffer = await pipeline.toBuffer();
-    const optimizedSize = optimizedBuffer.length;
-    const savings = ((originalSize - optimizedSize) / originalSize) * 100;
-    const compressionRatio = originalSize / optimizedSize;
-        
-    return {
-      buffer: optimizedBuffer,
-      format: optimalFormat,
-      originalSize,
-      optimizedSize,
-      savings,
-      compressionRatio
-    };
   }
 
   /**
@@ -217,25 +347,75 @@ export class Compression {
   }
 
   /**
+   * Determines the optimal format for a browser without doing full optimization
+   * This is used for cache key generation
+   */
+  determineOptimalFormatForCache(
+    userAgent?: string,
+    acceptHeader?: string,
+    originalFormat?: string
+  ): string {
+    // If format is explicitly specified, we wouldn't call this, but handle it anyway
+    const supportsAVIF = this.supportsFormat('avif', userAgent, acceptHeader);
+    const supportsWebP = this.supportsFormat('webp', userAgent, acceptHeader);
+    
+    // Prefer AVIF if supported (best compression)
+    if (supportsAVIF) {
+      return 'avif';
+    }
+    
+    // Fallback to WebP if supported
+    if (supportsWebP) {
+      return 'webp';
+    }
+    
+    // For legacy browsers, preserve PNG if original is PNG (for transparency)
+    // Otherwise use JPEG
+    if (originalFormat === 'png') {
+      return 'png';
+    }
+    
+    return 'jpeg';
+  }
+
+  /**
    * Checks browser support for a format
    */
   private supportsFormat(format: string, userAgent?: string, acceptHeader?: string): boolean {
-    if (acceptHeader?.includes(`image/${format}`)) {
-      return true;
+    // First check Accept header - most reliable method
+    if (acceptHeader) {
+      const acceptLower = acceptHeader.toLowerCase();
+      if (format === 'avif' && acceptLower.includes('image/avif')) {
+        return true;
+      }
+      if (format === 'webp' && acceptLower.includes('image/webp')) {
+        return true;
+      }
     }
     
-    if (!userAgent) return false;
+    if (!userAgent) {
+      // If no user agent, assume modern browser supports AVIF and WebP
+      // This handles cases where Accept header might not be sent
+      return format === 'avif' || format === 'webp';
+    }
+    
+    const ua = userAgent.toLowerCase();
     
     switch (format) {
       case 'avif':
-        // Chrome 85+, Firefox 93+
-        return /Chrome\/([8-9]\d|[1-9]\d{2,})/.test(userAgent) ||
-               /Firefox\/([9-9]\d|[1-9]\d{2,})/.test(userAgent);
+        // Chrome 85+ (released Aug 2020), Firefox 93+ (released Oct 2021), Safari 16+ (released Sep 2022), Edge 122+
+        return (
+          (ua.includes('chrome') && !ua.includes('edg') && parseInt(ua.match(/chrome\/(\d+)/)?.[1] || '0') >= 85) ||
+          (ua.includes('firefox') && parseInt(ua.match(/firefox\/(\d+)/)?.[1] || '0') >= 93) ||
+          (ua.includes('safari') && !ua.includes('chrome') && parseInt(ua.match(/version\/(\d+)/)?.[1] || '0') >= 16) ||
+          (ua.includes('edg') && parseInt(ua.match(/edg\/(\d+)/)?.[1] || '0') >= 122)
+        );
                
       case 'webp':
-        // Very broad support now
-        return !/MSIE|Trident/.test(userAgent) && // Not IE
-               !/Edge\/1[0-8]/.test(userAgent);    // Not old Edge
+        // Very broad support now - almost all modern browsers
+        return !ua.includes('msie') && 
+               !ua.includes('trident') && 
+               !(ua.includes('edge') && parseInt(ua.match(/edge\/(\d+)/)?.[1] || '0') < 18);
                
       default:
         return true;

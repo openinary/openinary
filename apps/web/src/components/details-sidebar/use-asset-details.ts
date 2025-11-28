@@ -75,11 +75,15 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
   }
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""
-  const mediaUrl = asset ? `${apiBaseUrl}/t/${asset.path}` : ""
+  // Use dedicated transform base URL (empty in Docker, falls back to apiBaseUrl without /api)
+  const transformBaseUrl = process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL !== undefined
+    ? process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL
+    : apiBaseUrl.replace(/\/api$/, "")
+  const mediaUrl = asset ? `${transformBaseUrl}/t/${asset.path}` : ""
   const previewUrl = asset
     ? asset.type === "image"
-      ? `${apiBaseUrl}/t/resize:800x800/quality:90/${asset.path}`
-      : `${apiBaseUrl}/t/${asset.path}`
+      ? `${transformBaseUrl}/t/resize:800x800/quality:90/${asset.path}`
+      : `${transformBaseUrl}/t/${asset.path}`
     : ""
 
   const handleCopyUrl = () => {
@@ -184,6 +188,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     mediaUrl,
     previewUrl,
     apiBaseUrl,
+    transformBaseUrl,
     handleCopyUrl,
     handleDownload,
     handleOpenInNewTab,

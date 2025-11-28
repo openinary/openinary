@@ -14,14 +14,22 @@ import {
 } from "../utils/cache";
 
 /**
- * Sets the Content-Type header based on file extension
+ * Sets the Content-Type header based on file extension or content-type string
+ * Accepts either an extension (e.g., "jpg", "png") or a full content-type (e.g., "image/avif")
  */
 export function setContentTypeHeader(
   c: Context,
-  extension: string | undefined
+  extensionOrContentType: string | undefined
 ): void {
-  if (!extension) return;
+  if (!extensionOrContentType) return;
 
+  // If it's already a content-type (starts with "image/" or "video/"), use it directly
+  if (extensionOrContentType.startsWith("image/") || extensionOrContentType.startsWith("video/")) {
+    c.header("Content-Type", extensionOrContentType);
+    return;
+  }
+
+  // Otherwise, treat it as an extension
   const contentTypeMap: Record<string, string> = {
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
@@ -34,12 +42,89 @@ export function setContentTypeHeader(
     webm: "video/webm",
   };
 
-  const normalizedExt = extension.toLowerCase();
+  const normalizedExt = extensionOrContentType.toLowerCase();
   const contentType = contentTypeMap[normalizedExt];
 
   if (contentType) {
     c.header("Content-Type", contentType);
   }
+}
+
+/**
+ * Determines the content-type from transformation parameters or buffer
+ * Priority: params.format > buffer detection > original extension
+ */
+export async function determineContentType(
+  params: ReturnType<typeof parseParams>,
+  buffer: Buffer | null,
+  originalExtension: string | undefined
+): Promise<string> {
+  // 1. Check if format is explicitly specified in params
+  if (params.format) {
+    const format = params.format.toLowerCase();
+    // Normalize jpg to jpeg
+    const normalizedFormat = format === "jpg" ? "jpeg" : format;
+    
+    const formatMap: Record<string, string> = {
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+      gif: "image/gif",
+    };
+    
+    const contentType = formatMap[normalizedFormat];
+    if (contentType) {
+      return contentType;
+    }
+  }
+
+  // 2. Try to detect from buffer using sharp (if available and buffer is provided)
+  if (buffer) {
+    try {
+      const sharp = await import("sharp");
+      const metadata = await sharp.default(buffer).metadata();
+      if (metadata.format) {
+        const formatMap: Record<string, string> = {
+          jpeg: "image/jpeg",
+          jpg: "image/jpeg",
+          png: "image/png",
+          webp: "image/webp",
+          avif: "image/avif",
+          gif: "image/gif",
+          tiff: "image/tiff",
+          svg: "image/svg+xml",
+        };
+        const contentType = formatMap[metadata.format];
+        if (contentType) {
+          return contentType;
+        }
+      }
+    } catch (error) {
+      // If sharp detection fails, fall through to extension-based detection
+      logger.debug({ error }, "Failed to detect format from buffer");
+    }
+  }
+
+  // 3. Fallback to extension-based detection
+  if (originalExtension) {
+    const ext = originalExtension.toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+      gif: "image/gif",
+      mp4: "video/mp4",
+      mov: "video/quicktime",
+      webm: "video/webm",
+    };
+    return contentTypeMap[ext] || "image/jpeg"; // Default to jpeg
+  }
+
+  // Final fallback
+  return "image/jpeg";
 }
 
 /**
