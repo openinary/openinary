@@ -16,8 +16,7 @@ services:
       - db-data:/app/data
       # Mount backup folder for database backups
       - backup-data:/backup
-    env_file:
-      - ./apps/api/.env
+    # Note: .env files are optional and loaded by init-env.js at runtime if they exist
     environment:
       - NODE_ENV=production
       - MODE=api
@@ -45,9 +44,7 @@ services:
       - db-data:/app/web-standalone/data
       # Mount backup folder for database backups
       - backup-data:/backup
-    env_file:
-      - ./apps/api/.env
-      - ./apps/web/.env
+    # Note: .env files are optional and loaded by init-env.js at runtime if they exist
     environment:
       - NODE_ENV=production
       - MODE=fullstack
