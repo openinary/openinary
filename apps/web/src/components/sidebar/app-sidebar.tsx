@@ -64,11 +64,13 @@ const data = {
       title: "Image",
       url: "/",
       icon: ImageIcon,
+      disabled: true,
     },
     {
       title: "Video",
       url: "/",
       icon: Video,
+      disabled: true,
     },
   ],
 }

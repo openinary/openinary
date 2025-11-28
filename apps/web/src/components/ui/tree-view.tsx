@@ -14,7 +14,7 @@ type MediaFile = {
 }
 
 const treeVariants = cva(
-    'group hover:before:opacity-100 before:absolute before:rounded-lg before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent/70 before:h-[2rem] before:-z-10'
+    'group relative rounded-md hover:before:opacity-100 before:absolute before:rounded-md before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent before:h-[2rem] before:-z-10 before:transition-opacity before:duration-200 hover:bg-accent/60'
 )
 
 const selectedTreeVariants = cva(

@@ -135,7 +135,7 @@ function HomePageContent() {
                 </div>
             </header>
             <div className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto">
-              <MediaGrid onMediaSelect={handleMediaSelect} />
+              <MediaGrid onMediaSelect={handleMediaSelect} sidebarOpen={assetSidebarOpen} />
             </div>
           </ResizablePanel>
           {assetSidebarOpen && (
@@ -144,7 +144,7 @@ function HomePageContent() {
               <ResizablePanel 
                 ref={sidebarPanelRef}
                 defaultSize={30} 
-                minSize={20} 
+                minSize={25} 
                 maxSize={50}
                 collapsible={true}
                 id="sidebar-panel"

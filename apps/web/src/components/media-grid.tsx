@@ -6,6 +6,7 @@ import { useQueryState } from "nuqs";
 import { useStorageTree } from "@/hooks/use-storage-tree";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { preloadMedia } from "@/hooks/use-preload-media";
 import type { TreeDataItem } from "@/components/ui/tree-view";
 
 type MediaFile = {
@@ -91,9 +92,10 @@ function findItemsInPath(
 
 interface MediaGridProps {
   onMediaSelect: (media: MediaFile) => void;
+  sidebarOpen?: boolean;
 }
 
-export function MediaGrid({ onMediaSelect }: MediaGridProps) {
+export function MediaGrid({ onMediaSelect, sidebarOpen = false }: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useQueryState("folder");
@@ -109,9 +111,14 @@ export function MediaGrid({ onMediaSelect }: MediaGridProps) {
     return findItemsInPath(treeData, pathSegments);
   }, [treeData, pathSegments]);
 
+  // Adjust grid columns based on sidebar state
+  const gridColsClass = sidebarOpen
+    ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <div className={`grid ${gridColsClass} gap-4`}>
         {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="space-y-2">
             <Skeleton className="aspect-square w-full rounded-lg" />
@@ -140,9 +147,21 @@ export function MediaGrid({ onMediaSelect }: MediaGridProps) {
   }
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  // Use dedicated transform base URL (empty in Docker, falls back to apiBaseUrl without /api)
+  const transformBaseUrl = process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL !== undefined
+    ? process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL
+    : apiBaseUrl.replace(/\/api$/, "");
 
   const handleFolderClick = (folderPath: string) => {
     setFolderPath(folderPath);
+  };
+
+  // Preload preview when hovering over a media item
+  const handleMediaHover = (media: MediaFile) => {
+    const previewUrl = media.type === "image"
+      ? `${transformBaseUrl}/t/resize:800x800/quality:90/${media.path}`
+      : `${transformBaseUrl}/t/${media.path}`;
+    preloadMedia(previewUrl, media.type);
   };
 
   if (folders.length === 0 && files.length === 0) {
@@ -155,7 +174,7 @@ export function MediaGrid({ onMediaSelect }: MediaGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+    <div className={`grid ${gridColsClass} gap-4`}>
       {/* Render folders */}
       {folders.map((folder) => {
         const isHovered = hoveredId === folder.id;
@@ -192,7 +211,10 @@ export function MediaGrid({ onMediaSelect }: MediaGridProps) {
             key={media.id}
             className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary hover:shadow-md"
             onClick={() => onMediaSelect(media)}
-            onMouseEnter={() => setHoveredId(media.id)}
+            onMouseEnter={() => {
+              setHoveredId(media.id);
+              handleMediaHover(media);
+            }}
             onMouseLeave={() => setHoveredId(null)}
           >
             {media.type === "image" ? (

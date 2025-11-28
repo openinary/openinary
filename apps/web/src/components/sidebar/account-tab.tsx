@@ -91,6 +91,7 @@ export function AccountTab({
               <FormLabel>Name</FormLabel>
               <FormControl>
                 <Input
+                  disabled
                   type="text"
                   placeholder="Your name"
                   {...field}
@@ -108,6 +109,7 @@ export function AccountTab({
               <FormLabel>Email</FormLabel>
               <FormControl>
                 <Input
+                  disabled
                   type="email"
                   placeholder="your.email@example.com"
                   {...field}
@@ -125,6 +127,7 @@ export function AccountTab({
               <FormLabel>Avatar URL (optional)</FormLabel>
               <FormControl>
                 <Input
+                  disabled
                   type="url"
                   placeholder="https://example.com/avatar.jpg"
                   {...field}
@@ -136,6 +139,7 @@ export function AccountTab({
         />
         <div className="flex justify-end gap-2 pt-4">
           <Button
+            disabled
             type="button"
             variant="ghost"
             onClick={() => accountForm.reset()}
@@ -144,7 +148,7 @@ export function AccountTab({
           </Button>
           <Button
             type="submit"
-            disabled={accountForm.formState.isSubmitting}
+            disabled
           >
             {accountForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
           </Button>

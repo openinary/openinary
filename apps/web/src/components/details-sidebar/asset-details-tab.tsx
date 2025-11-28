@@ -1,17 +1,20 @@
 "use client"
 
+import { useState } from "react"
 import {
   FileType,
   HardDrive,
   Calendar,
   ExternalLink,
   Copy,
+  Check,
   Download,
   Trash2,
 } from "lucide-react"
 import { CopyInput } from "@/components/ui/copy-input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 import type { MediaFile } from "./types"
 import { formatFileSize, formatDate, getFileType } from "./utils"
 
@@ -40,6 +43,14 @@ export function AssetDetailsTab({
   onOpenInNewTab,
   onDelete,
 }: AssetDetailsTabProps) {
+  const [copied, setCopied] = useState<boolean>(false)
+
+  const handleCopyUrl = () => {
+    onCopyUrl()
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-4">
@@ -116,10 +127,28 @@ export function AssetDetailsTab({
           <Button
             variant="outline"
             size="sm"
-            onClick={onCopyUrl}
+            onClick={handleCopyUrl}
             className="gap-2"
+            disabled={copied}
           >
-            <Copy className="h-4 w-4" />
+            <div className="relative h-4 w-4">
+              <div
+                className={cn(
+                  "absolute inset-0 transition-all",
+                  copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                )}
+              >
+                <Check className="h-4 w-4 stroke-emerald-500" />
+              </div>
+              <div
+                className={cn(
+                  "absolute inset-0 transition-all",
+                  copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
+                )}
+              >
+                <Copy className="h-4 w-4" />
+              </div>
+            </div>
             Copy URL
           </Button>
           <Button

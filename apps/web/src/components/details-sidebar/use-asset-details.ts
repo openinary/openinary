@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useQueryState, parseAsString } from "nuqs"
 import { useQueryClient } from "@tanstack/react-query"
 import { useStorageTree } from "@/hooks/use-storage-tree"
+import { usePreloadMedia } from "@/hooks/use-preload-media"
 import { findAssetInTree } from "./utils"
 import type { MediaFile } from "./types"
 
@@ -85,6 +86,9 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
       ? `${transformBaseUrl}/t/resize:800x800/quality:90/${asset.path}`
       : `${transformBaseUrl}/t/${asset.path}`
     : ""
+
+  // Preload preview media when asset changes
+  usePreloadMedia(previewUrl, asset?.type ?? "image")
 
   const handleCopyUrl = () => {
     if (mediaUrl) {
