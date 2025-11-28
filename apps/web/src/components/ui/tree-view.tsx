@@ -2,9 +2,16 @@
 
 import React from 'react'
 import * as AccordionPrimitive from '@radix-ui/react-accordion'
-import { ChevronRight } from 'lucide-react'
+import { FolderIcon, FolderOpenIcon } from 'lucide-react'
 import { cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
+
+type MediaFile = {
+    id: string
+    name: string
+    path: string
+    type: "image" | "video"
+}
 
 const treeVariants = cva(
     'group hover:before:opacity-100 before:absolute before:rounded-lg before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent/70 before:h-[2rem] before:-z-10'
@@ -40,6 +47,58 @@ type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
     defaultNodeIcon?: any
     defaultLeafIcon?: any
     onDocumentDrag?: (sourceItem: TreeDataItem, targetItem: TreeDataItem) => void
+    onMediaSelect?: (media: MediaFile) => void
+}
+
+// Helper function to find the path of an item in the tree
+function findItemPath(
+    items: TreeDataItem[] | TreeDataItem,
+    targetId: string,
+    currentPath: string[] = []
+): string[] | null {
+    const itemsArray = Array.isArray(items) ? items : [items]
+    
+    for (const item of itemsArray) {
+        const newPath = [...currentPath, item.name]
+        
+        if (item.id === targetId) {
+            return newPath
+        }
+        
+        if (item.children && item.children.length > 0) {
+            const found = findItemPath(item.children, targetId, newPath)
+            if (found) return found
+        }
+    }
+    
+    return null
+}
+
+// Helper function to check if an item is a media file
+function isMediaFile(item: TreeDataItem): { isMedia: boolean; type?: "image" | "video" } {
+    const lowerName = item.name.toLowerCase()
+    
+    const isImage =
+        lowerName.endsWith(".jpg") ||
+        lowerName.endsWith(".jpeg") ||
+        lowerName.endsWith(".png") ||
+        lowerName.endsWith(".webp") ||
+        lowerName.endsWith(".gif") ||
+        lowerName.endsWith(".avif")
+    
+    const isVideo =
+        lowerName.endsWith(".mp4") ||
+        lowerName.endsWith(".mov") ||
+        lowerName.endsWith(".webm")
+    
+    if (isImage) {
+        return { isMedia: true, type: "image" }
+    }
+    if (isVideo) {
+        return { isMedia: true, type: "video" }
+    }
+    
+    return { isMedia: false }
 }
 
 const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
@@ -53,6 +112,7 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
             defaultNodeIcon,
             className,
             onDocumentDrag,
+            onMediaSelect,
             ...props
         },
         ref
@@ -127,6 +187,8 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
                     handleDragStart={handleDragStart}
                     handleDrop={handleDrop}
                     draggedItem={draggedItem}
+                    onMediaSelect={onMediaSelect}
+                    treeData={data}
                     {...props}
                 />
             </div>
@@ -144,6 +206,7 @@ type TreeItemProps = TreeProps & {
     handleDragStart?: (item: TreeDataItem) => void
     handleDrop?: (item: TreeDataItem) => void
     draggedItem: TreeDataItem | null
+    treeData?: TreeDataItem[] | TreeDataItem
 }
 
 const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
@@ -159,6 +222,8 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
             handleDragStart,
             handleDrop,
             draggedItem,
+            onMediaSelect,
+            treeData,
             ...props
         },
         ref
@@ -168,35 +233,37 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
         }
         return (
             <div ref={ref} role="tree" className={className} {...props}>
-                <ul>
-                    {data.map((item) => (
-                        <li key={item.id}>
-                            {item.children ? (
-                                <TreeNode
-                                    item={item}
-                                    selectedItemId={selectedItemId}
-                                    expandedItemIds={expandedItemIds}
-                                    handleSelectChange={handleSelectChange}
-                                    defaultNodeIcon={defaultNodeIcon}
-                                    defaultLeafIcon={defaultLeafIcon}
-                                    handleDragStart={handleDragStart}
-                                    handleDrop={handleDrop}
-                                    draggedItem={draggedItem}
-                                />
-                            ) : (
-                                <TreeLeaf
-                                    item={item}
-                                    selectedItemId={selectedItemId}
-                                    handleSelectChange={handleSelectChange}
-                                    defaultLeafIcon={defaultLeafIcon}
-                                    handleDragStart={handleDragStart}
-                                    handleDrop={handleDrop}
-                                    draggedItem={draggedItem}
-                                />
-                            )}
-                        </li>
-                    ))}
-                </ul>
+                {data.map((item) => (
+                    <div key={item.id}>
+                        {item.children ? (
+                            <TreeNode
+                                item={item}
+                                selectedItemId={selectedItemId}
+                                expandedItemIds={expandedItemIds}
+                                handleSelectChange={handleSelectChange}
+                                defaultNodeIcon={defaultNodeIcon}
+                                defaultLeafIcon={defaultLeafIcon}
+                                handleDragStart={handleDragStart}
+                                handleDrop={handleDrop}
+                                draggedItem={draggedItem}
+                                onMediaSelect={onMediaSelect}
+                                treeData={treeData}
+                            />
+                        ) : (
+                            <TreeLeaf
+                                item={item}
+                                selectedItemId={selectedItemId}
+                                handleSelectChange={handleSelectChange}
+                                defaultLeafIcon={defaultLeafIcon}
+                                handleDragStart={handleDragStart}
+                                handleDrop={handleDrop}
+                                draggedItem={draggedItem}
+                                onMediaSelect={onMediaSelect}
+                                treeData={treeData}
+                            />
+                        )}
+                    </div>
+                ))}
             </div>
         )
     }
@@ -213,6 +280,8 @@ const TreeNode = ({
     handleDragStart,
     handleDrop,
     draggedItem,
+    onMediaSelect,
+    treeData,
 }: {
     item: TreeDataItem
     handleSelectChange: (item: TreeDataItem | undefined) => void
@@ -223,6 +292,8 @@ const TreeNode = ({
     handleDragStart?: (item: TreeDataItem) => void
     handleDrop?: (item: TreeDataItem) => void
     draggedItem: TreeDataItem | null
+    onMediaSelect?: (media: MediaFile) => void
+    treeData?: TreeDataItem[] | TreeDataItem
 }) => {
     const [value, setValue] = React.useState(
         expandedItemIds.includes(item.id) ? [item.id] : []
@@ -277,19 +348,23 @@ const TreeNode = ({
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
+                    isExpanded={value.includes(item.id)}
                 >
-                    <TreeIcon
-                        item={item}
-                        isSelected={selectedItemId === item.id}
-                        isOpen={value.includes(item.id)}
-                        default={defaultNodeIcon}
-                    />
-                    <span className="text-sm truncate">{item.name}</span>
+                    <TreeItemLabel className="flex-1 min-w-0">
+                        <span className="flex items-center gap-2 min-w-0 w-full">
+                            {value.includes(item.id) ? (
+                                <FolderOpenIcon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
+                            ) : (
+                                <FolderIcon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
+                            )}
+                            <span className="truncate min-w-0 flex-1 text-left">{item.name}</span>
+                        </span>
+                    </TreeItemLabel>
                     <TreeActions isSelected={selectedItemId === item.id}>
                         {item.actions}
                     </TreeActions>
                 </AccordionTrigger>
-                <AccordionContent className="ml-4 pl-1 border-l">
+                <AccordionContent>
                     <TreeItem
                         data={item.children ? item.children : item}
                         selectedItemId={selectedItemId}
@@ -300,6 +375,8 @@ const TreeNode = ({
                         handleDragStart={handleDragStart}
                         handleDrop={handleDrop}
                         draggedItem={draggedItem}
+                        onMediaSelect={onMediaSelect}
+                        treeData={treeData}
                     />
                 </AccordionContent>
             </AccordionPrimitive.Item>
@@ -317,6 +394,8 @@ const TreeLeaf = React.forwardRef<
         handleDragStart?: (item: TreeDataItem) => void
         handleDrop?: (item: TreeDataItem) => void
         draggedItem: TreeDataItem | null
+        onMediaSelect?: (media: MediaFile) => void
+        treeData?: TreeDataItem[] | TreeDataItem
     }
 >(
     (
@@ -329,6 +408,8 @@ const TreeLeaf = React.forwardRef<
             handleDragStart,
             handleDrop,
             draggedItem,
+            onMediaSelect,
+            treeData,
             ...props
         },
         ref
@@ -362,22 +443,42 @@ const TreeLeaf = React.forwardRef<
             handleDrop?.(item)
         }
 
+        const handleClick = () => {
+            if (item.disabled) return
+            
+            // Check if it's a media file
+            const mediaCheck = isMediaFile(item)
+            if (mediaCheck.isMedia && onMediaSelect && treeData) {
+                const pathSegments = findItemPath(treeData, item.id)
+                if (pathSegments && pathSegments.length > 0) {
+                    const media: MediaFile = {
+                        id: item.id,
+                        name: item.name,
+                        path: pathSegments.join("/"),
+                        type: mediaCheck.type!,
+                    }
+                    onMediaSelect(media)
+                    return
+                }
+            }
+            
+            // Default behavior for non-media files
+            handleSelectChange(item)
+            item.onClick?.()
+        }
+
         return (
             <div
                 ref={ref}
                 className={cn(
-                    'ml-5 flex text-left items-center py-2 cursor-pointer before:right-1',
+                    'flex text-left items-center gap-2 py-2 cursor-pointer before:right-1',
                     treeVariants(),
                     className,
                     selectedItemId === item.id && selectedTreeVariants(),
                     isDragOver && dragOverVariants(),
                     item.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
                 )}
-                onClick={() => {
-                    if (item.disabled) return
-                    handleSelectChange(item)
-                    item.onClick?.()
-                }}
+                onClick={handleClick}
                 draggable={!!item.draggable && !item.disabled}
                 onDragStart={onDragStart}
                 onDragOver={onDragOver}
@@ -385,12 +486,16 @@ const TreeLeaf = React.forwardRef<
                 onDrop={onDrop}
                 {...props}
             >
-                <TreeIcon
-                    item={item}
-                    isSelected={selectedItemId === item.id}
-                    default={defaultLeafIcon}
-                />
-                <span className="flex-grow text-sm truncate">{item.name}</span>
+                <TreeItemLabel className="flex-1 min-w-0">
+                    <span className="flex items-center gap-2 min-w-0 w-full">
+                        <TreeIcon
+                            item={item}
+                            isSelected={selectedItemId === item.id}
+                            default={defaultLeafIcon}
+                        />
+                        <span className="truncate min-w-0 flex-1">{item.name}</span>
+                    </span>
+                </TreeItemLabel>
                 <TreeActions isSelected={selectedItemId === item.id && !item.disabled}>
                     {item.actions}
                 </TreeActions>
@@ -402,18 +507,19 @@ TreeLeaf.displayName = 'TreeLeaf'
 
 const AccordionTrigger = React.forwardRef<
     React.ElementRef<typeof AccordionPrimitive.Trigger>,
-    React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+    React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger> & {
+        isExpanded?: boolean
+    }
+>(({ className, children, isExpanded, ...props }, ref) => (
     <AccordionPrimitive.Header>
         <AccordionPrimitive.Trigger
             ref={ref}
             className={cn(
-                'flex flex-1 w-full items-center py-2 transition-all first:[&[data-state=open]>svg]:first-of-type:rotate-90',
+                'flex flex-1 w-full items-center gap-2 py-2 transition-all',
                 className
             )}
             {...props}
         >
-            <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 text-accent-foreground/50 mr-1" />
             {children}
         </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
@@ -427,15 +533,25 @@ const AccordionContent = React.forwardRef<
     <AccordionPrimitive.Content
         ref={ref}
         className={cn(
-            'overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down',
+            'overflow-hidden transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down',
             className
         )}
         {...props}
     >
-        <div className="pb-1 pt-0">{children}</div>
+        <div className="pb-1 pt-0" style={{ paddingLeft: '20px' }}>{children}</div>
     </AccordionPrimitive.Content>
 ))
 AccordionContent.displayName = AccordionPrimitive.Content.displayName
+
+const TreeItemLabel = React.forwardRef<
+    HTMLSpanElement,
+    React.HTMLAttributes<HTMLSpanElement>
+>(({ className, children, ...props }, ref) => (
+    <span ref={ref} className={cn('text-sm overflow-hidden', className)} {...props}>
+        {children}
+    </span>
+))
+TreeItemLabel.displayName = 'TreeItemLabel'
 
 const TreeIcon = ({
     item,
@@ -457,10 +573,8 @@ const TreeIcon = ({
         Icon = item.icon
     }
     return Icon ? (
-        <Icon className="h-4 w-4 shrink-0 mr-2" />
-    ) : (
-        <></>
-    )
+        <Icon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
+    ) : null
 }
 
 const TreeActions = ({

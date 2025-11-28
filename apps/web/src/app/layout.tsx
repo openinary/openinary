@@ -55,7 +55,7 @@ export default function RootLayout({
           id="userjot-config"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
-            __html: `window.uj.init('cmie9xqhl00fn15nq8g2f2otm', { widget: true, position: 'right', theme: 'light' });`,
+            __html: `window.uj.init('cmie9xqhl00fn15nq8g2f2otm', { widget: true, position: 'right', theme: 'light', trigger: 'custom' });`,
           }}
         />
       </body>

@@ -39,6 +39,7 @@
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.66.1",
+    "react-resizable-panels": "^3.0.6",
     "shared": "workspace:*",
     "tailwind-merge": "^3.3.1",
     "three": "^0.181.2",

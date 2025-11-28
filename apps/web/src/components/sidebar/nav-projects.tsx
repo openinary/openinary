@@ -8,6 +8,13 @@ import {
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
 
+type MediaFile = {
+  id: string
+  name: string
+  path: string
+  type: "image" | "video"
+}
+
 function TreeSkeleton() {
   return (
     <div className="space-y-1 px-2">
@@ -36,7 +43,11 @@ function TreeSkeleton() {
   )
 }
 
-export function NavProjects() {
+interface NavProjectsProps {
+  onMediaSelect?: (media: MediaFile) => void
+}
+
+export function NavProjects({ onMediaSelect }: NavProjectsProps) {
   const { data, isLoading, error } = useStorageTree()
 
   return (
@@ -52,6 +63,7 @@ export function NavProjects() {
         <TreeView
           data={data}
           expandAll
+          onMediaSelect={onMediaSelect}
         />
       )}
     </SidebarGroup>

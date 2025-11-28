@@ -145,6 +145,18 @@ export class CloudStorage {
   }
 
   /**
+   * Deletes an original file from storage
+   */
+  async deleteOriginal(originalPath: string): Promise<void> {
+    // Add public/ prefix for storage
+    const storageKey = `public/${originalPath}`;
+    await this.s3Client.deleteObject(storageKey);
+    
+    // Invalidate cache
+    this.cache.delete(`original:${originalPath}`);
+  }
+
+  /**
    * Invalidates the cache for a specific file
    */
   invalidateCache(originalPath: string, params?: any): void {

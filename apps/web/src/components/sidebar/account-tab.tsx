@@ -73,10 +73,10 @@ export function AccountTab({
       logger.info("Account update", { values })
       // You would typically call something like:
       // await authClient.user.update({ ...values })
-      alert("Account updated successfully! (This is a placeholder - implement the API call)")
+      alert("Not implemented yet")
     } catch (error) {
       logger.error("Error updating account", { error })
-      alert("Failed to update account")
+      alert("Not implemented yet")
     }
   }
 

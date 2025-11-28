@@ -170,5 +170,100 @@ storageRoute.get("/", async (c) => {
   }
 });
 
+/**
+ * Delete a file from storage
+ * DELETE /storage/:path*
+ */
+storageRoute.delete("/:path*", async (c) => {
+  const requestPath = c.req.path;
+  const segments = requestPath.split("/").filter(Boolean);
+  const storageIndex = segments.indexOf("storage");
+  
+  let pathSegments: string[];
+  if (storageIndex >= 0 && storageIndex < segments.length - 1) {
+    pathSegments = segments.slice(storageIndex + 1);
+  } else if (storageIndex >= 0 && storageIndex === segments.length - 1) {
+    pathSegments = [];
+  } else {
+    pathSegments = segments;
+  }
+  
+  let filePath = pathSegments.join("/").replace(/^\/+/, "").replace(/\/+$/, "");
+  
+  if (!filePath) {
+    return c.json(
+      {
+        error: "Bad request",
+        message: "File path is required",
+      },
+      400
+    );
+  }
+
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch {
+    // If decoding fails, use the original path
+  }
+
+  try {
+    if (storageClient) {
+      const exists = await storageClient.existsOriginal(filePath);
+      if (!exists) {
+        return c.json(
+          {
+            error: "Not found",
+            message: "File not found",
+          },
+          404
+        );
+      }
+      
+      await storageClient.deleteOriginal(filePath);
+      logger.info({ filePath }, "Deleted file from cloud storage");
+    } else {
+      const localPath = path.join(".", "public", filePath);
+      
+      if (!fs.existsSync(localPath)) {
+        return c.json(
+          {
+            error: "Not found",
+            message: "File not found",
+          },
+          404
+        );
+      }
+
+      const stats = fs.statSync(localPath);
+      if (stats.isDirectory()) {
+        return c.json(
+          {
+            error: "Bad request",
+            message: "Cannot delete directories",
+          },
+          400
+        );
+      }
+
+      fs.unlinkSync(localPath);
+      logger.info({ filePath }, "Deleted file from local storage");
+    }
+
+    return c.json({
+      success: true,
+      message: "File deleted successfully",
+    });
+  } catch (error) {
+    logger.error({ error, filePath }, "Failed to delete file");
+    return c.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      500
+    );
+  }
+});
+
 export default storageRoute;
 

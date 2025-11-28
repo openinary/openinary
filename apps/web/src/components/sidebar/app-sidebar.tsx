@@ -6,6 +6,7 @@ import {
   Command,
   GalleryVerticalEnd,
   Image as ImageIcon,
+  MessageSquare,
   Package,
   Video,
 } from "lucide-react"
@@ -13,11 +14,22 @@ import {
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
+
+type MediaFile = {
+  id: string
+  name: string
+  path: string
+  type: "image" | "video"
+}
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 import Link from "next/link"
@@ -61,7 +73,11 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  onMediaSelect?: (media: MediaFile) => void
+}
+
+export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="pl-4 pt-4">
@@ -77,9 +93,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects />
+        <NavProjects onMediaSelect={onMediaSelect} />
       </SidebarContent>
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Help & Feedback"
+              onClick={() => {
+                if (typeof window !== 'undefined' && (window as any).uj) {
+                  (window as any).uj.showWidget({ section: 'feedback' });
+                }
+              }}
+            >
+              <MessageSquare />
+              <span>Help & Feedback</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
