@@ -10,7 +10,7 @@ RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
 # Copy monorepo configuration files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 
 # Copy shared packages
 COPY packages/ ./packages/
@@ -28,8 +28,9 @@ RUN pnpm install --frozen-lockfile
 RUN mkdir -p apps/api/cache apps/api/public /app/data /backup && \
     chown -R node:node /app /backup
 
-# Make wrapper script executable
-RUN chmod +x /app/scripts/init-env-wrapper.sh
+# Make wrapper script executable and fix line endings (CRLF to LF)
+RUN chmod +x /app/scripts/init-env-wrapper.sh && \
+    sed -i 's/\r$//' /app/scripts/init-env-wrapper.sh || true
 
 # Build shared package first (API depends on it)
 RUN pnpm --filter shared build
@@ -51,4 +52,5 @@ EXPOSE 3000
 WORKDIR /app/apps/api
 
 # Run init script wrapper to set env vars, run security script and start server
-CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && pnpm start"]
+# Run from /app root so turbo can find turbo.json, then use pnpm filter to start only the API
+CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && cd /app && pnpm --filter api start"]
