@@ -1,7 +1,9 @@
 "use client";
 
 import { Suspense, useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryState, parseAsString } from "nuqs";
+import { useSession } from "@/lib/auth-client";
 import { UploadSection } from "@/components/upload-section";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { AssetDetailsSidebar, AssetDetailsSidebarTrigger } from "@/components/details-sidebar";
@@ -14,6 +16,7 @@ import { Upload, Package, Image as ImageIcon, Video } from "lucide-react";
 import { MediaGrid } from "@/components/media-grid";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import type { ImperativePanelHandle } from "react-resizable-panels";
+import { Spinner } from "@/components/ui/spinner";
 
 type MediaFile = {
   id: string;
@@ -29,6 +32,7 @@ function HomePageContent() {
   );
   const [folderPath, setFolderPath] = useQueryState("folder");
   const [assetSidebarOpen, setAssetSidebarOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Sync sidebar open state with asset selection
@@ -40,6 +44,10 @@ function HomePageContent() {
 
   const handleMediaSelect = (media: MediaFile) => {
     setAssetId(media.id);
+  };
+
+  const handleUploadClick = () => {
+    setUploadDialogOpen(true);
   };
 
   const assetSidebarItems = [
@@ -114,7 +122,7 @@ function HomePageContent() {
                     </BreadcrumbList>
                   </Breadcrumb>
                 </div>
-                  <Dialog>
+                  <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" className="gap-2">
                         <Upload className="h-4 w-4" />
@@ -135,7 +143,11 @@ function HomePageContent() {
                 </div>
             </header>
             <div className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto">
-              <MediaGrid onMediaSelect={handleMediaSelect} sidebarOpen={assetSidebarOpen} />
+              <MediaGrid 
+                onMediaSelect={handleMediaSelect} 
+                sidebarOpen={assetSidebarOpen}
+                onUploadClick={handleUploadClick}
+              />
             </div>
           </ResizablePanel>
           {assetSidebarOpen && (
@@ -164,6 +176,30 @@ function HomePageContent() {
 }
 
 export default function HomePage() {
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+
+  // Redirect to login if user is not authenticated or session is invalid
+  useEffect(() => {
+    if (!isPending && (!session?.session || !session?.user)) {
+      router.push("/login");
+    }
+  }, [session, isPending, router]);
+
+  // Show loading state while checking session
+  if (isPending) {
+    return (
+      <div className="flex min-h-screen w-screen items-center justify-center bg-background px-4">
+        <Spinner className="mx-auto" />
+      </div>
+    );
+  }
+
+  // Don't render content if session is invalid (redirect will happen)
+  if (!session?.session || !session?.user) {
+    return null;
+  }
+
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
       <HomePageContent />

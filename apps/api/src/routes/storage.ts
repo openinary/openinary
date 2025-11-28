@@ -172,25 +172,17 @@ storageRoute.get("/", async (c) => {
 
 /**
  * Delete a file from storage
- * DELETE /storage/:path*
+ * DELETE /storage/*
  */
-storageRoute.delete("/:path*", async (c) => {
+storageRoute.delete("/*", async (c) => {
   const requestPath = c.req.path;
-  const segments = requestPath.split("/").filter(Boolean);
-  const storageIndex = segments.indexOf("storage");
   
-  let pathSegments: string[];
-  if (storageIndex >= 0 && storageIndex < segments.length - 1) {
-    pathSegments = segments.slice(storageIndex + 1);
-  } else if (storageIndex >= 0 && storageIndex === segments.length - 1) {
-    pathSegments = [];
-  } else {
-    pathSegments = segments;
-  }
+  // Remove '/storage' prefix from the path
+  // requestPath will be something like '/storage/cows/black.png'
+  // We need to extract 'cows/black.png'
+  const pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "");
   
-  let filePath = pathSegments.join("/").replace(/^\/+/, "").replace(/\/+$/, "");
-  
-  if (!filePath) {
+  if (!pathWithoutPrefix) {
     return c.json(
       {
         error: "Bad request",
@@ -200,9 +192,11 @@ storageRoute.delete("/:path*", async (c) => {
     );
   }
 
+  let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
+  
   try {
     filePath = decodeURIComponent(filePath);
-  } catch {
+  } catch (error) {
     // If decoding fails, use the original path
   }
 
@@ -220,7 +214,6 @@ storageRoute.delete("/:path*", async (c) => {
       }
       
       await storageClient.deleteOriginal(filePath);
-      logger.info({ filePath }, "Deleted file from cloud storage");
     } else {
       const localPath = path.join(".", "public", filePath);
       
@@ -246,7 +239,6 @@ storageRoute.delete("/:path*", async (c) => {
       }
 
       fs.unlinkSync(localPath);
-      logger.info({ filePath }, "Deleted file from local storage");
     }
 
     return c.json({

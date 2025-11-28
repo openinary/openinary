@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FileImage, FileVideo, Folder } from "lucide-react";
+import { FileImage, FileVideo, Folder, ArrowUpRight } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useStorageTree } from "@/hooks/use-storage-tree";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import { preloadMedia } from "@/hooks/use-preload-media";
 import type { TreeDataItem } from "@/components/ui/tree-view";
@@ -93,9 +95,10 @@ function findItemsInPath(
 interface MediaGridProps {
   onMediaSelect: (media: MediaFile) => void;
   sidebarOpen?: boolean;
+  onUploadClick?: () => void;
 }
 
-export function MediaGrid({ onMediaSelect, sidebarOpen = false }: MediaGridProps) {
+export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useQueryState("folder");
@@ -139,9 +142,52 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false }: MediaGridProps
 
   if (!treeData || treeData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground space-y-4">
-        <FileImage className="h-12 w-12 opacity-50" />
-        <p>No media files found. Upload some files to get started.</p>
+      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileImage />
+            </EmptyMedia>
+            <EmptyTitle>No Media Files Yet</EmptyTitle>
+            <EmptyDescription>
+              You haven&apos;t uploaded any media files yet. Get started by uploading
+              your first image or video.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <div className="flex gap-2">
+              {onUploadClick && (
+                <Button onClick={onUploadClick}>Upload</Button>
+              )}
+              <Button
+                variant="outline"
+                asChild
+              >
+                <a
+                  href="https://docs.openinary.dev/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Docs
+                </a>
+              </Button>
+            </div>
+          </EmptyContent>
+          <Button
+            variant="link"
+            asChild
+            className="text-muted-foreground"
+            size="sm"
+          >
+            <a
+              href="https://docs.openinary.dev/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn More <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </Button>
+        </Empty>
       </div>
     );
   }

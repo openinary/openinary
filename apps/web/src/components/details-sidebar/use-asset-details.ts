@@ -125,9 +125,17 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     setIsDeleting(true)
     try {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""
-      // Use the path directly, same as other requests (e.g., /t/${path})
-      // Hono will handle URL decoding automatically
-      const response = await fetch(`${apiBaseUrl}/storage/${asset.path}`, {
+      
+      // Encode each segment of the path separately to preserve slashes
+      // This is necessary for files in subdirectories
+      const encodedPath = asset.path
+        .split("/")
+        .map((segment) => encodeURIComponent(segment))
+        .join("/")
+      
+      const deleteUrl = `${apiBaseUrl}/storage/${encodedPath}`
+      
+      const response = await fetch(deleteUrl, {
         method: "DELETE",
         credentials: "include",
       })
@@ -138,8 +146,8 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
         try {
           const contentType = response.headers.get("content-type")
           if (contentType && contentType.includes("application/json")) {
-            const error = await response.json()
-            errorMessage = error.message || error.error || errorMessage
+            const errorBody = await response.json()
+            errorMessage = errorBody.message || errorBody.error || errorMessage
           } else {
             const text = await response.text()
             if (text) {
@@ -148,7 +156,6 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
           }
         } catch (parseError) {
           // If parsing fails, use the default error message
-          console.error("Failed to parse error response:", parseError)
         }
         throw new Error(errorMessage)
       }
@@ -162,7 +169,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
         } else {
           await response.text()
         }
-      } catch {
+      } catch (parseError) {
         // Ignore parsing errors for success responses - we don't need the data
       }
 
