@@ -8,9 +8,14 @@ export const dynamic = "force-dynamic";
 // Helper function to check if any admin account exists
 function hasAdminAccount(): boolean {
   try {
-    // Use the same database path as the API server
-    // From apps/web, go up 2 levels to reach the root, then into data/auth.db
-    const dbPath = process.env.DB_PATH || path.join(process.cwd(), "../../data/auth.db");
+    // Use the same database path as the API server / Better Auth
+    // In Docker, the database lives at /app/data/auth.db (controlled by DB_PATH)
+    // In development, fall back to the previous relative path behaviour
+    const isDocker = process.env.DOCKER_CONTAINER === "true";
+    const defaultDbPath = isDocker
+      ? "/app/data/auth.db"
+      : path.join(process.cwd(), "../../data/auth.db");
+    const dbPath = process.env.DB_PATH || defaultDbPath;
     const db = new Database(dbPath, { readonly: true });
     const result = db.prepare("SELECT COUNT(*) as count FROM user").get() as { count: number };
     db.close();

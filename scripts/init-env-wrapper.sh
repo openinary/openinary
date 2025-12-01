@@ -15,10 +15,14 @@ if [ -f /app/apps/api/.env ]; then
   fi
   
   # Also export other important variables if they exist
-  if grep -q "^BETTER_AUTH_URL=" /app/apps/api/.env; then
-    URL=$(grep "^BETTER_AUTH_URL=" /app/apps/api/.env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
-    if [ -n "$URL" ]; then
-      export BETTER_AUTH_URL="$URL"
+  # For BETTER_AUTH_URL, prefer the runtime environment variable if it's set.
+  # Only fall back to the value from .env when the env var is empty.
+  if [ -z "${BETTER_AUTH_URL:-}" ]; then
+    if grep -q "^BETTER_AUTH_URL=" /app/apps/api/.env; then
+      URL=$(grep "^BETTER_AUTH_URL=" /app/apps/api/.env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
+      if [ -n "$URL" ]; then
+        export BETTER_AUTH_URL="$URL"
+      fi
     fi
   fi
 fi
