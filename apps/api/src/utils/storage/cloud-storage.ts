@@ -21,7 +21,7 @@ export class CloudStorage {
   }
 
   /**
-   * Checks file existence with intelligent caching
+   * Checks file existence with intelligent caching for transformed files
    */
   async exists(originalPath: string, params: any): Promise<boolean> {
     const key = KeyGenerator.generateKey(originalPath, params);
@@ -45,40 +45,48 @@ export class CloudStorage {
   }
 
   /**
-   * Checks the existence of an original file with cache
+   * Checks the existence of an original file with cache (by original path)
    */
   async existsOriginal(originalPath: string): Promise<boolean> {
-    const cacheKey = `original:${originalPath}`;
+    return this.existsOriginalPath(originalPath);
+  }
+
+  /**
+   * Checks existence of an arbitrary original-path key (without params),
+   * using the same semantics as uploadOriginal/downloadOriginal.
+   * This is useful for detecting duplicate uploads by full path.
+   */
+  async existsOriginalPath(filePath: string): Promise<boolean> {
+    const cacheKey = `original:${filePath}`;
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached) {
       return cached.exists;
     }
-    
-    // Add public/ prefix for storage
-    const storageKey = `public/${originalPath}`;
+
+    const storageKey = `public/${filePath}`;
     try {
       const exists = await this.s3Client.objectExists(storageKey);
-      
+
       this.cache.set(cacheKey, {
         exists,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      
+
       return exists;
     } catch (error: any) {
       logger.error(
-        { 
-          error: error.message, 
-          originalPath,
-          metadata: error.$metadata 
+        {
+          error: error.message,
+          filePath,
+          metadata: error.$metadata,
         },
-        "Cloud storage error"
+        "Cloud storage error while checking original path"
       );
-      
+
       this.cache.set(cacheKey, {
         exists: false,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
       return false;
     }

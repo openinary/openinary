@@ -3,6 +3,7 @@ import { createStorageClient } from "../utils/storage/index";
 import fs from "fs";
 import path from "path";
 import logger from "../utils/logger";
+import { getUniqueFilePath } from "../utils/get-unique-file-path";
 
 const upload = new Hono();
 const storage = createStorageClient();
@@ -96,6 +97,11 @@ async function saveFileLocally(filePath: string, buffer: Buffer): Promise<void> 
   fs.writeFileSync(fullPath, buffer);
 }
 
+async function localFileExists(filePath: string): Promise<boolean> {
+  const fullPath = path.join("./public", filePath);
+  return fs.existsSync(fullPath);
+}
+
 /**
  * POST /upload - Upload single or multiple files
  */
@@ -122,15 +128,15 @@ upload.post("/", async (c) => {
 
       // Get relative path if available (for folder uploads), otherwise use filename
       const rawPath = (file as any).webkitRelativePath || file.name;
-      const filePath = sanitizePath(rawPath);
-      const filename = path.basename(filePath);
+      const rawSanitizedPath = sanitizePath(rawPath);
+      const filename = path.basename(rawSanitizedPath);
       const mimeType = file.type;
       const fileSize = file.size;
 
       // Validate file size
       if (fileSize > MAX_FILE_SIZE) {
         failedUploads.push({
-          filename: filePath,
+          filename: rawSanitizedPath,
           error: `File size exceeds limit of 50MB (size: ${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
         });
         continue;
@@ -139,7 +145,7 @@ upload.post("/", async (c) => {
       // Validate file type
       if (!validateFileType(filename, mimeType)) {
         failedUploads.push({
-          filename: filePath,
+          filename: rawSanitizedPath,
           error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, png, webp, avif, gif) and videos (mp4, mov, webm)`,
         });
         continue;
@@ -153,34 +159,45 @@ upload.post("/", async (c) => {
         // Get content type
         const contentType = getContentType(filename);
 
+        // Compute a unique file path to avoid overwriting existing files
+        let finalPath = rawSanitizedPath;
+
+        if (storage) {
+          finalPath = await getUniqueFilePath(rawSanitizedPath, async (p) =>
+            storage.existsOriginalPath(p)
+          );
+        } else {
+          finalPath = await getUniqueFilePath(rawSanitizedPath, localFileExists);
+        }
+
         // Upload based on storage configuration
         if (storage) {
-          // Upload to cloud storage with full path
-          const url = await storage.uploadOriginal(filePath, buffer, contentType);
-          logger.info({ filePath, url }, "Uploaded to cloud");
+          // Upload to cloud storage with full (unique) path
+          const url = await storage.uploadOriginal(finalPath, buffer, contentType);
+          logger.info({ originalPath: rawSanitizedPath, finalPath, url }, "Uploaded to cloud");
           
           successfulUploads.push({
             filename,
-            path: filePath,
+            path: finalPath,
             size: fileSize,
-            url: `/t/${filePath}`,
+            url: `/t/${finalPath}`,
           });
         } else {
           // Save locally with full path
-          await saveFileLocally(filePath, buffer);
-          logger.info({ filePath }, "Saved locally");
+          await saveFileLocally(finalPath, buffer);
+          logger.info({ originalPath: rawSanitizedPath, finalPath }, "Saved locally");
           
           successfulUploads.push({
             filename,
-            path: filePath,
+            path: finalPath,
             size: fileSize,
-            url: `/t/${filePath}`,
+            url: `/t/${finalPath}`,
           });
         }
       } catch (error) {
-        logger.error({ error, filePath }, "Failed to upload");
+        logger.error({ error, originalPath: rawSanitizedPath }, "Failed to upload");
         failedUploads.push({
-          filename: filePath,
+          filename: rawSanitizedPath,
           error: error instanceof Error ? error.message : "Unknown error",
         });
       }
