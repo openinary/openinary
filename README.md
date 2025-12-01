@@ -24,20 +24,17 @@ Openinary is an open-source media processing platform that gives you complete co
 
 ### Prerequisites
 - Docker 20.x+
-- Docker Compose 2.x+
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/openinary/openinary.git
-cd openinary
+docker pull openinary/openinary:latest
 
-# Full mode (Dashboard + API)
-docker compose --profile full up --build
-
-# API-only mode
-docker compose --profile api up --build
+docker run -d -p 3000:3000 \
+  -v openinary-cache:/app/apps/api/cache \
+  -v openinary-public:/app/apps/api/public \
+  -v openinary-db:/app/data \
+  openinary/openinary:latest
 ```
 
 ### Initial Setup
@@ -46,9 +43,6 @@ docker compose --profile api up --build
 1. Open http://localhost:3000
 2. Visit `/setup` to create admin account
 3. Go to `/api-keys` to generate an API key
-
-**API mode:**
-- API key is automatically generated and displayed in Docker logs (save immediately)
 
 ## Usage Examples
 
@@ -83,11 +77,18 @@ GET /t/resize:1920x1080/quality:90/movie.mp4
 
 ### Authentication
 
-All requests require an authentication header:
+The transformation endpoint (`/t/*`) is **public** and does not require authentication, making it easy to serve transformed assets directly:
+
+```bash
+# No authentication required for transformations
+curl "http://localhost:3000/t/resize:800x600/image.jpg"
+```
+
+Other endpoints (upload, storage management) require an API key:
 
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "http://localhost:3000/t/resize:800x600/image.jpg"
+  "http://localhost:3000/upload"
 ```
 
 ## S3-Compatible Configuration
