@@ -196,10 +196,17 @@ export const auth = betterAuth({
   },
   secret: secret,
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  // Origins allowed to perform authenticated operations (sign-in, sign-out, etc.)
+  // In production, this should be configured via environment variables so it
+  // matches the real frontend / API origins.
   trustedOrigins: [
+    // Local development
     "http://localhost:3000",
     "http://localhost:3001",
-  ],
+    // Production / custom origins
+    process.env.ALLOWED_ORIGIN,
+    process.env.BETTER_AUTH_URL,
+  ].filter(Boolean) as string[],
   session: {
     // Enforce secure cookies in production (HTTPS only)
     cookieCache: {
