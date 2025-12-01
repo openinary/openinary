@@ -14,8 +14,6 @@ services:
       - public-files:/app/apps/api/public
       # Mount data folder for shared auth database
       - db-data:/app/data
-      # Mount backup folder for database backups
-      - backup-data:/backup
     # Note: .env files are optional and loaded by init-env.js at runtime if they exist
     environment:
       - NODE_ENV=production
@@ -42,8 +40,6 @@ services:
       - db-data:/app/data
       # Also mount for web standalone path (for backwards compatibility)
       - db-data:/app/web-standalone/data
-      # Mount backup folder for database backups
-      - backup-data:/backup
     # Note: .env files are optional and loaded by init-env.js at runtime if they exist
     environment:
       - NODE_ENV=production
@@ -62,4 +58,3 @@ volumes:
   cache-data:
   public-files:
   db-data:
-  backup-data:

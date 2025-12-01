@@ -25,9 +25,7 @@
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down",
     "init-env": "node scripts/init-env.js",
-    "secure-db": "node scripts/secure-db.js",
-    "backup-db": "node scripts/backup-db.js",
-    "restore-db": "node scripts/restore-db.js"
+    "secure-db": "node scripts/secure-db.js"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.3.34",

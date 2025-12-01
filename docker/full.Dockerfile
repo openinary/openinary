@@ -66,12 +66,12 @@ COPY --from=web-builder /app/apps/web/.next/standalone /app/web-standalone
 COPY --from=web-builder /app/apps/web/.next/static /app/web-standalone/apps/web/.next/static
 COPY --from=web-builder /app/apps/web/public /app/web-standalone/apps/web/public
 
-# Copy security and backup scripts
+# Copy security scripts
 COPY scripts/ ./scripts/
 
 # Create necessary directories with proper ownership
-RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data /backup /var/log/supervisor && \
-    chown -R node:node /app /backup
+RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data /var/log/supervisor && \
+    chown -R node:node /app
 
 # Make wrapper script executable and fix line endings (CRLF to LF)
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
@@ -82,9 +82,6 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 
 # Create supervisor configuration
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Setup cron job for daily database backup (2 AM)
-RUN echo "0 2 * * * node /app/scripts/backup-db.js >> /var/log/backup.log 2>&1" | crontab -u node -
 
 # Expose port
 EXPOSE 3000

@@ -25,8 +25,8 @@ COPY scripts/ ./scripts/
 RUN pnpm install --frozen-lockfile
 
 # Create necessary directories with proper ownership
-RUN mkdir -p apps/api/cache apps/api/public /app/data /backup && \
-    chown -R node:node /app /backup
+RUN mkdir -p apps/api/cache apps/api/public /app/data && \
+    chown -R node:node /app
 
 # Make wrapper script executable and fix line endings (CRLF to LF)
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \

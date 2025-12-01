@@ -17,7 +17,6 @@ const projectRoot = join(__dirname, '..');
 
 // Get paths from environment or use defaults
 const DB_PATH = process.env.DB_PATH || join(projectRoot, 'data', 'auth.db');
-const BACKUP_PATH = process.env.BACKUP_PATH || join(projectRoot, 'backup');
 
 const isWindows = process.platform === 'win32';
 
@@ -29,12 +28,6 @@ try {
   if (!existsSync(dataDir)) {
     await mkdir(dataDir, { recursive: true });
     console.log(`Created data directory: ${dataDir}`);
-  }
-
-  // Create backup directory if it doesn't exist
-  if (!existsSync(BACKUP_PATH)) {
-    await mkdir(BACKUP_PATH, { recursive: true });
-    console.log(`Created backup directory: ${BACKUP_PATH}`);
   }
 
   // If database file exists, set strict permissions
@@ -75,16 +68,6 @@ try {
       console.log('Data directory permissions set');
     } catch (error) {
       console.warn(`Could not set data directory permissions: ${error.message}`);
-    }
-  }
-
-  // Ensure backup directory has proper permissions (Unix only)
-  if (!isWindows) {
-    try {
-      await chmod(BACKUP_PATH, 0o755);
-      console.log('Backup directory permissions set');
-    } catch (error) {
-      console.warn(`Could not set backup directory permissions: ${error.message}`);
     }
   }
 
