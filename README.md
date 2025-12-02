@@ -28,9 +28,7 @@ Openinary is an open-source media processing platform that gives you complete co
 ### Installation
 
 ```bash
-docker pull openinary/openinary:latest
-
-docker run -d -p 3000:3000 \
+docker run --platform linux/amd64 -d -p 3000:3000 \
   -v openinary-cache:/app/apps/api/cache \
   -v openinary-public:/app/apps/api/public \
   -v openinary-db:/app/data \
