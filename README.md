@@ -48,29 +48,29 @@ docker run --platform linux/amd64 -d -p 3000:3000 \
 
 ```bash
 # Simple resize
-GET /t/resize:800x600/image.jpg
+GET /t/w_800,h_600/image.jpg
 
 # Smart cropping with face detection
-GET /t/resize:400x400/crop:fill/gravity:face/portrait.jpg
+GET /t/w_400,h_400,c_fill,g_face/portrait.jpg
 
 # Format conversion + optimization
-GET /t/resize:1200x800/format:avif/quality:80/photo.jpg
+GET /t/w_1200,h_800,f_avif,q_80/photo.jpg
 
 # Aspect ratio with automatic detection
-GET /t/aspect:16:9/gravity:auto/resize:1920x1080/banner.jpg
+GET /t/ar_16:9,g_auto,w_1920,h_1080/banner.jpg
 ```
 
 ### Videos
 
 ```bash
 # HD optimization
-GET /t/resize:1280x720/quality:80/video.mp4
+GET /t/w_1280,h_720,q_80/video.mp4
 
 # Low resolution preview
-GET /t/resize:640x360/quality:60/preview.mp4
+GET /t/w_640,h_360,q_60/preview.mp4
 
 # Full HD high quality
-GET /t/resize:1920x1080/quality:90/movie.mp4
+GET /t/w_1920,h_1080,q_90/movie.mp4
 ```
 
 ### Authentication
@@ -79,7 +79,7 @@ The transformation endpoint (`/t/*`) is **public** and does not require authenti
 
 ```bash
 # No authentication required for transformations
-curl "http://localhost:3000/t/resize:800x600/image.jpg"
+curl "http://localhost:3000/t/w_800,h_600/image.jpg"
 ```
 
 Other endpoints (upload, storage management) require an API key:

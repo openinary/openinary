@@ -8,18 +8,39 @@ import { parseBackgroundColor } from './background';
  */
 export const applyResize = (
   image: sharp.Sharp,
-  resizeParam: string,
+  resizeParam?: string,
   cropMode: CropMode = 'fill',
   gravity: GravityMode = 'center',
-  background?: string
+  background?: string,
+  widthParam?: string,
+  heightParam?: string
 ): sharp.Sharp => {
-  const [w, h] = resizeParam.split('x');
-  const width = parseInt(w);
-  const height = parseInt(h);
-  
+  // Support both old "WxH" format and new individual width/height params
+  let width: number | undefined;
+  let height: number | undefined;
+
+  if (resizeParam) {
+    const [w, h] = resizeParam.split('x');
+    width = w ? parseInt(w, 10) : undefined;
+    height = h ? parseInt(h, 10) : undefined;
+  }
+
+  // Individual params take precedence
+  if (widthParam) {
+    width = parseInt(widthParam, 10);
+  }
+  if (heightParam) {
+    height = parseInt(heightParam, 10);
+  }
+
+  // If neither width nor height is specified, return image unchanged
+  if (width === undefined && height === undefined) {
+    return image;
+  }
+
   const resizeOptions: sharp.ResizeOptions = {
-    width,
-    height,
+    ...(width !== undefined && { width }),
+    ...(height !== undefined && { height }),
   };
 
   switch (cropMode) {

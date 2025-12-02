@@ -11,19 +11,19 @@ export function Examples() {
     return [
       {
         title: "Resize image to 300x200",
-        url: `${baseUrl}/t/resize:300x200/image.png`,
+        url: `${baseUrl}/t/w_300,h_200/image.png`,
       },
       {
         title: "Convert to WebP with 80% quality",
-        url: `${baseUrl}/t/format:webp/quality:80/image.png`,
+        url: `${baseUrl}/t/f_webp,q_80/image.png`,
       },
       {
         title: "Smart crop to square with face detection",
-        url: `${baseUrl}/t/gravity:face/resize:400x400/image.png`,
+        url: `${baseUrl}/t/w_400,h_400,c_fill,g_face/image.png`,
       },
       {
         title: "Resize video with 80% quality",
-        url: `${baseUrl}/t/resize:640x360/quality:80/video.mp4`,
+        url: `${baseUrl}/t/w_640,h_360,q_80/video.mp4`,
       },
     ];
   }, []);

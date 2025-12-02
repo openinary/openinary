@@ -205,7 +205,7 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
   // Preload preview when hovering over a media item
   const handleMediaHover = (media: MediaFile) => {
     const previewUrl = media.type === "image"
-      ? `${transformBaseUrl}/t/resize:800x800/quality:90/${media.path}`
+      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
       : `${transformBaseUrl}/t/${media.path}`;
     preloadMedia(previewUrl, media.type);
   };
@@ -249,7 +249,7 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
 
       {/* Render media files */}
       {files.map((media) => {
-        const thumbnailUrl = `${apiBaseUrl}/t/resize:300x300/quality:80/${media.path}`;
+        const thumbnailUrl = `${apiBaseUrl}/t/w_500,h_500,q_80/${media.path}`;
         const isHovered = hoveredId === media.id;
 
         return (

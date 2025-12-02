@@ -22,8 +22,16 @@ export const transformImage = async (inputPath: string, params: TransformParams)
     image = await applyAspectRatio(image, params.aspect, params.gravity);
   }
 
-  if (params.resize) {
-    image = applyResize(image, params.resize, params.crop, params.gravity, params.background);
+  if (params.resize || params.width || params.height) {
+    image = applyResize(
+      image,
+      params.resize,
+      params.crop,
+      params.gravity,
+      params.background,
+      params.width,
+      params.height
+    );
   }
 
   if (params.quality) {

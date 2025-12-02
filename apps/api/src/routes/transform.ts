@@ -27,8 +27,17 @@ t.get("/*", async (c) => {
   const segments = path.split("/").slice(2); // Remove '/t' prefix
   const params = parseParams(path);
 
-  // Filter out parameter segments to get the actual file path
-  const fileSegments = segments.filter((segment) => !segment.includes(":"));
+  // Determine file path segments.
+  // The first segment after "/t" is the transformation string
+  // (e.g. "w_300,h_300,c_fill") and should not be part of the file path.
+  const hasTransform =
+    segments.length > 0 &&
+    !segments[0].includes(".") &&
+    (segments[0].includes(",") || segments[0].includes("_"));
+
+  const fileSegments = hasTransform
+    ? segments.slice(1)
+    : segments;
   const filePath = fileSegments.join("/");
 
   let cachePath = getCachePath(path);

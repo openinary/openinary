@@ -19,6 +19,8 @@ export interface BackgroundColor {
 export interface TransformParams {
   aspect?: string;
   resize?: string;
+  width?: string;
+  height?: string;
   crop?: CropMode;
   gravity?: GravityMode;
   rotate?: string | number;

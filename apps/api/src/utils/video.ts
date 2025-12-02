@@ -13,7 +13,22 @@ export const transformVideo = async (inputPath: string, params: any): Promise<Bu
 
     if (params.resize) {
       const [w, h] = params.resize.split('x');
-      command = command.size(`${w}x${h}`);
+      const width = parseInt(w, 10);
+      const height = parseInt(h, 10);
+
+      if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
+        if (params.crop === 'fill' || params.crop === 'crop') {
+          // Cover behavior (no stretching):
+          // 1) scale until the smallest side reaches the target, preserving aspect ratio
+          // 2) crop to exact WxH from the center
+          const filter = `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
+          command = command.videoFilters(filter);
+        } else {
+          // Backwards-compatible behavior: simple resize to exact dimensions,
+          // which may stretch to fit
+          command = command.size(`${width}x${height}`);
+        }
+      }
     }
 
     // Video quality control via CRF (Constant Rate Factor)

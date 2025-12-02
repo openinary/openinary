@@ -83,7 +83,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
   const mediaUrl = asset ? `${transformBaseUrl}/t/${asset.path}` : ""
   const previewUrl = asset
     ? asset.type === "image"
-      ? `${transformBaseUrl}/t/resize:800x800/quality:90/${asset.path}`
+      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${asset.path}`
       : `${transformBaseUrl}/t/${asset.path}`
     : ""
 
