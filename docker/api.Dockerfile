@@ -1,7 +1,7 @@
-FROM node:20
+FROM node:20-slim
 
 # Install ffmpeg for video processing
-RUN apt update && apt install -y ffmpeg sqlite3 && \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg sqlite3 && \
     rm -rf /var/lib/apt/lists/*
 
 # Enable Corepack to use the pnpm version specified in package.json
@@ -41,6 +41,7 @@ RUN pnpm --filter api build
 ENV BETTER_AUTH_SECRET=""
 ENV BETTER_AUTH_URL="http://localhost:3000"
 ENV DOCKER_CONTAINER="true"
+ENV MODE="api"
 
 # Switch to non-root user
 USER node

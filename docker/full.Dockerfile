@@ -1,8 +1,9 @@
 # Multi-stage build for a monolithic image containing API, Web, and Nginx
 
 # Stage 1: Build API
-FROM node:20 AS api-builder
-RUN apt update && apt install -y ffmpeg
+FROM node:20-slim AS api-builder
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
@@ -11,15 +12,19 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-RUN pnpm install --frozen-lockfile
+# Install only the workspace dependencies needed for shared + api (dev + prod) for build
+RUN pnpm install --filter shared... --filter api... --frozen-lockfile
 RUN mkdir -p apps/api/cache apps/api/public
 
 # Build shared package first (API depends on it)
 RUN pnpm --filter shared build
 RUN pnpm --filter api build
 
+# Prune devDependencies pour ne garder que les deps de production
+RUN pnpm prune --prod
+
 # Stage 2: Build Web
-FROM node:20 AS web-builder
+FROM node:20-slim AS web-builder
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
@@ -44,14 +49,11 @@ RUN mkdir -p /app/apps/web/public && cp /app/apps/web/src/app/favicon.ico /app/a
 RUN pnpm --filter web build
 
 # Stage 3: Final monolithic image
-FROM node:20
+FROM node:20-slim
 
 # Install nginx, ffmpeg, supervisor, cron and sqlite3 for process management
-RUN apt update && apt install -y nginx ffmpeg supervisor cron sqlite3 && \
+RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg supervisor cron sqlite3 && \
     rm -rf /var/lib/apt/lists/*
-
-# Enable Corepack for pnpm
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
 
@@ -69,9 +71,9 @@ COPY --from=web-builder /app/apps/web/public /app/web-standalone/apps/web/public
 # Copy security scripts
 COPY scripts/ ./scripts/
 
-# Create necessary directories with proper ownership
+# Create necessary directories with proper ownership (ciblé uniquement sur les répertoires d'écriture)
 RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data /var/log/supervisor && \
-    chown -R node:node /app
+    chown -R node:node /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data
 
 # Make wrapper script executable and fix line endings (CRLF to LF)
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
