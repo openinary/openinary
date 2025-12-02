@@ -1,0 +1,98 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+      - '*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (leave empty for latest)'
+        required: false
+        type: string
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  REGISTRY: docker.io
+  IMAGE_FULL: openinary/openinary
+  IMAGE_API: openinary/openinary-api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Determine version tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.version }}" ]; then
+              echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            else
+              echo "version=latest" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.ref_type }}" == "tag" ]; then
+            # Remove 'refs/tags/' prefix
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+          echo "Determined version: $(cat $GITHUB_OUTPUT | grep version | cut -d'=' -f2)"
+
+      - name: Build and push full image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/full.Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_FULL }}:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE_FULL }}:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache,mode=max
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/api.Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_API }}:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE_API }}:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_API }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_API }}:buildcache,mode=max
+
+      - name: Summary
+        run: |
+          echo "## Docker Images Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Full Image" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_FULL }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_FULL }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### API Image" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_API }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_API }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
