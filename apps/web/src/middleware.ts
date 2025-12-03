@@ -61,17 +61,52 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
   return true;
 }
 
+/**
+ * Get the allowed origin for CORS based on runtime environment variables
+ * This allows the Docker image to be deployed anywhere without rebuild
+ */
+function getAllowedOrigin(): string {
+  // In production, use ALLOWED_ORIGIN or BETTER_AUTH_URL from runtime environment
+  // In development, default to localhost
+  if (process.env.NODE_ENV === "production") {
+    return process.env.ALLOWED_ORIGIN || process.env.BETTER_AUTH_URL || "*";
+  }
+  return "http://localhost:3001";
+}
+
+/**
+ * Add CORS headers to response for API routes
+ * This runs at request time, reading env vars from the deployed container
+ */
+function addCorsHeaders(response: NextResponse, allowedOrigin: string): NextResponse {
+  response.headers.set("Access-Control-Allow-Credentials", "true");
+  response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
+  response.headers.set("Access-Control-Allow-Methods", "GET,DELETE,PATCH,POST,PUT,OPTIONS");
+  response.headers.set(
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
+  );
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const allowedOrigin = getAllowedOrigin();
 
-  // Allow all OPTIONS requests for CORS preflight
-  if (request.method === "OPTIONS") {
-    return NextResponse.next();
+  // Handle CORS preflight requests for API routes
+  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    const preflightResponse = NextResponse.json({}, { status: 200 });
+    return addCorsHeaders(preflightResponse, allowedOrigin);
   }
 
   // Allow access to public paths
   if (isPublicPath(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    // Add CORS headers to API routes
+    if (pathname.startsWith("/api/")) {
+      return addCorsHeaders(response, allowedOrigin);
+    }
+    return response;
   }
 
   // Allow access to static files
@@ -91,7 +126,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  // Add CORS headers to authenticated API routes
+  if (pathname.startsWith("/api/")) {
+    return addCorsHeaders(response, allowedOrigin);
+  }
+  return response;
 }
 
 export const config = {

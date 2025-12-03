@@ -20,6 +20,7 @@ services:
       - MODE=api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
     networks:
       - openinary-network
 
@@ -29,6 +30,10 @@ services:
     build:
       context: .
       dockerfile: docker/full.Dockerfile
+      args:
+        # Only NEXT_PUBLIC_API_BASE_URL is needed at build time
+        # CORS is handled at runtime in Next.js middleware
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
     ports:
       - "3000:3000"
     volumes:
@@ -47,6 +52,7 @@ services:
       - NEXT_PUBLIC_API_BASE_URL=/api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
     networks:
       - openinary-network
 
