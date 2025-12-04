@@ -305,6 +305,27 @@ export async function processVideo(
   const buffer = await transformVideo(originalPath, params);
   const ext = originalPath.split(".").pop()?.toLowerCase();
 
+  const requestedFormat = params.format?.toLowerCase();
+  const imageFormats = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif"]);
+
+  // If an image format is explicitly requested, treat output as an image (thumbnail)
+  if (requestedFormat && imageFormats.has(requestedFormat)) {
+    const normalizedFormat = requestedFormat === "jpg" ? "jpeg" : requestedFormat;
+
+    const imageTypeMap: Record<string, string> = {
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+      gif: "image/gif",
+    };
+
+    const imageContentType =
+      (normalizedFormat && imageTypeMap[normalizedFormat]) || "image/jpeg";
+
+    return { buffer, contentType: imageContentType };
+  }
+
   let contentType = "video/mp4"; // default
   if (ext?.match(/mov/)) {
     contentType = "video/quicktime";

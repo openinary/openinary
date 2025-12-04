@@ -25,7 +25,7 @@ const isTransformSegment = (segment: string): boolean => {
   if (!segment.includes(",") && !segment.includes("_")) return false;
 
   // Look for known transformation keys
-  const hasKnownKey = /(,|^)(w|h|c|g|q|f|a|ar|b|bg)_/.test("," + segment);
+  const hasKnownKey = /(,|^)(w|h|c|g|q|f|a|ar|b|bg|so|eo)_/.test("," + segment);
   return hasKnownKey;
 };
 
@@ -42,7 +42,9 @@ type TransformKey =
   | "a"
   | "ar"
   | "b"
-  | "bg";
+  | "bg"
+  | "so"
+  | "eo";
 
 /**
  * Parse a single transformation segment into our
@@ -58,6 +60,8 @@ const parseTransform = (
   let width: string | undefined;
   let height: string | undefined;
   let cropMode: string | undefined;
+  let startOffset: string | undefined;
+  let endOffset: string | undefined;
 
   for (const part of parts) {
     if (!part) continue;
@@ -101,6 +105,14 @@ const parseTransform = (
       case "bg":
         params.background = mapBackground(value);
         break;
+      case "so":
+        // Start offset (in seconds) for video/audio
+        startOffset = value;
+        break;
+      case "eo":
+        // End offset (in seconds) for video/audio
+        endOffset = value;
+        break;
       default:
         // Ignore unsupported/unknown directives for now
         break;
@@ -121,6 +133,14 @@ const parseTransform = (
 
   if (cropMode) {
     params.crop = cropMode;
+  }
+
+  if (startOffset) {
+    params.startOffset = startOffset;
+  }
+
+  if (endOffset) {
+    params.endOffset = endOffset;
   }
 
   return params;
