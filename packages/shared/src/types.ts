@@ -8,6 +8,7 @@ export type GravityMode =
   | "face"
   | "auto";
 export type ImageFormat = "avif" | "webp" | "jpeg" | "jpg" | "png";
+export type VideoFormat = "mp4" | "mov" | "webm";
 
 export interface BackgroundColor {
   r: number;
@@ -27,6 +28,20 @@ export interface TransformParams {
   background?: string;
   quality?: string | number;
   format?: ImageFormat;
+}
+
+export interface VideoTransformParams {
+  format?: VideoFormat | ImageFormat;
+  startOffset?: number;
+  endOffset?: number;
+  resize?: string;
+  width?: string | number;
+  height?: string | number;
+  crop?: CropMode;
+  gravity?: GravityMode;
+  quality?: number;
+  thumbnail?: boolean;
+  thumbnailTime?: number;
 }
 
 export interface StorageConfig {
