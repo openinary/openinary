@@ -13,6 +13,7 @@ import type { VideoContext } from './types';
 
 // Re-export types for backward compatibility
 export * from './types';
+export * from './param-registry';
 
 /**
  * Transform a video with the specified parameters
