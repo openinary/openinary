@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import { preloadMedia } from "@/hooks/use-preload-media";
+import { VideoThumbnail } from "@/components/video-thumbnail";
 import type { TreeDataItem } from "@/components/ui/tree-view";
 
 type MediaFile = {
@@ -204,6 +205,8 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
 
   // Preload preview when hovering over a media item
   const handleMediaHover = (media: MediaFile) => {
+    // For images: load the transformed image
+    // For videos: preload the full video (not the thumbnail, which is already loaded)
     const previewUrl = media.type === "image"
       ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
       : `${transformBaseUrl}/t/${media.path}`;
@@ -249,7 +252,11 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
 
       {/* Render media files */}
       {files.map((media) => {
-        const thumbnailUrl = `${apiBaseUrl}/t/w_500,h_500,q_80/${media.path}`;
+        // For images: resize and optimize
+        // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
+        const thumbnailUrl = media.type === "image"
+          ? `${apiBaseUrl}/t/w_500,h_500,q_80/${media.path}`
+          : `${apiBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
         const isHovered = hoveredId === media.id;
 
         return (
@@ -271,14 +278,12 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
                 loading="lazy"
               />
             ) : (
-              <div className="relative w-full h-full bg-muted flex items-center justify-center">
-                <FileVideo className="h-12 w-12 text-muted-foreground" />
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
-                    <div className="w-0 h-0 border-l-[8px] border-l-primary border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent ml-1" />
-                  </div>
-                </div>
-              </div>
+              <VideoThumbnail
+                src={thumbnailUrl}
+                alt={media.name}
+                className="transition-transform group-hover:scale-105"
+                loading="lazy"
+              />
             )}
             <div
               className={cn(

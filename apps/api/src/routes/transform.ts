@@ -4,6 +4,8 @@ import { parseParams } from "../utils/parser";
 import { createStorageClient } from "../utils/storage/index";
 import { Compression } from "../utils/image/compression";
 import logger from "../utils/logger";
+import { videoJobQueue } from "../utils/video-job-queue";
+import { readFile } from "fs/promises";
 import {
   setContentTypeHeader,
   checkCloudCache,
@@ -73,6 +75,11 @@ t.get("/*", async (c) => {
     // For cloud cache, we trust it has the right format since it's based on params
     const contentType = await determineContentType(effectiveParams, cloudCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
+    // For videos, indicate this is the optimized version
+    if (ext?.match(/mp4|mov|webm/)) {
+      c.header('X-Video-Status', 'ready');
+      c.header('Content-Length', cloudCacheBuffer.length.toString());
+    }
     return c.body(new Uint8Array(cloudCacheBuffer));
   }
 
@@ -81,6 +88,11 @@ t.get("/*", async (c) => {
   if (localCacheBuffer) {
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
+    // For videos, indicate this is the optimized version
+    if (ext?.match(/mp4|mov|webm/)) {
+      c.header('X-Video-Status', 'ready');
+      c.header('Content-Length', localCacheBuffer.length.toString());
+    }
     return c.body(new Uint8Array(localCacheBuffer));
   }
 
@@ -114,9 +126,69 @@ t.get("/*", async (c) => {
       contentType = result.contentType;
       optimizationResult = result.optimizationResult;
     } else if (ext?.match(/mp4|mov|webm/)) {
-      const result = await processVideo(sourcePath, params);
-      buffer = result.buffer;
-      contentType = result.contentType;
+      // Check if this is a thumbnail extraction (produces image, not video)
+      const isThumbnailRequest = params.thumbnail === 'true';
+      
+      // For thumbnail extraction: process synchronously (fast, produces image)
+      if (isThumbnailRequest) {
+        const result = await processVideo(sourcePath, params);
+        buffer = result.buffer;
+        contentType = result.contentType;
+      } else {
+        // For video transformations: check if we should process in background
+        // Check if already being processed
+        const existingJob = videoJobQueue.getJobByPath(filePath, params);
+        
+        if (existingJob) {
+          logger.debug({ jobId: existingJob.id, status: existingJob.status }, 'Video job exists');
+          
+          // If completed, serve from cache
+          if (existingJob.status === 'completed') {
+            const cachedBuffer = await checkLocalCache(cachePath);
+            if (cachedBuffer) {
+              if (isTempFile) {
+                await cleanupTempFile(sourcePath);
+              }
+              const cachedContentType = await determineContentType(params, cachedBuffer, ext);
+              setContentTypeHeader(c, cachedContentType);
+              c.header('X-Video-Status', 'ready');
+              c.header('Content-Length', cachedBuffer.length.toString());
+              return c.body(new Uint8Array(cachedBuffer));
+            }
+          }
+        }
+        
+        // Add to background processing queue (non-blocking)
+        if (!existingJob || existingJob.status === 'error') {
+          videoJobQueue.addJob(filePath, params, cachePath, sourcePath, storage).catch((error) => {
+            logger.error({ error, filePath }, 'Failed to add video job');
+          });
+        }
+
+        // Return original video immediately
+        try {
+          const originalBuffer = storage 
+            ? await storage.downloadOriginal(filePath)
+            : await readFile(localPath);
+
+          // Clean up temp file if needed
+          if (isTempFile && sourcePath !== localPath) {
+            await cleanupTempFile(sourcePath);
+          }
+
+          setContentTypeHeader(c, `video/${ext}`);
+          c.header('X-Video-Status', 'processing');
+          c.header('X-Original-Video', 'true');
+          
+          return c.body(new Uint8Array(originalBuffer));
+        } catch (error) {
+          logger.error({ error, filePath }, 'Failed to serve original video');
+          if (isTempFile) {
+            await cleanupTempFile(sourcePath);
+          }
+          return c.text('Failed to load video', 500);
+        }
+      }
     } else {
       // Cleanup temp file if needed
       if (isTempFile) {
@@ -138,6 +210,12 @@ t.get("/*", async (c) => {
 
     // Set response headers (use the actual content-type from processing, not the original extension)
     setContentTypeHeader(c, contentType);
+    c.header('Content-Length', buffer.length.toString());
+
+    // For videos, indicate this is the optimized version
+    if (ext?.match(/mp4|mov|webm/)) {
+      c.header('X-Video-Status', 'ready');
+    }
 
     if (optimizationResult) {
       c.header("X-Original-Size", optimizationResult.originalSize.toString());

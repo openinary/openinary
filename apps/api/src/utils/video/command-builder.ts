@@ -12,7 +12,11 @@ export class VideoCommandBuilder {
 
   constructor(context: VideoContext) {
     this.context = context;
-    this.command = ffmpeg(context.inputPath).output(context.outputPath);
+    this.command = ffmpeg(context.inputPath)
+      .output(context.outputPath)
+      .addOption('-threads', '4')           // Increased to 4 threads for better performance
+      .addOption('-movflags', '+faststart') // Optimize for web streaming
+      .addOption('-max_muxing_queue_size', '1024'); // Prevent buffer issues
   }
 
   /**
@@ -29,11 +33,21 @@ export class VideoCommandBuilder {
   /**
    * Execute the ffmpeg command and return the output buffer
    * Handles cleanup of temporary files
+   * Includes a 5-minute timeout to handle large videos (4K, 8K)
    */
   async execute(): Promise<Buffer> {
+    const TIMEOUT_MS = 300000; // 5 minutes (increased for 8K videos)
+    
     return new Promise((resolve, reject) => {
+      // Set timeout to kill ffmpeg if it takes too long
+      const timeoutId = setTimeout(() => {
+        this.command.kill('SIGKILL');
+        reject(new Error('Video processing timeout: exceeded 5 minutes. Try reducing video resolution or duration.'));
+      }, TIMEOUT_MS);
+      
       this.command
         .on('end', async () => {
+          clearTimeout(timeoutId);
           try {
             // Read the output file
             const buffer = await readFile(this.context.outputPath);
@@ -52,6 +66,7 @@ export class VideoCommandBuilder {
           }
         })
         .on('error', (error) => {
+          clearTimeout(timeoutId);
           reject(new Error(`Video processing failed: ${error.message}`));
         })
         .run();

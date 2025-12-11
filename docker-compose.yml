@@ -23,6 +23,16 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
     networks:
       - openinary-network
+    # Resource limits to prevent video processing from crashing the server
+    # Increased memory for 8K video processing (requires ~4GB for decoding + encoding)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   # Full Stack (API + Web + Nginx) - Profile: full
   openinary:
@@ -55,6 +65,16 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
     networks:
       - openinary-network
+    # Resource limits to prevent video processing from crashing the server
+    # Increased memory for 8K video processing (requires ~4GB for decoding + encoding)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
 networks:
   openinary-network:

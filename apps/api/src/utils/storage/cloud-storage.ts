@@ -165,6 +165,41 @@ export class CloudStorage {
   }
 
   /**
+   * Gets metadata for an original file (size, dates)
+   */
+  async getOriginalMetadata(originalPath: string): Promise<{ size: number; createdAt: Date; updatedAt: Date } | null> {
+    const storageKey = `public/${originalPath}`;
+    const metadata = await this.s3Client.getObjectMetadata(storageKey);
+    
+    if (!metadata) {
+      return null;
+    }
+
+    // For S3, we use lastModified for both dates since S3 doesn't track creation time separately
+    return {
+      size: metadata.size,
+      createdAt: metadata.lastModified,
+      updatedAt: metadata.lastModified,
+    };
+  }
+
+  /**
+   * Gets metadata for an optimized/transformed file (size only)
+   */
+  async getOptimizedMetadata(originalPath: string, params: any): Promise<{ size: number } | null> {
+    const key = KeyGenerator.generateKey(originalPath, params);
+    const metadata = await this.s3Client.getObjectMetadata(key);
+    
+    if (!metadata) {
+      return null;
+    }
+
+    return {
+      size: metadata.size,
+    };
+  }
+
+  /**
    * Invalidates the cache for a specific file
    */
   invalidateCache(originalPath: string, params?: any): void {

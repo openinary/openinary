@@ -3,8 +3,9 @@
 import { useCallback, useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { useQueryClient } from "@tanstack/react-query";
-import { Upload, FileImage, FileVideo, Folder, CheckCircle2, XCircle, Loader2, FolderOpen } from "lucide-react";
+import { Upload, FileImage, FileVideo, Folder, CheckCircle2, XCircle, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 interface UploadResult {
   filename: string;
@@ -182,7 +183,7 @@ export function UploadSection() {
               >
                 {uploading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner size={16} className="text-background" />
                     Uploading...
                   </>
                 ) : (

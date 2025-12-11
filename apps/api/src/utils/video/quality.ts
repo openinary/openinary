@@ -20,17 +20,23 @@ export const applyQuality: TransformFunction = (
 
   const { quality } = context.params;
 
-  // Skip if quality is not specified
-  if (quality === undefined) {
-    return command;
-  }
-
-  // Parse quality value
-  const qualityValue = typeof quality === 'string' ? parseInt(quality, 10) : quality;
+  // Default quality if not specified: 60 (CRF 31 - faster encoding for 8K)
+  // This prevents ffmpeg from re-encoding without compression
+  // Lower quality = faster encoding, especially important for 8K videos
+  const defaultQuality = 60;
+  const qualityValue = quality !== undefined
+    ? (typeof quality === 'string' ? parseInt(quality, 10) : quality)
+    : defaultQuality;
 
   // Validate quality range (0-100)
   if (isNaN(qualityValue) || qualityValue < 0 || qualityValue > 100) {
-    return command;
+    // Use default if invalid
+    const crf = Math.round(51 - (defaultQuality / 100) * 33);
+    return command
+      .videoCodec('libx264')
+      .addOption('-preset', 'ultrafast')  // Ultra fast preset for local dev
+      .addOption('-crf', crf.toString())
+      .audioCodec('copy');  // Copy audio without re-encoding
   }
 
   // Convert quality (0-100) to CRF (51-0)
@@ -39,5 +45,10 @@ export const applyQuality: TransformFunction = (
 
   return command
     .videoCodec('libx264')
-    .addOption('-crf', crf.toString());
+    .addOption('-preset', 'ultrafast')
+    .addOption('-crf', crf.toString())
+    .addOption('-tune', 'fastdecode')    // Optimize for fast decoding
+    .addOption('-profile:v', 'baseline') // Use baseline profile for compatibility & speed
+    .addOption('-level', '3.0')          // Lower level = simpler encoding
+    .audioCodec('copy');  // Copy audio without re-encoding
 };

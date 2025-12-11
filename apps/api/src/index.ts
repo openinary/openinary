@@ -5,6 +5,7 @@ import upload from "./routes/upload";
 import storageRoute from "./routes/storage";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
+import videoStatus from "./routes/video-status";
 import { apiKeyAuth } from "./middleware/auth";
 
 const app = new Hono();
@@ -39,6 +40,9 @@ app.get("/", (c) => c.text("Openinary API Server is running."));
 
 // Health check routes
 app.route("/health", health);
+
+// Video status check (public - no auth required)
+app.route("/video-status", videoStatus);
 
 // Public routes - no authentication required
 // Image transformation route is public for easy access to transformed images

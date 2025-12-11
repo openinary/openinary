@@ -165,6 +165,25 @@ export class S3ClientWrapper {
   }
 
   /**
+   * Gets object metadata (size, lastModified) without downloading the file
+   */
+  async getObjectMetadata(key: string): Promise<{ size: number; lastModified: Date } | null> {
+    try {
+      const response = await this.s3Client.send(new HeadObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: key,
+      }));
+
+      return {
+        size: response.ContentLength ?? 0,
+        lastModified: response.LastModified ?? new Date(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Gets the bucket name
    */
   get bucketName(): string {

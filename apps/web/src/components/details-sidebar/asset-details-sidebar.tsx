@@ -34,12 +34,15 @@ export function AssetDetailsSidebar({
     asset,
     treeLoading,
     fileSize,
+    optimizedSize,
     createdAt,
     updatedAt,
     isDeleting,
     mediaUrl,
     previewUrl,
     transformBaseUrl,
+    videoStatus,
+    videoProgress,
     handleCopyUrl,
     handleDownload,
     handleOpenInNewTab,
@@ -96,10 +99,12 @@ export function AssetDetailsSidebar({
                 <AssetDetailsTab
                   asset={asset}
                   fileSize={fileSize}
+                  optimizedSize={optimizedSize}
                   createdAt={createdAt}
-                  updatedAt={updatedAt}
                   mediaUrl={mediaUrl}
                   isDeleting={isDeleting}
+                  videoStatus={videoStatus}
+                  videoProgress={videoProgress}
                   onCopyUrl={handleCopyUrl}
                   onDownload={handleDownload}
                   onOpenInNewTab={handleOpenInNewTab}

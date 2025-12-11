@@ -171,6 +171,103 @@ storageRoute.get("/", async (c) => {
 });
 
 /**
+ * Get file metadata (size, dates)
+ * GET /storage/{path}/metadata
+ * Note: This route must be placed after GET "/" but before DELETE "/*"
+ */
+storageRoute.get("/*", async (c) => {
+  const requestPath = c.req.path;
+  
+  // Only handle requests that end with /metadata
+  if (!requestPath.endsWith("/metadata")) {
+    // Let other routes handle this request
+    return c.notFound();
+  }
+  
+  // Remove '/storage' prefix and '/metadata' suffix
+  // requestPath will be something like '/storage/cows/black.png/metadata'
+  // We need to extract 'cows/black.png'
+  const pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "").replace(/\/metadata$/, "");
+  
+  if (!pathWithoutPrefix) {
+    return c.json(
+      {
+        error: "Bad request",
+        message: "File path is required",
+      },
+      400
+    );
+  }
+
+  let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
+  
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch (error) {
+    // If decoding fails, use the original path
+  }
+
+  try {
+    if (storageClient) {
+      const metadata = await storageClient.getOriginalMetadata(filePath);
+      if (!metadata) {
+        return c.json(
+          {
+            error: "Not found",
+            message: "File not found",
+          },
+          404
+        );
+      }
+      
+      return c.json({
+        size: metadata.size,
+        createdAt: metadata.createdAt.toISOString(),
+        updatedAt: metadata.updatedAt.toISOString(),
+      });
+    } else {
+      const localPath = path.join(".", "public", filePath);
+      
+      if (!fs.existsSync(localPath)) {
+        return c.json(
+          {
+            error: "Not found",
+            message: "File not found",
+          },
+          404
+        );
+      }
+
+      const stats = fs.statSync(localPath);
+      if (stats.isDirectory()) {
+        return c.json(
+          {
+            error: "Bad request",
+            message: "Cannot get metadata for directories",
+          },
+          400
+        );
+      }
+
+      return c.json({
+        size: stats.size,
+        createdAt: stats.birthtime.toISOString(),
+        updatedAt: stats.mtime.toISOString(),
+      });
+    }
+  } catch (error) {
+    logger.error({ error, filePath }, "Failed to get file metadata");
+    return c.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      500
+    );
+  }
+});
+
+/**
  * Delete a file from storage
  * DELETE /storage/*
  */

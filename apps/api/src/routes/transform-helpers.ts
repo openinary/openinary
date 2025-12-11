@@ -80,7 +80,10 @@ export async function determineContentType(
   }
 
   // 2. Try to detect from buffer using sharp (if available and buffer is provided)
-  if (buffer) {
+  // Skip Sharp detection for video files (Sharp only handles images)
+  const isVideoFile = originalExtension && /mp4|mov|webm/i.test(originalExtension);
+  
+  if (buffer && !isVideoFile) {
     try {
       const sharp = await import("sharp");
       const metadata = await sharp.default(buffer).metadata();
@@ -102,7 +105,14 @@ export async function determineContentType(
       }
     } catch (error) {
       // If sharp detection fails, fall through to extension-based detection
-      logger.debug({ error }, "Failed to detect format from buffer");
+      // This is expected for non-image files (e.g., videos, corrupted images, etc.)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("unsupported image format")) {
+        // This is normal for video files or other non-image formats - skip logging
+        // as it's expected behavior when Sharp tries to process non-image buffers
+      } else {
+        logger.debug({ error, originalExtension }, "Failed to detect format from buffer");
+      }
     }
   }
 
@@ -302,6 +312,39 @@ export async function processVideo(
   originalPath: string,
   params: ReturnType<typeof parseParams>
 ): Promise<{ buffer: Buffer; contentType: string }> {
+  // Check file size before processing to prevent server crashes
+  const fs = await import("fs");
+  const stats = fs.statSync(originalPath);
+  const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB (increased for 8K videos)
+  
+  if (stats.size > MAX_VIDEO_SIZE) {
+    const fileSizeMB = (stats.size / 1024 / 1024).toFixed(1);
+    throw new Error(`Video file too large: ${fileSizeMB} MB (maximum allowed: 200 MB)`);
+  }
+  
+  // Get video information for better diagnostics
+  try {
+    const { getVideoInfo, getResolutionLabel } = await import("../utils/video/video-info");
+    const videoInfo = await getVideoInfo(originalPath);
+    const resLabel = getResolutionLabel(videoInfo);
+    
+    logger.info({ 
+      resolution: `${videoInfo.width}x${videoInfo.height}`,
+      label: resLabel,
+      duration: videoInfo.duration.toFixed(1),
+      size: (stats.size / 1024 / 1024).toFixed(1) + ' MB',
+      codec: videoInfo.codec
+    }, "Processing video");
+    
+    // Warn about large resolutions
+    if (videoInfo.width >= 3000) {
+      logger.warn({ resolution: resLabel }, 
+        "Processing large resolution video - this may take several minutes and use significant memory");
+    }
+  } catch (error) {
+    logger.warn({ error }, "Failed to get video info, proceeding with processing");
+  }
+  
   const buffer = await transformVideo(originalPath, params);
   const ext = originalPath.split(".").pop()?.toLowerCase();
 
