@@ -132,3 +132,6 @@ STORAGE_PUBLIC_URL=https://your-cdn-domain.com
 ## Resources
 
 [Full Documentation](https://docs.openinary.dev) | [Issues](https://github.com/openinary/openinary/issues) | [Contact](https://x.com/initflorian)
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
