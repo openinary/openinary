@@ -2,6 +2,8 @@
 
 Open-source, self-hostable alternative to Cloudinary for image and video processing with on-the-fly transformations.
 
+![Openinary Demo](demo.gif)
+
 ## What is Openinary?
 
 Openinary is an open-source media processing platform that gives you complete control over your assets. Transform, optimize, and serve your images and videos through a simple API, without depending on proprietary services.
