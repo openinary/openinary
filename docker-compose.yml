@@ -21,18 +21,26 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
+      # Video queue configuration
+      # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
+      # Override only if you need custom concurrency settings
+      - VIDEO_MAX_CONCURRENT=${VIDEO_MAX_CONCURRENT:-}
+      - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
+      - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
+      - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
-    # Increased memory for 8K video processing (requires ~4GB for decoding + encoding)
+    # Dynamic allocation: configure via env vars or use defaults for 4GB+ systems
+    # For 16GB+ systems: DOCKER_MEMORY_LIMIT=12G DOCKER_CPU_LIMIT=4.0
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4G
+          cpus: '${DOCKER_CPU_LIMIT:-2.0}'
+          memory: ${DOCKER_MEMORY_LIMIT:-4G}
         reservations:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '${DOCKER_CPU_RESERVATION:-0.5}'
+          memory: ${DOCKER_MEMORY_RESERVATION:-1G}
 
   # Full Stack (API + Web + Nginx) - Profile: full
   openinary:
@@ -63,18 +71,26 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
+      # Video queue configuration
+      # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
+      # Override only if you need custom concurrency settings
+      - VIDEO_MAX_CONCURRENT=${VIDEO_MAX_CONCURRENT:-}
+      - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
+      - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
+      - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
-    # Increased memory for 8K video processing (requires ~4GB for decoding + encoding)
+    # Dynamic allocation: configure via env vars or use defaults for 4GB+ systems
+    # For 16GB+ systems: DOCKER_MEMORY_LIMIT=12G DOCKER_CPU_LIMIT=4.0
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4G
+          cpus: '${DOCKER_CPU_LIMIT:-2.0}'
+          memory: ${DOCKER_MEMORY_LIMIT:-4G}
         reservations:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '${DOCKER_CPU_RESERVATION:-0.5}'
+          memory: ${DOCKER_MEMORY_RESERVATION:-1G}
 
 networks:
   openinary-network:

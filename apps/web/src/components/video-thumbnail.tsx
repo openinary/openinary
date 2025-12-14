@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface VideoThumbnailProps {
   src: string;
@@ -66,9 +66,7 @@ export function VideoThumbnail({
   return (
     <div className="relative w-full h-full">
       {isLoading && !hasError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <Spinner size={16} />
-        </div>
+        <Skeleton className="absolute inset-0 w-full h-full" />
       )}
       {hasError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground">

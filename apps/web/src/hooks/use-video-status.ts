@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQueueEvents } from "./use-queue-events";
 
 export type VideoStatus = "unknown" | "processing" | "ready" | "error";
 
@@ -10,7 +11,7 @@ interface VideoStatusResponse {
   error?: string;
 }
 
-export function useVideoStatus(videoPath: string | null, enabled: boolean = true) {
+export function useVideoStatus(videoPath: string | null, enabled: boolean = true, useSSE: boolean = true) {
   const [status, setStatus] = useState<VideoStatus>("unknown");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -18,9 +19,51 @@ export function useVideoStatus(videoPath: string | null, enabled: boolean = true
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastStatusRef = useRef<VideoStatus>("unknown");
   const checkCountRef = useRef<number>(0);
+  const jobIdRef = useRef<string | null>(null);
   const maxInitialChecks = 10; // Check at least 10 times (20 seconds) even if status is unknown
   // This allows time for the job to be created when the video is first accessed
 
+  // Use SSE for real-time updates if enabled
+  const { jobStatuses, isConnected } = useQueueEvents(enabled && useSSE);
+
+  // Check SSE for job updates first
+  useEffect(() => {
+    if (!videoPath || !enabled || !useSSE || !isConnected) {
+      return;
+    }
+
+    // Try to find job status from SSE
+    for (const [jobId, job] of jobStatuses) {
+      if (job.filePath === videoPath) {
+        jobIdRef.current = jobId;
+        
+        let newStatus: VideoStatus = "unknown";
+        switch (job.status) {
+          case "pending":
+          case "processing":
+            newStatus = "processing";
+            setProgress(job.progress || 0);
+            break;
+          case "completed":
+            newStatus = "ready";
+            setProgress(100);
+            break;
+          case "error":
+            newStatus = "error";
+            setError(job.error || "Processing failed");
+            break;
+        }
+
+        if (newStatus !== lastStatusRef.current) {
+          setStatus(newStatus);
+          lastStatusRef.current = newStatus;
+        }
+        break;
+      }
+    }
+  }, [videoPath, enabled, useSSE, isConnected, jobStatuses]);
+
+  // Fallback to polling if SSE is not enabled or not connected
   useEffect(() => {
     if (!videoPath || !enabled) {
       setStatus("unknown");
@@ -30,6 +73,12 @@ export function useVideoStatus(videoPath: string | null, enabled: boolean = true
       }
       checkCountRef.current = 0;
       lastStatusRef.current = "unknown";
+      jobIdRef.current = null;
+      return;
+    }
+
+    // If SSE is connected and we have a job ID, don't poll
+    if (useSSE && isConnected && jobIdRef.current) {
       return;
     }
 
@@ -163,7 +212,7 @@ export function useVideoStatus(videoPath: string | null, enabled: boolean = true
       }
       checkCountRef.current = 0;
     };
-  }, [videoPath, enabled]);
+  }, [videoPath, enabled, useSSE, isConnected]);
 
   return { status, progress, error };
 }

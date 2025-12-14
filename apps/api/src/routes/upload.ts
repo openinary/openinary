@@ -4,9 +4,10 @@ import fs from "fs";
 import path from "path";
 import logger from "../utils/logger";
 import { getUniqueFilePath } from "../utils/get-unique-file-path";
-import { transformVideo } from "../utils/video/index";
-import { saveToCache, getCachePath } from "../utils/cache";
-import type { VideoTransformParams } from "shared";
+import { getCachePath } from "../utils/cache";
+import { videoJobQueue } from "../utils/video-job-queue";
+import { parseParams } from "../utils/parser";
+import { THUMBNAIL_PRIORITY } from "../utils/video/config";
 
 const upload = new Hono();
 const storage = createStorageClient();
@@ -106,71 +107,35 @@ async function localFileExists(filePath: string): Promise<boolean> {
 }
 
 /**
- * Pre-generate default thumbnail for a video
- * This ensures the thumbnail is available when the frontend requests it
+ * Queue thumbnail generation for a video
+ * Uses high priority to ensure thumbnails are generated first
  */
-async function preGenerateThumbnail(filePath: string, storage: ReturnType<typeof createStorageClient>): Promise<void> {
+async function queueThumbnailGeneration(filePath: string, storage: ReturnType<typeof createStorageClient>): Promise<void> {
   try {
     // Define default thumbnail parameters (matching frontend defaults)
     // t_true (thumbnail), tt_5 (time at 5s), f_webp, w_500, h_500, c_fill, q_80
-    const thumbnailParams: VideoTransformParams = {
-      thumbnail: true,
-      thumbnailTime: 5,
-      format: 'webp',
-      width: 500,
-      height: 500,
-      crop: 'fill',
-      quality: 80
-    };
-
-    // Build cache path for thumbnail (same as what frontend will request)
     const transformPath = `/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${filePath}`;
+    const params = parseParams(transformPath);
     const cachePath = getCachePath(transformPath);
 
     // Get source path
-    let sourcePath: string;
-    if (storage) {
-      // Download from cloud to temp file
-      const sourceBuffer = await storage.downloadOriginal(filePath);
-      const tempDir = "./temp";
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      sourcePath = path.join(tempDir, path.basename(filePath));
-      fs.writeFileSync(sourcePath, sourceBuffer);
-    } else {
-      // Use local file
-      sourcePath = path.join("./public", filePath);
-    }
+    const sourcePath = storage 
+      ? `./temp/${path.basename(filePath)}` 
+      : path.join("./public", filePath);
 
-    logger.debug({ filePath, cachePath }, "Pre-generating thumbnail");
+    // Add to queue with HIGH priority for thumbnails
+    const jobId = await videoJobQueue.addJob(
+      filePath,
+      params,
+      cachePath,
+      sourcePath,
+      storage,
+      THUMBNAIL_PRIORITY
+    );
 
-    // Generate thumbnail
-    const thumbnailBuffer = await transformVideo(sourcePath, thumbnailParams);
-
-    // Save to cache
-    await saveToCache(cachePath, thumbnailBuffer);
-
-    // Upload to cloud cache if configured
-    if (storage) {
-      try {
-        await storage.upload(filePath, thumbnailParams, thumbnailBuffer, 'image/webp');
-        logger.debug({ filePath }, "Thumbnail uploaded to cloud cache");
-      } catch (error) {
-        logger.warn({ error, filePath }, "Failed to upload thumbnail to cloud cache");
-      }
-
-      // Clean up temp file
-      try {
-        fs.unlinkSync(sourcePath);
-      } catch (error) {
-        logger.warn({ error, sourcePath }, "Failed to cleanup temp file");
-      }
-    }
-
-    logger.info({ filePath, cachePath }, "Thumbnail pre-generated successfully");
+    logger.info({ filePath, jobId, priority: THUMBNAIL_PRIORITY }, "Thumbnail generation queued");
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to pre-generate thumbnail");
+    logger.error({ error, filePath }, "Failed to queue thumbnail generation");
     // Don't throw - this is a background operation
   }
 }
@@ -256,10 +221,10 @@ upload.post("/", async (c) => {
             url: `/t/${finalPath}`,
           });
 
-          // Pre-generate thumbnail for videos (non-blocking)
+          // Queue thumbnail generation for videos (non-blocking, high priority)
           if (contentType.startsWith('video/')) {
-            preGenerateThumbnail(finalPath, storage).catch((error) => {
-              logger.error({ error, finalPath }, "Background thumbnail generation failed");
+            queueThumbnailGeneration(finalPath, storage).catch((error) => {
+              logger.error({ error, finalPath }, "Failed to queue thumbnail generation");
             });
           }
         } else {
@@ -274,10 +239,10 @@ upload.post("/", async (c) => {
             url: `/t/${finalPath}`,
           });
 
-          // Pre-generate thumbnail for videos (non-blocking)
+          // Queue thumbnail generation for videos (non-blocking, high priority)
           if (contentType.startsWith('video/')) {
-            preGenerateThumbnail(finalPath, storage).catch((error) => {
-              logger.error({ error, finalPath }, "Background thumbnail generation failed");
+            queueThumbnailGeneration(finalPath, storage).catch((error) => {
+              logger.error({ error, finalPath }, "Failed to queue thumbnail generation");
             });
           }
         }

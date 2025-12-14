@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import logger from "./utils/logger";
+import { videoJobQueue } from "./utils/video-job-queue";
 
 // Function to clean local cache in cloud mode on startup
 const cleanupLocalCacheIfCloudMode = () => {
@@ -38,6 +39,10 @@ dirs.forEach((dir) => {
     logger.info({ dir }, "Created directory");
   }
 });
+
+// Initialize video job queue with storage client
+const storageClient = createStorageClient();
+videoJobQueue.initialize(storageClient);
 
 // Initialize authentication and generate API key if needed (only in standalone mode)
 async function initializeAuth() {
@@ -110,3 +115,16 @@ serve({
 });
 
 logger.info({ port }, "Server running");
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received, shutting down gracefully...");
+  videoJobQueue.stop();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  logger.info("SIGINT received, shutting down gracefully...");
+  videoJobQueue.stop();
+  process.exit(0);
+});

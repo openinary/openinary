@@ -1,11 +1,21 @@
 import { EventEmitter } from 'events';
-import { transformVideo } from './video/index';
 import { parseParams } from './parser';
-import { saveToCache } from './cache';
 import { CloudStorage } from './storage/index';
 import logger from './logger';
+import { VideoWorker } from './video/video-worker';
+import {
+  createJob,
+  getJobByFileAndParams,
+  getJobById,
+  getJobStats,
+  cleanupOldJobs,
+  type VideoJob as DBVideoJob,
+  type JobStatus,
+} from './video/queue-db';
+import { JOB_CLEANUP_HOURS, TRANSFORMATION_PRIORITY } from './video/config';
 
-export type JobStatus = 'pending' | 'processing' | 'completed' | 'error';
+// Re-export types for backward compatibility
+export type { JobStatus };
 
 export interface VideoJob {
   id: string;
@@ -19,17 +29,58 @@ export interface VideoJob {
   completedAt?: Date;
 }
 
+/**
+ * Convert database job to legacy format for backward compatibility
+ */
+function convertDBJob(dbJob: DBVideoJob): VideoJob {
+  return {
+    id: dbJob.id,
+    filePath: dbJob.file_path,
+    params: JSON.parse(dbJob.params_json),
+    cachePath: dbJob.cache_path,
+    status: dbJob.status,
+    progress: dbJob.progress,
+    error: dbJob.error || undefined,
+    startedAt: dbJob.started_at ? new Date(dbJob.started_at) : undefined,
+    completedAt: dbJob.completed_at ? new Date(dbJob.completed_at) : undefined,
+  };
+}
+
 class VideoJobQueue extends EventEmitter {
-  private jobs: Map<string, VideoJob> = new Map();
-  private processing: Set<string> = new Set();
-  private readonly MAX_CONCURRENT = 2; // Maximum 2 vidéos en parallèle
+  private worker: VideoWorker;
+  private storage: CloudStorage | null = null;
+
+  constructor() {
+    super();
+    // Worker will be initialized when storage is set
+    this.worker = new VideoWorker(null);
+    
+    // Forward worker events
+    this.worker.on('job:created', (job) => this.emit('job:created', convertDBJob(job)));
+    this.worker.on('job:started', (job) => this.emit('job:started', convertDBJob(job)));
+    this.worker.on('job:progress', (job, progress) => this.emit('job:progress', convertDBJob(job), progress));
+    this.worker.on('job:completed', (job) => this.emit('job:completed', convertDBJob(job)));
+    this.worker.on('job:error', (job, error) => this.emit('job:error', convertDBJob(job), error));
+  }
 
   /**
-   * Create a unique job ID from file path and params
+   * Initialize the queue with storage client
    */
-  private createJobId(filePath: string, params: ReturnType<typeof parseParams>): string {
-    const paramStr = JSON.stringify(params);
-    return `${filePath}:${Buffer.from(paramStr).toString('base64')}`;
+  initialize(storage: CloudStorage | null): void {
+    this.storage = storage;
+    this.worker = new VideoWorker(storage);
+    
+    // Forward worker events
+    this.worker.on('job:created', (job) => this.emit('job:created', convertDBJob(job)));
+    this.worker.on('job:started', (job) => this.emit('job:started', convertDBJob(job)));
+    this.worker.on('job:progress', (job, progress) => this.emit('job:progress', convertDBJob(job), progress));
+    this.worker.on('job:completed', (job) => this.emit('job:completed', convertDBJob(job)));
+    this.worker.on('job:error', (job, error) => this.emit('job:error', convertDBJob(job), error));
+    
+    // Start the worker
+    this.worker.start();
+    
+    logger.info('Video job queue initialized with background worker');
   }
 
   /**
@@ -40,32 +91,18 @@ class VideoJobQueue extends EventEmitter {
     params: ReturnType<typeof parseParams>,
     cachePath: string,
     sourcePath: string,
-    storage: CloudStorage | null
+    storage: CloudStorage | null,
+    priority: number = TRANSFORMATION_PRIORITY
   ): Promise<string> {
-    const jobId = this.createJobId(filePath, params);
-
-    // Check if already exists
-    if (this.jobs.has(jobId)) {
-      const existingJob = this.jobs.get(jobId)!;
-      logger.debug({ jobId, status: existingJob.status }, 'Job already exists');
-      return jobId;
+    // Create job in database
+    const jobId = createJob(filePath, params, cachePath, priority);
+    
+    // Emit created event
+    const job = getJobById(jobId);
+    if (job) {
+      this.emit('job:created', convertDBJob(job));
     }
-
-    // Create new job
-    const job: VideoJob = {
-      id: jobId,
-      filePath,
-      params,
-      cachePath,
-      status: 'pending',
-    };
-
-    this.jobs.set(jobId, job);
-    logger.info({ jobId, filePath }, 'Video job added to queue');
-
-    // Start processing if capacity available
-    this.processNext(sourcePath, storage);
-
+    
     return jobId;
   }
 
@@ -73,124 +110,44 @@ class VideoJobQueue extends EventEmitter {
    * Get job status
    */
   getJob(jobId: string): VideoJob | null {
-    return this.jobs.get(jobId) || null;
+    const dbJob = getJobById(jobId);
+    return dbJob ? convertDBJob(dbJob) : null;
   }
 
   /**
    * Get job by file path and params
    */
   getJobByPath(filePath: string, params: ReturnType<typeof parseParams>): VideoJob | null {
-    const jobId = this.createJobId(filePath, params);
-    return this.getJob(jobId);
+    const dbJob = getJobByFileAndParams(filePath, params);
+    return dbJob ? convertDBJob(dbJob) : null;
   }
 
   /**
-   * Process next job in queue
-   */
-  private async processNext(sourcePath: string, storage: CloudStorage | null): Promise<void> {
-    // Check if we can process more jobs
-    if (this.processing.size >= this.MAX_CONCURRENT) {
-      logger.debug('Max concurrent jobs reached, waiting...');
-      return;
-    }
-
-    // Find next pending job
-    const pendingJob = Array.from(this.jobs.values()).find(
-      (job) => job.status === 'pending'
-    );
-
-    if (!pendingJob) {
-      return; // No jobs to process
-    }
-
-    // Mark as processing
-    pendingJob.status = 'processing';
-    pendingJob.startedAt = new Date();
-    this.processing.add(pendingJob.id);
-
-    logger.info({ jobId: pendingJob.id, filePath: pendingJob.filePath }, 'Starting video processing');
-
-    try {
-      // Process video
-      const buffer = await transformVideo(sourcePath, pendingJob.params);
-
-      // Save to cache (use the cachePath from the job which includes transformation params)
-      await saveToCache(pendingJob.cachePath, buffer);
-
-      // Upload to cloud if configured
-      if (storage) {
-        const contentType = 'video/mp4'; // Adjust based on format
-        await storage.upload(pendingJob.filePath, pendingJob.params, buffer, contentType);
-      }
-
-      // Mark as completed
-      pendingJob.status = 'completed';
-      pendingJob.completedAt = new Date();
-      pendingJob.progress = 100;
-
-      logger.info({ jobId: pendingJob.id, filePath: pendingJob.filePath }, 'Video processing completed');
-
-      // Emit completion event
-      this.emit('job:completed', pendingJob);
-    } catch (error) {
-      // Mark as error
-      pendingJob.status = 'error';
-      pendingJob.error = error instanceof Error ? error.message : 'Unknown error';
-      pendingJob.completedAt = new Date();
-
-      logger.error({ error, jobId: pendingJob.id, filePath: pendingJob.filePath }, 'Video processing failed');
-
-      // Emit error event
-      this.emit('job:error', pendingJob, error);
-    } finally {
-      // Remove from processing set
-      this.processing.delete(pendingJob.id);
-
-      // Process next job
-      setTimeout(() => this.processNext(sourcePath, storage), 100);
-    }
-  }
-
-  /**
-   * Clean up old completed/error jobs (older than 1 hour)
+   * Clean up old completed/error jobs
    */
   cleanup(): void {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    let cleanedCount = 0;
-
-    for (const [jobId, job] of this.jobs.entries()) {
-      if (
-        (job.status === 'completed' || job.status === 'error') &&
-        job.completedAt &&
-        job.completedAt < oneHourAgo
-      ) {
-        this.jobs.delete(jobId);
-        cleanedCount++;
-      }
-    }
-
-    if (cleanedCount > 0) {
-      logger.info({ cleanedCount }, 'Cleaned up old video jobs');
-    }
+    cleanupOldJobs(JOB_CLEANUP_HOURS);
   }
 
   /**
    * Get queue stats
    */
   getStats() {
-    const stats = {
-      total: this.jobs.size,
-      pending: 0,
-      processing: 0,
-      completed: 0,
-      error: 0,
-    };
+    return getJobStats();
+  }
 
-    for (const job of this.jobs.values()) {
-      stats[job.status]++;
-    }
+  /**
+   * Get worker instance (for advanced usage)
+   */
+  getWorker(): VideoWorker {
+    return this.worker;
+  }
 
-    return stats;
+  /**
+   * Stop the worker (for graceful shutdown)
+   */
+  stop(): void {
+    this.worker.stop();
   }
 }
 

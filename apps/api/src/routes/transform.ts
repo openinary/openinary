@@ -19,6 +19,7 @@ import {
   performPeriodicCacheCleanup,
   determineContentType,
 } from "./transform-helpers";
+import { THUMBNAIL_PRIORITY, TRANSFORMATION_PRIORITY } from "../utils/video/config";
 
 const t = new Hono();
 const storage = createStorageClient();
@@ -159,8 +160,9 @@ t.get("/*", async (c) => {
         }
         
         // Add to background processing queue (non-blocking)
+        // Use normal priority for video transformations
         if (!existingJob || existingJob.status === 'error') {
-          videoJobQueue.addJob(filePath, params, cachePath, sourcePath, storage).catch((error) => {
+          videoJobQueue.addJob(filePath, params, cachePath, sourcePath, storage, TRANSFORMATION_PRIORITY).catch((error) => {
             logger.error({ error, filePath }, 'Failed to add video job');
           });
         }

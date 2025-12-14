@@ -44,7 +44,7 @@ export function initializeDatabase(db: Database.Database) {
   ensureDataDirectory();
 
   // Check if tables already exist
-  const requiredTables = ["user", "session", "account", "verification", "apiKey"];
+  const requiredTables = ["user", "session", "account", "verification", "apiKey", "video_jobs"];
   const missingTables = requiredTables.filter((table) => !tableExists(db, table));
 
   if (missingTables.length === 0) {
@@ -147,6 +147,30 @@ export function initializeDatabase(db: Database.Database) {
         metadata TEXT,
         FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
       );
+    `);
+  }
+
+  // Video Jobs table for queue management
+  if (!tableExists(db, "video_jobs")) {
+    db.exec(`
+      CREATE TABLE video_jobs (
+        id TEXT PRIMARY KEY,
+        file_path TEXT NOT NULL,
+        params_json TEXT NOT NULL,
+        cache_path TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'completed', 'error', 'cancelled')),
+        priority INTEGER NOT NULL DEFAULT 2,
+        progress INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        max_retries INTEGER NOT NULL DEFAULT 3,
+        created_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER
+      );
+      
+      CREATE INDEX idx_video_jobs_status_priority ON video_jobs(status, priority, created_at);
+      CREATE INDEX idx_video_jobs_file_params ON video_jobs(file_path, params_json);
     `);
   }
 }

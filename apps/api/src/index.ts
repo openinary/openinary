@@ -6,6 +6,9 @@ import storageRoute from "./routes/storage";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
 import videoStatus from "./routes/video-status";
+import logger from "./utils/logger";
+import queueEvents from "./routes/queue-events";
+import queue from "./routes/queue";
 import { apiKeyAuth } from "./middleware/auth";
 
 const app = new Hono();
@@ -48,6 +51,10 @@ app.route("/video-status", videoStatus);
 // Image transformation route is public for easy access to transformed images
 app.route("/t", transform);
 
+// Queue events SSE endpoint (public for real-time updates)
+// This must be registered BEFORE the protected queue routes to avoid auth conflicts
+app.route("/queue/events", queueEvents);
+
 // Protected routes - require API key authentication
 // Apply middleware before routing
 app.use("/upload/*", apiKeyAuth);
@@ -55,6 +62,11 @@ app.route("/upload", upload);
 
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
+
+// Queue management routes (protected)
+// Note: /queue/events is public (registered above), but other /queue/* routes require auth
+app.use("/queue/*", apiKeyAuth);
+app.route("/queue", queue);
 
 // API key management routes (also protected)
 app.route("/api-keys", apiKeys);

@@ -5,3 +5,7 @@ export * from "./types";
 // better-sqlite3 on the client side. Import directly from "./auth.js" 
 // in server-side code only.
 export type { AuthSession, AuthUser } from "./auth";
+
+// Export database instance for server-side use (video queue, etc.)
+// WARNING: Server-side only - do not import in client code
+export { db } from "./auth";
