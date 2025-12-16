@@ -3,6 +3,7 @@ import { createStorageClient } from "../utils/storage";
 import fs from "fs";
 import path from "path";
 import logger from "../utils/logger";
+import { deleteAssetCompletely } from "../utils/asset-deletion";
 
 type StorageNode = {
   name: string;
@@ -270,6 +271,7 @@ storageRoute.get("/*", async (c) => {
 /**
  * Delete a file from storage
  * DELETE /storage/*
+ * This now performs a complete deletion including cache and jobs
  */
 storageRoute.delete("/*", async (c) => {
   const requestPath = c.req.path;
@@ -298,9 +300,12 @@ storageRoute.delete("/*", async (c) => {
   }
 
   try {
-    if (storageClient) {
-      const exists = await storageClient.existsOriginal(filePath);
-      if (!exists) {
+    // Use the complete asset deletion function
+    const result = await deleteAssetCompletely(filePath, storageClient);
+    
+    if (!result.success) {
+      // Check if the file was not found
+      if (result.errors.some(err => err.includes('not found'))) {
         return c.json(
           {
             error: "Not found",
@@ -310,22 +315,8 @@ storageRoute.delete("/*", async (c) => {
         );
       }
       
-      await storageClient.deleteOriginal(filePath);
-    } else {
-      const localPath = path.join(".", "public", filePath);
-      
-      if (!fs.existsSync(localPath)) {
-        return c.json(
-          {
-            error: "Not found",
-            message: "File not found",
-          },
-          404
-        );
-      }
-
-      const stats = fs.statSync(localPath);
-      if (stats.isDirectory()) {
+      // Check if trying to delete a directory
+      if (result.errors.some(err => err.includes('Cannot delete directories'))) {
         return c.json(
           {
             error: "Bad request",
@@ -334,16 +325,35 @@ storageRoute.delete("/*", async (c) => {
           400
         );
       }
-
-      fs.unlinkSync(localPath);
+      
+      // Other errors
+      return c.json(
+        {
+          error: "Partial deletion",
+          message: "Asset deleted but some cleanup operations failed",
+          details: {
+            originalFileDeleted: result.originalFileDeleted,
+            jobsDeleted: result.jobsDeleted,
+            localCacheFilesDeleted: result.localCacheFilesDeleted,
+            cloudCacheFilesDeleted: result.cloudCacheFilesDeleted,
+            errors: result.errors,
+          },
+        },
+        result.originalFileDeleted ? 200 : 500
+      );
     }
 
     return c.json({
       success: true,
-      message: "File deleted successfully",
+      message: "Asset deleted successfully",
+      details: {
+        jobsDeleted: result.jobsDeleted,
+        localCacheFilesDeleted: result.localCacheFilesDeleted,
+        cloudCacheFilesDeleted: result.cloudCacheFilesDeleted,
+      },
     });
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to delete file");
+    logger.error({ error, filePath }, "Failed to delete asset");
     return c.json(
       {
         error: "Internal server error",

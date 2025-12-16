@@ -145,5 +145,61 @@ export async function initializeCache(): Promise<void> {
   }
 }
 
+/**
+ * Delete all cached files related to an original file path
+ * This scans the cache directory and removes files that contain the original path in their name
+ */
+export async function deleteCachedFiles(originalPath: string): Promise<number> {
+  try {
+    if (!existsSync(CACHE_DIR)) {
+      logger.debug({ originalPath }, 'Cache directory does not exist');
+      return 0;
+    }
+
+    const files = await fs.readdir(CACHE_DIR);
+    let deletedCount = 0;
+
+    // Create a safe pattern to match files related to this original path
+    // The cache path is generated from the request path which includes the original file
+    const pathSegments = originalPath.split('/');
+    const fileName = pathSegments[pathSegments.length - 1];
+    const fileNameWithoutExt = fileName.split('.')[0];
+
+    for (const file of files) {
+      const filePath = join(CACHE_DIR, file);
+      
+      try {
+        const stats = await fs.stat(filePath);
+        
+        if (stats.isFile()) {
+          // Check if this file is related to our original path
+          // Cache files contain the original filename in their name
+          if (file.includes(fileNameWithoutExt) || file.includes(originalPath.replace(/[^a-zA-Z0-9.-]/g, '_'))) {
+            await fs.unlink(filePath);
+            
+            // Update cache stats
+            const cachedStats = SmartCache['stats'].requests.get(originalPath);
+            if (cachedStats) {
+              SmartCache['stats'].totalCacheSize -= cachedStats.totalSize;
+              SmartCache['stats'].requests.delete(originalPath);
+            }
+            
+            deletedCount++;
+            logger.debug({ file, originalPath }, 'Deleted cache file');
+          }
+        }
+      } catch (error) {
+        logger.warn({ error, file }, 'Failed to delete cache file');
+      }
+    }
+
+    logger.info({ originalPath, deletedCount }, 'Deleted local cache files');
+    return deletedCount;
+  } catch (error) {
+    logger.error({ error, originalPath }, 'Failed to delete cached files');
+    return 0;
+  }
+}
+
 // Initialize cache on module load
 initializeCache();

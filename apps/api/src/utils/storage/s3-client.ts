@@ -5,6 +5,7 @@ import {
   HeadObjectCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { StorageConfig } from 'shared';
@@ -112,13 +113,14 @@ export class S3ClientWrapper {
   /**
    * Uploads an object to the bucket
    */
-  async uploadObject(key: string, buffer: Buffer, contentType: string): Promise<void> {
+  async uploadObject(key: string, buffer: Buffer, contentType: string, metadata?: Record<string, string>): Promise<void> {
     await this.s3Client.send(new PutObjectCommand({
       Bucket: this.config.bucketName,
       Key: key,
       Body: buffer,
       ContentType: contentType,
       CacheControl: 'public, max-age=31536000', // Cache 1 year
+      Metadata: metadata,
     }));
   }
 
@@ -167,7 +169,7 @@ export class S3ClientWrapper {
   /**
    * Gets object metadata (size, lastModified) without downloading the file
    */
-  async getObjectMetadata(key: string): Promise<{ size: number; lastModified: Date } | null> {
+  async getObjectMetadata(key: string): Promise<{ size: number; lastModified: Date; metadata?: Record<string, string> } | null> {
     try {
       const response = await this.s3Client.send(new HeadObjectCommand({
         Bucket: this.config.bucketName,
@@ -177,10 +179,41 @@ export class S3ClientWrapper {
       return {
         size: response.ContentLength ?? 0,
         lastModified: response.LastModified ?? new Date(),
+        metadata: response.Metadata,
       };
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Deletes multiple objects from the bucket (up to 1000 at once)
+   */
+  async deleteObjects(keys: string[]): Promise<number> {
+    if (keys.length === 0) {
+      return 0;
+    }
+
+    // S3 DeleteObjects can delete up to 1000 objects at once
+    const batches: string[][] = [];
+    for (let i = 0; i < keys.length; i += 1000) {
+      batches.push(keys.slice(i, i + 1000));
+    }
+
+    let totalDeleted = 0;
+    for (const batch of batches) {
+      const response = await this.s3Client.send(new DeleteObjectsCommand({
+        Bucket: this.config.bucketName,
+        Delete: {
+          Objects: batch.map(key => ({ Key: key })),
+          Quiet: true,
+        },
+      }));
+
+      totalDeleted += batch.length - (response.Errors?.length ?? 0);
+    }
+
+    return totalDeleted;
   }
 
   /**

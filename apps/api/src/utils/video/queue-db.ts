@@ -432,3 +432,26 @@ export function resetOrphanedProcessingJobs(): number {
   }
 }
 
+/**
+ * Delete all jobs (pending, processing, completed, error, cancelled) for a file path
+ * This is used when an asset is deleted to clean up all associated jobs
+ */
+export function deleteJobsByFilePath(filePath: string): number {
+  try {
+    const result = db
+      .prepare("DELETE FROM video_jobs WHERE file_path = ?")
+      .run(filePath);
+
+    if (result.changes > 0) {
+      logger.info({ filePath, deletedCount: result.changes }, "Deleted jobs for file path");
+    } else {
+      logger.debug({ filePath }, "No jobs found for file path");
+    }
+
+    return result.changes;
+  } catch (error) {
+    logger.error({ error, filePath }, "Failed to delete jobs by file path");
+    return 0;
+  }
+}
+

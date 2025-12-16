@@ -125,7 +125,12 @@ export class CloudStorage {
   async upload(originalPath: string, params: any, buffer: Buffer, contentType: string): Promise<string> {
     const key = KeyGenerator.generateKey(originalPath, params);
     
-    await this.s3Client.uploadObject(key, buffer, contentType);
+    // Add metadata for easy cleanup later
+    const metadata = {
+      'x-original-path': originalPath
+    };
+    
+    await this.s3Client.uploadObject(key, buffer, contentType, metadata);
 
     // Mark the file as existing in the cache
     this.cache.set(`exists:${key}`, {
@@ -208,5 +213,64 @@ export class CloudStorage {
       this.cache.delete(`exists:${key}`);
     }
     this.cache.delete(`original:${originalPath}`);
+  }
+
+  /**
+   * Deletes all cached transformations for an original file from cloud storage
+   * Uses metadata to identify files belonging to the original path
+   */
+  async deleteAllCachedTransformations(originalPath: string): Promise<number> {
+    try {
+      // List all objects with cache/ prefix
+      const cacheObjects = await this.s3Client.listObjects('cache/');
+      
+      const keysToDelete: string[] = [];
+      
+      // Check each object's metadata to see if it belongs to this original path
+      for (const obj of cacheObjects) {
+        try {
+          const metadata = await this.s3Client.getObjectMetadata(obj.key);
+          if (metadata?.metadata?.['x-original-path'] === originalPath) {
+            keysToDelete.push(obj.key);
+          }
+        } catch (error) {
+          // If we can't get metadata, skip this object
+          logger.warn({ error, key: obj.key }, 'Failed to get metadata for cache object');
+        }
+      }
+      
+      if (keysToDelete.length === 0) {
+        logger.debug({ originalPath }, 'No cached transformations found in cloud storage');
+        return 0;
+      }
+      
+      // Delete all identified objects
+      const deletedCount = await this.s3Client.deleteObjects(keysToDelete);
+      
+      logger.info(
+        { originalPath, deletedCount, totalFound: keysToDelete.length },
+        'Deleted cached transformations from cloud storage'
+      );
+      
+      return deletedCount;
+    } catch (error) {
+      logger.error({ error, originalPath }, 'Failed to delete cached transformations');
+      throw error;
+    }
+  }
+
+  /**
+   * Invalidates all cache entries for a given original path
+   * This clears the in-memory cache for both the original file and all its transformations
+   */
+  invalidateAllCacheEntries(originalPath: string): void {
+    // Clear the original file cache
+    this.cache.delete(`original:${originalPath}`);
+    
+    // We can't easily enumerate all possible transformation cache keys
+    // since they're based on MD5 hashes, but the cache has a TTL
+    // and will expire naturally. For now, we just clear the original.
+    
+    logger.debug({ originalPath }, 'Invalidated cache entries for original path');
   }
 }
