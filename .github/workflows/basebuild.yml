@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: basebuild
 
 on:
   push:
@@ -95,4 +95,5 @@ jobs:
           echo "- \`${{ env.IMAGE_API }}:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
 

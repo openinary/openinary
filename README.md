@@ -1,33 +1,38 @@
-# Openinary
+<p align="center">
+    <a href="https://openinary.dev" target="_blank" rel="noopener">
+        <img src="https://i.imgur.com/P5Qfm65.png" alt="Openinary - self-hosted media processing platform" />
+    </a>
+</p>
 
-Open-source, self-hostable alternative to Cloudinary for image and video processing with on-the-fly transformations.
+<p align="center">
+    <a href="https://github.com/openinary/openinary/actions/workflows/basebuild.yml" target="_blank" rel="noopener"><img src="https://github.com/openinary/openinary/actions/workflows/basebuild.yml/badge.svg" alt="build" /></a>
+    <a href="https://hub.docker.com/r/openinary/openinary" target="_blank" rel="noopener"><img src="https://img.shields.io/docker/pulls/openinary/openinary.svg" alt="Docker pulls" /></a>
+    <a href="https://github.com/openinary/openinary/blob/main/LICENSE" target="_blank" rel="noopener"><img src="https://img.shields.io/github/license/openinary/openinary.svg" alt="license" /></a>
+</p>
 
-![Openinary Demo](demo.gif)
+[Openinary](https://github.com/openinary/openinary) is an open-source, self-hosted media processing platform that includes:
 
-## What is Openinary?
+- on-the-fly transformations for images and videos via URL
+- built-in S3-compatible storage with automatic caching
+- smart optimization with WebP, AVIF, and modern codecs
+- simple REST API with URL-based transformations
+- convenient admin dashboard for asset management
 
-Openinary is an open-source media processing platform that gives you complete control over your assets. Transform, optimize, and serve your images and videos through a simple API, without depending on proprietary services.
+**For documentation and more examples, please visit https://docs.openinary.dev.**
 
-**Why Openinary?**
-- **Open-source**: Transparent and modifiable code
-- **Self-hosted**: Deploy on your infrastructure
-- **No vendor lock-in**: Your data, your rules
-- **Performance**: Built-in cache and automatic optimizations
-
-## Features
-
-- **On-the-fly transformations**: Resize, crop, and rotate images and videos via URL
-- **Intelligent optimization**: Automatic conversion to WebP, AVIF, and modern video codecs
-- **Built-in cache**: Ultra-fast delivery with automatic caching system
-- **S3-compatible storage**: Native support for AWS S3, Cloudflare R2, Minio, DigitalOcean Spaces
-- **Simple API**: Transformations via URL parameters, API key authentication
+> [!WARNING]
+> Please keep in mind that Openinary is still under active development
+> and therefore full backward compatibility is not guaranteed before reaching v1.0.0.
 
 ## Quick Start
 
-### Prerequisites
-- Docker 20.x+
+<p align="left">
+    <a href="https://docs.openinary.dev/guides/coolify-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy-coolify.svg" alt="Deploy with Coolify" style="display: block;" /></a>&nbsp;&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/dokploy-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy-dokploy.svg" alt="Deploy with Dokploy" style="display: block;" /></a>
+</p>
 
 ### Installation
+
+Make sure to have Docker 20.x+ installed and running.
 
 ```bash
 docker run --platform linux/amd64 -d -p 3000:3000 \
@@ -39,10 +44,9 @@ docker run --platform linux/amd64 -d -p 3000:3000 \
 
 ### Initial Setup
 
-**Full mode:**
 1. Open http://localhost:3000
 2. Visit `/setup` to create admin account
-3. Go to `/api-keys` to generate an API key
+3. Click on your profile in the bottom left navigation, then go to 'API Keys' to generate your first API key
 
 ## Usage Examples
 
@@ -65,30 +69,20 @@ GET /t/ar_16:9,g_auto,w_1920,h_1080/banner.jpg
 ### Videos
 
 ```bash
-# HD optimization
-GET /t/w_1280,h_720,q_80/video.mp4
+# Thumbnail with resize
+GET /t/w_800,h_450,so_5,f_avif/video.mp4
 
-# Low resolution preview
-GET /t/w_640,h_360,q_60/preview.mp4
+# Web optimized compression
+GET /t/w_1280,h_720,q_75/video.mp4
 
-# Full HD high quality
-GET /t/w_1920,h_1080,q_90/movie.mp4
-```
+# Extract a clip (from 10s to 30s)
+GET /t/so_10,eo_30/interview.mp4
 
-### Authentication
+# Lightweight preview (low quality, small size)
+GET /t/w_480,h_270,q_50/demo.mp4
 
-The transformation endpoint (`/t/*`) is **public** and does not require authentication, making it easy to serve transformed assets directly:
-
-```bash
-# No authentication required for transformations
-curl "http://localhost:3000/t/w_800,h_600/image.jpg"
-```
-
-Other endpoints (upload, storage management) require an API key:
-
-```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "http://localhost:3000/upload"
+# Format conversion with resize
+GET /t/w_1920,h_1080,f_mp4/video.mov
 ```
 
 ## S3-Compatible Configuration
@@ -127,11 +121,9 @@ STORAGE_ENDPOINT=https://your-s3-compatible-endpoint.com
 STORAGE_PUBLIC_URL=https://your-cdn-domain.com
 ```
 
-**Note:** The presence of `STORAGE_ENDPOINT` automatically enables S3-compatible mode. Without endpoint, it's standard AWS S3.
-
 ## Resources
 
 [Full Documentation](https://docs.openinary.dev) | [Issues](https://github.com/openinary/openinary/issues) | [Contact](https://x.com/initflorian)
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the  AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
