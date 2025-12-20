@@ -50,6 +50,9 @@ print_info "Current version: v${CURRENT_VERSION}"
 # Parse semantic version
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
+# Strip any pre-release suffix (e.g., -beta.1, -rc.1) from PATCH
+PATCH=${PATCH%%-*}
+
 # Show release type options
 echo ""
 echo "Select release type:"
