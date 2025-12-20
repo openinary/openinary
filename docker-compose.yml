@@ -23,7 +23,8 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
-      - IMAGE_TAG=${IMAGE_TAG:-latest}
+      # IMAGE_TAG automatically mapped from OPENINARY_VERSION (single source of truth)
+      - IMAGE_TAG=${OPENINARY_VERSION:-latest}
       # Video queue configuration
       # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
       # Override only if you need custom concurrency settings
@@ -54,9 +55,11 @@ services:
       context: .
       dockerfile: docker/full.Dockerfile
       args:
-        # Only NEXT_PUBLIC_API_BASE_URL is needed at build time
+        # NEXT_PUBLIC_API_BASE_URL is needed at build time
         # CORS is handled at runtime in Next.js middleware
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+        # IMAGE_TAG is baked into the image at build time (written to /app/version.txt)
+        IMAGE_TAG: ${OPENINARY_VERSION:-latest}
     ports:
       - "3000:3000"
     volumes:
@@ -76,7 +79,8 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
-      - IMAGE_TAG=${IMAGE_TAG:-latest}
+      # IMAGE_TAG automatically mapped from OPENINARY_VERSION (single source of truth)
+      - IMAGE_TAG=${OPENINARY_VERSION:-latest}
       # Video queue configuration
       # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
       # Override only if you need custom concurrency settings
