@@ -2,6 +2,8 @@ name: basebuild
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
       - '*.*.*'
@@ -47,18 +49,27 @@ jobs:
             if [ -n "${{ github.event.inputs.version }}" ]; then
               echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
               echo "is_release=true" >> $GITHUB_OUTPUT
+              echo "is_preview=false" >> $GITHUB_OUTPUT
             else
               echo "version=latest" >> $GITHUB_OUTPUT
               echo "is_release=false" >> $GITHUB_OUTPUT
+              echo "is_preview=false" >> $GITHUB_OUTPUT
             fi
           elif [ "${{ github.ref_type }}" == "tag" ]; then
             # Remove 'refs/tags/' prefix
             TAG_NAME=${GITHUB_REF#refs/tags/}
             echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
             echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "is_preview=false" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            # Push to main branch = preview build
+            echo "version=preview" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+            echo "is_preview=true" >> $GITHUB_OUTPUT
           else
             echo "version=latest" >> $GITHUB_OUTPUT
             echo "is_release=false" >> $GITHUB_OUTPUT
+            echo "is_preview=false" >> $GITHUB_OUTPUT
           fi
           echo "Determined version: $(cat $GITHUB_OUTPUT | grep version | cut -d'=' -f2)"
 
@@ -88,7 +99,7 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_FULL }}:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_FULL }}:latest
+            ${{ steps.version.outputs.is_release == 'true' && format('{0}:latest', env.IMAGE_FULL) || '' }}
             ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_FULL, steps.semver.outputs.major_minor) || '' }}
             ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_FULL, steps.semver.outputs.major) || '' }}
           cache-from: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache
@@ -102,7 +113,7 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_API }}:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_API }}:latest
+            ${{ steps.version.outputs.is_release == 'true' && format('{0}:latest', env.IMAGE_API) || '' }}
             ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_API, steps.semver.outputs.major_minor) || '' }}
             ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_API, steps.semver.outputs.major) || '' }}
           cache-from: type=registry,ref=${{ env.IMAGE_API }}:buildcache
@@ -147,18 +158,24 @@ jobs:
         run: |
           echo "## Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.version.outputs.is_preview }}" == "true" ]; then
+            echo "🔨 **Preview Build** (from main branch)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "### Full Image" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.IMAGE_FULL }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_FULL }}:latest\`" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.version.outputs.is_release }}" == "true" ]; then
+            echo "- \`${{ env.IMAGE_FULL }}:latest\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`${{ env.IMAGE_FULL }}:${{ steps.semver.outputs.major_minor }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`${{ env.IMAGE_FULL }}:${{ steps.semver.outputs.major }}\`" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### API Image" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.IMAGE_API }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_API }}:latest\`" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.version.outputs.is_release }}" == "true" ]; then
+            echo "- \`${{ env.IMAGE_API }}:latest\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`${{ env.IMAGE_API }}:${{ steps.semver.outputs.major_minor }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`${{ env.IMAGE_API }}:${{ steps.semver.outputs.major }}\`" >> $GITHUB_STEP_SUMMARY
           fi
