@@ -26,6 +26,7 @@ RUN pnpm prune --prod
 # Stage 2: Build Web
 FROM node:20-slim AS web-builder
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
+ARG IMAGE_TAG="dev"
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
@@ -53,6 +54,7 @@ RUN pnpm --filter web build
 FROM node:20-slim
 # Runtime args only - will be overridden by docker-compose environment
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
+ARG IMAGE_TAG="dev"
 
 # Install nginx, ffmpeg, supervisor, cron and sqlite3 for process management
 RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg supervisor cron sqlite3 && \
@@ -73,6 +75,11 @@ COPY --from=web-builder /app/apps/web/public /app/web-standalone/apps/web/public
 
 # Copy security scripts
 COPY scripts/ ./scripts/
+
+# Write version file at build time (ARG is available here)
+RUN echo "${IMAGE_TAG}" > /app/version.txt && \
+    echo "Build-time IMAGE_TAG: ${IMAGE_TAG}" && \
+    cat /app/version.txt
 
 # Create necessary directories with proper ownership (ciblé uniquement sur les répertoires d'écriture)
 RUN mkdir -p /app/apps/api/cache /app/apps/api/public /app/data /app/web-standalone/data /var/log/supervisor && \

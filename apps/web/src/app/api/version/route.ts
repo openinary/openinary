@@ -3,54 +3,41 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
 export async function GET() {
-  let imageTag = process.env.IMAGE_TAG || "dev";
-  let source = "process.env (default)";
+  let imageTag = "dev";
+  let source = "default";
   
-  // Debug: check what paths we're testing
-  const configPaths = [
-    "/app/runtime-config.json",                       // Docker absolute path
-    join(process.cwd(), "../../../runtime-config.json"), // /app/web-standalone/apps/web -> /app
-    join(process.cwd(), "../../runtime-config.json"),    // /app/web-standalone/apps/web -> /app/web-standalone
-    join(process.cwd(), "runtime-config.json")           // Same directory
-  ];
-  
-  const pathsChecked: any[] = [];
-  
-  // Try to read from runtime-config.json (created by init-env.js in Docker)
+  // Priority 1: Read from /app/version.txt (written at build time with ARG)
   try {
-    for (const configPath of configPaths) {
-      const exists = existsSync(configPath);
-      pathsChecked.push({ path: configPath, exists });
-      
-      if (exists) {
-        const config = JSON.parse(readFileSync(configPath, "utf-8"));
-        if (config.IMAGE_TAG && config.IMAGE_TAG !== "dev") {
-          imageTag = config.IMAGE_TAG;
-          source = `runtime-config.json (${configPath})`;
-        }
-        break;
+    const versionPath = "/app/version.txt";
+    if (existsSync(versionPath)) {
+      const versionFromFile = readFileSync(versionPath, "utf-8").trim();
+      if (versionFromFile && versionFromFile !== "" && versionFromFile !== "dev") {
+        imageTag = versionFromFile;
+        source = "version.txt (build-time ARG)";
       }
     }
   } catch (err: any) {
-    // Fallback to process.env
-    console.error("Could not read runtime-config.json:", err);
-    pathsChecked.push({ error: err.message });
+    console.error("Could not read version.txt:", err);
   }
   
-  // Check what files exist in /app
-  let appDirContents: string[] = [];
-  try {
-    if (existsSync("/app")) {
-      appDirContents = readdirSync("/app");
-    }
-  } catch (err) {
-    appDirContents = ["error reading /app"];
-  }
-  
-  // Also check process.env directly
+  // Priority 2: Check process.env.IMAGE_TAG (runtime override)
   if (process.env.IMAGE_TAG && process.env.IMAGE_TAG !== "dev") {
     imageTag = process.env.IMAGE_TAG;
-    source = "process.env";
+    source = "process.env (runtime)";
+  }
+  
+  // Priority 3: Try runtime-config.json (legacy)
+  try {
+    const configPath = "/app/runtime-config.json";
+    if (existsSync(configPath)) {
+      const config = JSON.parse(readFileSync(configPath, "utf-8"));
+      if (config.IMAGE_TAG && config.IMAGE_TAG !== "dev" && imageTag === "dev") {
+        imageTag = config.IMAGE_TAG;
+        source = "runtime-config.json";
+      }
+    }
+  } catch (err) {
+    // Ignore errors
   }
   
   // Debug info for production
@@ -59,12 +46,10 @@ export async function GET() {
     _debug: {
       source,
       IMAGE_TAG_in_env: 'IMAGE_TAG' in process.env,
-      IMAGE_TAG_value: process.env.IMAGE_TAG,
+      IMAGE_TAG_env_value: process.env.IMAGE_TAG,
       NODE_ENV: process.env.NODE_ENV,
-      cwd: process.cwd(),
-      totalEnvVars: Object.keys(process.env).length,
-      pathsChecked,
-      appDirContents: appDirContents.slice(0, 20) // Limit to first 20 items
+      versionTxtExists: existsSync("/app/version.txt"),
+      versionTxtContent: existsSync("/app/version.txt") ? readFileSync("/app/version.txt", "utf-8").trim() : null
     }
   };
   
