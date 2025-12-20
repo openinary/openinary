@@ -138,7 +138,12 @@ if [ -f "$CHANGELOG_FILE" ]; then
     }
     ' "$CHANGELOG_FILE" > "${CHANGELOG_FILE}.tmp"
     
-    # Update the version links at the bottom
+    # Remove old version links from the end of the file
+    # Keep only the content, remove existing link references
+    grep -v "^\[Unreleased\]:" "${CHANGELOG_FILE}.tmp" | grep -v "^\[${NEW_VERSION}\]:" > "${CHANGELOG_FILE}.tmp2"
+    mv "${CHANGELOG_FILE}.tmp2" "${CHANGELOG_FILE}.tmp"
+    
+    # Update the version links at the bottom (add new ones)
     echo "" >> "${CHANGELOG_FILE}.tmp"
     echo "[Unreleased]: https://github.com/openinary/openinary/compare/v${NEW_VERSION}...HEAD" >> "${CHANGELOG_FILE}.tmp"
     echo "[${NEW_VERSION}]: https://github.com/openinary/openinary/releases/tag/v${NEW_VERSION}" >> "${CHANGELOG_FILE}.tmp"
@@ -148,19 +153,7 @@ if [ -f "$CHANGELOG_FILE" ]; then
     rm -f "${CHANGELOG_FILE}.bak"
     
     print_success "Updated CHANGELOG.md"
-    print_warning "Please edit CHANGELOG.md to add release notes before continuing"
-    
-    # Open editor if available
-    if [ -n "$EDITOR" ]; then
-        $EDITOR "$CHANGELOG_FILE"
-    elif command -v nano >/dev/null 2>&1; then
-        nano "$CHANGELOG_FILE"
-    elif command -v vim >/dev/null 2>&1; then
-        vim "$CHANGELOG_FILE"
-    else
-        print_info "Please manually edit $CHANGELOG_FILE"
-        read -p "Press Enter when done editing..."
-    fi
+    print_info "Please review CHANGELOG.md if you need to make any changes"
 else
     print_warning "CHANGELOG.md not found, skipping"
 fi
