@@ -2,6 +2,11 @@
 # Wrapper script to run init-env.js and export variables for Docker
 # This ensures BETTER_AUTH_SECRET is available as an environment variable
 
+# Debug: Show if IMAGE_TAG is set in shell environment
+echo "DEBUG: IMAGE_TAG in shell = ${IMAGE_TAG:-not set}"
+echo "DEBUG: All env vars containing IMAGE or TAG:"
+env | grep -i -E "(image|tag)" || echo "  (none found)"
+
 # Run init-env.js to generate/update .env file
 cd /app && node scripts/init-env.js || echo "Warning: init-env.js failed, continuing with existing environment variables"
 
