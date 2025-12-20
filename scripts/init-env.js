@@ -117,7 +117,7 @@ if (needsGeneration && !secretFromEnv) {
 
 // Write runtime configuration for Next.js (variables that might be filtered by standalone mode)
 const runtimeConfig = {
-  IMAGE_TAG: process.env.IMAGE_TAG || 'dev',
+  IMAGE_TAG: process.env.IMAGE_TAG || 'latest',
   NODE_ENV: process.env.NODE_ENV || 'production',
   generatedAt: new Date().toISOString()
 };
