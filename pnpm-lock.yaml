@@ -153,6 +153,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      dotenv:
+        specifier: ^17.2.1
+        version: 17.2.3
       framer-motion:
         specifier: ^12.23.24
         version: 12.23.24(react-dom@19.1.2(react@19.1.2))(react@19.1.2)
