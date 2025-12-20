@@ -1,23 +1,28 @@
 import { NextResponse } from "next/server";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
 export async function GET() {
   let imageTag = process.env.IMAGE_TAG || "dev";
   let source = "process.env (default)";
   
+  // Debug: check what paths we're testing
+  const configPaths = [
+    "/app/runtime-config.json",                       // Docker absolute path
+    join(process.cwd(), "../../../runtime-config.json"), // /app/web-standalone/apps/web -> /app
+    join(process.cwd(), "../../runtime-config.json"),    // /app/web-standalone/apps/web -> /app/web-standalone
+    join(process.cwd(), "runtime-config.json")           // Same directory
+  ];
+  
+  const pathsChecked: any[] = [];
+  
   // Try to read from runtime-config.json (created by init-env.js in Docker)
   try {
-    // In standalone mode, the working directory is /app/web-standalone
-    // The runtime-config.json is at /app/runtime-config.json
-    const configPaths = [
-      "/app/runtime-config.json",                    // Docker absolute path
-      join(process.cwd(), "../../runtime-config.json"), // Relative from standalone
-      join(process.cwd(), "runtime-config.json")        // Same directory
-    ];
-    
     for (const configPath of configPaths) {
-      if (existsSync(configPath)) {
+      const exists = existsSync(configPath);
+      pathsChecked.push({ path: configPath, exists });
+      
+      if (exists) {
         const config = JSON.parse(readFileSync(configPath, "utf-8"));
         if (config.IMAGE_TAG && config.IMAGE_TAG !== "dev") {
           imageTag = config.IMAGE_TAG;
@@ -26,9 +31,20 @@ export async function GET() {
         break;
       }
     }
-  } catch (err) {
+  } catch (err: any) {
     // Fallback to process.env
     console.error("Could not read runtime-config.json:", err);
+    pathsChecked.push({ error: err.message });
+  }
+  
+  // Check what files exist in /app
+  let appDirContents: string[] = [];
+  try {
+    if (existsSync("/app")) {
+      appDirContents = readdirSync("/app");
+    }
+  } catch (err) {
+    appDirContents = ["error reading /app"];
   }
   
   // Also check process.env directly
@@ -46,7 +62,9 @@ export async function GET() {
       IMAGE_TAG_value: process.env.IMAGE_TAG,
       NODE_ENV: process.env.NODE_ENV,
       cwd: process.cwd(),
-      totalEnvVars: Object.keys(process.env).length
+      totalEnvVars: Object.keys(process.env).length,
+      pathsChecked,
+      appDirContents: appDirContents.slice(0, 20) // Limit to first 20 items
     }
   };
   
