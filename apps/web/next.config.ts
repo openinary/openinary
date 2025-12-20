@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
+    // Expose IMAGE_TAG from root .env to the client
     NEXT_PUBLIC_IMAGE_TAG: process.env.IMAGE_TAG || "dev",
   },
   eslint: {
