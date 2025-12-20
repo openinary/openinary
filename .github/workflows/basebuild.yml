@@ -24,12 +24,14 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for changelog generation
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -46,17 +48,39 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             if [ -n "${{ github.event.inputs.version }}" ]; then
               echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+              echo "is_release=true" >> $GITHUB_OUTPUT
             else
               echo "version=latest" >> $GITHUB_OUTPUT
+              echo "is_release=false" >> $GITHUB_OUTPUT
             fi
           elif [ "${{ github.ref_type }}" == "tag" ]; then
             # Remove 'refs/tags/' prefix
             TAG_NAME=${GITHUB_REF#refs/tags/}
             echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
           else
             echo "version=latest" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
           fi
           echo "Determined version: $(cat $GITHUB_OUTPUT | grep version | cut -d'=' -f2)"
+
+      - name: Extract major and minor version
+        id: semver
+        if: steps.version.outputs.is_release == 'true'
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          # Remove 'v' prefix if present
+          VERSION=${VERSION#v}
+          
+          # Extract major, minor, patch
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          echo "major_minor=${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
 
       - name: Build and push full image
         uses: docker/build-push-action@v5
@@ -67,6 +91,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_FULL }}:${{ steps.version.outputs.version }}
             ${{ env.IMAGE_FULL }}:latest
+            ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_FULL, steps.semver.outputs.major_minor) || '' }}
+            ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_FULL, steps.semver.outputs.major) || '' }}
           cache-from: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache,mode=max
 
@@ -79,8 +105,45 @@ jobs:
           tags: |
             ${{ env.IMAGE_API }}:${{ steps.version.outputs.version }}
             ${{ env.IMAGE_API }}:latest
+            ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_API, steps.semver.outputs.major_minor) || '' }}
+            ${{ steps.version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_API, steps.semver.outputs.major) || '' }}
           cache-from: type=registry,ref=${{ env.IMAGE_API }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_API }}:buildcache,mode=max
+
+      - name: Extract changelog for this version
+        id: changelog
+        if: steps.version.outputs.is_release == 'true'
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          # Extract the section for this version from CHANGELOG.md
+          if [ -f CHANGELOG.md ]; then
+            # Get content between [VERSION] and next version or end
+            CHANGELOG_CONTENT=$(sed -n "/## \[${VERSION#v}\]/,/## \[/p" CHANGELOG.md | sed '$d' | tail -n +2)
+            
+            # If empty, use default message
+            if [ -z "$CHANGELOG_CONTENT" ]; then
+              CHANGELOG_CONTENT="See [CHANGELOG.md](https://github.com/openinary/openinary/blob/main/CHANGELOG.md) for details."
+            fi
+            
+            # Write to file to preserve formatting
+            echo "$CHANGELOG_CONTENT" > /tmp/changelog.txt
+          else
+            echo "See commit history for changes." > /tmp/changelog.txt
+          fi
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: /tmp/changelog.txt
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
         run: |
@@ -89,11 +152,23 @@ jobs:
           echo "### Full Image" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.IMAGE_FULL }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.IMAGE_FULL }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.version.outputs.is_release }}" == "true" ]; then
+            echo "- \`${{ env.IMAGE_FULL }}:${{ steps.semver.outputs.major_minor }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ env.IMAGE_FULL }}:${{ steps.semver.outputs.major }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### API Image" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.IMAGE_API }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.IMAGE_API }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.version.outputs.is_release }}" == "true" ]; then
+            echo "- \`${{ env.IMAGE_API }}:${{ steps.semver.outputs.major_minor }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ env.IMAGE_API }}:${{ steps.semver.outputs.major }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.version.outputs.is_release }}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **GitHub Release created:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          fi
 
 

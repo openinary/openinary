@@ -2,6 +2,8 @@ services:
   # API Only - Profile: api
   api:
     profiles: ["api"]
+    # Use pre-built image by default, or build locally with: docker compose --profile api build
+    image: ${OPENINARY_API_IMAGE:-openinary/openinary-api}:${OPENINARY_VERSION:-latest}
     build:
       context: .
       dockerfile: docker/api.Dockerfile
@@ -45,6 +47,8 @@ services:
   # Full Stack (API + Web + Nginx) - Profile: full
   openinary:
     profiles: ["full"]
+    # Use pre-built image by default, or build locally with: docker compose --profile full build
+    image: ${OPENINARY_FULL_IMAGE:-openinary/openinary}:${OPENINARY_VERSION:-latest}
     build:
       context: .
       dockerfile: docker/full.Dockerfile
