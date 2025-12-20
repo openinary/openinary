@@ -115,5 +115,21 @@ if (needsGeneration && !secretFromEnv) {
   }
 }
 
+// Write runtime configuration for Next.js (variables that might be filtered by standalone mode)
+const runtimeConfig = {
+  IMAGE_TAG: process.env.IMAGE_TAG || 'dev',
+  NODE_ENV: process.env.NODE_ENV || 'production',
+  generatedAt: new Date().toISOString()
+};
+
+const runtimeConfigPath = join(projectRoot, 'runtime-config.json');
+try {
+  writeFileSync(runtimeConfigPath, JSON.stringify(runtimeConfig, null, 2), 'utf-8');
+  console.log('Runtime configuration written to:', runtimeConfigPath);
+  console.log('  IMAGE_TAG:', runtimeConfig.IMAGE_TAG);
+} catch (err) {
+  console.error('Warning: Could not write runtime-config.json:', err.message);
+}
+
 console.log('Environment initialized');
 

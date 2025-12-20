@@ -23,6 +23,7 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
+      - IMAGE_TAG=${IMAGE_TAG:-dev}
       # Video queue configuration
       # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
       # Override only if you need custom concurrency settings
@@ -75,6 +76,7 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
+      - IMAGE_TAG=${IMAGE_TAG:-dev}
       # Video queue configuration
       # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
       # Override only if you need custom concurrency settings
