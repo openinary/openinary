@@ -14,6 +14,7 @@ import {
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavUser } from "@/components/sidebar/nav-user"
+import { VersionDisplay } from "@/components/sidebar/version-display"
 
 type MediaFile = {
   id: string
@@ -114,9 +115,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
         <NavUser />
-        <div className="px-2 py-1 text-center text-[11px] text-muted-foreground opacity-75">
-          Version v{process.env.NEXT_PUBLIC_IMAGE_TAG || '-dev'}
-        </div>
+        <VersionDisplay />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
