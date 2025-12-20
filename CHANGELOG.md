@@ -30,9 +30,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Note
 This is a pre-release version (0.x.x). Breaking changes may occur between minor versions until v1.0.0 is reached.
-
-[Unreleased]: https://github.com/openinary/openinary/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/openinary/openinary/releases/tag/v0.1.0
-
-[Unreleased]: https://github.com/openinary/openinary/compare/v0.1.0-beta.1...HEAD
-[0.1.0-beta.1]: https://github.com/openinary/openinary/releases/tag/v0.1.0-beta.1
