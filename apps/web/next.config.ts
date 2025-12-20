@@ -1,4 +1,13 @@
 import type { NextConfig } from "next";
+import path from "path";
+import { config } from "dotenv";
+import { existsSync } from "fs";
+
+// Load .env from monorepo root (../../.env from apps/web/)
+const rootEnvPath = path.resolve(__dirname, "../../.env");
+if (existsSync(rootEnvPath)) {
+  config({ path: rootEnvPath });
+}
 
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployments
