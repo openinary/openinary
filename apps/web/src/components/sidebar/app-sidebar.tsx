@@ -115,7 +115,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
         </SidebarMenu>
         <NavUser />
         <div className="px-2 py-1 text-center text-[11px] text-muted-foreground opacity-75">
-          Version v{process.env.NEXT_PUBLIC_IMAGE_VERSION || '-dev'}
+          Version v{process.env.NEXT_PUBLIC_IMAGE_TAG || '-dev'}
         </div>
       </SidebarFooter>
       <SidebarRail />
