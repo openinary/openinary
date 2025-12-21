@@ -26,21 +26,24 @@ const storage = createStorageClient();
 const compression = new Compression();
 
 t.get("/*", async (c) => {
-  const originalPath = c.req.path;
-  
-  // FIX H17: Normalize path by removing /api prefix for consistent caching
-  // This ensures /t/... and /api/t/... share the same cache
-  const path = originalPath.replace(/^\/api\/t/, '/t');
-  
+  const path = c.req.path;
   const segments = path.split("/").slice(2); // Remove '/t' prefix
   const params = parseParams(path);
 
   // #region agent log
-  console.log('[DEBUG:transform] Request path normalization', {
-    originalPath,
-    normalizedPath: path,
+  const headers = Object.fromEntries(c.req.raw.headers.entries());
+  console.log('[DEBUG:transform] Request received', {
+    path,
+    url: c.req.url,
+    headers: {
+      host: headers['host'],
+      'x-forwarded-proto': headers['x-forwarded-proto'],
+      'x-original-uri': headers['x-original-uri'],
+      origin: headers['origin'],
+      referer: headers['referer']
+    },
     filePath: segments.join('/'),
-    hypothesisId: 'H17,H18'
+    hypothesisId: 'H17,H20'
   });
   // #endregion
 
