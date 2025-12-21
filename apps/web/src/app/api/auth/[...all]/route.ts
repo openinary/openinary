@@ -1,5 +1,25 @@
 import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
+import fs from "fs";
+
+// #region agent log
+const logPath = '/Users/florianheysen/openinary/.cursor/debug.log';
+try {
+  const logData = JSON.stringify({
+    location: 'api/auth/route.ts:6',
+    message: 'Auth API route loaded',
+    data: {
+      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+      ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
+      NODE_ENV: process.env.NODE_ENV
+    },
+    timestamp: Date.now(),
+    sessionId: 'debug-session',
+    hypothesisId: 'H1,H2,H3'
+  }) + '\n';
+  fs.appendFileSync(logPath, logData);
+} catch (e) {}
+// #endregion
 
 const handler = toNextJsHandler(auth);
 

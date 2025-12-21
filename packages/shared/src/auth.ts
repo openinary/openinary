@@ -213,7 +213,18 @@ function initializeTables() {
 initializeTables();
 
 // #region agent log
-const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+let baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+
+// FIX: Automatically upgrade to HTTPS if BETTER_AUTH_URL is HTTP but we detect HTTPS context
+// This handles cases where the environment variable is misconfigured
+if (baseURL.startsWith("http://") && process.env.NODE_ENV === "production") {
+  // In production, if baseURL is HTTP, try to upgrade to HTTPS
+  // This is safe because modern deployments (Coolify, Vercel, etc.) always use HTTPS
+  const httpsURL = baseURL.replace("http://", "https://");
+  console.warn(`[Better Auth] Upgrading baseURL from HTTP to HTTPS: ${baseURL} -> ${httpsURL}`);
+  baseURL = httpsURL;
+}
+
 const trustedOrigins = [
   // Local development
   "http://localhost:3000",
@@ -221,8 +232,11 @@ const trustedOrigins = [
   // Production / custom origins
   process.env.ALLOWED_ORIGIN,
   process.env.BETTER_AUTH_URL,
+  // FIX: Also include HTTPS version of BETTER_AUTH_URL
+  baseURL,
 ].filter(Boolean) as string[];
-fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:215',message:'Auth config initialization',data:{baseURL,trustedOrigins,nodeEnv:process.env.NODE_ENV,isProduction},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+
+fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:215',message:'Auth config initialization',data:{baseURL,trustedOrigins,nodeEnv:process.env.NODE_ENV,isProduction,originalBETTER_AUTH_URL:process.env.BETTER_AUTH_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
 // #endregion
 
 export const auth = betterAuth({
@@ -237,6 +251,14 @@ export const auth = betterAuth({
   // In production, this should be configured via environment variables so it
   // matches the real frontend / API origins.
   trustedOrigins: trustedOrigins,
+  // FIX: Explicitly configure secure cookies for HTTPS
+  advanced: {
+    defaultCookieAttributes: {
+      secure: baseURL.startsWith("https://"), // Secure flag when using HTTPS
+      httpOnly: true, // Prevent client-side JavaScript access
+      sameSite: "lax", // CSRF protection
+    },
+  },
   session: {
     // Enforce secure cookies in production (HTTPS only)
     cookieCache: {

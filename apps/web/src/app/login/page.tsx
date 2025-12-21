@@ -136,7 +136,7 @@ export default function LoginPage() {
 
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H2,H4'})}).catch(()=>{});
       // #endregion
       
       const result = await authClient.signIn.email({
@@ -145,7 +145,7 @@ export default function LoginPage() {
       });
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login result received',data:{hasData:!!result?.data,cookiesAfter:document.cookie,sessionCookieSet:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login result received',data:{hasData:!!result?.data,cookiesAfter:document.cookie,sessionCookieSet:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H4'})}).catch(()=>{});
       // #endregion
 
       // Verify the sign-in was successful
@@ -155,7 +155,7 @@ export default function LoginPage() {
         const sessionCookie = cookies.find(c => c.startsWith('better-auth.session_token'));
 
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:147',message:'Session cookie check',data:{cookieFound:!!sessionCookie,cookieValue:sessionCookie?sessionCookie.substring(0,50)+'...':'none',allCookies:document.cookie},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:147',message:'Session cookie check',data:{cookieFound:!!sessionCookie,cookieValue:sessionCookie?sessionCookie.substring(0,50)+'...':'none',allCookies:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H4'})}).catch(()=>{});
         // #endregion
 
         // Wait a bit for cookie to be set, then redirect
