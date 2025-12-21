@@ -212,7 +212,6 @@ function initializeTables() {
 // Initialize tables before creating Better Auth instance
 initializeTables();
 
-// #region agent log
 let baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 // FIX: Automatically upgrade to HTTPS if BETTER_AUTH_URL is HTTP but we detect HTTPS context
@@ -232,19 +231,9 @@ const trustedOrigins = [
   // Production / custom origins
   process.env.ALLOWED_ORIGIN,
   process.env.BETTER_AUTH_URL,
-  // FIX: Also include HTTPS version of BETTER_AUTH_URL
+  // Also include HTTPS version of BETTER_AUTH_URL
   baseURL,
 ].filter(Boolean) as string[];
-
-console.log('[DEBUG:auth] Auth config initialization', {
-  baseURL,
-  trustedOrigins,
-  nodeEnv: process.env.NODE_ENV,
-  isProduction,
-  originalBETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-  hypothesisId: 'H1,H2,H3'
-});
-// #endregion
 
 export const auth = betterAuth({
   database: db,

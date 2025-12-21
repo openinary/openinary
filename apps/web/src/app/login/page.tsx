@@ -135,26 +135,13 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
-      // #endregion
-      
-      // Use Better Auth client for proper handling
       const result = await authClient.signIn.email({
         email: values.email,
         password: values.password,
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login result received',data:{hasData:!!result?.data,hasError:!!result?.error,error:result?.error,cookiesAfter:document.cookie,secureCookieSet:document.cookie.includes('__Secure-better-auth')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
-      // #endregion
-
       // Verify the sign-in was successful
       if (result && result.data) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:147',message:'Login success - redirecting',data:{allCookies:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
-        // #endregion
-
         // Wait a bit for cookie to be set, then redirect
         // This ensures the cookie is available when middleware checks
         await new Promise(resolve => setTimeout(resolve, 200));
