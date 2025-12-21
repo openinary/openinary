@@ -128,7 +128,20 @@ t.get("/*", async (c) => {
       optimizationResult = result.optimizationResult;
     } else if (ext?.match(/mp4|mov|webm/)) {
       // Check if this is a thumbnail extraction (produces image, not video)
-      const isThumbnailRequest = params.thumbnail === 'true';
+      // FIX H14: Support both string 'true' and truthy values
+      const isThumbnailRequest = params.thumbnail === 'true' || params.thumbnail === true || params.thumbnail === '1';
+      
+      // #region agent log
+      console.log('[DEBUG:transform] Video processing decision', {
+        filePath,
+        isThumbnailRequest,
+        thumbnail: params.thumbnail,
+        thumbnailType: typeof params.thumbnail,
+        format: params.format,
+        allParams: params,
+        hypothesisId: 'H13,H14,H16'
+      });
+      // #endregion
       
       // For thumbnail extraction: process synchronously (fast, produces image)
       if (isThumbnailRequest) {

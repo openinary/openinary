@@ -10,6 +10,17 @@ export const parseParams = (path: string) => {
       const transformParams = parseTransform(transformSegment);
       Object.assign(params, transformParams);
     }
+    
+    // #region agent log
+    console.log('[DEBUG:parser] Parsed params', {
+      path,
+      transformSegment,
+      parsedParams: params,
+      hasThumbnail: !!params.thumbnail,
+      hasThumbnailTime: !!params.thumbnailTime,
+      hypothesisId: 'H12,H13'
+    });
+    // #endregion
   }
 
   return params;
@@ -25,7 +36,8 @@ const isTransformSegment = (segment: string): boolean => {
   if (!segment.includes(",") && !segment.includes("_")) return false;
 
   // Look for known transformation keys
-  const hasKnownKey = /(,|^)(w|h|c|g|q|f|a|ar|b|bg|so|eo)_/.test("," + segment);
+  // FIX H12: Add t and tt to recognized keys for thumbnail support
+  const hasKnownKey = /(,|^)(w|h|c|g|q|f|a|ar|b|bg|so|eo|t|tt)_/.test("," + segment);
   return hasKnownKey;
 };
 
@@ -44,7 +56,9 @@ type TransformKey =
   | "b"
   | "bg"
   | "so"
-  | "eo";
+  | "eo"
+  | "t"   // FIX H12: Add thumbnail parameter
+  | "tt"; // FIX H12: Add thumbnail time parameter
 
 /**
  * Parse a single transformation segment into our
@@ -112,6 +126,14 @@ const parseTransform = (
       case "eo":
         // End offset (in seconds) for video/audio
         endOffset = value;
+        break;
+      case "t":
+        // FIX H12: Parse thumbnail parameter
+        params.thumbnail = value;
+        break;
+      case "tt":
+        // FIX H12: Parse thumbnail time parameter
+        params.thumbnailTime = value;
         break;
       default:
         // Ignore unsupported/unknown directives for now
