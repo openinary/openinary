@@ -26,9 +26,23 @@ const storage = createStorageClient();
 const compression = new Compression();
 
 t.get("/*", async (c) => {
-  const path = c.req.path;
+  const originalPath = c.req.path;
+  
+  // FIX H17: Normalize path by removing /api prefix for consistent caching
+  // This ensures /t/... and /api/t/... share the same cache
+  const path = originalPath.replace(/^\/api\/t/, '/t');
+  
   const segments = path.split("/").slice(2); // Remove '/t' prefix
   const params = parseParams(path);
+
+  // #region agent log
+  console.log('[DEBUG:transform] Request path normalization', {
+    originalPath,
+    normalizedPath: path,
+    filePath: segments.join('/'),
+    hypothesisId: 'H17,H18'
+  });
+  // #endregion
 
   // Determine file path segments.
   // The first segment after "/t" is the transformation string
@@ -73,6 +87,15 @@ t.get("/*", async (c) => {
   // 1. Check cloud cache first (if configured)
   const cloudCacheBuffer = await checkCloudCache(storage, filePath, effectiveParams);
   if (cloudCacheBuffer) {
+    // #region agent log
+    console.log('[DEBUG:transform] Cloud cache HIT', {
+      filePath,
+      cachePath,
+      size: cloudCacheBuffer.length,
+      hypothesisId: 'H18'
+    });
+    // #endregion
+    
     // For cloud cache, we trust it has the right format since it's based on params
     const contentType = await determineContentType(effectiveParams, cloudCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
@@ -87,6 +110,15 @@ t.get("/*", async (c) => {
   // 2. Check local cache (now includes format in key when format is auto-determined)
   const localCacheBuffer = await checkLocalCache(cachePath);
   if (localCacheBuffer) {
+    // #region agent log
+    console.log('[DEBUG:transform] Local cache HIT', {
+      filePath,
+      cachePath,
+      size: localCacheBuffer.length,
+      hypothesisId: 'H17'
+    });
+    // #endregion
+    
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
     // For videos, indicate this is the optimized version
@@ -96,6 +128,15 @@ t.get("/*", async (c) => {
     }
     return c.body(new Uint8Array(localCacheBuffer));
   }
+  
+  // #region agent log
+  console.log('[DEBUG:transform] Cache MISS - processing file', {
+    filePath,
+    cachePath,
+    effectiveParams,
+    hypothesisId: 'H17,H18'
+  });
+  // #endregion
 
   // 3. Verify original file exists
   const fileCheck = await verifyFileExists(storage, filePath, localPath);
