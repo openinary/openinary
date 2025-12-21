@@ -182,7 +182,12 @@ export default function HomePage() {
   // #region agent log
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:180',message:'Dashboard useSession state',data:{isPending,hasSession:!!session?.session,hasUser:!!session?.user,protocol:window.location.protocol,cookies:document.cookie,sessionCookiePresent:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H3,H5'})}).catch(()=>{});
+      // Test if we can make a request and check if cookies are sent
+      fetch('/api/auth/get-session', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:180',message:'Dashboard session check',data:{isPending,hasSession:!!session?.session,hasUser:!!session?.user,protocol:window.location.protocol,documentCookie:document.cookie,sessionFromAPI:data,sessionCookieInDocumentCookie:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6'})}).catch(()=>{});
+        });
     }
   }, [isPending, session]);
   // #endregion

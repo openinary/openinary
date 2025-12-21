@@ -236,7 +236,14 @@ const trustedOrigins = [
   baseURL,
 ].filter(Boolean) as string[];
 
-fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:215',message:'Auth config initialization',data:{baseURL,trustedOrigins,nodeEnv:process.env.NODE_ENV,isProduction,originalBETTER_AUTH_URL:process.env.BETTER_AUTH_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+console.log('[DEBUG:auth] Auth config initialization', {
+  baseURL,
+  trustedOrigins,
+  nodeEnv: process.env.NODE_ENV,
+  isProduction,
+  originalBETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+  hypothesisId: 'H1,H2,H3'
+});
 // #endregion
 
 export const auth = betterAuth({
@@ -247,6 +254,9 @@ export const auth = betterAuth({
   },
   secret: secret,
   baseURL: baseURL,
+  // FIX H10: Trust proxy headers for HTTPS detection behind reverse proxies
+  // This is CRITICAL for Coolify/Docker deployments where nginx terminates SSL
+  trustHost: true,
   // Origins allowed to perform authenticated operations (sign-in, sign-out, etc.)
   // In production, this should be configured via environment variables so it
   // matches the real frontend / API origins.

@@ -136,16 +136,28 @@ export default function LoginPage() {
 
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H2,H4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6,H7'})}).catch(()=>{});
       // #endregion
       
-      const result = await authClient.signIn.email({
-        email: values.email,
-        password: values.password,
+      // FIX: Intercept the login request to capture response headers
+      const loginURL = `${window.location.origin}/api/auth/sign-in/email`;
+      const loginResponse = await fetch(loginURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: values.email, password: values.password })
       });
+      
+      // #region agent log
+      const responseHeaders: Record<string, string> = {};
+      loginResponse.headers.forEach((value, key) => { responseHeaders[key] = value; });
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login response headers',data:{status:loginResponse.status,headers:responseHeaders,hasSetCookie:responseHeaders['set-cookie']!==undefined,cookiesAfterFetch:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H7,H8'})}).catch(()=>{});
+      // #endregion
+      
+      const result = await loginResponse.json();
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login result received',data:{hasData:!!result?.data,cookiesAfter:document.cookie,sessionCookieSet:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:158',message:'Login result received',data:{hasData:!!result?.data,cookiesAfter:document.cookie,sessionCookieSet:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6'})}).catch(()=>{});
       // #endregion
 
       // Verify the sign-in was successful

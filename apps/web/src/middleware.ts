@@ -48,8 +48,10 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
     protocol: request.nextUrl.protocol,
     host: request.nextUrl.host,
     pathname: request.nextUrl.pathname,
+    rawCookieHeader: request.headers.get('cookie'),
   };
-  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:41',message:'Middleware cookie check',data:cookieDebugInfo,timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
+  console.log('[DEBUG:middleware] Cookie check', cookieDebugInfo, 'hypothesisId:H6,H8');
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:41',message:'Middleware cookie check',data:cookieDebugInfo,timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6,H8'})}).catch(()=>{});
   // #endregion
   
   if (!sessionCookie?.value) {
