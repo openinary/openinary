@@ -136,38 +136,23 @@ export default function LoginPage() {
 
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6,H7'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:138',message:'Login attempt starting',data:{email:values.email,protocol:window.location.protocol,origin:window.location.origin,cookiesBefore:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
       // #endregion
       
-      // FIX: Intercept the login request to capture response headers
-      const loginURL = `${window.location.origin}/api/auth/sign-in/email`;
-      const loginResponse = await fetch(loginURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: values.email, password: values.password })
+      // Use Better Auth client for proper handling
+      const result = await authClient.signIn.email({
+        email: values.email,
+        password: values.password,
       });
-      
-      // #region agent log
-      const responseHeaders: Record<string, string> = {};
-      loginResponse.headers.forEach((value, key) => { responseHeaders[key] = value; });
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login response headers',data:{status:loginResponse.status,headers:responseHeaders,hasSetCookie:responseHeaders['set-cookie']!==undefined,cookiesAfterFetch:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H7,H8'})}).catch(()=>{});
-      // #endregion
-      
-      const result = await loginResponse.json();
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:158',message:'Login result received',data:{hasData:!!result?.data,cookiesAfter:document.cookie,sessionCookieSet:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:143',message:'Login result received',data:{hasData:!!result?.data,hasError:!!result?.error,error:result?.error,cookiesAfter:document.cookie,secureCookieSet:document.cookie.includes('__Secure-better-auth')},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
       // #endregion
 
       // Verify the sign-in was successful
       if (result && result.data) {
-        // Check if cookie is set
-        const cookies = document.cookie.split(';').map(c => c.trim());
-        const sessionCookie = cookies.find(c => c.startsWith('better-auth.session_token'));
-
         // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:147',message:'Session cookie check',data:{cookieFound:!!sessionCookie,cookieValue:sessionCookie?sessionCookie.substring(0,50)+'...':'none',allCookies:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H4'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'login/page.tsx:147',message:'Login success - redirecting',data:{allCookies:document.cookie},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
         // #endregion
 
         // Wait a bit for cookie to be set, then redirect
@@ -178,8 +163,8 @@ export default function LoginPage() {
         // This prevents issues with cookie synchronization after login
         window.location.href = "/";
       } else {
-        logger.error("[Login] Sign in failed - no data in result");
-        throw new Error("Sign in failed - please try again");
+        logger.error("[Login] Sign in failed - no data in result", { result });
+        throw new Error(result?.error?.message || "Sign in failed - please try again");
       }
     } catch (err: any) {
       logger.error("[Login] Sign in error", { error: err });

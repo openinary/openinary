@@ -38,20 +38,26 @@ function isValidSessionTokenFormat(token: string): boolean {
  */
 async function isAuthenticated(request: NextRequest): Promise<boolean> {  
   // Get the session cookie
-  const sessionCookie = request.cookies.get("better-auth.session_token");
+  // FIX H11: Better Auth adds __Secure- prefix when using HTTPS (detected via trustHost)
+  // Try both the secure and non-secure cookie names for compatibility
+  let sessionCookie = request.cookies.get("__Secure-better-auth.session_token");
+  if (!sessionCookie) {
+    sessionCookie = request.cookies.get("better-auth.session_token");
+  }
   
   // #region agent log
   const cookieDebugInfo = {
     hasCookie: !!sessionCookie?.value,
     cookieLength: sessionCookie?.value?.length || 0,
+    cookieName: sessionCookie?.name || 'none',
     allCookieNames: request.cookies.getAll().map(c => c.name),
     protocol: request.nextUrl.protocol,
     host: request.nextUrl.host,
     pathname: request.nextUrl.pathname,
-    rawCookieHeader: request.headers.get('cookie'),
+    rawCookieHeader: request.headers.get('cookie')?.substring(0, 100) + '...',
   };
-  console.log('[DEBUG:middleware] Cookie check', cookieDebugInfo, 'hypothesisId:H6,H8');
-  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:41',message:'Middleware cookie check',data:cookieDebugInfo,timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'H6,H8'})}).catch(()=>{});
+  console.log('[DEBUG:middleware] Cookie check FIXED', cookieDebugInfo, 'hypothesisId:H11');
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:41',message:'Middleware cookie check FIXED',data:cookieDebugInfo,timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v3',hypothesisId:'H11'})}).catch(()=>{});
   // #endregion
   
   if (!sessionCookie?.value) {
