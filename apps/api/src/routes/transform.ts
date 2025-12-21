@@ -128,8 +128,8 @@ t.get("/*", async (c) => {
       optimizationResult = result.optimizationResult;
     } else if (ext?.match(/mp4|mov|webm/)) {
       // Check if this is a thumbnail extraction (produces image, not video)
-      // FIX H14: Support both string 'true' and truthy values
-      const isThumbnailRequest = params.thumbnail === 'true' || params.thumbnail === true || params.thumbnail === '1';
+      // FIX H14: Support both string 'true' and '1' (params are always strings from parseParams)
+      const isThumbnailRequest = params.thumbnail === 'true' || params.thumbnail === '1';
       
       // #region agent log
       console.log('[DEBUG:transform] Video processing decision', {
