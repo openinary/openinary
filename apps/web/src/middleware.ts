@@ -40,6 +40,18 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
   // Get the session cookie
   const sessionCookie = request.cookies.get("better-auth.session_token");
   
+  // #region agent log
+  const cookieDebugInfo = {
+    hasCookie: !!sessionCookie?.value,
+    cookieLength: sessionCookie?.value?.length || 0,
+    allCookieNames: request.cookies.getAll().map(c => c.name),
+    protocol: request.nextUrl.protocol,
+    host: request.nextUrl.host,
+    pathname: request.nextUrl.pathname,
+  };
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:41',message:'Middleware cookie check',data:cookieDebugInfo,timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
+  // #endregion
+  
   if (!sessionCookie?.value) {
     return false;
   }
@@ -47,6 +59,9 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
   // Security: Validate token format before allowing access
   // This prevents obviously invalid tokens from passing through
   if (!isValidSessionTokenFormat(sessionCookie.value)) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:49',message:'Invalid session token format',data:{tokenPrefix:sessionCookie.value.substring(0,10)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     return false;
   }
   

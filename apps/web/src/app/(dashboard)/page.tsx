@@ -179,9 +179,22 @@ export default function HomePage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
+  // #region agent log
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:180',message:'Dashboard useSession state',data:{isPending,hasSession:!!session?.session,hasUser:!!session?.user,protocol:window.location.protocol,cookies:document.cookie,sessionCookiePresent:document.cookie.includes('better-auth.session_token')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3,H5'})}).catch(()=>{});
+    }
+  }, [isPending, session]);
+  // #endregion
+
   // Redirect to login if user is not authenticated or session is invalid
   useEffect(() => {
     if (!isPending && (!session?.session || !session?.user)) {
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:184',message:'Redirecting to login - no valid session',data:{isPending,session,cookies:document.cookie},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+      }
+      // #endregion
       router.push("/login");
     }
   }, [session, isPending, router]);

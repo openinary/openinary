@@ -212,6 +212,19 @@ function initializeTables() {
 // Initialize tables before creating Better Auth instance
 initializeTables();
 
+// #region agent log
+const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const trustedOrigins = [
+  // Local development
+  "http://localhost:3000",
+  "http://localhost:3001",
+  // Production / custom origins
+  process.env.ALLOWED_ORIGIN,
+  process.env.BETTER_AUTH_URL,
+].filter(Boolean) as string[];
+fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:215',message:'Auth config initialization',data:{baseURL,trustedOrigins,nodeEnv:process.env.NODE_ENV,isProduction},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+// #endregion
+
 export const auth = betterAuth({
   database: db,
   emailAndPassword: {
@@ -219,18 +232,11 @@ export const auth = betterAuth({
     disableSignUp: false, // Allow signup (will be checked manually in the setup page)
   },
   secret: secret,
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL: baseURL,
   // Origins allowed to perform authenticated operations (sign-in, sign-out, etc.)
   // In production, this should be configured via environment variables so it
   // matches the real frontend / API origins.
-  trustedOrigins: [
-    // Local development
-    "http://localhost:3000",
-    "http://localhost:3001",
-    // Production / custom origins
-    process.env.ALLOWED_ORIGIN,
-    process.env.BETTER_AUTH_URL,
-  ].filter(Boolean) as string[],
+  trustedOrigins: trustedOrigins,
   session: {
     // Enforce secure cookies in production (HTTPS only)
     cookieCache: {
