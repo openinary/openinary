@@ -255,8 +255,8 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
         // For images: resize and optimize
         // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
         const thumbnailUrl = media.type === "image"
-          ? `${apiBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-          : `${apiBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+          ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
+          : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
         const isHovered = hoveredId === media.id;
 
         return (
