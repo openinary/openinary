@@ -31,18 +31,6 @@ export const determineOutputFormat = (
   const isVideoSource = !!sourceExt && VIDEO_FORMATS.has(sourceExt);
   const isThumbnail = isVideoSource && isImageFormat;
 
-  // #region agent log
-  console.log('[DEBUG:format] Determining output format', {
-    sourceExt,
-    requestedFormat,
-    requestedFormatLower,
-    isImageFormat,
-    isVideoSource,
-    isThumbnail,
-    hypothesisId: 'H13'
-  });
-  // #endregion
-
   // Decide output extension:
   // - Thumbnail => image format (default jpg)
   // - Video transform => requested video format or fall back to mp4

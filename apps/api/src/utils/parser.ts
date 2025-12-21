@@ -10,17 +10,6 @@ export const parseParams = (path: string) => {
       const transformParams = parseTransform(transformSegment);
       Object.assign(params, transformParams);
     }
-    
-    // #region agent log
-    console.log('[DEBUG:parser] Parsed params', {
-      path,
-      transformSegment,
-      parsedParams: params,
-      hasThumbnail: !!params.thumbnail,
-      hasThumbnailTime: !!params.thumbnailTime,
-      hypothesisId: 'H12,H13'
-    });
-    // #endregion
   }
 
   return params;

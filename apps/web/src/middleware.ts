@@ -52,9 +52,6 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
   // Security: Validate token format before allowing access
   // This prevents obviously invalid tokens from passing through
   if (!isValidSessionTokenFormat(sessionCookie.value)) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:49',message:'Invalid session token format',data:{tokenPrefix:sessionCookie.value.substring(0,10)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     return false;
   }
   

@@ -30,23 +30,6 @@ t.get("/*", async (c) => {
   const segments = path.split("/").slice(2); // Remove '/t' prefix
   const params = parseParams(path);
 
-  // #region agent log
-  const headers = Object.fromEntries(c.req.raw.headers.entries());
-  console.log('[DEBUG:transform] Request received', {
-    path,
-    url: c.req.url,
-    headers: {
-      host: headers['host'],
-      'x-forwarded-proto': headers['x-forwarded-proto'],
-      'x-original-uri': headers['x-original-uri'],
-      origin: headers['origin'],
-      referer: headers['referer']
-    },
-    filePath: segments.join('/'),
-    hypothesisId: 'H17,H20'
-  });
-  // #endregion
-
   // Determine file path segments.
   // The first segment after "/t" is the transformation string
   // (e.g. "w_300,h_300,c_fill") and should not be part of the file path.
@@ -87,18 +70,26 @@ t.get("/*", async (c) => {
     cachePath = getCachePath(pathWithFormat);
   }
   
-  // 1. Check cloud cache first (if configured)
+  // 1. FIRST: Verify original file exists (before serving cache)
+  // This prevents serving cached files when the original has been deleted
+  const fileCheck = await verifyFileExists(storage, filePath, localPath);
+  if (!fileCheck.exists) {
+    logger.error({ filePath }, "File not found - invalidating cache");
+    
+    // Delete cached versions since original is gone
+    try {
+      const { deleteCachedFiles } = await import("../utils/cache");
+      await deleteCachedFiles(filePath);
+    } catch (error) {
+      logger.warn({ error, filePath }, "Failed to delete cached files");
+    }
+    
+    return c.text(fileCheck.error || "File not found", 404);
+  }
+
+  // 2. Check cloud cache (if configured)
   const cloudCacheBuffer = await checkCloudCache(storage, filePath, effectiveParams);
   if (cloudCacheBuffer) {
-    // #region agent log
-    console.log('[DEBUG:transform] Cloud cache HIT', {
-      filePath,
-      cachePath,
-      size: cloudCacheBuffer.length,
-      hypothesisId: 'H18'
-    });
-    // #endregion
-    
     // For cloud cache, we trust it has the right format since it's based on params
     const contentType = await determineContentType(effectiveParams, cloudCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
@@ -110,18 +101,9 @@ t.get("/*", async (c) => {
     return c.body(new Uint8Array(cloudCacheBuffer));
   }
 
-  // 2. Check local cache (now includes format in key when format is auto-determined)
+  // 3. Check local cache (now includes format in key when format is auto-determined)
   const localCacheBuffer = await checkLocalCache(cachePath);
   if (localCacheBuffer) {
-    // #region agent log
-    console.log('[DEBUG:transform] Local cache HIT', {
-      filePath,
-      cachePath,
-      size: localCacheBuffer.length,
-      hypothesisId: 'H17'
-    });
-    // #endregion
-    
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
     // For videos, indicate this is the optimized version
@@ -131,22 +113,8 @@ t.get("/*", async (c) => {
     }
     return c.body(new Uint8Array(localCacheBuffer));
   }
-  
-  // #region agent log
-  console.log('[DEBUG:transform] Cache MISS - processing file', {
-    filePath,
-    cachePath,
-    effectiveParams,
-    hypothesisId: 'H17,H18'
-  });
-  // #endregion
 
-  // 3. Verify original file exists
-  const fileCheck = await verifyFileExists(storage, filePath, localPath);
-  if (!fileCheck.exists) {
-    logger.error({ filePath }, "File not found");
-    return c.text(fileCheck.error || "File not found", 404);
-  }
+  // 4. File exists but not in cache - process it
 
   // 4. Processing and storage
   try {
@@ -172,20 +140,8 @@ t.get("/*", async (c) => {
       optimizationResult = result.optimizationResult;
     } else if (ext?.match(/mp4|mov|webm/)) {
       // Check if this is a thumbnail extraction (produces image, not video)
-      // FIX H14: Support both string 'true' and '1' (params are always strings from parseParams)
+      // Support both string 'true' and '1' (params are always strings from parseParams)
       const isThumbnailRequest = params.thumbnail === 'true' || params.thumbnail === '1';
-      
-      // #region agent log
-      console.log('[DEBUG:transform] Video processing decision', {
-        filePath,
-        isThumbnailRequest,
-        thumbnail: params.thumbnail,
-        thumbnailType: typeof params.thumbnail,
-        format: params.format,
-        allParams: params,
-        hypothesisId: 'H13,H14,H16'
-      });
-      // #endregion
       
       // For thumbnail extraction: process synchronously (fast, produces image)
       if (isThumbnailRequest) {
