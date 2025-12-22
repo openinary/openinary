@@ -2,8 +2,8 @@ import { CacheEntry } from 'shared';
 
 export class StorageCache {
   private existsCache = new Map<string, CacheEntry>();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private readonly NEGATIVE_CACHE_TTL = 60 * 1000; // 1 minute for "not found"
+  private readonly CACHE_TTL = 60 * 1000; // 1 minute (reduced from 5 minutes to detect deletions faster)
+  private readonly NEGATIVE_CACHE_TTL = 30 * 1000; // 30 seconds for "not found"
   private readonly MAX_CACHE_SIZE = 10000; // Maximum 10k entries
 
   constructor() {
@@ -64,6 +64,13 @@ export class StorageCache {
    */
   get size(): number {
     return this.existsCache.size;
+  }
+
+  /**
+   * Gets all cache keys
+   */
+  getAllKeys(): string[] {
+    return Array.from(this.existsCache.keys());
   }
 
   /**

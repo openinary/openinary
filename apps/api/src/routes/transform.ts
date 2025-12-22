@@ -84,6 +84,11 @@ t.get("/*", async (c) => {
       logger.warn({ error, filePath }, "Failed to delete cached files");
     }
     
+    // Prevent caching of 404 responses
+    c.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    c.header('Pragma', 'no-cache');
+    c.header('Expires', '0');
+    
     return c.text(fileCheck.error || "File not found", 404);
   }
 
@@ -93,6 +98,9 @@ t.get("/*", async (c) => {
     // For cloud cache, we trust it has the right format since it's based on params
     const contentType = await determineContentType(effectiveParams, cloudCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
+    // Add cache control headers - allow caching but require revalidation
+    c.header('Cache-Control', 'public, max-age=31536000, must-revalidate');
+    c.header('ETag', `"${filePath}-${JSON.stringify(effectiveParams)}"`);
     // For videos, indicate this is the optimized version
     if (ext?.match(/mp4|mov|webm/)) {
       c.header('X-Video-Status', 'ready');
@@ -106,6 +114,9 @@ t.get("/*", async (c) => {
   if (localCacheBuffer) {
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
+    // Add cache control headers - allow caching but require revalidation
+    c.header('Cache-Control', 'public, max-age=31536000, must-revalidate');
+    c.header('ETag', `"${filePath}-${JSON.stringify(effectiveParams)}"`);
     // For videos, indicate this is the optimized version
     if (ext?.match(/mp4|mov|webm/)) {
       c.header('X-Video-Status', 'ready');
@@ -194,6 +205,9 @@ t.get("/*", async (c) => {
           setContentTypeHeader(c, `video/${ext}`);
           c.header('X-Video-Status', 'processing');
           c.header('X-Original-Video', 'true');
+          // Add cache control headers - allow caching but require revalidation
+          c.header('Cache-Control', 'public, max-age=31536000, must-revalidate');
+          c.header('ETag', `"${filePath}-original"`);
           
           return c.body(new Uint8Array(originalBuffer));
         } catch (error) {
@@ -226,6 +240,9 @@ t.get("/*", async (c) => {
     // Set response headers (use the actual content-type from processing, not the original extension)
     setContentTypeHeader(c, contentType);
     c.header('Content-Length', buffer.length.toString());
+    // Add cache control headers - allow caching but require revalidation
+    c.header('Cache-Control', 'public, max-age=31536000, must-revalidate');
+    c.header('ETag', `"${filePath}-${JSON.stringify(effectiveParams)}"`);
 
     // For videos, indicate this is the optimized version
     if (ext?.match(/mp4|mov|webm/)) {
@@ -245,10 +262,41 @@ t.get("/*", async (c) => {
     return c.body(new Uint8Array(buffer));
   } catch (error) {
     logger.error({ error, filePath }, "Processing error");
+    
+    // Check if this is a "file not found" error from cloud storage
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isNotFoundError = 
+      errorMessage.includes('NoSuchKey') || 
+      errorMessage.includes('NotFound') || 
+      errorMessage.includes('404') ||
+      errorMessage.includes('does not exist') ||
+      errorMessage.includes('not found');
+    
+    if (isNotFoundError && storage) {
+      // Invalidate cache since the file doesn't exist
+      storage.invalidateAllCacheEntries(filePath);
+      
+      // Delete local cache files
+      try {
+        const { deleteCachedFiles } = await import("../utils/cache");
+        await deleteCachedFiles(filePath);
+      } catch (cleanupError) {
+        logger.warn({ error: cleanupError, filePath }, "Failed to cleanup cache after not found error");
+      }
+      
+      // Prevent caching of 404 responses
+      c.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      c.header('Pragma', 'no-cache');
+      c.header('Expires', '0');
+      
+      return c.text(
+        `File not found: ${filePath}. Make sure the file exists in your cloud storage bucket.`,
+        404
+      );
+    }
+    
     return c.text(
-      `Processing failed: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      `Processing failed: ${errorMessage}`,
       500
     );
   }

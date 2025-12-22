@@ -52,6 +52,35 @@ export class CloudStorage {
   }
 
   /**
+   * Checks the existence of an original file WITHOUT using cache
+   * Used after deletion to ensure we don't serve stale cache data
+   */
+  async existsOriginalNoCache(originalPath: string): Promise<boolean> {
+    const storageKey = `public/${originalPath}`;
+    try {
+      const exists = await this.s3Client.objectExists(storageKey);
+      
+      // Update cache with the fresh result
+      this.cache.set(`original:${originalPath}`, {
+        exists,
+        timestamp: Date.now(),
+      });
+      
+      return exists;
+    } catch (error: any) {
+      logger.error(
+        {
+          error: error.message,
+          filePath: originalPath,
+          metadata: error.$metadata,
+        },
+        "Cloud storage error while checking original path (no cache)"
+      );
+      return false;
+    }
+  }
+
+  /**
    * Checks existence of an arbitrary original-path key (without params),
    * using the same semantics as uploadOriginal/downloadOriginal.
    * This is useful for detecting duplicate uploads by full path.
@@ -267,10 +296,20 @@ export class CloudStorage {
     // Clear the original file cache
     this.cache.delete(`original:${originalPath}`);
     
-    // We can't easily enumerate all possible transformation cache keys
-    // since they're based on MD5 hashes, but the cache has a TTL
-    // and will expire naturally. For now, we just clear the original.
+    // Clear all transformation caches that might exist
+    // We need to iterate through all cache keys and remove those related to this original path
+    const allKeys = this.cache.getAllKeys();
+    let deletedCount = 0;
     
-    logger.debug({ originalPath }, 'Invalidated cache entries for original path');
+    for (const key of allKeys) {
+      // Keys for transformations contain the original path in their storage key
+      // Format: exists:cache/${originalPath}-${hash}.ext
+      if (key.includes(originalPath) || key.startsWith(`exists:cache/${originalPath}`)) {
+        this.cache.delete(key);
+        deletedCount++;
+      }
+    }
+    
+    logger.debug({ originalPath, deletedCount }, 'Invalidated cache entries for original path');
   }
 }
