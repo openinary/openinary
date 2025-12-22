@@ -212,17 +212,7 @@ function initializeTables() {
 // Initialize tables before creating Better Auth instance
 initializeTables();
 
-let baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
-
-// FIX: Automatically upgrade to HTTPS if BETTER_AUTH_URL is HTTP but we detect HTTPS context
-// This handles cases where the environment variable is misconfigured
-if (baseURL.startsWith("http://") && process.env.NODE_ENV === "production") {
-  // In production, if baseURL is HTTP, try to upgrade to HTTPS
-  // This is safe because modern deployments (Coolify, Vercel, etc.) always use HTTPS
-  const httpsURL = baseURL.replace("http://", "https://");
-  console.warn(`[Better Auth] Upgrading baseURL from HTTP to HTTPS: ${baseURL} -> ${httpsURL}`);
-  baseURL = httpsURL;
-}
+const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 const trustedOrigins = [
   // Local development
@@ -231,8 +221,6 @@ const trustedOrigins = [
   // Production / custom origins
   process.env.ALLOWED_ORIGIN,
   process.env.BETTER_AUTH_URL,
-  // Also include HTTPS version of BETTER_AUTH_URL
-  baseURL,
 ].filter(Boolean) as string[];
 
 export const auth = betterAuth({
@@ -243,17 +231,17 @@ export const auth = betterAuth({
   },
   secret: secret,
   baseURL: baseURL,
-  // FIX H10: Trust proxy headers for HTTPS detection behind reverse proxies
-  // This is CRITICAL for Coolify/Docker deployments where nginx terminates SSL
+  // Trust proxy headers for HTTPS detection behind reverse proxies
+  // This is important for Coolify/Docker deployments where nginx terminates SSL
   trustHost: true,
   // Origins allowed to perform authenticated operations (sign-in, sign-out, etc.)
   // In production, this should be configured via environment variables so it
   // matches the real frontend / API origins.
   trustedOrigins: trustedOrigins,
-  // FIX: Explicitly configure secure cookies for HTTPS
+  // Configure secure cookies only when explicitly using HTTPS
   advanced: {
     defaultCookieAttributes: {
-      secure: baseURL.startsWith("https://"), // Secure flag when using HTTPS
+      secure: baseURL.startsWith("https://"), // Secure flag only when using HTTPS
       httpOnly: true, // Prevent client-side JavaScript access
       sameSite: "lax", // CSRF protection
     },
