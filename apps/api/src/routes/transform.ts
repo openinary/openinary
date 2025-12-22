@@ -46,10 +46,6 @@ t.get("/*", async (c) => {
   let cachePath = getCachePath(path);
   const localPath = `./public/${filePath}`;
   const ext = filePath.split(".").pop();
-  
-  // #region agent log
-  logger.info({cachePath,filePath,path,params,ext,isVideo:!!ext?.match(/mp4|mov|webm/)},'[DEBUG] Initial request params');
-  // #endregion
 
   // Get browser support info for format optimization
   const userAgent = c.req.header("User-Agent");
@@ -72,10 +68,6 @@ t.get("/*", async (c) => {
       `/t/format:${optimalFormat}/$1`
     );
     cachePath = getCachePath(pathWithFormat);
-    
-    // #region agent log
-    logger.info({oldCachePath:getCachePath(path),newCachePath:cachePath,optimalFormat,effectiveParams},'[DEBUG] Updated cachePath with format');
-    // #endregion
   }
   
   // 1. FIRST: Verify original file exists (before serving cache)
@@ -118,13 +110,7 @@ t.get("/*", async (c) => {
   }
 
   // 3. Check local cache (now includes format in key when format is auto-determined)
-  // #region agent log
-  logger.info({cachePath,filePath,effectiveParams},'[DEBUG] Checking local cache');
-  // #endregion
   const localCacheBuffer = await checkLocalCache(cachePath);
-  // #region agent log
-  logger.info({cachePath,found:!!localCacheBuffer,bufferSize:localCacheBuffer?.length},'[DEBUG] Local cache check result');
-  // #endregion
   if (localCacheBuffer) {
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
@@ -176,26 +162,14 @@ t.get("/*", async (c) => {
       } else {
         // For video transformations: check if we should process in background
         // Check if already being processed
-        // #region agent log
-        logger.info({filePath,params,cachePath},'[DEBUG] Video transform: checking for existing job');
-        // #endregion
         const existingJob = videoJobQueue.getJobByPath(filePath, params);
-        // #region agent log
-        logger.info({filePath,jobFound:!!existingJob,jobId:existingJob?.id,jobStatus:existingJob?.status,jobCachePath:existingJob?.cachePath},'[DEBUG] Job search result');
-        // #endregion
         
         if (existingJob) {
           logger.debug({ jobId: existingJob.id, status: existingJob.status }, 'Video job exists');
           
           // If completed, serve from cache
           if (existingJob.status === 'completed') {
-            // #region agent log
-            logger.info({cachePath,jobCachePath:existingJob.cachePath,cachePathsMatch:cachePath===existingJob.cachePath},'[DEBUG] Job completed, checking cache');
-            // #endregion
             const cachedBuffer = await checkLocalCache(cachePath);
-            // #region agent log
-            logger.info({cachePath,found:!!cachedBuffer,bufferSize:cachedBuffer?.length},'[DEBUG] Cache check for completed job');
-            // #endregion
             if (cachedBuffer) {
               if (isTempFile) {
                 await cleanupTempFile(sourcePath);
@@ -231,9 +205,6 @@ t.get("/*", async (c) => {
           setContentTypeHeader(c, `video/${ext}`);
           c.header('X-Video-Status', 'processing');
           c.header('X-Original-Video', 'true');
-          // #region agent log
-          logger.info({filePath,cachePath,jobExists:!!existingJob},'[DEBUG] Serving original video (processing)');
-          // #endregion
           // DO NOT cache original video while processing - CDN must revalidate
           c.header('Cache-Control', 'public, max-age=0, must-revalidate');
           c.header('ETag', `"${filePath}-processing-${Date.now()}"`);

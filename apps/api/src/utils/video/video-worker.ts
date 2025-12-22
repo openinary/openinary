@@ -162,14 +162,8 @@ export class VideoWorker extends EventEmitter {
         // Process video
         const buffer = await transformVideo(sourcePath, params);
 
-        // #region agent log
-        logger.info({cachePath:job.cache_path,filePath:job.file_path,bufferSize:buffer.length,params},'[DEBUG] Saving transformed video to cache');
-        // #endregion
         // Save to cache
         await saveToCache(job.cache_path, buffer);
-        // #region agent log
-        logger.info({cachePath:job.cache_path},'[DEBUG] Cache saved successfully');
-        // #endregion
 
         // Upload to cloud storage if configured
         if (this.storage) {
