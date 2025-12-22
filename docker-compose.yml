@@ -22,7 +22,6 @@ services:
       - MODE=api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
-      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
       # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration
@@ -78,7 +77,6 @@ services:
       - NEXT_PUBLIC_API_BASE_URL=/api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
-      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
       # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration

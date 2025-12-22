@@ -45,7 +45,7 @@ RUN mkdir -p /app/data
 ENV NODE_ENV=production
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 ENV BETTER_AUTH_SECRET=build-time-secret-will-be-replaced
-# BETTER_AUTH_URL and ALLOWED_ORIGIN are runtime-only (set via docker-compose)
+# BETTER_AUTH_URL is runtime-only (set via docker-compose)
 # Copy favicon to public directory before build so Next.js can serve it
 RUN mkdir -p /app/apps/web/public && cp /app/apps/web/src/app/favicon.ico /app/apps/web/public/favicon.ico || true
 RUN pnpm --filter web build
@@ -104,8 +104,8 @@ ENV API_PORT=3002
 ENV WEB_PORT=3001
 # Set default BETTER_AUTH_SECRET (will be overridden by init-env.js if needed)
 ENV BETTER_AUTH_SECRET=""
-# BETTER_AUTH_URL and ALLOWED_ORIGIN must be provided at runtime via docker-compose
-# They are not set at build time to allow the same image to be deployed anywhere
+# BETTER_AUTH_URL must be provided at runtime via docker-compose
+# It is not set at build time to allow the same image to be deployed anywhere
 ENV NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL}"
 ENV MODE="fullstack"
 ENV DOCKER_CONTAINER="true"

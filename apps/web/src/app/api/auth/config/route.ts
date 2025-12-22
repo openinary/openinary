@@ -11,7 +11,6 @@ export async function GET() {
   try {
     const config = {
       betterAuthUrl: process.env.BETTER_AUTH_URL,
-      allowedOrigin: process.env.ALLOWED_ORIGIN,
       nodeEnv: process.env.NODE_ENV,
     };
 

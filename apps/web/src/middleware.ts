@@ -71,10 +71,10 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
  * This allows the Docker image to be deployed anywhere without rebuild
  */
 function getAllowedOrigin(): string {
-  // In production, use ALLOWED_ORIGIN or BETTER_AUTH_URL from runtime environment
+  // In production, use BETTER_AUTH_URL from runtime environment
   // In development, default to localhost
   if (process.env.NODE_ENV === "production") {
-    return process.env.ALLOWED_ORIGIN || process.env.BETTER_AUTH_URL || "*";
+    return process.env.BETTER_AUTH_URL || "*";
   }
   return "http://localhost:3001";
 }
@@ -96,7 +96,6 @@ function addCorsHeaders(
       allowedOrigin,
       pathname,
       betterAuthUrl: process.env.BETTER_AUTH_URL,
-      allowedOriginEnv: process.env.ALLOWED_ORIGIN,
     });
   }
   

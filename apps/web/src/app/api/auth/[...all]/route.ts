@@ -14,7 +14,6 @@ export async function OPTIONS(request: Request) {
   const allowedOrigins = [
     "http://localhost:3001", // Next.js dev
     "http://localhost:3000", // API itself
-    process.env.ALLOWED_ORIGIN,
     process.env.BETTER_AUTH_URL,
   ].filter(Boolean);
   
@@ -30,7 +29,6 @@ export async function OPTIONS(request: Request) {
       requestOrigin: origin,
       allowedOrigins: allowedOrigins,
       betterAuthUrl: process.env.BETTER_AUTH_URL,
-      allowedOriginEnv: process.env.ALLOWED_ORIGIN,
     });
   }
   

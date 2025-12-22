@@ -93,7 +93,6 @@ export async function POST(request: Request) {
         status: authResponse.status,
         error: data.error,
         betterAuthUrl,
-        allowedOrigin: process.env.ALLOWED_ORIGIN,
       });
       
       return NextResponse.json(
@@ -109,7 +108,6 @@ export async function POST(request: Request) {
       error: error.message,
       stack: error.stack,
       betterAuthUrl: process.env.BETTER_AUTH_URL,
-      allowedOrigin: process.env.ALLOWED_ORIGIN,
       nodeEnv: process.env.NODE_ENV,
     });
     

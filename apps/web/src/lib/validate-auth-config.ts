@@ -1,6 +1,6 @@
 /**
  * Validation utility for authentication configuration
- * Checks if BETTER_AUTH_URL and ALLOWED_ORIGIN match the current URL
+ * Checks if BETTER_AUTH_URL matches the current URL
  */
 
 export interface AuthConfigValidation {
@@ -8,7 +8,6 @@ export interface AuthConfigValidation {
   error?: string;
   currentUrl: string;
   betterAuthUrl?: string;
-  allowedOrigin?: string;
 }
 
 /**
@@ -39,38 +38,34 @@ export async function validateAuthConfig(): Promise<AuthConfigValidation> {
     }
 
     const config = await response.json();
-    const { betterAuthUrl, allowedOrigin, nodeEnv } = config;
+    const { betterAuthUrl, nodeEnv } = config;
 
     // In development, be more lenient with localhost variations
     if (nodeEnv === "development") {
       const isLocalhost = currentUrl.includes("localhost") || currentUrl.includes("127.0.0.1");
       const configIsLocalhost = 
-        (betterAuthUrl?.includes("localhost") || betterAuthUrl?.includes("127.0.0.1")) &&
-        (allowedOrigin?.includes("localhost") || allowedOrigin?.includes("127.0.0.1"));
+        (betterAuthUrl?.includes("localhost") || betterAuthUrl?.includes("127.0.0.1"));
       
       if (isLocalhost && configIsLocalhost) {
         // In dev, localhost with different ports is OK
-        return { isValid: true, currentUrl, betterAuthUrl, allowedOrigin };
+        return { isValid: true, currentUrl, betterAuthUrl };
       }
     }
 
     // Check if URLs match
-    const urlsMatch = 
-      currentUrl === betterAuthUrl || 
-      currentUrl === allowedOrigin;
+    const urlsMatch = currentUrl === betterAuthUrl;
 
     if (!urlsMatch) {
-      const error = formatConfigError(currentUrl, betterAuthUrl, allowedOrigin, nodeEnv);
+      const error = formatConfigError(currentUrl, betterAuthUrl, nodeEnv);
       return {
         isValid: false,
         error,
         currentUrl,
         betterAuthUrl,
-        allowedOrigin,
       };
     }
 
-    return { isValid: true, currentUrl, betterAuthUrl, allowedOrigin };
+    return { isValid: true, currentUrl, betterAuthUrl };
   } catch (error) {
     console.error("Error validating auth config:", error);
     // Fail open - allow to proceed if validation fails
@@ -84,7 +79,6 @@ export async function validateAuthConfig(): Promise<AuthConfigValidation> {
 function formatConfigError(
   currentUrl: string,
   betterAuthUrl: string | undefined,
-  allowedOrigin: string | undefined,
   nodeEnv: string
 ): string {
   const lines: string[] = [
@@ -97,18 +91,13 @@ function formatConfigError(
     lines.push(`Expected URL (BETTER_AUTH_URL): ${betterAuthUrl}`);
   }
 
-  if (allowedOrigin && allowedOrigin !== currentUrl) {
-    lines.push(`Expected URL (ALLOWED_ORIGIN): ${allowedOrigin}`);
-  }
-
   lines.push(
     "",
     "The authentication server is configured for a different URL.",
     "This will prevent login and signup from working correctly.",
     "",
-    "To fix this, update your environment variables:",
+    "To fix this, update your environment variable:",
     `  • BETTER_AUTH_URL=${currentUrl}`,
-    `  • ALLOWED_ORIGIN=${currentUrl}`,
     "",
     "Then restart the application.",
   );
@@ -117,7 +106,7 @@ function formatConfigError(
     lines.push(
       "",
       "💡 Tip: In containerized deployments (Docker, Kubernetes), make sure",
-      "these environment variables are set at runtime, not build time.",
+      "this environment variable is set at runtime, not build time.",
     );
   }
 
