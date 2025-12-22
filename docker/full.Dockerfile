@@ -37,8 +37,7 @@ COPY pnpm-lock.yaml ./
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-# Install workspace dependencies for shared and web (needed for build)
-RUN pnpm install --filter shared... --filter web... --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod=false
 
 # Build shared package first (web depends on it)
 RUN pnpm --filter shared build
