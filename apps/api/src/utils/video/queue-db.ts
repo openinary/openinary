@@ -61,7 +61,7 @@ export function createJob(
   const jobId = randomUUID();
   const paramsJson = normalizeParamsJson(params);
   // #region agent log
-  logger.debug({filePath,cachePath,params,paramsNormalized:paramsJson},'[DEBUG] Creating video job');
+  logger.info({filePath,cachePath,params,paramsNormalized:paramsJson},'[DEBUG] Creating video job');
   // #endregion
   const now = Date.now();
 
@@ -203,7 +203,7 @@ export function getJobByFileAndParams(
   try {
     const paramsJson = normalizeParamsJson(params);
     // #region agent log
-    logger.debug({filePath,params,paramsNormalized:paramsJson},'[DEBUG] Searching for job in DB');
+    logger.info({filePath,params,paramsNormalized:paramsJson},'[DEBUG] Searching for job in DB');
     // #endregion
     const job = db
       .prepare(
@@ -212,7 +212,7 @@ export function getJobByFileAndParams(
       .get(filePath, paramsJson) as VideoJob | undefined;
 
     // #region agent log
-    logger.debug({filePath,found:!!job,jobId:job?.id,jobStatus:job?.status,jobParamsJson:job?.params_json,searchedParamsJson:paramsJson,paramsMatch:job?.params_json===paramsJson},'[DEBUG] Job search result from DB');
+    logger.info({filePath,found:!!job,jobId:job?.id,jobStatus:job?.status,jobParamsJson:job?.params_json,searchedParamsJson:paramsJson,paramsMatch:job?.params_json===paramsJson},'[DEBUG] Job search result from DB');
     // #endregion
 
     return job || null;

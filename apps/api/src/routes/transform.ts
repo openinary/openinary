@@ -48,7 +48,7 @@ t.get("/*", async (c) => {
   const ext = filePath.split(".").pop();
   
   // #region agent log
-  logger.debug({cachePath,filePath,path,params,ext,isVideo:ext?.match(/mp4|mov|webm/)},'[DEBUG] Initial request params');
+  logger.info({cachePath,filePath,path,params,ext,isVideo:!!ext?.match(/mp4|mov|webm/)},'[DEBUG] Initial request params');
   // #endregion
 
   // Get browser support info for format optimization
@@ -74,7 +74,7 @@ t.get("/*", async (c) => {
     cachePath = getCachePath(pathWithFormat);
     
     // #region agent log
-    logger.debug({oldCachePath:getCachePath(path),newCachePath:cachePath,optimalFormat,effectiveParams},'[DEBUG] Updated cachePath with format');
+    logger.info({oldCachePath:getCachePath(path),newCachePath:cachePath,optimalFormat,effectiveParams},'[DEBUG] Updated cachePath with format');
     // #endregion
   }
   
@@ -119,11 +119,11 @@ t.get("/*", async (c) => {
 
   // 3. Check local cache (now includes format in key when format is auto-determined)
   // #region agent log
-  logger.debug({cachePath,filePath,effectiveParams},'[DEBUG] Checking local cache');
+  logger.info({cachePath,filePath,effectiveParams},'[DEBUG] Checking local cache');
   // #endregion
   const localCacheBuffer = await checkLocalCache(cachePath);
   // #region agent log
-  logger.debug({cachePath,found:!!localCacheBuffer,bufferSize:localCacheBuffer?.length},'[DEBUG] Local cache check result');
+  logger.info({cachePath,found:!!localCacheBuffer,bufferSize:localCacheBuffer?.length},'[DEBUG] Local cache check result');
   // #endregion
   if (localCacheBuffer) {
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
@@ -177,11 +177,11 @@ t.get("/*", async (c) => {
         // For video transformations: check if we should process in background
         // Check if already being processed
         // #region agent log
-        logger.debug({filePath,params,cachePath},'[DEBUG] Video transform: checking for existing job');
+        logger.info({filePath,params,cachePath},'[DEBUG] Video transform: checking for existing job');
         // #endregion
         const existingJob = videoJobQueue.getJobByPath(filePath, params);
         // #region agent log
-        logger.debug({filePath,jobFound:!!existingJob,jobId:existingJob?.id,jobStatus:existingJob?.status,jobCachePath:existingJob?.cachePath},'[DEBUG] Job search result');
+        logger.info({filePath,jobFound:!!existingJob,jobId:existingJob?.id,jobStatus:existingJob?.status,jobCachePath:existingJob?.cachePath},'[DEBUG] Job search result');
         // #endregion
         
         if (existingJob) {
@@ -190,11 +190,11 @@ t.get("/*", async (c) => {
           // If completed, serve from cache
           if (existingJob.status === 'completed') {
             // #region agent log
-            logger.debug({cachePath,jobCachePath:existingJob.cachePath,cachePathsMatch:cachePath===existingJob.cachePath},'[DEBUG] Job completed, checking cache');
+            logger.info({cachePath,jobCachePath:existingJob.cachePath,cachePathsMatch:cachePath===existingJob.cachePath},'[DEBUG] Job completed, checking cache');
             // #endregion
             const cachedBuffer = await checkLocalCache(cachePath);
             // #region agent log
-            logger.debug({cachePath,found:!!cachedBuffer,bufferSize:cachedBuffer?.length},'[DEBUG] Cache check for completed job');
+            logger.info({cachePath,found:!!cachedBuffer,bufferSize:cachedBuffer?.length},'[DEBUG] Cache check for completed job');
             // #endregion
             if (cachedBuffer) {
               if (isTempFile) {
