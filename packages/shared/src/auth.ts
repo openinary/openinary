@@ -223,6 +223,30 @@ const trustedOrigins = [
   process.env.BETTER_AUTH_URL,
 ].filter(Boolean) as string[];
 
+// Log auth configuration for debugging
+console.log("🔐 Better Auth Configuration:");
+console.log(`  - Base URL: ${baseURL}`);
+console.log(`  - Trusted Origins: ${trustedOrigins.join(", ")}`);
+console.log(`  - Environment: ${process.env.NODE_ENV}`);
+console.log(`  - ALLOWED_ORIGIN: ${process.env.ALLOWED_ORIGIN || "(not set)"}`);
+console.log(`  - Database: ${dbPath}`);
+
+// Warn if URLs are not configured in production
+if (isProduction && !isBuildTime) {
+  if (!process.env.BETTER_AUTH_URL) {
+    console.warn(
+      "⚠️  WARNING: BETTER_AUTH_URL is not set in production!\n" +
+      "   This may cause authentication issues. Set it to your app's URL."
+    );
+  }
+  if (!process.env.ALLOWED_ORIGIN) {
+    console.warn(
+      "⚠️  WARNING: ALLOWED_ORIGIN is not set in production!\n" +
+      "   This may cause CORS issues. Set it to your app's URL."
+    );
+  }
+}
+
 export const auth = betterAuth({
   database: db,
   emailAndPassword: {

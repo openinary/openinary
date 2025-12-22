@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
 import logger from "@/lib/logger";
+import { validateAuthConfig } from "@/lib/validate-auth-config";
+import { VersionBadge } from "@/components/ui/version-badge";
 // import { ShaderAnimation } from "@/components/ui/shader-animation";
 
 const setupFormSchema = z
@@ -64,6 +66,7 @@ export default function SetupPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [checkingSetup, setCheckingSetup] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
   // const [introPhase, setIntroPhase] = useState<IntroPhase>("shader");
   // const [showForm, setShowForm] = useState(false);
   // const [introStarted, setIntroStarted] = useState(false);
@@ -84,7 +87,17 @@ export default function SetupPage() {
   useEffect(() => {
     const checkAuthAndSetup = async () => {
       try {
-        // First, check if user is already authenticated
+        // First, validate authentication configuration
+        const configValidation = await validateAuthConfig();
+        
+        if (!configValidation.isValid) {
+          // Show configuration error and block access
+          setConfigError(configValidation.error || "Configuration error");
+          setCheckingSetup(false);
+          return;
+        }
+
+        // Next, check if user is already authenticated
         const session = await authClient.getSession();
         
         if (session?.data?.session) {
@@ -250,6 +263,7 @@ export default function SetupPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
+      <VersionBadge />
       {/* ANIMATIONS COMMENTED OUT - Form displays immediately */}
       {/* 
       {!introStarted && (
@@ -335,6 +349,14 @@ export default function SetupPage() {
             Create the first administrator account
           </p>
         </div>
+
+        {configError && (
+          <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
+            <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
+              {configError}
+            </pre>
+          </div>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
@@ -424,7 +446,7 @@ export default function SetupPage() {
 
             <Button
               type="submit"
-              disabled={form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting || !!configError}
               className="w-full"
             >
               {form.formState.isSubmitting

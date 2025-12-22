@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
 import logger from "@/lib/logger";
+import { validateAuthConfig } from "@/lib/validate-auth-config";
+import { VersionBadge } from "@/components/ui/version-badge";
 
 const loginFormSchema = z.object({
   email: z
@@ -36,6 +38,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [checkingSetup, setCheckingSetup] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -51,8 +54,20 @@ export default function LoginPage() {
     let timeoutId: NodeJS.Timeout;
 
     const checkAuthAndSetup = async () => {
-      try {  
-        // First, check if user is already authenticated
+      try {
+        // First, validate authentication configuration
+        const configValidation = await validateAuthConfig();
+        
+        if (!isMounted) return;
+        
+        if (!configValidation.isValid) {
+          // Show configuration error and block access
+          setConfigError(configValidation.error || "Configuration error");
+          setCheckingSetup(false);
+          return;
+        }
+        
+        // Next, check if user is already authenticated
         // Add timeout to prevent infinite loading
         const sessionPromise = authClient.getSession();
         const timeoutPromise = new Promise((_, reject) =>
@@ -171,6 +186,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <VersionBadge />
       <div className="w-full max-w-md space-y-8">
       <div className="flex justify-center">
           <Image
@@ -189,6 +205,14 @@ export default function LoginPage() {
             Sign in to your account
           </p>
         </div>
+
+        {configError && (
+          <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
+            <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
+              {configError}
+            </pre>
+          </div>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
@@ -240,7 +264,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              disabled={form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting || !!configError}
               className="w-full"
             >
               {form.formState.isSubmitting ? "Signing in..." : "Sign in"}

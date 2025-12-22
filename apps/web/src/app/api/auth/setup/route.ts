@@ -69,7 +69,16 @@ export async function POST(request: Request) {
     }
 
     // Forward the signup request to Better Auth
-    const authResponse = await fetch(`${process.env.BETTER_AUTH_URL}/api/auth/sign-up/email`, {
+    const betterAuthUrl = process.env.BETTER_AUTH_URL;
+    const signupUrl = `${betterAuthUrl}/api/auth/sign-up/email`;
+    
+    logger.info("[Setup] Creating admin account", { 
+      email,
+      betterAuthUrl,
+      signupUrl 
+    });
+    
+    const authResponse = await fetch(signupUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -80,17 +89,38 @@ export async function POST(request: Request) {
     const data = await authResponse.json();
 
     if (!authResponse.ok) {
+      logger.error("[Setup] Failed to create account via Better Auth", {
+        status: authResponse.status,
+        error: data.error,
+        betterAuthUrl,
+        allowedOrigin: process.env.ALLOWED_ORIGIN,
+      });
+      
       return NextResponse.json(
         { error: data.error || "Failed to create account" },
         { status: authResponse.status }
       );
     }
 
+    logger.info("[Setup] Admin account created successfully", { email });
     return NextResponse.json(data);
   } catch (error: any) {
-    logger.error("Error creating admin account", { error });
+    logger.error("[Setup] Error creating admin account", { 
+      error: error.message,
+      stack: error.stack,
+      betterAuthUrl: process.env.BETTER_AUTH_URL,
+      allowedOrigin: process.env.ALLOWED_ORIGIN,
+      nodeEnv: process.env.NODE_ENV,
+    });
+    
+    // Provide more helpful error message for network/config errors
+    let errorMessage = error.message || "An error occurred while creating the account";
+    if (error.message?.includes("fetch") || error.code === "ECONNREFUSED") {
+      errorMessage = `Cannot connect to authentication server at ${process.env.BETTER_AUTH_URL}. Please check your BETTER_AUTH_URL configuration.`;
+    }
+    
     return NextResponse.json(
-      { error: error.message || "An error occurred while creating the account" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

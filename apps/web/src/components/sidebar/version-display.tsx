@@ -15,7 +15,7 @@ export function VersionDisplay() {
   
   return (
     <div className="px-2 py-1 text-center text-[11px] text-muted-foreground opacity-75">
-      Version v{version}
+      Version: {version}
     </div>
   );
 }

@@ -83,7 +83,23 @@ function getAllowedOrigin(): string {
  * Add CORS headers to response for API routes
  * This runs at request time, reading env vars from the deployed container
  */
-function addCorsHeaders(response: NextResponse, allowedOrigin: string): NextResponse {
+function addCorsHeaders(
+  response: NextResponse, 
+  allowedOrigin: string, 
+  requestOrigin?: string | null,
+  pathname?: string
+): NextResponse {
+  // Log CORS mismatches in production for debugging
+  if (process.env.NODE_ENV === "production" && requestOrigin && requestOrigin !== allowedOrigin) {
+    console.warn("[Middleware CORS] Origin mismatch", {
+      requestOrigin,
+      allowedOrigin,
+      pathname,
+      betterAuthUrl: process.env.BETTER_AUTH_URL,
+      allowedOriginEnv: process.env.ALLOWED_ORIGIN,
+    });
+  }
+  
   response.headers.set("Access-Control-Allow-Credentials", "true");
   response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
   response.headers.set("Access-Control-Allow-Methods", "GET,DELETE,PATCH,POST,PUT,OPTIONS");
@@ -97,11 +113,12 @@ function addCorsHeaders(response: NextResponse, allowedOrigin: string): NextResp
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const allowedOrigin = getAllowedOrigin();
+  const requestOrigin = request.headers.get("origin");
 
   // Handle CORS preflight requests for API routes
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const preflightResponse = NextResponse.json({}, { status: 200 });
-    return addCorsHeaders(preflightResponse, allowedOrigin);
+    return addCorsHeaders(preflightResponse, allowedOrigin, requestOrigin, pathname);
   }
 
   // Allow access to public paths
@@ -109,7 +126,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next();
     // Add CORS headers to API routes
     if (pathname.startsWith("/api/")) {
-      return addCorsHeaders(response, allowedOrigin);
+      return addCorsHeaders(response, allowedOrigin, requestOrigin, pathname);
     }
     return response;
   }
@@ -134,7 +151,7 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   // Add CORS headers to authenticated API routes
   if (pathname.startsWith("/api/")) {
-    return addCorsHeaders(response, allowedOrigin);
+    return addCorsHeaders(response, allowedOrigin, requestOrigin, pathname);
   }
   return response;
 }
