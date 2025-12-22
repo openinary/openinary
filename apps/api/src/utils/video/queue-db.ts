@@ -30,6 +30,26 @@ export interface JobStats {
 }
 
 /**
+ * Normalize params to a consistent JSON string
+ * Sorts keys alphabetically to ensure same params always produce same string
+ * This fixes the bug where params with different key orders would not match
+ */
+function normalizeParamsJson(params: any): string {
+  if (!params || typeof params !== 'object') {
+    return JSON.stringify(params);
+  }
+  
+  const sortedKeys = Object.keys(params).sort();
+  const normalized: any = {};
+  
+  for (const key of sortedKeys) {
+    normalized[key] = params[key];
+  }
+  
+  return JSON.stringify(normalized);
+}
+
+/**
  * Create a new job in the queue
  */
 export function createJob(
@@ -39,7 +59,7 @@ export function createJob(
   priority: number = 2
 ): string {
   const jobId = randomUUID();
-  const paramsJson = JSON.stringify(params);
+  const paramsJson = normalizeParamsJson(params);
   const now = Date.now();
 
   try {
@@ -178,7 +198,7 @@ export function getJobByFileAndParams(
   params: ReturnType<typeof parseParams>
 ): VideoJob | null {
   try {
-    const paramsJson = JSON.stringify(params);
+    const paramsJson = normalizeParamsJson(params);
     const job = db
       .prepare(
         "SELECT * FROM video_jobs WHERE file_path = ? AND params_json = ? ORDER BY created_at DESC LIMIT 1"
