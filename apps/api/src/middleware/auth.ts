@@ -110,26 +110,44 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
       });
 
       if (sessionResult && sessionResult.session && sessionResult.user) {
-        // Valid session found
-        c.set("user", {
-          id: sessionResult.user.id,
-          email: sessionResult.user.email,
-          name: sessionResult.user.name,
-        });
+        // SECURITY FIX: Verify that the user actually exists in the database
+        // Better Auth may return session data from signed cookies without DB validation
+        const { db } = await import("shared/auth");
+        const userExists = db.prepare("SELECT id FROM user WHERE id = ?").get(sessionResult.user.id);
+        
+        if (!userExists) {
+          // User was deleted from database - reject the session
+          auditLog("auth.session.rejected", {
+            reason: "user_not_found_in_db",
+            userId: sessionResult.user.id,
+            path: c.req.path,
+            method: c.req.method,
+            ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+          });
+          
+          // Continue to authentication failure below
+        } else {
+          // Valid session found AND user exists in DB
+          c.set("user", {
+            id: sessionResult.user.id,
+            email: sessionResult.user.email,
+            name: sessionResult.user.name,
+          });
 
-        c.set("apiKey", null); // No API key, using session
+          c.set("apiKey", null); // No API key, using session
 
-        // Audit log: successful session authentication
-        auditLog("auth.session.success", {
-          userId: sessionResult.user.id,
-          userEmail: sessionResult.user.email,
-          path: c.req.path,
-          method: c.req.method,
-          ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
-        });
+          // Audit log: successful session authentication
+          auditLog("auth.session.success", {
+            userId: sessionResult.user.id,
+            userEmail: sessionResult.user.email,
+            path: c.req.path,
+            method: c.req.method,
+            ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+          });
 
-        await next();
-        return;
+          await next();
+          return;
+        }
       }
     }
   } catch (error) {
