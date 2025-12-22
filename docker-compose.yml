@@ -3,7 +3,7 @@ services:
   api:
     profiles: ["api"]
     # Use pre-built image by default, or build locally with: docker compose --profile api build
-    image: ${OPENINARY_API_IMAGE:-openinary/openinary-api}:${OPENINARY_VERSION:-latest}
+    image: openinary/openinary-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/api.Dockerfile
@@ -23,8 +23,8 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
-      # IMAGE_TAG automatically mapped from OPENINARY_VERSION (single source of truth)
-      - IMAGE_TAG=${OPENINARY_VERSION:-latest}
+      # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
+      - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration
       # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
       # Override only if you need custom concurrency settings
@@ -50,7 +50,7 @@ services:
   openinary:
     profiles: ["full"]
     # Use pre-built image by default, or build locally with: docker compose --profile full build
-    image: ${OPENINARY_FULL_IMAGE:-openinary/openinary}:${OPENINARY_VERSION:-latest}
+    image: openinary/openinary:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/full.Dockerfile
@@ -59,7 +59,7 @@ services:
         # CORS is handled at runtime in Next.js middleware
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
         # IMAGE_TAG is baked into the image at build time (written to /app/version.txt)
-        IMAGE_TAG: ${OPENINARY_VERSION:-latest}
+        IMAGE_TAG: ${IMAGE_TAG:-latest}
     ports:
       - "3000:3000"
     volumes:
@@ -79,8 +79,8 @@ services:
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3001}
-      # IMAGE_TAG automatically mapped from OPENINARY_VERSION (single source of truth)
-      - IMAGE_TAG=${OPENINARY_VERSION:-latest}
+      # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
+      - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration
       # VIDEO_MAX_CONCURRENT is auto-detected based on RAM (1 worker per 2GB)
       # Override only if you need custom concurrency settings
