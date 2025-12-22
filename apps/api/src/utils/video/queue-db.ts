@@ -60,6 +60,9 @@ export function createJob(
 ): string {
   const jobId = randomUUID();
   const paramsJson = normalizeParamsJson(params);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'queue-db.ts:62',message:'Creating job',data:{filePath,cachePath,paramsOriginal:params,paramsNormalized:paramsJson,paramsKeys:Object.keys(params)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   const now = Date.now();
 
   try {
@@ -199,11 +202,18 @@ export function getJobByFileAndParams(
 ): VideoJob | null {
   try {
     const paramsJson = normalizeParamsJson(params);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'queue-db.ts:201',message:'Searching for job',data:{filePath,paramsOriginal:params,paramsNormalized:paramsJson,paramsKeys:Object.keys(params)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const job = db
       .prepare(
         "SELECT * FROM video_jobs WHERE file_path = ? AND params_json = ? ORDER BY created_at DESC LIMIT 1"
       )
       .get(filePath, paramsJson) as VideoJob | undefined;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'queue-db.ts:211',message:'Job search result from DB',data:{filePath,found:!!job,jobId:job?.id,jobStatus:job?.status,jobParamsJson:job?.params_json,searchedParamsJson:paramsJson,paramsMatch:job?.params_json===paramsJson},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
 
     return job || null;
   } catch (error) {

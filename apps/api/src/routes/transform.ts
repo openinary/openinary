@@ -46,6 +46,10 @@ t.get("/*", async (c) => {
   let cachePath = getCachePath(path);
   const localPath = `./public/${filePath}`;
   const ext = filePath.split(".").pop();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:46',message:'Initial cachePath and params',data:{cachePath,filePath,path,paramsKeys:Object.keys(params)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   // Get browser support info for format optimization
   const userAgent = c.req.header("User-Agent");
@@ -68,6 +72,10 @@ t.get("/*", async (c) => {
       `/t/format:${optimalFormat}/$1`
     );
     cachePath = getCachePath(pathWithFormat);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:70',message:'Updated cachePath with format',data:{oldCachePath:getCachePath(path),newCachePath:cachePath,optimalFormat,effectiveParamsKeys:Object.keys(effectiveParams)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
   }
   
   // 1. FIRST: Verify original file exists (before serving cache)
@@ -110,7 +118,13 @@ t.get("/*", async (c) => {
   }
 
   // 3. Check local cache (now includes format in key when format is auto-determined)
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:113',message:'Checking local cache',data:{cachePath,filePath,effectiveParams},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const localCacheBuffer = await checkLocalCache(cachePath);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:118',message:'Local cache check result',data:{cachePath,found:!!localCacheBuffer,bufferSize:localCacheBuffer?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   if (localCacheBuffer) {
     const contentType = await determineContentType(effectiveParams, localCacheBuffer, ext);
     setContentTypeHeader(c, contentType);
@@ -162,14 +176,26 @@ t.get("/*", async (c) => {
       } else {
         // For video transformations: check if we should process in background
         // Check if already being processed
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:179',message:'Checking for existing job',data:{filePath,params,paramsKeys:Object.keys(params),cachePath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         const existingJob = videoJobQueue.getJobByPath(filePath, params);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:183',message:'Job search result',data:{filePath,jobFound:!!existingJob,jobId:existingJob?.id,jobStatus:existingJob?.status,jobCachePath:existingJob?.cachePath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         
         if (existingJob) {
           logger.debug({ jobId: existingJob.id, status: existingJob.status }, 'Video job exists');
           
           // If completed, serve from cache
           if (existingJob.status === 'completed') {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:191',message:'Job completed, checking cache',data:{cachePath,jobCachePath:existingJob.cachePath,cachePathsMatch:cachePath===existingJob.cachePath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             const cachedBuffer = await checkLocalCache(cachePath);
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transform.ts:195',message:'Cache check for completed job',data:{cachePath,found:!!cachedBuffer,bufferSize:cachedBuffer?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
             if (cachedBuffer) {
               if (isTempFile) {
                 await cleanupTempFile(sourcePath);
