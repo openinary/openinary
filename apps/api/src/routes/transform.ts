@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { getCachePath } from "../utils/cache";
+import { getCachePath, existsInCache } from "../utils/cache";
 import { parseParams } from "../utils/parser";
 import { createStorageClient } from "../utils/storage/index";
 import { Compression } from "../utils/image/compression";
 import logger from "../utils/logger";
 import { videoJobQueue } from "../utils/video-job-queue";
+import { updateJobStatus } from "../utils/video/queue-db";
 import { readFile } from "fs/promises";
 import {
   setContentTypeHeader,
@@ -162,30 +163,60 @@ t.get("/*", async (c) => {
       } else {
         // For video transformations: check if we should process in background
         // Check if already being processed
-        const existingJob = videoJobQueue.getJobByPath(filePath, params);
+        let existingJob = videoJobQueue.getJobByPath(filePath, params);
+        let shouldRequeue = false;
         
         if (existingJob) {
           logger.debug({ jobId: existingJob.id, status: existingJob.status }, 'Video job exists');
           
-          // If completed, serve from cache
+          // If completed, verify cache actually exists before serving
           if (existingJob.status === 'completed') {
-            const cachedBuffer = await checkLocalCache(cachePath);
-            if (cachedBuffer) {
-              if (isTempFile) {
-                await cleanupTempFile(sourcePath);
+            // Check both local and cloud cache
+            const localCacheExists = await existsInCache(cachePath);
+            const cloudCacheExists = storage ? await storage.exists(filePath, params) : false;
+            
+            if (localCacheExists || cloudCacheExists) {
+              // Cache exists, try to serve from local cache first
+              const cachedBuffer = await checkLocalCache(cachePath);
+              if (cachedBuffer) {
+                if (isTempFile) {
+                  await cleanupTempFile(sourcePath);
+                }
+                const cachedContentType = await determineContentType(params, cachedBuffer, ext);
+                setContentTypeHeader(c, cachedContentType);
+                c.header('X-Video-Status', 'ready');
+                c.header('Content-Length', cachedBuffer.length.toString());
+                return c.body(new Uint8Array(cachedBuffer));
               }
-              const cachedContentType = await determineContentType(params, cachedBuffer, ext);
-              setContentTypeHeader(c, cachedContentType);
-              c.header('X-Video-Status', 'ready');
-              c.header('Content-Length', cachedBuffer.length.toString());
-              return c.body(new Uint8Array(cachedBuffer));
+              
+              // If local cache doesn't exist but cloud does, it will be handled by checkCloudCache above
+              // This should not happen here, but if it does, fall through to queue processing
+            } else {
+              // Job is marked as completed but cache doesn't exist (e.g., after setup/reset)
+              // Reset job to pending and requeue it
+              logger.warn(
+                { jobId: existingJob.id, filePath, cachePath },
+                'Job marked as completed but cache missing - resetting to pending'
+              );
+              try {
+                updateJobStatus(existingJob.id, 'pending', 0);
+                // Mark that we should requeue this job
+                shouldRequeue = true;
+                // Update existingJob status so the condition below works correctly
+                existingJob = { ...existingJob, status: 'pending' as const };
+              } catch (error) {
+                logger.error({ error, jobId: existingJob.id }, 'Failed to reset job status');
+                // Continue anyway - will be handled by the requeue logic below
+                shouldRequeue = true;
+              }
             }
           }
         }
         
         // Add to background processing queue (non-blocking)
         // Use normal priority for video transformations
-        if (!existingJob || existingJob.status === 'error') {
+        // Requeue if: no job exists, job is in error state, job is pending, or cache was missing
+        if (!existingJob || existingJob.status === 'error' || existingJob.status === 'pending' || shouldRequeue) {
           videoJobQueue.addJob(filePath, params, cachePath, sourcePath, storage, TRANSFORMATION_PRIORITY).catch((error) => {
             logger.error({ error, filePath }, 'Failed to add video job');
           });
