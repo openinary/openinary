@@ -231,9 +231,13 @@ t.get("/*", async (c) => {
           setContentTypeHeader(c, `video/${ext}`);
           c.header('X-Video-Status', 'processing');
           c.header('X-Original-Video', 'true');
-          // Add cache control headers - allow caching but require revalidation
-          c.header('Cache-Control', 'public, max-age=31536000, must-revalidate');
-          c.header('ETag', `"${filePath}-original"`);
+          // #region agent log
+          logger.info({filePath,cachePath,jobExists:!!existingJob},'[DEBUG] Serving original video (processing)');
+          // #endregion
+          // DO NOT cache original video while processing - CDN must revalidate
+          c.header('Cache-Control', 'public, max-age=0, must-revalidate');
+          c.header('ETag', `"${filePath}-processing-${Date.now()}"`);
+          c.header('Vary', 'Accept');
           
           return c.body(new Uint8Array(originalBuffer));
         } catch (error) {
