@@ -37,7 +37,11 @@ COPY pnpm-lock.yaml ./
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-RUN pnpm install --frozen-lockfile --prod=false
+# Install workspace dependencies for shared and web (needed for build)
+RUN pnpm install --filter shared... --filter web... --frozen-lockfile
+
+# Build shared package first (web depends on it)
+RUN pnpm --filter shared build
 
 # Create data directory for auth database (needed during build)
 RUN mkdir -p /app/data
