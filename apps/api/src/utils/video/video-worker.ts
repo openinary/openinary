@@ -163,12 +163,12 @@ export class VideoWorker extends EventEmitter {
         const buffer = await transformVideo(sourcePath, params);
 
         // #region agent log
-        await fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'video-worker.ts:163',message:'Saving to cache',data:{cachePath:job.cache_path,filePath:job.file_path,bufferSize:buffer.length,params:JSON.parse(job.params_json)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        logger.debug({cachePath:job.cache_path,filePath:job.file_path,bufferSize:buffer.length,params},'[DEBUG] Saving transformed video to cache');
         // #endregion
         // Save to cache
         await saveToCache(job.cache_path, buffer);
         // #region agent log
-        await fetch('http://127.0.0.1:7243/ingest/6c024c56-f276-413d-8125-e9a091f8e898',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'video-worker.ts:169',message:'Cache saved',data:{cachePath:job.cache_path},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        logger.debug({cachePath:job.cache_path},'[DEBUG] Cache saved successfully');
         // #endregion
 
         // Upload to cloud storage if configured
