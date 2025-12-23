@@ -104,17 +104,21 @@ async function initializeAuth() {
   }
 }
 
-// Initialize auth before starting server
-await initializeAuth();
-
 const port = Number(process.env.PORT) || 3000;
 
+// Start server immediately so healthcheck can respond quickly
 serve({
   fetch: app.fetch,
   port,
 });
 
 logger.info({ port }, "Server running");
+
+// Initialize auth in background (non-blocking)
+// This allows the server to respond to healthchecks immediately
+initializeAuth().catch((error) => {
+  logger.error({ error }, "Error during background auth initialization");
+});
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
