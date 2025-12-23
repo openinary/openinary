@@ -33,5 +33,7 @@ This is a pre-release version (0.x.x). Breaking changes may occur between minor 
 
 
 
-[Unreleased]: https://github.com/openinary/openinary/compare/v0.1.1-alpha...HEAD
 [0.1.1-alpha]: https://github.com/openinary/openinary/releases/tag/v0.1.1-alpha
+
+[Unreleased]: https://github.com/openinary/openinary/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/openinary/openinary/releases/tag/v0.1.1
