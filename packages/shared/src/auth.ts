@@ -99,6 +99,31 @@ function initializeTables() {
     `);
   }
 
+  // SECURITY: Enforce a hard limit of a single user/admin at the database level.
+  // This closes any race-condition window where two sign-ups could occur concurrently.
+  // We implement this via a BEFORE INSERT trigger that aborts when at least one row exists.
+  try {
+    const triggerExists = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='trigger' AND name='prevent_multiple_users'"
+      )
+      .get();
+
+    if (!triggerExists) {
+      db.exec(`
+        CREATE TRIGGER prevent_multiple_users
+        BEFORE INSERT ON user
+        WHEN (SELECT COUNT(*) FROM user) >= 1
+        BEGIN
+          SELECT RAISE(ABORT, 'Only one user account is allowed in this deployment');
+        END;
+      `);
+    }
+  } catch {
+    // If we cannot create the trigger (older SQLite, read-only, etc.),
+    // we still rely on higher-level guards to prevent additional admins.
+  }
+
   // Session table
   if (!tableExists("session")) {
     db.exec(`

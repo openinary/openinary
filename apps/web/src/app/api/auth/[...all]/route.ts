@@ -1,11 +1,61 @@
 import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import logger from "@/lib/logger";
+import { hasAdminAccount } from "shared/auth";
 
 const handler = toNextJsHandler(auth);
 
 export const GET = handler.GET;
-export const POST = handler.POST;
+
+// Hardened POST handler: blocks any additional sign-up once an admin/user exists
+export async function POST(request: Request) {
+  const url = new URL(request.url);
+
+  // All Better Auth routes are mounted under /api/auth
+  // We specifically guard the email/password sign-up endpoint
+  if (url.pathname.endsWith("/sign-up/email")) {
+    try {
+      if (hasAdminAccount()) {
+        logger.warn("[Auth] Sign-up attempt blocked: admin already exists", {
+          pathname: url.pathname,
+        });
+
+        return new Response(
+          JSON.stringify({
+            error:
+              "Setup is already completed. Creating additional administrator accounts is disabled.",
+          }),
+          {
+            status: 403,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+    } catch (error) {
+      // Fail closed: if we cannot verify, we refuse sign-up
+      logger.error("[Auth] Error while checking admin account before sign-up", {
+        error,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error:
+            "Unable to verify setup status. For security reasons, sign-up is disabled.",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+  }
+
+  return handler.POST(request);
+}
 
 // Add CORS support for OPTIONS requests
 export async function OPTIONS(request: Request) {
