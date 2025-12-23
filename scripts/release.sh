@@ -42,16 +42,17 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
-# Get current version from latest Git tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+# Get current version from latest Git tag (excluding pre-releases)
+# Get all tags, filter out pre-releases (those with '-' after version number), sort, and get the latest
+LATEST_TAG=$(git tag -l "v*" | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1)
+if [ -z "$LATEST_TAG" ]; then
+    LATEST_TAG="v0.0.0"
+fi
 CURRENT_VERSION=${LATEST_TAG#v}  # Remove 'v' prefix
-print_info "Current version: v${CURRENT_VERSION}"
+print_info "Current stable version: v${CURRENT_VERSION}"
 
 # Parse semantic version
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-# Strip any pre-release suffix (e.g., -beta.1, -rc.1) from PATCH
-PATCH=${PATCH%%-*}
 
 # Show release type options
 echo ""
@@ -93,6 +94,15 @@ case $choice in
 esac
 
 NEW_TAG="v${NEW_VERSION}"
+
+# Check if tag already exists
+if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+    print_error "Tag ${NEW_TAG} already exists!"
+    print_info "Existing tags matching this version:"
+    git tag -l "${NEW_TAG}*" | head -5
+    exit 1
+fi
+
 print_info "New version will be: ${NEW_TAG}"
 
 # Confirm
