@@ -9,6 +9,7 @@ import videoStatus from "./routes/video-status";
 import logger from "./utils/logger";
 import queueEvents from "./routes/queue-events";
 import queue from "./routes/queue";
+import invalidateRoute from "./routes/invalidate";
 import { apiKeyAuth } from "./middleware/auth";
 
 const app = new Hono();
@@ -62,6 +63,10 @@ app.route("/upload", upload);
 
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
+
+// Cache invalidation route (protected)
+app.use("/invalidate/*", apiKeyAuth);
+app.route("/invalidate", invalidateRoute);
 
 // Queue management routes (protected)
 // Note: /queue/events is public (registered above), but other /queue/* routes require auth
