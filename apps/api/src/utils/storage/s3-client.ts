@@ -20,6 +20,7 @@ export class S3ClientWrapper {
     
     // Configure HTTP handler with socket settings from environment variables
     const maxSockets = parseInt(process.env.STORAGE_MAX_SOCKETS || '50', 10);
+    const connectionTimeout = parseInt(process.env.STORAGE_CONNECTION_TIMEOUT || '0', 10);
     const requestTimeout = parseInt(process.env.STORAGE_REQUEST_TIMEOUT || '0', 10);
     const socketTimeout = parseInt(process.env.STORAGE_SOCKET_TIMEOUT || '0', 10);
 
@@ -38,6 +39,7 @@ export class S3ClientWrapper {
           keepAlive: true,
           maxSockets,
         }),
+        ...(connectionTimeout > 0 && { connectionTimeout }),
         ...(requestTimeout > 0 && { requestTimeout }),
         ...(socketTimeout > 0 && { socketTimeout }),
       },
