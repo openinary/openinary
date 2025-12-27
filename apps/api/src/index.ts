@@ -11,6 +11,7 @@ import queueEvents from "./routes/queue-events";
 import queue from "./routes/queue";
 import invalidateRoute from "./routes/invalidate";
 import { apiKeyAuth } from "./middleware/auth";
+import { publicRateLimit } from "./middleware/rate-limit";
 
 const app = new Hono();
 
@@ -40,20 +41,30 @@ app.use(
 );
 
 // Public routes (no authentication required)
-app.get("/", (c) => c.text("Openinary API Server is running."));
+// Rate limiting is applied to these routes only (protected routes have their own rate limiting via better-auth)
+
+// Root endpoint
+app.get("/", publicRateLimit, (c) => c.text("Openinary API Server is running."));
 
 // Health check routes
+app.use("/health", publicRateLimit);
+app.use("/health/*", publicRateLimit);
 app.route("/health", health);
 
 // Video status check (public - no auth required)
+app.use("/video-status", publicRateLimit);
+app.use("/video-status/*", publicRateLimit);
 app.route("/video-status", videoStatus);
 
-// Public routes - no authentication required
 // Image transformation route is public for easy access to transformed images
+app.use("/t", publicRateLimit);
+app.use("/t/*", publicRateLimit);
 app.route("/t", transform);
 
 // Queue events SSE endpoint (public for real-time updates)
 // This must be registered BEFORE the protected queue routes to avoid auth conflicts
+app.use("/queue/events", publicRateLimit);
+app.use("/queue/events/*", publicRateLimit);
 app.route("/queue/events", queueEvents);
 
 // Protected routes - require API key authentication
