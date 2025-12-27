@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Openinary Release Script
-# This script helps create a new version release with proper tagging and changelog updates
+# This script helps create a new version release with proper tagging
 
 set -e  # Exit on error
 
@@ -116,74 +116,16 @@ fi
 echo ""
 print_info "Starting release process..."
 
-# Update CHANGELOG.md
+# Remind user to update CHANGELOG.md manually
 CHANGELOG_FILE="CHANGELOG.md"
 if [ -f "$CHANGELOG_FILE" ]; then
-    RELEASE_DATE=$(date +%Y-%m-%d)
-    
-    # Create backup
-    cp "$CHANGELOG_FILE" "${CHANGELOG_FILE}.bak"
-    
-    # Replace [Unreleased] section with new version
-    # This uses a temporary file approach for better compatibility
-    awk -v version="$NEW_VERSION" -v date="$RELEASE_DATE" '
-    /^## \[Unreleased\]/ {
-        print $0
-        print ""
-        print "### Added"
-        print ""
-        print "### Changed"
-        print ""
-        print "### Fixed"
-        print ""
-        print "## [" version "] - " date
-        found_unreleased = 1
-        next
-    }
-    found_unreleased && /^## \[/ {
-        found_unreleased = 0
-    }
-    !found_unreleased || !/^### / {
-        print $0
-    }
-    ' "$CHANGELOG_FILE" > "${CHANGELOG_FILE}.tmp"
-    
-    # Remove old version links from the end of the file
-    # Keep only the content, remove existing link references
-    grep -v "^\[Unreleased\]:" "${CHANGELOG_FILE}.tmp" | grep -v "^\[${NEW_VERSION}\]:" > "${CHANGELOG_FILE}.tmp2"
-    mv "${CHANGELOG_FILE}.tmp2" "${CHANGELOG_FILE}.tmp"
-    
-    # Update the version links at the bottom (add new ones)
-    echo "" >> "${CHANGELOG_FILE}.tmp"
-    echo "[Unreleased]: https://github.com/openinary/openinary/compare/v${NEW_VERSION}...HEAD" >> "${CHANGELOG_FILE}.tmp"
-    echo "[${NEW_VERSION}]: https://github.com/openinary/openinary/releases/tag/v${NEW_VERSION}" >> "${CHANGELOG_FILE}.tmp"
-    
-    # Move temp file to actual file
-    mv "${CHANGELOG_FILE}.tmp" "$CHANGELOG_FILE"
-    rm -f "${CHANGELOG_FILE}.bak"
-    
-    print_success "Updated CHANGELOG.md"
-    print_info "Please review CHANGELOG.md if you need to make any changes"
+    print_warning "Remember to manually update CHANGELOG.md for version ${NEW_TAG} before pushing"
 else
-    print_warning "CHANGELOG.md not found, skipping"
+    print_warning "CHANGELOG.md not found"
 fi
 
 echo ""
-print_info "Files updated:"
-git diff --stat CHANGELOG.md 2>/dev/null || true
-
-echo ""
-read -p "Commit these changes? [y/N]: " commit_confirm
-if [[ ! $commit_confirm =~ ^[Yy]$ ]]; then
-    print_warning "Release cancelled. Changes not committed."
-    git checkout CHANGELOG.md 2>/dev/null || true
-    exit 0
-fi
-
-# Commit changes
-git add CHANGELOG.md
-git commit -m "chore: release version ${NEW_TAG}"
-print_success "Committed version bump"
+print_info "Ready to create tag ${NEW_TAG}"
 
 # Create and push tag
 git tag -a "$NEW_TAG" -m "Release ${NEW_TAG}"
@@ -193,7 +135,6 @@ echo ""
 print_info "Ready to push to remote repository"
 echo ""
 echo "The following will be pushed:"
-echo "  - Commit: version bump"
 echo "  - Tag: ${NEW_TAG}"
 echo ""
 print_warning "This will trigger the CI/CD pipeline to:"

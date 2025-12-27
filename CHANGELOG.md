@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-12-27
+
+### Added
+- Cache invalidation endpoint (`DELETE /api/invalidate/*`) to force cache refresh after direct file replacement in S3 ([#9](https://github.com/openinary/openinary/issues/9))
+- Configurable HTTP connection settings for S3 client via environment variables:
+  - `STORAGE_MAX_SOCKETS`: Maximum number of concurrent sockets (default: 50)
+  - `STORAGE_CONNECTION_TIMEOUT`: Connection timeout in milliseconds
+  - `STORAGE_REQUEST_TIMEOUT`: Request timeout in milliseconds
+  - `STORAGE_SOCKET_TIMEOUT`: Socket timeout in milliseconds
+- Nginx support for cache invalidation endpoint in Docker configuration
+
+## [0.1.2] - 2025-12-23
+
+### Changed
+- Asynchronous authentication initialization for improved performance
+- Enhanced Nginx configuration for health checks
+
 ## [0.1.1] - 2025-12-23
 
 ### Added
@@ -59,12 +76,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Note
 This is a pre-release version (0.x.x). Breaking changes may occur between minor versions until v1.0.0 is reached.
-
-
-
-[0.1.1-alpha]: https://github.com/openinary/openinary/releases/tag/v0.1.1-alpha
-
-[0.1.1]: https://github.com/openinary/openinary/releases/tag/v0.1.1
-
-[Unreleased]: https://github.com/openinary/openinary/compare/v0.1.2...HEAD
-[0.1.2]: https://github.com/openinary/openinary/releases/tag/v0.1.2
