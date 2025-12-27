@@ -8,6 +8,7 @@ import {
   DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import https from 'https';
 import { StorageConfig } from 'shared';
 
 export class S3ClientWrapper {
@@ -17,19 +18,32 @@ export class S3ClientWrapper {
   constructor(config: StorageConfig) {
     this.config = config;
     
-    const clientConfig: any = {
+    // Configure HTTP handler with socket settings from environment variables
+    const maxSockets = parseInt(process.env.STORAGE_MAX_SOCKETS || '50', 10);
+    const connectionTimeout = parseInt(process.env.STORAGE_CONNECTION_TIMEOUT || '0', 10);
+    const requestTimeout = parseInt(process.env.STORAGE_REQUEST_TIMEOUT || '0', 10);
+    const socketTimeout = parseInt(process.env.STORAGE_SOCKET_TIMEOUT || '0', 10);
+
+    const clientConfig = {
       region: config.region,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
+      ...(config.endpoint && {
+        endpoint: config.endpoint,
+        forcePathStyle: true, // Required for most S3-compatible providers
+      }),
+      requestHandler: {
+        httpsAgent: new https.Agent({
+          keepAlive: true,
+          maxSockets,
+        }),
+        ...(connectionTimeout > 0 && { connectionTimeout }),
+        ...(requestTimeout > 0 && { requestTimeout }),
+        ...(socketTimeout > 0 && { socketTimeout }),
+      },
     };
-
-    // Universal S3-compatible configuration
-    if (config.endpoint) {
-      clientConfig.endpoint = config.endpoint;
-      clientConfig.forcePathStyle = true; // Required for most S3-compatible providers
-    }
 
     this.s3Client = new S3Client(clientConfig);
   }
