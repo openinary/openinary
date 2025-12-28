@@ -6,7 +6,6 @@ import {
   Command,
   GalleryVerticalEnd,
   Image as ImageIcon,
-  MessageSquare,
   Package,
   Video,
 } from "lucide-react"
@@ -86,21 +85,6 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
         <NavProjects onMediaSelect={onMediaSelect} />
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Help & Feedback"
-              onClick={() => {
-                if (typeof window !== 'undefined' && (window as any).uj) {
-                  (window as any).uj.showWidget({ section: 'feedback' });
-                }
-              }}
-            >
-              <MessageSquare />
-              <span>Help & Feedback</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
         <NavUser />
         {!isCollapsed && <VersionDisplay />}
       </SidebarFooter>
