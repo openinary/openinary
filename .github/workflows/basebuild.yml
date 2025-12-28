@@ -204,33 +204,33 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "## Docker Images Published"
+            echo "## Docker Build Complete"
             echo ""
             
             if [ "${{ needs.determine-version.outputs.is_preview }}" == "true" ]; then
-              echo "🔨 **Preview Build** (from main branch)"
+              echo "**Preview Build** (from main branch)"
               echo ""
             fi
             
-            echo "### Full Image"
-            echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary/tags)"
-            if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-              echo "- [\`openinary/openinary:latest\`](https://hub.docker.com/r/openinary/openinary/tags)"
-              echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary/tags)"
-              echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary/tags)"
-            fi
+            echo "**Build Version:** \`${{ needs.determine-version.outputs.version }}\`"
             echo ""
-            echo "### API Image"
-            echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
-            if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-              echo "- [\`openinary/openinary-api:latest\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
-              echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
-              echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
-            fi
+            
+            echo "### Images Built"
+            echo "- Full stack image"
+            echo "- API-only image"
             echo ""
-            echo "**Version:** ${{ needs.determine-version.outputs.version }}"
+            
             if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
+              echo "**Tags created:**"
+              echo "- Version tag: \`${{ needs.determine-version.outputs.version }}\`"
+              echo "- Latest tag: \`latest\`"
+              echo "- Major.Minor tag: \`${{ needs.determine-version.outputs.major_minor }}\`"
+              echo "- Major tag: \`${{ needs.determine-version.outputs.major }}\`"
               echo ""
-              echo "🎉 **GitHub Release created:** https://github.com/${{ github.repository }}/releases/tag/${{ needs.determine-version.outputs.version }}"
+              echo "**GitHub Release created:** https://github.com/${{ github.repository }}/releases/tag/${{ needs.determine-version.outputs.version }}"
+            else
+              echo "**Tag created:** \`${{ needs.determine-version.outputs.version }}\`"
             fi
+            echo ""
+            echo "Images are available on Docker Hub."
           } >> $GITHUB_STEP_SUMMARY
