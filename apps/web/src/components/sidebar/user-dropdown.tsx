@@ -2,11 +2,10 @@
 
 import {
   BadgeCheck,
-  BookOpen,
-  Github,
   Key,
   LogOut,
   Moon,
+  Star,
   Sun,
 } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -106,19 +105,12 @@ export function UserDropdown({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="https://docs.openinary.dev/" target="_blank" rel="noopener noreferrer">
-            <BookOpen />
-            Documentation
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
           <Link href="https://github.com/openinary/openinary" target="_blank" rel="noopener noreferrer">
-            <Github />
+            <Star />
             Star on GitHub
           </Link>
         </DropdownMenuItem>
       </DropdownMenuGroup>
-      <DropdownMenuSeparator />
       <DropdownMenuItem onClick={cycleTheme}>
         {getThemeIcon()}
         {getThemeLabel()}
@@ -131,4 +123,3 @@ export function UserDropdown({
     </DropdownMenuContent>
   )
 }
-

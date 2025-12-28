@@ -1,4 +1,5 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ChatbotButton } from "@/components/chatbot-button";
 
 export default function DashboardLayout({
   children,
@@ -8,10 +9,7 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       {children}
+      <ChatbotButton />
     </SidebarProvider>
   );
 }
-
-
-
-
