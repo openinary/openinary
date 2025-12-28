@@ -62,7 +62,7 @@ export function ChatbotButton() {
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  // Charger le fichier docs.json au montage du composant
+  // Load docs.json file on component mount
   useEffect(() => {
     const loadDocs = async () => {
       setIsLoadingDocs(true);
@@ -70,11 +70,11 @@ export function ChatbotButton() {
         const response = await fetch('https://raw.githubusercontent.com/openinary/documentation/main/docs.json');
         const docs: DocsJson = await response.json();
         
-        // Extraire tous les chemins de pages avec leurs groupes
+        // Extract all page paths with their groups
         const pages: DocsPage[] = [];
         docs.navigation.groups.forEach((group) => {
           group.pages.forEach((page) => {
-            // Convertir le chemin en titre lisible
+            // Convert path to readable title
             const title = page
               .split('/')
               .pop()
@@ -92,7 +92,7 @@ export function ChatbotButton() {
         
         setDocsPages(pages);
       } catch (error) {
-        console.error('Erreur lors du chargement de la documentation:', error);
+        console.error('Error loading documentation:', error);
       } finally {
         setIsLoadingDocs(false);
       }
@@ -101,7 +101,7 @@ export function ChatbotButton() {
     loadDocs();
   }, []);
 
-  // Recherche dans les pages
+  // Search in pages
   const searchResults = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       return [];
@@ -113,7 +113,7 @@ export function ChatbotButton() {
         const searchableText = `${page.title} ${page.path} ${page.group}`.toLowerCase();
         return searchableText.includes(query);
       })
-      .slice(0, 5); // Limiter à 5 résultats
+      .slice(0, 5); // Limit to 5 results
   }, [searchQuery, docsPages]);
 
   const handleResultClick = (path: string) => {
@@ -125,10 +125,10 @@ export function ChatbotButton() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim() && searchResults.length > 0) {
-      // Si des résultats sont disponibles, ouvrir le premier
+      // If results are available, open the first one
       handleResultClick(searchResults[0].path);
     } else if (searchQuery.trim()) {
-      // Sinon, ouvrir la documentation
+      // Otherwise, open the documentation
       window.open('https://docs.openinary.dev/', '_blank');
       setSearchQuery("");
       setOpen(false);
@@ -216,7 +216,7 @@ export function ChatbotButton() {
                 </div>
               ) : searchQuery.trim().length >= 2 ? (
                 <div className="text-sm text-muted-foreground p-2 text-center">
-                  Aucun résultat trouvé
+                  No results found
                 </div>
               ) : null}
             </div>
