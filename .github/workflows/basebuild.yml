@@ -203,32 +203,34 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Docker Images Published" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.determine-version.outputs.is_preview }}" == "true" ]; then
-            echo "🔨 **Preview Build** (from main branch)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "### Full Image" >> $GITHUB_STEP_SUMMARY
-          echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-            echo "- [\`openinary/openinary:latest\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### API Image" >> $GITHUB_STEP_SUMMARY
-          echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-            echo "- [\`openinary/openinary-api:latest\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ needs.determine-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "🎉 **GitHub Release created:** https://github.com/${{ github.repository }}/releases/tag/${{ needs.determine-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## Docker Images Published"
+            echo ""
+            
+            if [ "${{ needs.determine-version.outputs.is_preview }}" == "true" ]; then
+              echo "🔨 **Preview Build** (from main branch)"
+              echo ""
+            fi
+            
+            echo "### Full Image"
+            echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary/tags)"
+            if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
+              echo "- [\`openinary/openinary:latest\`](https://hub.docker.com/r/openinary/openinary/tags)"
+              echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary/tags)"
+              echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary/tags)"
+            fi
+            echo ""
+            echo "### API Image"
+            echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
+            if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
+              echo "- [\`openinary/openinary-api:latest\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
+              echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
+              echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)"
+            fi
+            echo ""
+            echo "**Version:** ${{ needs.determine-version.outputs.version }}"
+            if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
+              echo ""
+              echo "🎉 **GitHub Release created:** https://github.com/${{ github.repository }}/releases/tag/${{ needs.determine-version.outputs.version }}"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
