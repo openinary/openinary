@@ -212,19 +212,19 @@ jobs:
           fi
           
           echo "### Full Image" >> $GITHUB_STEP_SUMMARY
-          echo "- [\`${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/${{ env.IMAGE_FULL }}/tags)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-            echo "- [\`${{ env.IMAGE_FULL }}:latest\`](https://hub.docker.com/r/${{ env.IMAGE_FULL }}/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/${{ env.IMAGE_FULL }}/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/${{ env.IMAGE_FULL }}/tags)" >> $GITHUB_STEP_SUMMARY
+            echo "- [\`openinary/openinary:latest\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
+            echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
+            echo "- [\`openinary/openinary:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary/tags)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### API Image" >> $GITHUB_STEP_SUMMARY
-          echo "- [\`${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/${{ env.IMAGE_API }}/tags)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.version }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
-            echo "- [\`${{ env.IMAGE_API }}:latest\`](https://hub.docker.com/r/${{ env.IMAGE_API }}/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/${{ env.IMAGE_API }}/tags)" >> $GITHUB_STEP_SUMMARY
-            echo "- [\`${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/${{ env.IMAGE_API }}/tags)" >> $GITHUB_STEP_SUMMARY
+            echo "- [\`openinary/openinary-api:latest\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
+            echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major_minor }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
+            echo "- [\`openinary/openinary-api:${{ needs.determine-version.outputs.major }}\`](https://hub.docker.com/r/openinary/openinary-api/tags)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ needs.determine-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
