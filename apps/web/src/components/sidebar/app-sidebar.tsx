@@ -32,28 +32,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 
 // This is sample data.
 const data = {
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
       title: "Assets",
@@ -81,16 +65,19 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
+  
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="pl-4 pt-4">
         <Link href="/" className="flex items-center">
           <Image
-            src="/openinary.svg"
+            src={isCollapsed ? "/icon.svg" : "/openinary.svg"}
             alt="Openinary"
             width={100}
-            height={100}
-            className="dark:invert"
+            height={25}
+            className="dark:invert h-[25px] w-auto"
           />
         </Link>
       </SidebarHeader>
@@ -115,7 +102,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
         <NavUser />
-        <VersionDisplay />
+        {!isCollapsed && <VersionDisplay />}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
