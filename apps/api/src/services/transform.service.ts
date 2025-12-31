@@ -23,7 +23,7 @@ import { TRANSFORMATION_PRIORITY } from '../utils/video/config';
 // Types for the service
 export interface TransformRequest {
   path: string;
-  userAgent?: string;
+  userAgent: string;
   acceptHeader?: string;
   context: Context;
 }
@@ -245,9 +245,9 @@ export class TransformService {
     localPath: string,
     ext: string | undefined,
     effectiveParams: any,
+    cachePath: string,
     userAgent?: string,
-    acceptHeader?: string,
-    cachePath?: string
+    acceptHeader?: string
   ): Promise<TransformResult> {
     // Prepare source file
     const sourcePath = await prepareSourceFile(
@@ -366,7 +366,7 @@ export class TransformService {
     sourcePath: string,
     params: any,
     filePath: string,
-    cachePath?: string,
+    cachePath: string,
     isTempFile?: boolean
   ): Promise<TransformResult> {
     // Check if this is a thumbnail extraction
@@ -404,7 +404,7 @@ export class TransformService {
     sourcePath: string,
     params: any,
     filePath: string,
-    cachePath?: string,
+    cachePath: string,
     isTempFile?: boolean
   ): Promise<TransformResult> {
     // Check if already being processed

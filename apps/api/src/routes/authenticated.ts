@@ -17,7 +17,7 @@ if (!API_SECRET) {
 
 t.get('/*', async (c) => {
   const path = c.req.path;
-  const userAgent = c.req.header('User-Agent');
+  const userAgent = c.req.header('User-Agent') ?? '';
   const acceptHeader = c.req.header('Accept');
 
   try {
