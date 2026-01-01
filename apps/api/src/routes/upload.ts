@@ -147,6 +147,7 @@ upload.post("/", async (c) => {
   try {
     const formData = await c.req.formData();
     const files = formData.getAll("files");
+    const customNames = formData.getAll('names');
 
     if (files.length === 0) {
       return c.json({ success: false, error: "No files provided" }, 400);
@@ -155,7 +156,9 @@ upload.post("/", async (c) => {
     const successfulUploads: UploadResult[] = [];
     const failedUploads: UploadError[] = [];
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
       if (!(file instanceof File)) {
         failedUploads.push({
           filename: "unknown",
@@ -165,7 +168,8 @@ upload.post("/", async (c) => {
       }
 
       // Get relative path if available (for folder uploads), otherwise use filename
-      const rawPath = (file as any).webkitRelativePath || file.name;
+      const customName = customNames[i] as string | undefined;
+      const rawPath = customName || (file as any).webkitRelativePath || file.name;
       const rawSanitizedPath = sanitizePath(rawPath);
       const filename = path.basename(rawSanitizedPath);
       const mimeType = file.type;
