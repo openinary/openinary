@@ -1,19 +1,13 @@
 import { Hono } from 'hono';
 import { TransformService } from '../services/transform.service';
 import logger from '../utils/logger';
-import crypto from 'crypto';
+import { verifySignature, SIGNATURE_LENGTH, sanitizeFilePath } from '../utils/signature';
 
 const t = new Hono();
 const transformService = new TransformService();
 
 // Get API_SECRET from environment variables
 const API_SECRET = process.env.API_SECRET;
-
-if (!API_SECRET) {
-  logger.warn(
-    'API_SECRET environment variable is not set. Authenticated route will not work properly.'
-  );
-}
 
 t.get('/*', async (c) => {
   const path = c.req.path;
@@ -39,8 +33,8 @@ t.get('/*', async (c) => {
 
     const signature = firstSegment.slice(3); // Remove 's--' prefix
 
-    if (signature.length !== 8) {
-      return c.text('Invalid signature length. Expected 8 characters.', 400);
+    if (signature.length !== SIGNATURE_LENGTH) {
+      return c.text(`Invalid signature length. Expected ${SIGNATURE_LENGTH} characters.`, 400);
     }
 
     // Extract transformations and route from remaining segments
@@ -66,32 +60,41 @@ t.get('/*', async (c) => {
       return c.text('No file path specified.', 400);
     }
 
-    // Verify the signature
+    // Sanitize the file path to prevent path traversal attacks
+    let sanitizedFilePath: string;
+    try {
+      sanitizedFilePath = sanitizeFilePath(filePath);
+    } catch (error) {
+      logger.warn(
+        {
+          path,
+          filePath,
+          error,
+        },
+        'Path traversal attempt detected in authenticated request'
+      );
+      return c.text('Invalid file path', 400);
+    }
+
+    // Verify the signature using timing-safe comparison and HMAC-SHA256
     if (!API_SECRET) {
       return c.text('API_SECRET not configured on server.', 500);
     }
 
-    // Create the string to sign: {transformations}/{filePath}{API_SECRET}
-    const stringToSign = hasTransform
-      ? `${transformations}/${filePath}${API_SECRET}`
-      : `${filePath}${API_SECRET}`;
+    const isValidSignature = verifySignature(
+      signature,
+      transformations,
+      sanitizedFilePath,
+      API_SECRET
+    );
 
-    // Compute SHA-1 hash
-    const hash = crypto.createHash('sha1');
-    hash.update(stringToSign);
-    const hashHex = hash.digest('hex');
-
-    // Take first 8 characters for comparison
-    const computedSignature = hashHex.substring(0, 8);
-
-    // Verify signature matches
-    if (computedSignature !== signature) {
+    if (!isValidSignature) {
       logger.warn(
         {
           path,
           signature,
-          computedSignature,
-          stringToSign,
+          transformations,
+          filePath: sanitizedFilePath,
         },
         'Invalid signature for authenticated request'
       );
@@ -99,9 +102,9 @@ t.get('/*', async (c) => {
       return c.text('Invalid signature', 401);
     }
 
-    // Construct the path for the transform service
+    // Construct the path for the transform service using the sanitized path
     // Format: /t/{transformations}/{filePath}
-    const transformPath = `/t/${transformations ? transformations + '/' : ''}${filePath}`;
+    const transformPath = `/t/${transformations ? `${transformations}/` : ''}${sanitizedFilePath}`;
 
     // Use the transform service with the constructed path
     const result = await transformService.transform({
@@ -118,8 +121,8 @@ t.get('/*', async (c) => {
 
     // Determine content type if not set in headers
     if (!result.contentType) {
-      // Extract file extension from path
-      const ext = filePath.split('.').pop()?.toLowerCase();
+      // Extract file extension from sanitized path
+      const ext = sanitizedFilePath.split('.').pop()?.toLowerCase();
       const contentTypeMap: Record<string, string> = {
         jpg: 'image/jpeg',
         jpeg: 'image/jpeg',
