@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import transform from "./routes/transform";
+import authenticated from "./routes/authenticated";
 import upload from "./routes/upload";
 import storageRoute from "./routes/storage";
 import apiKeys from "./routes/api-keys";
@@ -12,6 +13,18 @@ import queue from "./routes/queue";
 import invalidateRoute from "./routes/invalidate";
 import { apiKeyAuth } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
+import { validateApiSecret } from "./utils/signature";
+
+// Validate API_SECRET at startup if authenticated routes are enabled
+// This ensures the application fails fast if the secret is not configured properly
+try {
+  validateApiSecret(process.env.API_SECRET);
+} catch (error) {
+  logger.error({ error }, "API_SECRET validation failed at startup");
+  // For now, we only log the error to allow the app to start
+  // The authenticated route will return 500 errors if API_SECRET is missing
+  // In production, you may want to throw the error to prevent startup
+}
 
 const app = new Hono();
 
@@ -60,6 +73,11 @@ app.route("/video-status", videoStatus);
 app.use("/t", publicRateLimit);
 app.use("/t/*", publicRateLimit);
 app.route("/t", transform);
+
+// Authenticated image transformation route (with signature verification)
+app.use("/authenticated", publicRateLimit);
+app.use("/authenticated/*", publicRateLimit);
+app.route("/authenticated", authenticated);
 
 // Queue events SSE endpoint (public for real-time updates)
 // This must be registered BEFORE the protected queue routes to avoid auth conflicts
