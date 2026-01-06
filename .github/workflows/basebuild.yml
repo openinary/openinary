@@ -111,6 +111,7 @@ jobs:
         with:
           context: .
           file: ./docker/full.Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.version }}
@@ -145,6 +146,7 @@ jobs:
         with:
           context: .
           file: ./docker/api.Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.version }}
@@ -216,8 +218,8 @@ jobs:
             echo ""
             
             echo "### Images Built"
-            echo "- Full stack image"
-            echo "- API-only image"
+            echo "- Full stack image (linux/amd64, linux/arm64)"
+            echo "- API-only image (linux/amd64, linux/arm64)"
             echo ""
             
             if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
