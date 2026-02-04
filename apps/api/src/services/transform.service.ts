@@ -122,9 +122,9 @@ export class TransformService {
         localPath,
         ext,
         effectiveParams,
+        cachePath,
         userAgent,
-        acceptHeader,
-        cachePath
+        acceptHeader
       );
     } catch (error) {
       return this.handleTransformationError(error, request);
