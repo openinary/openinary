@@ -39,9 +39,6 @@ t.get('/*', async (c) => {
 
     // Extract transformations and route from remaining segments
     const routeSegments = segments.slice(1);
-    if (routeSegments.length < 1) {
-      return c.text('No route specified.', 400);
-    }
 
     // Determine transformation string and file path
     // Format: {transformations}/{route}
