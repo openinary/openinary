@@ -16,7 +16,7 @@ t.get('/*', async (c) => {
 
   try {
     // Parse the authenticated URL format: /s--{signature}/{transformations}/{route}
-    const segments = path.split('/').slice(2); // Remove '/s' prefix
+    const segments = path.split('/').slice(2); // Remove '/authenticated' prefix
 
     if (segments.length < 2) {
       return c.text(
