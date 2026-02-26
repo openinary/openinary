@@ -46,14 +46,14 @@ interface UploadError {
  */
 function sanitizePath(filepath: string): string {
   // Remove leading slashes and any parent directory references
-  let sanitized = filepath.replace(/^\/+/, '').replace(/\.\./g, '');
-  
+  let sanitized = filepath.replace(/^\/+/, "").replace(/\.\./g, "");
+
   // Normalize path separators to forward slashes
-  sanitized = sanitized.replace(/\\/g, '/');
-  
+  sanitized = sanitized.replace(/\\/g, "/");
+
   // Remove any remaining dangerous patterns
-  sanitized = sanitized.replace(/\/+/g, '/'); // Multiple slashes
-  
+  sanitized = sanitized.replace(/\/+/g, "/"); // Multiple slashes
+
   return sanitized;
 }
 
@@ -62,12 +62,13 @@ function sanitizePath(filepath: string): string {
  */
 function validateFileType(filename: string, mimeType: string): boolean {
   const ext = path.extname(filename).toLowerCase();
-  const allowedExtensions = ALLOWED_TYPES[mimeType as keyof typeof ALLOWED_TYPES];
-  
+  const allowedExtensions =
+    ALLOWED_TYPES[mimeType as keyof typeof ALLOWED_TYPES];
+
   if (!allowedExtensions) {
     return false;
   }
-  
+
   return allowedExtensions.includes(ext);
 }
 
@@ -76,28 +77,31 @@ function validateFileType(filename: string, mimeType: string): boolean {
  */
 function getContentType(filename: string): string {
   const ext = path.extname(filename).toLowerCase();
-  
+
   for (const [contentType, extensions] of Object.entries(ALLOWED_TYPES)) {
     if (extensions.includes(ext)) {
       return contentType;
     }
   }
-  
+
   return "application/octet-stream";
 }
 
 /**
  * Saves file to local storage (./public/)
  */
-async function saveFileLocally(filePath: string, buffer: Buffer): Promise<void> {
+async function saveFileLocally(
+  filePath: string,
+  buffer: Buffer,
+): Promise<void> {
   const fullPath = path.join("./public", filePath);
   const dir = path.dirname(fullPath);
-  
+
   // Create parent directories if they don't exist
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  
+
   fs.writeFileSync(fullPath, buffer);
 }
 
@@ -110,7 +114,10 @@ async function localFileExists(filePath: string): Promise<boolean> {
  * Queue thumbnail generation for a video
  * Uses high priority to ensure thumbnails are generated first
  */
-async function queueThumbnailGeneration(filePath: string, storage: ReturnType<typeof createStorageClient>): Promise<void> {
+async function queueThumbnailGeneration(
+  filePath: string,
+  storage: ReturnType<typeof createStorageClient>,
+): Promise<void> {
   try {
     // Define default thumbnail parameters (matching frontend defaults)
     // t_true (thumbnail), tt_5 (time at 5s), f_webp, w_500, h_500, c_fill, q_80
@@ -119,8 +126,8 @@ async function queueThumbnailGeneration(filePath: string, storage: ReturnType<ty
     const cachePath = getCachePath(transformPath);
 
     // Get source path
-    const sourcePath = storage 
-      ? `./temp/${path.basename(filePath)}` 
+    const sourcePath = storage
+      ? `./temp/${path.basename(filePath)}`
       : path.join("./public", filePath);
 
     // Add to queue with HIGH priority for thumbnails
@@ -130,10 +137,13 @@ async function queueThumbnailGeneration(filePath: string, storage: ReturnType<ty
       cachePath,
       sourcePath,
       storage,
-      THUMBNAIL_PRIORITY
+      THUMBNAIL_PRIORITY,
     );
 
-    logger.info({ filePath, jobId, priority: THUMBNAIL_PRIORITY }, "Thumbnail generation queued");
+    logger.info(
+      { filePath, jobId, priority: THUMBNAIL_PRIORITY },
+      "Thumbnail generation queued",
+    );
   } catch (error) {
     logger.error({ error, filePath }, "Failed to queue thumbnail generation");
     // Don't throw - this is a background operation
@@ -146,8 +156,9 @@ async function queueThumbnailGeneration(filePath: string, storage: ReturnType<ty
 upload.post("/", async (c) => {
   try {
     const formData = await c.req.formData();
+    const uploadFolder = formData.get("folder") as string | null;
     const files = formData.getAll("files");
-    const customNames = formData.getAll('names');
+    const customNames = formData.getAll("names");
 
     if (files.length === 0) {
       return c.json({ success: false, error: "No files provided" }, 400);
@@ -169,7 +180,10 @@ upload.post("/", async (c) => {
 
       // Get relative path if available (for folder uploads), otherwise use filename
       const customName = customNames[i] as string | undefined;
-      const rawPath = customName || (file as any).webkitRelativePath || file.name;
+      const rawPath =
+        (uploadFolder || "") +
+        "/" +
+        (customName || (file as any).webkitRelativePath || file.name);
       const rawSanitizedPath = sanitizePath(rawPath);
       const filename = path.basename(rawSanitizedPath);
       const mimeType = file.type;
@@ -206,18 +220,28 @@ upload.post("/", async (c) => {
 
         if (storage) {
           finalPath = await getUniqueFilePath(rawSanitizedPath, async (p) =>
-            storage.existsOriginalPath(p)
+            storage.existsOriginalPath(p),
           );
         } else {
-          finalPath = await getUniqueFilePath(rawSanitizedPath, localFileExists);
+          finalPath = await getUniqueFilePath(
+            rawSanitizedPath,
+            localFileExists,
+          );
         }
 
         // Upload based on storage configuration
         if (storage) {
           // Upload to cloud storage with full (unique) path
-          const url = await storage.uploadOriginal(finalPath, buffer, contentType);
-          logger.info({ originalPath: rawSanitizedPath, finalPath, url }, "Uploaded to cloud");
-          
+          const url = await storage.uploadOriginal(
+            finalPath,
+            buffer,
+            contentType,
+          );
+          logger.info(
+            { originalPath: rawSanitizedPath, finalPath, url },
+            "Uploaded to cloud",
+          );
+
           successfulUploads.push({
             filename,
             path: finalPath,
@@ -226,16 +250,22 @@ upload.post("/", async (c) => {
           });
 
           // Queue thumbnail generation for videos (non-blocking, high priority)
-          if (contentType.startsWith('video/')) {
+          if (contentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
-              logger.error({ error, finalPath }, "Failed to queue thumbnail generation");
+              logger.error(
+                { error, finalPath },
+                "Failed to queue thumbnail generation",
+              );
             });
           }
         } else {
           // Save locally with full path
           await saveFileLocally(finalPath, buffer);
-          logger.info({ originalPath: rawSanitizedPath, finalPath }, "Saved locally");
-          
+          logger.info(
+            { originalPath: rawSanitizedPath, finalPath },
+            "Saved locally",
+          );
+
           successfulUploads.push({
             filename,
             path: finalPath,
@@ -244,14 +274,20 @@ upload.post("/", async (c) => {
           });
 
           // Queue thumbnail generation for videos (non-blocking, high priority)
-          if (contentType.startsWith('video/')) {
+          if (contentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
-              logger.error({ error, finalPath }, "Failed to queue thumbnail generation");
+              logger.error(
+                { error, finalPath },
+                "Failed to queue thumbnail generation",
+              );
             });
           }
         }
       } catch (error) {
-        logger.error({ error, originalPath: rawSanitizedPath }, "Failed to upload");
+        logger.error(
+          { error, originalPath: rawSanitizedPath },
+          "Failed to upload",
+        );
         failedUploads.push({
           filename: rawSanitizedPath,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -269,16 +305,22 @@ upload.post("/", async (c) => {
         files: successfulUploads,
       });
     } else if (someSuccessful) {
-      return c.json({
-        success: true,
-        files: successfulUploads,
-        errors: failedUploads,
-      }, 207); // Multi-Status
+      return c.json(
+        {
+          success: true,
+          files: successfulUploads,
+          errors: failedUploads,
+        },
+        207,
+      ); // Multi-Status
     } else {
-      return c.json({
-        success: false,
-        errors: failedUploads,
-      }, 400);
+      return c.json(
+        {
+          success: false,
+          errors: failedUploads,
+        },
+        400,
+      );
     }
   } catch (error) {
     logger.error({ error }, "Upload error");
@@ -287,13 +329,9 @@ upload.post("/", async (c) => {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      500
+      500,
     );
   }
 });
 
 export default upload;
-
-
-
-

@@ -6,7 +6,14 @@ import { useQueryState } from "nuqs";
 import { useStorageTree } from "@/hooks/use-storage-tree";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import { preloadMedia } from "@/hooks/use-preload-media";
 import { VideoThumbnail } from "@/components/video-thumbnail";
@@ -28,7 +35,7 @@ type FolderItem = {
 // Find items in a specific folder path
 function findItemsInPath(
   items: TreeDataItem[],
-  targetPath: string[]
+  targetPath: string[],
 ): { folders: FolderItem[]; files: MediaFile[] } {
   const folders: FolderItem[] = [];
   const files: MediaFile[] = [];
@@ -49,9 +56,10 @@ function findItemsInPath(
     const isFolder = !!item.children && item.children.length > 0;
 
     if (isFolder) {
-      const folderPath = targetPath.length > 0 
-        ? `${targetPath.join("/")}/${item.name}`
-        : item.name;
+      const folderPath =
+        targetPath.length > 0
+          ? `${targetPath.join("/")}/${item.name}`
+          : item.name;
       folders.push({
         id: item.id,
         name: item.name,
@@ -73,9 +81,10 @@ function findItemsInPath(
         lowerName.endsWith(".webm");
 
       if (isImage || isVideo) {
-        const filePath = targetPath.length > 0
-          ? `${targetPath.join("/")}/${item.name}`
-          : item.name;
+        const filePath =
+          targetPath.length > 0
+            ? `${targetPath.join("/")}/${item.name}`
+            : item.name;
         files.push({
           id: item.id,
           name: item.name,
@@ -99,14 +108,20 @@ interface MediaGridProps {
   onUploadClick?: () => void;
 }
 
-export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }: MediaGridProps) {
+export function MediaGrid({
+  onMediaSelect,
+  sidebarOpen = false,
+  onUploadClick,
+}: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useQueryState("folder");
 
   // Parse folder path from URL - must be called before any conditional returns
   const pathSegments = useMemo(() => {
-    return folderPath && folderPath.length > 0 ? folderPath.split("/").filter(Boolean) : [];
+    return folderPath && folderPath.length > 0
+      ? folderPath.split("/").filter(Boolean)
+      : [];
   }, [folderPath]);
 
   // Get items in current folder - must be called before any conditional returns
@@ -151,19 +166,14 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
             </EmptyMedia>
             <EmptyTitle>No Media Files Yet</EmptyTitle>
             <EmptyDescription>
-              You haven&apos;t uploaded any media files yet. Get started by uploading
-              your first image or video.
+              You haven&apos;t uploaded any media files yet. Get started by
+              uploading your first image or video.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <div className="flex gap-2">
-              {onUploadClick && (
-                <Button onClick={onUploadClick}>Upload</Button>
-              )}
-              <Button
-                variant="outline"
-                asChild
-              >
+              {onUploadClick && <Button onClick={onUploadClick}>Upload</Button>}
+              <Button variant="outline" asChild>
                 <a
                   href="https://docs.openinary.dev/"
                   target="_blank"
@@ -195,9 +205,10 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   // Use dedicated transform base URL (empty in Docker, falls back to apiBaseUrl without /api)
-  const transformBaseUrl = process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL !== undefined
-    ? process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL
-    : apiBaseUrl.replace(/\/api$/, "");
+  const transformBaseUrl =
+    process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL !== undefined
+      ? process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL
+      : apiBaseUrl.replace(/\/api$/, "");
 
   const handleFolderClick = (folderPath: string) => {
     setFolderPath(folderPath);
@@ -207,9 +218,10 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
   const handleMediaHover = (media: MediaFile) => {
     // For images: load the transformed image
     // For videos: preload the full video (not the thumbnail, which is already loaded)
-    const previewUrl = media.type === "image"
-      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-      : `${transformBaseUrl}/t/${media.path}`;
+    const previewUrl =
+      media.type === "image"
+        ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
+        : `${transformBaseUrl}/t/${media.path}`;
     preloadMedia(previewUrl, media.type);
   };
 
@@ -230,7 +242,7 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
         return (
           <div
             key={folder.id}
-            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary hover:shadow-md"
+            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
             onClick={() => handleFolderClick(folder.path)}
             onMouseEnter={() => setHoveredId(folder.id)}
             onMouseLeave={() => setHoveredId(null)}
@@ -241,10 +253,12 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
             <div
               className={cn(
                 "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0"
+                isHovered ? "opacity-100" : "opacity-0",
               )}
             >
-              <p className="text-white text-xs font-medium truncate">{folder.name}</p>
+              <p className="text-white text-xs font-medium truncate">
+                {folder.name}
+              </p>
             </div>
           </div>
         );
@@ -254,15 +268,16 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
       {files.map((media) => {
         // For images: resize and optimize
         // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
-        const thumbnailUrl = media.type === "image"
-          ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-          : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+        const thumbnailUrl =
+          media.type === "image"
+            ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
+            : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
         const isHovered = hoveredId === media.id;
 
         return (
           <div
             key={media.id}
-            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary hover:shadow-md"
+            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
             onClick={() => onMediaSelect(media)}
             onMouseEnter={() => {
               setHoveredId(media.id);
@@ -288,10 +303,12 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
             <div
               className={cn(
                 "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0"
+                isHovered ? "opacity-100" : "opacity-0",
               )}
             >
-              <p className="text-white text-xs font-medium truncate">{media.name}</p>
+              <p className="text-white text-xs font-medium truncate">
+                {media.name}
+              </p>
             </div>
           </div>
         );
@@ -299,4 +316,3 @@ export function MediaGrid({ onMediaSelect, sidebarOpen = false, onUploadClick }:
     </div>
   );
 }
-
