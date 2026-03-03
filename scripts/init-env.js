@@ -20,6 +20,15 @@ const projectRoot = join(__dirname, '..');
 const envPath = join(projectRoot, 'apps', 'api', '.env');
 const envTemplatePath = join(projectRoot, 'apps', 'api', 'env.template');
 
+// Initialize web .env from template if it doesn't exist
+const webEnvPath = join(projectRoot, 'apps', 'web', '.env');
+const webEnvTemplatePath = join(projectRoot, 'apps', 'web', 'env.template');
+if (!existsSync(webEnvPath) && existsSync(webEnvTemplatePath)) {
+  writeFileSync(webEnvPath, readFileSync(webEnvTemplatePath, 'utf-8'), 'utf-8');
+  console.log('Creating apps/web/.env from template...');
+  console.log(`   Saved to: ${webEnvPath}`);
+}
+
 console.log('Initializing environment...');
 
 // Read existing .env file or create from template

@@ -361,6 +361,10 @@ export const auth = betterAuth({
           api: ["read", "write"],
         },
       },
+      // Key expiration configuration
+      keyExpiration: {
+        maxExpiresIn: 3650, // 10 years maximum
+      },
       // Rate limiting configuration
       rateLimit: {
         enabled: true,

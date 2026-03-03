@@ -42,6 +42,11 @@ export async function validateAuthConfig(): Promise<AuthConfigValidation> {
 
     // In development, be more lenient with localhost variations
     if (nodeEnv === "development") {
+      // If BETTER_AUTH_URL is not set at all in dev, skip validation (fail open)
+      if (!betterAuthUrl) {
+        return { isValid: true, currentUrl };
+      }
+
       const isLocalhost = currentUrl.includes("localhost") || currentUrl.includes("127.0.0.1");
       const configIsLocalhost = 
         (betterAuthUrl?.includes("localhost") || betterAuthUrl?.includes("127.0.0.1"));
