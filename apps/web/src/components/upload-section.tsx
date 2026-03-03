@@ -1,11 +1,19 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
-import { useDropzone } from "react-dropzone";
-import { useQueryClient } from "@tanstack/react-query";
-import { Upload, FileImage, FileVideo, Folder, CheckCircle2, XCircle, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  CheckCircle2,
+  FileImage,
+  FileVideo,
+  Folder,
+  FolderOpen,
+  Upload,
+  XCircle,
+} from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { useDropzone } from "react-dropzone";
 
 interface UploadResult {
   filename: string;
@@ -26,7 +34,7 @@ interface UploadResponse {
   error?: string;
 }
 
-export function UploadSection() {
+export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
@@ -65,16 +73,20 @@ export function UploadSection() {
     setUploadResult(null);
 
     const formData = new FormData();
+
+    if (uploadToFolder) formData.append("folder", uploadToFolder);
+
     selectedFiles.forEach((file) => {
       formData.append("files", file);
     });
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
       const response = await fetch(`${apiUrl}/upload`, {
         method: "POST",
         body: formData,
-        credentials: 'include',
+        credentials: "include",
       });
 
       const data: UploadResponse = await response.json();
@@ -103,7 +115,9 @@ export function UploadSection() {
     if (file.type.startsWith("image/")) {
       return <FileImage className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
     } else if (file.type.startsWith("video/")) {
-      return <FileVideo className="h-4 w-4 text-purple-500 dark:text-purple-400" />;
+      return (
+        <FileVideo className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+      );
     }
     return <Folder className="h-4 w-4 text-muted-foreground" />;
   };
@@ -138,9 +152,13 @@ export function UploadSection() {
         >
           <input {...getInputProps()} />
           <div className="flex flex-col items-center gap-4">
-            <Upload className={`h-12 w-12 ${isDragActive ? "text-blue-500 dark:text-blue-400" : "text-muted-foreground"}`} />
+            <Upload
+              className={`h-12 w-12 ${isDragActive ? "text-blue-500 dark:text-blue-400" : "text-muted-foreground"}`}
+            />
             {isDragActive ? (
-              <p className="text-lg font-medium text-blue-600 dark:text-blue-400">Drop files here...</p>
+              <p className="text-lg font-medium text-blue-600 dark:text-blue-400">
+                Drop files here...
+              </p>
             ) : (
               <>
                 <p className="text-lg font-medium">
@@ -197,7 +215,8 @@ export function UploadSection() {
 
             <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
               {selectedFiles.slice(0, 50).map((file, index) => {
-                const displayPath = (file as any).webkitRelativePath || file.name;
+                const displayPath =
+                  (file as any).webkitRelativePath || file.name;
                 return (
                   <div
                     key={index}
@@ -205,7 +224,9 @@ export function UploadSection() {
                   >
                     {getFileIcon(file)}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{displayPath}</p>
+                      <p className="text-sm font-medium truncate">
+                        {displayPath}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {formatFileSize(file.size)}
                       </p>
@@ -225,39 +246,43 @@ export function UploadSection() {
         {/* Upload Results */}
         {uploadResult && (
           <div className="space-y-4">
-            {uploadResult.success && uploadResult.files && uploadResult.files.length > 0 && (
-              <div className="border border-green-200 dark:border-green-800 rounded-lg p-4 bg-green-50 dark:bg-green-950/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  <h3 className="font-semibold text-green-900 dark:text-green-100">
-                    Successfully uploaded {uploadResult.files.length} file(s)
-                  </h3>
-                </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {uploadResult.files.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-card rounded border border-green-100 dark:border-green-900/50"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.path}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(file.size)}
-                        </p>
-                      </div>
-                      <a
-                        href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000"}${file.url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium ml-4"
+            {uploadResult.success &&
+              uploadResult.files &&
+              uploadResult.files.length > 0 && (
+                <div className="border border-green-200 dark:border-green-800 rounded-lg p-4 bg-green-50 dark:bg-green-950/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <h3 className="font-semibold text-green-900 dark:text-green-100">
+                      Successfully uploaded {uploadResult.files.length} file(s)
+                    </h3>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {uploadResult.files.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-card rounded border border-green-100 dark:border-green-900/50"
                       >
-                        View
-                      </a>
-                    </div>
-                  ))}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {file.path}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(file.size)}
+                          </p>
+                        </div>
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000"}${file.url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium ml-4"
+                        >
+                          View
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {uploadResult.errors && uploadResult.errors.length > 0 && (
               <div className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50 dark:bg-red-950/20">
@@ -276,7 +301,9 @@ export function UploadSection() {
                       <p className="text-sm font-medium text-red-900 dark:text-red-100">
                         {error.filename}
                       </p>
-                      <p className="text-xs text-red-700 dark:text-red-300 mt-1">{error.error}</p>
+                      <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                        {error.error}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -287,9 +314,13 @@ export function UploadSection() {
               <div className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50 dark:bg-red-950/20">
                 <div className="flex items-center gap-2">
                   <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  <p className="font-semibold text-red-900 dark:text-red-100">Upload failed</p>
+                  <p className="font-semibold text-red-900 dark:text-red-100">
+                    Upload failed
+                  </p>
                 </div>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-2">{uploadResult.error}</p>
+                <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                  {uploadResult.error}
+                </p>
               </div>
             )}
           </div>
@@ -298,4 +329,3 @@ export function UploadSection() {
     </section>
   );
 }
-
