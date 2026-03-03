@@ -19,9 +19,11 @@ export const applyThumbnailExtraction: TransformFunction = (
     context.params.startOffset ?? 
     0;
 
-  // Seek to the specified time and extract a single frame
+  // Seek to the specified time and extract a single frame.
+  // Do NOT force "-f image2" here: ffmpeg infers the correct muxer from the
+  // output file extension (e.g. .webp → webp muxer, .png → png muxer).
+  // Forcing image2 would override that and break webp/avif/png output.
   return command
     .seekInput(time)
-    .frames(1)
-    .outputOptions(["-f", "image2"]);
+    .frames(1);
 };

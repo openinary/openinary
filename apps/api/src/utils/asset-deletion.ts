@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import logger from './logger';
+import logger, { serializeError } from './logger';
 import { CloudStorage } from './storage/cloud-storage';
 import { deleteCachedFiles } from './cache';
 import { deleteJobsByFilePath } from './video/queue-db';
@@ -58,7 +58,7 @@ export async function deleteAssetCompletely(
     } catch (error) {
       const errorMsg = `Failed to delete jobs: ${error instanceof Error ? error.message : 'Unknown error'}`;
       result.errors.push(errorMsg);
-      logger.error({ error, filePath }, 'Failed to delete video jobs');
+      logger.error({ error: serializeError(error), filePath }, 'Failed to delete video jobs');
     }
 
     // Step 3: Delete local cache files
@@ -68,7 +68,7 @@ export async function deleteAssetCompletely(
     } catch (error) {
       const errorMsg = `Failed to delete local cache: ${error instanceof Error ? error.message : 'Unknown error'}`;
       result.errors.push(errorMsg);
-      logger.error({ error, filePath }, 'Failed to delete local cache files');
+      logger.error({ error: serializeError(error), filePath }, 'Failed to delete local cache files');
     }
 
     // Step 4: Delete original file and cloud cache (if using cloud storage)
@@ -89,7 +89,7 @@ export async function deleteAssetCompletely(
       } catch (error) {
         const errorMsg = `Failed to delete from cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`;
         result.errors.push(errorMsg);
-        logger.error({ error, filePath }, 'Failed to delete from cloud storage');
+        logger.error({ error: serializeError(error), filePath }, 'Failed to delete from cloud storage');
       }
     } else {
       // Delete from local storage
@@ -109,7 +109,7 @@ export async function deleteAssetCompletely(
       } catch (error) {
         const errorMsg = `Failed to delete from local storage: ${error instanceof Error ? error.message : 'Unknown error'}`;
         result.errors.push(errorMsg);
-        logger.error({ error, filePath }, 'Failed to delete from local storage');
+        logger.error({ error: serializeError(error), filePath }, 'Failed to delete from local storage');
       }
     }
 
@@ -133,7 +133,7 @@ export async function deleteAssetCompletely(
   } catch (error) {
     const errorMsg = `Unexpected error during deletion: ${error instanceof Error ? error.message : 'Unknown error'}`;
     result.errors.push(errorMsg);
-    logger.error({ error, filePath }, 'Unexpected error during asset deletion');
+    logger.error({ error: serializeError(error), filePath }, 'Unexpected error during asset deletion');
     return result;
   }
 }

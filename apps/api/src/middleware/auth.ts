@@ -1,6 +1,6 @@
 import { Context, Next } from "hono";
 import { auth } from "shared/auth";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 // Define the variables that will be available in the context
 export type AuthVariables = {
@@ -151,7 +151,7 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
       }
     }
   } catch (error) {
-    logger.error({ error }, "Session verification error");
+    logger.error({ error: serializeError(error) }, "Session verification error");
   }
 
   // Neither API key nor session is valid

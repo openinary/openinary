@@ -9,7 +9,7 @@ import {
   deleteJob,
   type JobStatus,
 } from "../utils/video/queue-db";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 const queue = new Hono();
 
@@ -21,7 +21,7 @@ queue.get("/stats", (c) => {
     const stats = getJobStats();
     return c.json(stats);
   } catch (error) {
-    logger.error({ error }, "Failed to get queue stats");
+    logger.error({ error: serializeError(error) }, "Failed to get queue stats");
     return c.json({ error: "Failed to get queue stats" }, 500);
   }
 });
@@ -53,7 +53,7 @@ queue.get("/jobs", (c) => {
       count: jobs.length,
     });
   } catch (error) {
-    logger.error({ error }, "Failed to get jobs");
+    logger.error({ error: serializeError(error) }, "Failed to get jobs");
     return c.json({ error: "Failed to get jobs" }, 500);
   }
 });
@@ -78,7 +78,7 @@ queue.post("/jobs/:id/retry", (c) => {
     logger.info({ jobId }, "Job retry requested");
     return c.json({ success: true, message: "Job scheduled for retry" });
   } catch (error) {
-    logger.error({ error }, "Failed to retry job");
+    logger.error({ error: serializeError(error) }, "Failed to retry job");
     return c.json({ error: "Failed to retry job" }, 500);
   }
 });
@@ -103,7 +103,7 @@ queue.post("/jobs/:id/cancel", (c) => {
     logger.info({ jobId }, "Job cancelled");
     return c.json({ success: true, message: "Job cancelled" });
   } catch (error) {
-    logger.error({ error }, "Failed to cancel job");
+    logger.error({ error: serializeError(error) }, "Failed to cancel job");
     return c.json({ error: "Failed to cancel job" }, 500);
   }
 });
@@ -128,7 +128,7 @@ queue.delete("/jobs/:id", (c) => {
     logger.info({ jobId }, "Job deleted");
     return c.json({ success: true, message: "Job deleted" });
   } catch (error) {
-    logger.error({ error }, "Failed to delete job");
+    logger.error({ error: serializeError(error) }, "Failed to delete job");
     return c.json({ error: "Failed to delete job" }, 500);
   }
 });
@@ -142,7 +142,7 @@ queue.get("/worker/stats", (c) => {
     const stats = worker.getStats();
     return c.json(stats);
   } catch (error) {
-    logger.error({ error }, "Failed to get worker stats");
+    logger.error({ error: serializeError(error) }, "Failed to get worker stats");
     return c.json({ error: "Failed to get worker stats" }, 500);
   }
 });

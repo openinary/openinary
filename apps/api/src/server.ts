@@ -6,7 +6,7 @@ import { auth } from "shared/auth";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import logger from "./utils/logger";
+import logger, { serializeError } from "./utils/logger";
 import { videoJobQueue } from "./utils/video-job-queue";
 
 // Function to clean local cache in cloud mode on startup
@@ -22,7 +22,7 @@ const cleanupLocalCacheIfCloudMode = () => {
           fs.unlinkSync(filePath);
         });
       } catch (error) {
-        logger.warn({ error }, "Failed to cleanup local cache on startup");
+        logger.warn({ error: serializeError(error) }, "Failed to cleanup local cache on startup");
       }
     }
   }
@@ -100,7 +100,7 @@ async function initializeAuth() {
       logger.info({ userCount: users.count }, "Database initialized (API STANDALONE mode)");
     }
   } catch (error) {
-    logger.error({ error }, "Error initializing authentication");
+    logger.error({ error: serializeError(error) }, "Error initializing authentication");
   }
 }
 
@@ -117,7 +117,7 @@ logger.info({ port }, "Server running");
 // Initialize auth in background (non-blocking)
 // This allows the server to respond to healthchecks immediately
 initializeAuth().catch((error) => {
-  logger.error({ error }, "Error during background auth initialization");
+  logger.error({ error: serializeError(error) }, "Error during background auth initialization");
 });
 
 // Graceful shutdown

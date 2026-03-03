@@ -5,7 +5,7 @@ import { parseParams } from "../utils/parser";
 import { transformImage } from "../utils/image/index";
 import { transformVideo } from "../utils/video/index";
 import { Compression } from "../utils/image/compression";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 import {
   existsInCache,
   saveToCache,
@@ -111,7 +111,7 @@ export async function determineContentType(
         // This is normal for video files or other non-image formats - skip logging
         // as it's expected behavior when Sharp tries to process non-image buffers
       } else {
-        logger.debug({ error, originalExtension }, "Failed to detect format from buffer");
+        logger.debug({ error: serializeError(error), originalExtension }, "Failed to detect format from buffer");
       }
     }
   }
@@ -153,7 +153,7 @@ export async function checkCloudCache(
       return await storage.download(filePath, params);
     }
   } catch (error) {
-    logger.warn({ error, filePath }, "Cloud cache error, falling back to local cache");
+    logger.warn({ error: serializeError(error), filePath }, "Cloud cache error, falling back to local cache");
   }
 
   return null;
@@ -193,7 +193,7 @@ export async function verifyFileExists(
       }
       return { exists: true, isCloud: true };
     } catch (error) {
-      logger.warn({ error, filePath }, "Error checking cloud storage for original file");
+      logger.warn({ error: serializeError(error), filePath }, "Error checking cloud storage for original file");
       return {
         exists: false,
         isCloud: true,
@@ -279,7 +279,7 @@ export async function processImage(
       optimizationResult,
     };
   } catch (error) {
-    logger.warn({ error, originalPath }, "Advanced compression failed, using basic");
+    logger.warn({ error: serializeError(error), originalPath }, "Advanced compression failed, using basic");
 
     // Determine content type from extension
     const ext = originalPath.split(".").pop()?.toLowerCase();
@@ -342,7 +342,7 @@ export async function processVideo(
         "Processing large resolution video - this may take several minutes and use significant memory");
     }
   } catch (error) {
-    logger.warn({ error }, "Failed to get video info, proceeding with processing");
+    logger.warn({ error: serializeError(error) }, "Failed to get video info, proceeding with processing");
   }
   
   const buffer = await transformVideo(originalPath, params);
@@ -415,11 +415,11 @@ export async function saveToCaches(
             logger.debug({ filePath }, "Removed from local cache");
           }
         } catch (error) {
-          logger.warn({ error, filePath }, "Failed to cleanup local cache");
+          logger.warn({ error: serializeError(error), filePath }, "Failed to cleanup local cache");
         }
       }
     } catch (error) {
-      logger.warn({ error, filePath }, "Failed to upload to cloud cache");
+      logger.warn({ error: serializeError(error), filePath }, "Failed to upload to cloud cache");
     }
   }
 }
@@ -434,7 +434,7 @@ export async function cleanupTempFile(filePath: string): Promise<void> {
       fs.unlinkSync(filePath);
     }
   } catch (error) {
-    logger.warn({ error, filePath }, "Failed to cleanup temp file");
+    logger.warn({ error: serializeError(error), filePath }, "Failed to cleanup temp file");
   }
 }
 

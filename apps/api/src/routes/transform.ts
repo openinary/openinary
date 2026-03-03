@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { TransformService } from '../services/transform.service';
-import logger from '../utils/logger';
+import logger, { serializeError } from '../utils/logger';
 
 const t = new Hono();
 const transformService = new TransformService();
@@ -59,7 +59,7 @@ t.get('/*', async (c) => {
 
     return c.body(new Uint8Array(result.buffer));
   } catch (error) {
-    logger.error({ error, path }, 'Transform route error');
+    logger.error({ error: serializeError(error), path }, 'Transform route error');
     return c.text('Internal server error', 500);
   }
 });

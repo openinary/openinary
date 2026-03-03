@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage";
 import fs from "fs";
 import path from "path";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
 
 type StorageNode = {
@@ -161,7 +161,7 @@ storageRoute.get("/", async (c) => {
 
     return c.json(treeData);
   } catch (error) {
-    logger.error({ error }, "Failed to list storage contents");
+    logger.error({ error: serializeError(error) }, "Failed to list storage contents");
     return c.json(
       {
         error: "Failed to list storage contents",
@@ -257,7 +257,7 @@ storageRoute.get("/*", async (c) => {
       });
     }
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to get file metadata");
+    logger.error({ error: serializeError(error), filePath }, "Failed to get file metadata");
     return c.json(
       {
         error: "Internal server error",
@@ -353,7 +353,7 @@ storageRoute.delete("/*", async (c) => {
       },
     });
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to delete asset");
+    logger.error({ error: serializeError(error), filePath }, "Failed to delete asset");
     return c.json(
       {
         error: "Internal server error",

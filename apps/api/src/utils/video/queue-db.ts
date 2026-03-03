@@ -1,7 +1,7 @@
 import { db } from "shared";
 import { randomUUID } from "crypto";
 import type { parseParams } from "../parser";
-import logger from "../logger";
+import logger, { serializeError } from "../logger";
 
 export type JobStatus = "pending" | "processing" | "completed" | "error" | "cancelled";
 
@@ -100,7 +100,7 @@ export function createJob(
     logger.info({ jobId, filePath, priority }, "Created new video job");
     return jobId;
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to create job");
+    logger.error({ error: serializeError(error), filePath }, "Failed to create job");
     throw error;
   }
 }
@@ -145,7 +145,7 @@ export function getNextPendingJob(): VideoJob | null {
     
     return job;
   } catch (error) {
-    logger.error({ error }, "Failed to get next pending job");
+    logger.error({ error: serializeError(error) }, "Failed to get next pending job");
     return null;
   }
 }
@@ -185,7 +185,7 @@ export function updateJobStatus(
 
     logger.debug({ jobId, status, progress }, "Updated job status");
   } catch (error) {
-    logger.error({ error, jobId, status }, "Failed to update job status");
+    logger.error({ error: serializeError(error), jobId, status }, "Failed to update job status");
     throw error;
   }
 }
@@ -207,7 +207,7 @@ export function getJobByFileAndParams(
 
     return job || null;
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to get job by file and params");
+    logger.error({ error: serializeError(error), filePath }, "Failed to get job by file and params");
     return null;
   }
 }
@@ -223,7 +223,7 @@ export function getJobById(jobId: string): VideoJob | null {
 
     return job || null;
   } catch (error) {
-    logger.error({ error, jobId }, "Failed to get job by ID");
+    logger.error({ error: serializeError(error), jobId }, "Failed to get job by ID");
     return null;
   }
 }
@@ -247,7 +247,7 @@ export function getJobStats(): JobStats {
 
     return stats;
   } catch (error) {
-    logger.error({ error }, "Failed to get job stats");
+    logger.error({ error: serializeError(error) }, "Failed to get job stats");
     return {
       total: 0,
       pending: 0,
@@ -271,7 +271,7 @@ export function getRecentJobs(limit: number = 50, offset: number = 0): VideoJob[
 
     return jobs;
   } catch (error) {
-    logger.error({ error, limit, offset }, "Failed to get recent jobs");
+    logger.error({ error: serializeError(error), limit, offset }, "Failed to get recent jobs");
     return [];
   }
 }
@@ -289,7 +289,7 @@ export function getJobsByStatus(status: JobStatus, limit: number = 50): VideoJob
 
     return jobs;
   } catch (error) {
-    logger.error({ error, status, limit }, "Failed to get jobs by status");
+    logger.error({ error: serializeError(error), status, limit }, "Failed to get jobs by status");
     return [];
   }
 }
@@ -305,7 +305,7 @@ export function countProcessingJobs(): number {
 
     return result.count;
   } catch (error) {
-    logger.error({ error }, "Failed to count processing jobs");
+    logger.error({ error: serializeError(error) }, "Failed to count processing jobs");
     return 0;
   }
 }
@@ -331,7 +331,7 @@ export function cleanupOldJobs(olderThanHours: number = 24): number {
 
     return result.changes;
   } catch (error) {
-    logger.error({ error, olderThanHours }, "Failed to cleanup old jobs");
+    logger.error({ error: serializeError(error), olderThanHours }, "Failed to cleanup old jobs");
     return 0;
   }
 }
@@ -372,7 +372,7 @@ export function retryFailedJob(jobId: string): boolean {
     logger.info({ jobId, retry_count: job.retry_count + 1 }, "Job scheduled for retry");
     return true;
   } catch (error) {
-    logger.error({ error, jobId }, "Failed to retry job");
+    logger.error({ error: serializeError(error), jobId }, "Failed to retry job");
     return false;
   }
 }
@@ -401,7 +401,7 @@ export function cancelJob(jobId: string): boolean {
     logger.info({ jobId }, "Job cancelled");
     return true;
   } catch (error) {
-    logger.error({ error, jobId }, "Failed to cancel job");
+    logger.error({ error: serializeError(error), jobId }, "Failed to cancel job");
     return false;
   }
 }
@@ -421,7 +421,7 @@ export function deleteJob(jobId: string): boolean {
     logger.warn({ jobId }, "Job not found for deletion");
     return false;
   } catch (error) {
-    logger.error({ error, jobId }, "Failed to delete job");
+    logger.error({ error: serializeError(error), jobId }, "Failed to delete job");
     return false;
   }
 }
@@ -447,7 +447,7 @@ export function resetOrphanedProcessingJobs(): number {
 
     return result.changes;
   } catch (error) {
-    logger.error({ error }, "Failed to reset orphaned processing jobs");
+    logger.error({ error: serializeError(error) }, "Failed to reset orphaned processing jobs");
     return 0;
   }
 }
@@ -470,7 +470,7 @@ export function deleteJobsByFilePath(filePath: string): number {
 
     return result.changes;
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to delete jobs by file path");
+    logger.error({ error: serializeError(error), filePath }, "Failed to delete jobs by file path");
     return 0;
   }
 }

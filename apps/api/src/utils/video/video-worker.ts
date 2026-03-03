@@ -2,7 +2,7 @@ import { EventEmitter } from "events";
 import { transformVideo } from "./index";
 import { saveToCache } from "../cache";
 import type { CloudStorage } from "../storage/index";
-import logger from "../logger";
+import logger, { serializeError } from "../logger";
 import {
   getNextPendingJob,
   updateJobStatus,
@@ -65,13 +65,13 @@ export class VideoWorker extends EventEmitter {
     // Start polling for jobs
     this.intervalId = setInterval(() => {
       this.processNextJob().catch((error) => {
-        logger.error({ error }, "Error in worker polling loop");
+        logger.error({ error: serializeError(error) }, "Error in worker polling loop");
       });
     }, this.pollInterval);
 
     // Also process immediately on start
     this.processNextJob().catch((error) => {
-      logger.error({ error }, "Error in initial job processing");
+      logger.error({ error: serializeError(error) }, "Error in initial job processing");
     });
   }
 
@@ -152,7 +152,7 @@ export class VideoWorker extends EventEmitter {
             await fs.writeFile(sourcePath, buffer);
           } catch (error) {
             logger.error(
-              { error, filePath: job.file_path },
+              { error: serializeError(error), filePath: job.file_path },
               "Failed to download source file from cloud storage"
             );
             throw error;
@@ -188,7 +188,7 @@ export class VideoWorker extends EventEmitter {
           error instanceof Error ? error.message : "Unknown error";
 
         logger.error(
-          { error, jobId: job.id, filePath: job.file_path },
+          { error: serializeError(error), jobId: job.id, filePath: job.file_path },
           "Video job processing failed"
         );
 

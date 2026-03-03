@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { videoJobQueue } from "../utils/video-job-queue";
 import { stream } from "hono/streaming";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 const queueEvents = new Hono();
 
@@ -21,7 +21,7 @@ function sendSSE(client: SSEClient, event: string, data: any): void {
     const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     client.stream.write(message);
   } catch (error) {
-    logger.error({ error, clientId: client.id }, "Failed to send SSE message");
+    logger.error({ error: serializeError(error), clientId: client.id }, "Failed to send SSE message");
   }
 }
 

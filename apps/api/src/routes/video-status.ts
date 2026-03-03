@@ -3,7 +3,7 @@ import { videoJobQueue } from '../utils/video-job-queue';
 import { parseParams } from '../utils/parser';
 import { getCachePath, existsInCache } from '../utils/cache';
 import { createStorageClient } from '../utils/storage/index';
-import logger from '../utils/logger';
+import logger, { serializeError } from '../utils/logger';
 
 const videoStatus = new Hono();
 const storage = createStorageClient();
@@ -58,7 +58,7 @@ videoStatus.get('/*/size', async (c) => {
         }
       }
     } catch (error) {
-      logger.error({ error, filePath }, 'Failed to get optimized size from cloud storage');
+      logger.error({ error: serializeError(error), filePath }, 'Failed to get optimized size from cloud storage');
     }
   }
   
@@ -102,7 +102,7 @@ videoStatus.get('/*/size', async (c) => {
         logger.debug({ filePath, fileAge, jobStatus: job?.status }, 'Cache file too new and job not completed');
       }
     } catch (error) {
-      logger.error({ error, cachePath, jobStatus: job?.status }, 'Failed to get cache file stats');
+      logger.error({ error: serializeError(error), cachePath, jobStatus: job?.status }, 'Failed to get cache file stats');
       // If job is completed but we can't read the file, something is wrong
       if (job?.status === 'completed') {
         return c.json({
@@ -172,7 +172,7 @@ videoStatus.get('/*', async (c) => {
         }
       } catch (error) {
         // If we can't check file stats, don't assume it's ready
-        logger.warn({ error, cachePath }, 'Failed to check cache file stats');
+        logger.warn({ error: serializeError(error), cachePath }, 'Failed to check cache file stats');
       }
     }
 
@@ -189,7 +189,7 @@ videoStatus.get('/*', async (c) => {
           });
         }
       } catch (error) {
-        logger.warn({ error, filePath }, 'Failed to check cloud storage for video status');
+        logger.warn({ error: serializeError(error), filePath }, 'Failed to check cloud storage for video status');
       }
     }
 

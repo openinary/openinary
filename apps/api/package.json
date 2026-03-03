@@ -4,7 +4,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc && node scripts/add-js-extensions.cjs",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",

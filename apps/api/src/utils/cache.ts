@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 import { CacheStats } from 'shared';
-import logger from './logger';
+import logger, { serializeError } from './logger';
 
 // Cache directory
 const CACHE_DIR = './cache';
@@ -64,7 +64,7 @@ export class SmartCache {
         }
         this.stats.requests.delete(filePath);
       } catch (error) {
-        logger.warn({ error, cachePath }, 'Failed to cleanup cache file');
+        logger.warn({ error: serializeError(error), cachePath }, 'Failed to cleanup cache file');
       }
     }
     
@@ -115,7 +115,7 @@ export async function saveToCache(cachePath: string, buffer: Buffer): Promise<vo
     
     logger.debug({ cachePath, size: buffer.length }, 'Saved to cache');
   } catch (error) {
-    logger.warn({ error, cachePath }, 'Failed to save to cache');
+    logger.warn({ error: serializeError(error), cachePath }, 'Failed to save to cache');
   }
 }
 
@@ -126,7 +126,7 @@ export async function readFromCache(cachePath: string): Promise<Buffer> {
   try {
     return await fs.readFile(cachePath);
   } catch (error) {
-    logger.warn({ error, cachePath }, 'Failed to read from cache');
+    logger.warn({ error: serializeError(error), cachePath }, 'Failed to read from cache');
     throw error;
   }
 }
@@ -141,7 +141,7 @@ export async function initializeCache(): Promise<void> {
       logger.info({ cacheDir: CACHE_DIR }, 'Created cache directory');
     }
   } catch (error) {
-    logger.warn({ error, cacheDir: CACHE_DIR }, 'Failed to initialize cache directory');
+    logger.warn({ error: serializeError(error), cacheDir: CACHE_DIR }, 'Failed to initialize cache directory');
   }
 }
 
@@ -189,14 +189,14 @@ export async function deleteCachedFiles(originalPath: string): Promise<number> {
           }
         }
       } catch (error) {
-        logger.warn({ error, file }, 'Failed to delete cache file');
+        logger.warn({ error: serializeError(error), file }, 'Failed to delete cache file');
       }
     }
 
     logger.info({ originalPath, deletedCount }, 'Deleted local cache files');
     return deletedCount;
   } catch (error) {
-    logger.error({ error, originalPath }, 'Failed to delete cached files');
+    logger.error({ error: serializeError(error), originalPath }, 'Failed to delete cached files');
     return 0;
   }
 }

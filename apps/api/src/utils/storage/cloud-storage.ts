@@ -2,7 +2,7 @@ import { StorageConfig } from 'shared';
 import { StorageCache } from './cache';
 import { KeyGenerator } from './key-generator';
 import { S3ClientWrapper } from './s3-client';
-import logger from '../logger';
+import logger, { serializeError } from '../logger';
 
 export class CloudStorage {
   private s3Client: S3ClientWrapper;
@@ -264,7 +264,7 @@ export class CloudStorage {
           }
         } catch (error) {
           // If we can't get metadata, skip this object
-          logger.warn({ error, key: obj.key }, 'Failed to get metadata for cache object');
+          logger.warn({ error: serializeError(error), key: obj.key }, 'Failed to get metadata for cache object');
         }
       }
       
@@ -283,7 +283,7 @@ export class CloudStorage {
       
       return deletedCount;
     } catch (error) {
-      logger.error({ error, originalPath }, 'Failed to delete cached transformations');
+      logger.error({ error: serializeError(error), originalPath }, 'Failed to delete cached transformations');
       throw error;
     }
   }

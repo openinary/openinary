@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { TransformService } from '../services/transform.service';
-import logger from '../utils/logger';
+import logger, { serializeError } from '../utils/logger';
 import { verifySignature, SIGNATURE_LENGTH, sanitizeFilePath } from '../utils/signature';
 
 const t = new Hono();
@@ -155,7 +155,7 @@ t.get('/*', async (c) => {
 
     return c.body(new Uint8Array(result.buffer));
   } catch (error) {
-    logger.error({ error, path }, 'Authenticated transform route error');
+    logger.error({ error: serializeError(error), path }, 'Authenticated transform route error');
     return c.text('Internal server error', 500);
   }
 });

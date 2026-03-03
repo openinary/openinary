@@ -7,7 +7,7 @@ import storageRoute from "./routes/storage";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
 import videoStatus from "./routes/video-status";
-import logger from "./utils/logger";
+import logger, { serializeError } from "./utils/logger";
 import queueEvents from "./routes/queue-events";
 import queue from "./routes/queue";
 import invalidateRoute from "./routes/invalidate";
@@ -20,7 +20,7 @@ import { validateApiSecret } from "./utils/signature";
 try {
   validateApiSecret(process.env.API_SECRET);
 } catch (error) {
-  logger.error({ error }, "API_SECRET validation failed at startup");
+  logger.error({ error: serializeError(error) }, "API_SECRET validation failed at startup");
   // For now, we only log the error to allow the app to start
   // The authenticated route will return 500 errors if API_SECRET is missing
   // In production, you may want to throw the error to prevent startup

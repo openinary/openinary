@@ -4,7 +4,7 @@ import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import fs from "fs";
 import path from "path";
 import type Database from "better-sqlite3";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 const health = new Hono<AuthVariables>();
 
@@ -99,7 +99,7 @@ health.get("/database", apiKeyAuth, (c) => {
     });
     
   } catch (error) {
-    logger.error({ error }, "Database health check failed");
+    logger.error({ error: serializeError(error) }, "Database health check failed");
     return c.json({
       status: "error",
       database: {

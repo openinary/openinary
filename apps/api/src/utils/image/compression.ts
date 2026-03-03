@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
-import logger from '../logger';
+import logger, { serializeError } from '../logger';
 
 export class Compression {
   private static readonly FORMAT_PRIORITIES = {
@@ -123,7 +123,7 @@ export class Compression {
         });
       } catch (error) {
         // If encoding fails for a format, skip it
-        logger.debug({ error, format }, `Failed to encode in ${format}, skipping`);
+        logger.debug({ error: serializeError(error), format }, `Failed to encode in ${format}, skipping`);
       }
     }
     

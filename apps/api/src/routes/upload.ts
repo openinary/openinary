@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage/index";
 import fs from "fs";
 import path from "path";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 import { getUniqueFilePath } from "../utils/get-unique-file-path";
 import { getCachePath } from "../utils/cache";
 import { videoJobQueue } from "../utils/video-job-queue";
@@ -145,7 +145,7 @@ async function queueThumbnailGeneration(
       "Thumbnail generation queued",
     );
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to queue thumbnail generation");
+    logger.error({ error: serializeError(error), filePath }, "Failed to queue thumbnail generation");
     // Don't throw - this is a background operation
   }
 }
@@ -252,10 +252,7 @@ upload.post("/", async (c) => {
           // Queue thumbnail generation for videos (non-blocking, high priority)
           if (contentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
-              logger.error(
-                { error, finalPath },
-                "Failed to queue thumbnail generation",
-              );
+              logger.error({ error: serializeError(error), finalPath }, "Failed to queue thumbnail generation");
             });
           }
         } else {
@@ -276,18 +273,12 @@ upload.post("/", async (c) => {
           // Queue thumbnail generation for videos (non-blocking, high priority)
           if (contentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
-              logger.error(
-                { error, finalPath },
-                "Failed to queue thumbnail generation",
-              );
+              logger.error({ error: serializeError(error), finalPath }, "Failed to queue thumbnail generation");
             });
           }
         }
       } catch (error) {
-        logger.error(
-          { error, originalPath: rawSanitizedPath },
-          "Failed to upload",
-        );
+        logger.error({ error: serializeError(error), originalPath: rawSanitizedPath }, "Failed to upload");
         failedUploads.push({
           filename: rawSanitizedPath,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -323,7 +314,7 @@ upload.post("/", async (c) => {
       );
     }
   } catch (error) {
-    logger.error({ error }, "Upload error");
+    logger.error({ error: serializeError(error) }, "Upload error");
     return c.json(
       {
         success: false,

@@ -1,5 +1,5 @@
 import { Context, Next } from "hono";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 /**
  * Rate limit entry stored in memory
@@ -177,7 +177,7 @@ export async function publicRateLimit(c: Context, next: Next) {
   } catch (error) {
     // If rate limiting fails, log but don't block the request
     // This ensures availability even if there's a bug in the rate limiter
-    logger.error({ error, ip: clientIP, path }, "Error in rate limiting middleware");
+    logger.error({ error: serializeError(error), ip: clientIP, path }, "Error in rate limiting middleware");
     await next();
   }
 }

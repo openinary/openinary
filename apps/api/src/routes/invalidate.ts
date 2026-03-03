@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage";
 import { deleteCachedFiles } from "../utils/cache";
 import { apiKeyAuth, AuthVariables } from "../middleware/auth";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 const invalidateRoute = new Hono<AuthVariables>();
 
@@ -46,7 +46,7 @@ invalidateRoute.delete("/*", async (c) => {
     filePath = decodeURIComponent(filePath);
   } catch (error) {
     // If decoding fails, use the original path
-    logger.warn({ error, filePath }, "Failed to decode file path");
+    logger.warn({ error: serializeError(error), filePath }, "Failed to decode file path");
   }
 
   const storageClient = createStorageClient();
@@ -68,7 +68,7 @@ invalidateRoute.delete("/*", async (c) => {
     } catch (error) {
       const errorMsg = `Failed to delete local cache: ${error instanceof Error ? error.message : "Unknown error"}`;
       result.errors.push(errorMsg);
-      logger.error({ error, filePath }, "Failed to delete local cache files");
+      logger.error({ error: serializeError(error), filePath }, "Failed to delete local cache files");
     }
 
     // Step 2: Delete cloud cache and invalidate in-memory cache (if using cloud storage)
@@ -88,7 +88,7 @@ invalidateRoute.delete("/*", async (c) => {
       } catch (error) {
         const errorMsg = `Failed to invalidate cloud cache: ${error instanceof Error ? error.message : "Unknown error"}`;
         result.errors.push(errorMsg);
-        logger.error({ error, filePath }, "Failed to invalidate cloud cache");
+        logger.error({ error: serializeError(error), filePath }, "Failed to invalidate cloud cache");
       }
     }
 
@@ -130,7 +130,7 @@ invalidateRoute.delete("/*", async (c) => {
       },
     });
   } catch (error) {
-    logger.error({ error, filePath }, "Failed to invalidate cache");
+    logger.error({ error: serializeError(error), filePath }, "Failed to invalidate cache");
     return c.json(
       {
         error: "Internal server error",

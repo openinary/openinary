@@ -3,7 +3,7 @@ import { getCachePath, existsInCache, deleteCachedFiles } from '../utils/cache';
 import { parseParams } from '../utils/parser';
 import { createStorageClient } from '../utils/storage/index';
 import { Compression } from '../utils/image/compression';
-import logger from '../utils/logger';
+import logger, { serializeError } from '../utils/logger';
 import { videoJobQueue } from '../utils/video-job-queue';
 import { updateJobStatus } from '../utils/video/queue-db';
 import { readFile } from 'fs/promises';
@@ -454,7 +454,7 @@ export class TransformService {
             existingJob = { ...existingJob, status: 'pending' as const };
           } catch (error) {
             logger.error(
-              { error, jobId: existingJob.id },
+              { error: serializeError(error), jobId: existingJob.id },
               'Failed to reset job status'
             );
             shouldRequeue = true;
@@ -480,7 +480,7 @@ export class TransformService {
           TRANSFORMATION_PRIORITY
         )
         .catch((error) => {
-          logger.error({ error, filePath }, 'Failed to add video job');
+          logger.error({ error: serializeError(error), filePath }, 'Failed to add video job');
         });
     }
 
@@ -508,7 +508,7 @@ export class TransformService {
         isProcessing: true,
       };
     } catch (error) {
-      logger.error({ error, filePath }, 'Failed to serve original video');
+      logger.error({ error: serializeError(error), filePath }, 'Failed to serve original video');
       if (isTempFile) {
         await cleanupTempFile(sourcePath);
       }
@@ -523,7 +523,7 @@ export class TransformService {
     try {
       await deleteCachedFiles(filePath);
     } catch (error) {
-      logger.warn({ error, filePath }, 'Failed to delete cached files');
+      logger.warn({ error: serializeError(error), filePath }, 'Failed to delete cached files');
     }
   }
 
@@ -534,10 +534,16 @@ export class TransformService {
     error: any,
     request: TransformRequest
   ): Promise<TransformResult> {
-    logger.error({ error, path: request.path }, 'Processing error');
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(
+      {
+        error: serializeError(error),
+        path: request.path,
+      },
+      'Processing error'
+    );
 
     // Check if this is a "file not found" error from cloud storage
-    const errorMessage = error instanceof Error ? error.message : String(error);
     const isNotFoundError =
       errorMessage.includes('NoSuchKey') ||
       errorMessage.includes('NotFound') ||
@@ -563,7 +569,7 @@ export class TransformService {
         await deleteCachedFiles(filePath);
       } catch (cleanupError) {
         logger.warn(
-          { error: cleanupError, filePath },
+          { error: serializeError(cleanupError), filePath },
           'Failed to cleanup cache after not found error'
         );
       }

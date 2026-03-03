@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import path from 'path';
-import logger from './logger';
+import logger, { serializeError } from './logger';
 
 /**
  * Signature utility for authenticated delivery URLs
@@ -104,7 +104,7 @@ export function verifySignature(
 
     return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
   } catch (error) {
-    logger.error({ error }, 'Error during signature verification');
+    logger.error({ error: serializeError(error) }, 'Error during signature verification');
     return false;
   }
 }

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { auth } from "shared/auth";
 import { apiKeyAuth, AuthVariables } from "../middleware/auth";
-import logger from "../utils/logger";
+import logger, { serializeError } from "../utils/logger";
 
 const apiKeys = new Hono<AuthVariables>();
 
@@ -62,7 +62,7 @@ apiKeys.post("/create", async (c) => {
       500
     );
   } catch (error) {
-    logger.error({ error }, "Error creating API key");
+    logger.error({ error: serializeError(error) }, "Error creating API key");
     return c.json(
       {
         error: "Internal server error",
@@ -107,7 +107,7 @@ apiKeys.get("/list", async (c) => {
       keys,
     });
   } catch (error) {
-    logger.error({ error }, "Error listing API keys");
+    logger.error({ error: serializeError(error) }, "Error listing API keys");
     return c.json(
       {
         error: "Internal server error",
@@ -175,7 +175,7 @@ apiKeys.delete("/:keyId", async (c) => {
       message: "API key deleted successfully",
     });
   } catch (error) {
-    logger.error({ error, keyId }, "Error deleting API key");
+    logger.error({ error: serializeError(error), keyId }, "Error deleting API key");
     return c.json(
       {
         error: "Internal server error",
@@ -248,7 +248,7 @@ apiKeys.patch("/:keyId", async (c) => {
       message: "API key updated successfully",
     });
   } catch (error) {
-    logger.error({ error, keyId }, "Error updating API key");
+    logger.error({ error: serializeError(error), keyId }, "Error updating API key");
     return c.json(
       {
         error: "Internal server error",
