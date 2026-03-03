@@ -86,7 +86,7 @@ function initializeTables() {
   // User table
   if (!tableExists("user")) {
     db.exec(`
-      CREATE TABLE user (
+      CREATE TABLE IF NOT EXISTS user (
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
         emailVerified INTEGER NOT NULL DEFAULT 0,
@@ -127,7 +127,7 @@ function initializeTables() {
   // Session table
   if (!tableExists("session")) {
     db.exec(`
-      CREATE TABLE session (
+      CREATE TABLE IF NOT EXISTS session (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
         expiresAt INTEGER NOT NULL,
@@ -144,7 +144,7 @@ function initializeTables() {
   // Account table
   if (!tableExists("account")) {
     db.exec(`
-      CREATE TABLE account (
+      CREATE TABLE IF NOT EXISTS account (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
         accountId TEXT NOT NULL,
@@ -166,7 +166,7 @@ function initializeTables() {
   // Verification table
   if (!tableExists("verification")) {
     db.exec(`
-      CREATE TABLE verification (
+      CREATE TABLE IF NOT EXISTS verification (
         id TEXT PRIMARY KEY,
         identifier TEXT NOT NULL,
         value TEXT NOT NULL,
@@ -180,7 +180,7 @@ function initializeTables() {
   // API Key table
   if (!tableExists("apiKey")) {
     db.exec(`
-      CREATE TABLE apiKey (
+      CREATE TABLE IF NOT EXISTS apiKey (
         id TEXT PRIMARY KEY,
         name TEXT,
         start TEXT,
@@ -210,7 +210,7 @@ function initializeTables() {
   // Video Jobs table for queue management
   if (!tableExists("video_jobs")) {
     db.exec(`
-      CREATE TABLE video_jobs (
+      CREATE TABLE IF NOT EXISTS video_jobs (
         id TEXT PRIMARY KEY,
         file_path TEXT NOT NULL,
         params_json TEXT NOT NULL,
@@ -226,8 +226,8 @@ function initializeTables() {
         completed_at INTEGER
       );
       
-      CREATE INDEX idx_video_jobs_status_priority ON video_jobs(status, priority, created_at);
-      CREATE INDEX idx_video_jobs_file_params ON video_jobs(file_path, params_json);
+      CREATE INDEX IF NOT EXISTS idx_video_jobs_status_priority ON video_jobs(status, priority, created_at);
+      CREATE INDEX IF NOT EXISTS idx_video_jobs_file_params ON video_jobs(file_path, params_json);
     `);
   }
 
