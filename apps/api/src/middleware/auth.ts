@@ -55,18 +55,18 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
           c.set("apiKey", {
             id: result.key.id,
             name: result.key.name,
-            userId: result.key.userId,
+            userId: result.key.referenceId, // referenceId is the userId associated with the API key
           });
 
           c.set("user", {
-            id: result.key.userId,
+            id: result.key.referenceId, // userId associated with the API key
             email: "",
             name: "",
           });
 
           // Audit log: successful API key authentication
           auditLog("auth.api_key.success", {
-            userId: result.key.userId,
+            userId: result.key.referenceId, // userId associated with the API key
             apiKeyId: result.key.id,
             apiKeyName: result.key.name,
             path: c.req.path,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
 import logger from "@/lib/logger";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -68,54 +69,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Forward the signup request to Better Auth
-    const betterAuthUrl = process.env.BETTER_AUTH_URL;
-    const signupUrl = `${betterAuthUrl}/api/auth/sign-up/email`;
-    
-    logger.info("[Setup] Creating admin account", { 
-      email,
-      betterAuthUrl,
-      signupUrl 
-    });
-    
-    const authResponse = await fetch(signupUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password, name }),
-    });
+    // Call Better Auth directly (server-side) to avoid HTTP round-trips through
+    // the public reverse proxy (e.g. Coolify/nginx), which would return HTML
+    // instead of JSON and cause "Unexpected token '<'" parse errors.
+    logger.info("[Setup] Creating admin account", { email });
 
-    const data = await authResponse.json();
-
-    if (!authResponse.ok) {
-      logger.error("[Setup] Failed to create account via Better Auth", {
-        status: authResponse.status,
-        error: data.error,
-        betterAuthUrl,
-      });
-      
-      return NextResponse.json(
-        { error: data.error || "Failed to create account" },
-        { status: authResponse.status }
-      );
-    }
+    const authResponse = await auth.api.signUpEmail({
+      body: { email, password, name },
+    });
 
     logger.info("[Setup] Admin account created successfully", { email });
-    return NextResponse.json(data);
+    return NextResponse.json(authResponse, { status: 201 });
   } catch (error: any) {
     logger.error("[Setup] Error creating admin account", { 
       error: error.message,
       stack: error.stack,
-      betterAuthUrl: process.env.BETTER_AUTH_URL,
-      nodeEnv: process.env.NODE_ENV,
     });
     
-    // Provide more helpful error message for network/config errors
+    // Provide more helpful error message for auth errors
     let errorMessage = error.message || "An error occurred while creating the account";
-    if (error.message?.includes("fetch") || error.code === "ECONNREFUSED") {
-      errorMessage = `Cannot connect to authentication server at ${process.env.BETTER_AUTH_URL}. Please check your BETTER_AUTH_URL configuration.`;
-    }
     
     return NextResponse.json(
       { error: errorMessage },

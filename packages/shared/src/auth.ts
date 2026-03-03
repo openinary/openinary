@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { apiKey } from "better-auth/plugins";
+import { apiKey } from "@better-auth/api-key";
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -298,6 +298,7 @@ export const auth = betterAuth({
   },
   plugins: [
     apiKey({
+      references: "user", // Associate API keys with user accounts
       // Enable API key functionality
       permissions: {
         // Default permissions for newly created API keys
