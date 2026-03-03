@@ -2,7 +2,7 @@
 
 # Stage 1: Build API
 FROM node:20-slim AS api-builder
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
@@ -27,6 +27,8 @@ RUN pnpm prune --prod
 FROM node:20-slim AS web-builder
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
 ARG IMAGE_TAG="latest"
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && \
+    rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app

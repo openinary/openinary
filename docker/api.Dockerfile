@@ -1,7 +1,7 @@
 FROM node:20-slim
 
-# Install ffmpeg for video processing
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg sqlite3 && \
+# Install ffmpeg for video processing and openssl for Prisma/better-auth
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg sqlite3 && \
     rm -rf /var/lib/apt/lists/*
 
 # Enable Corepack to use the pnpm version specified in package.json
