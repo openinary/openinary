@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/react";
-import { apiKeyClient } from "better-auth/client/plugins";
+import { apiKeyClient } from "@better-auth/api-key/client";
 
 export const createAuthClientInstance = (baseURL: string) => {
   return createAuthClient({

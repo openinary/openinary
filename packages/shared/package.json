@@ -32,6 +32,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/api-key": "^1.5.2",
     "better-auth": "^1.5.2",
     "better-sqlite3": "^12.6.2"
   },
