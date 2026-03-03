@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     });
 
     logger.info("[Setup] Admin account created successfully", { email });
-    return NextResponse.json(authResponse);
+    return NextResponse.json(authResponse, { status: 201 });
   } catch (error: any) {
     logger.error("[Setup] Error creating admin account", { 
       error: error.message,
