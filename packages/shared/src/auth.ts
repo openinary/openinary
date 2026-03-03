@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { apiKey } from "@better-auth/api-key"
+import { apiKey } from "@better-auth/api-key";
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
