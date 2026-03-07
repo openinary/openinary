@@ -242,7 +242,7 @@ export function ChatbotButton() {
               <div className="space-y-0.5">
                 <HelpMenuItem
                   icon={<Video className="h-3.5 w-3.5" />}
-                  label="Book a Call"
+                  label="Book Demo"
                   onClick={() => {
                     window.open('https://cal.com/hey-florian/20-min-openinary?overlayCalendar=true', '_blank');
                     setOpen(false);
@@ -250,7 +250,7 @@ export function ChatbotButton() {
                 />
                 <HelpMenuItem
                   icon={<Mail className="h-3.5 w-3.5" />}
-                  label="Email Me"
+                  label="Contact Us"
                   onClick={() => {
                     window.location.href = 'mailto:heysen.florian@gmail.com';
                     setOpen(false);
