@@ -78,7 +78,10 @@ export function ApiKeyManager() {
       setLoading(true);
       const result = await authClient.apiKey.list();
       if (result.data) {
-        setKeys(result.data as ApiKey[]);
+        const apiKeys = Array.isArray(result.data)
+          ? result.data
+          : (result.data as { apiKeys?: unknown[] }).apiKeys ?? [];
+        setKeys(apiKeys as unknown as ApiKey[]);
       }
     } catch (err) {
       logger.error("Error loading API keys", { error: err });

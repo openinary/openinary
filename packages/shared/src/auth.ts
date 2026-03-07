@@ -78,6 +78,60 @@ function initializeTables() {
   const missingTables = requiredTables.filter((table) => !tableExists(table));
 
   if (missingTables.length === 0) {
+    // check if the apiKey has the correct schema
+    const hasReferenceId = db.prepare("SELECT COUNT(*) as count FROM pragma_table_info('apiKey') WHERE name='referenceId'").get() as { count: number };
+    
+    // Migration: add referenceId column if missing (required by @better-auth/api-key v1.5.x)
+    // Creates a apiKey_new table with the correct schema
+    // Copies data from the current apiKey table into the apiKey_new table
+    // Drops the apiKey table
+    // Renames apiKey_new -> apiKey 
+    if (!hasReferenceId.count) {
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE apiKey_new (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            start TEXT,
+            prefix TEXT,
+            key TEXT NOT NULL,
+            referenceId TEXT NOT NULL,
+            configId TEXT NOT NULL DEFAULT 'default',
+            refillInterval INTEGER,
+            refillAmount INTEGER,
+            lastRefillAt INTEGER,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            rateLimitEnabled INTEGER NOT NULL DEFAULT 1,
+            rateLimitTimeWindow INTEGER,
+            rateLimitMax INTEGER,
+            requestCount INTEGER NOT NULL DEFAULT 0,
+            remaining INTEGER,
+            lastRequest INTEGER,
+            expiresAt INTEGER,
+            createdAt INTEGER NOT NULL,
+            updatedAt INTEGER NOT NULL,
+            permissions TEXT,
+            metadata TEXT,
+            FOREIGN KEY (referenceId) REFERENCES user(id) ON DELETE CASCADE
+          );
+
+          INSERT INTO apiKey_new SELECT 
+            id, name, start, prefix, key,
+            userId as referenceId,
+            'default' as configId,
+            refillInterval, refillAmount, lastRefillAt,
+            enabled, rateLimitEnabled, rateLimitTimeWindow, rateLimitMax,
+            requestCount, remaining, lastRequest, expiresAt,
+            createdAt, updatedAt, permissions, metadata
+          FROM apiKey;
+
+          DROP TABLE apiKey;
+
+          ALTER TABLE apiKey_new RENAME TO apiKey;
+        `);
+      })();
+    }
+
     return; // Tables already exist
   }
 
@@ -186,7 +240,8 @@ function initializeTables() {
         start TEXT,
         prefix TEXT,
         key TEXT NOT NULL,
-        userId TEXT NOT NULL,
+        referenceId TEXT NOT NULL,
+        configId TEXT NOT NULL DEFAULT 'default',
         refillInterval INTEGER,
         refillAmount INTEGER,
         lastRefillAt INTEGER,
@@ -202,7 +257,7 @@ function initializeTables() {
         updatedAt INTEGER NOT NULL,
         permissions TEXT,
         metadata TEXT,
-        FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+        FOREIGN KEY (referenceId) REFERENCES user(id) ON DELETE CASCADE
       );
     `);
   }
