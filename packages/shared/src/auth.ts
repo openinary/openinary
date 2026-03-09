@@ -292,19 +292,24 @@ function initializeTables() {
 // Initialize tables before creating Better Auth instance
 initializeTables();
 
-const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const publicAuthUrl = process.env.BETTER_AUTH_URL;
+const internalAuthUrl = process.env.BETTER_AUTH_INTERNAL_URL;
+const baseURL = internalAuthUrl || publicAuthUrl || "http://localhost:3000";
+const cookieOriginUrl = publicAuthUrl || baseURL;
 
 const trustedOrigins = [
   // Local development
   "http://localhost:3000",
   "http://localhost:3001",
   // Production / custom origins
-  process.env.BETTER_AUTH_URL,
+  publicAuthUrl,
 ].filter(Boolean) as string[];
 
 // Log auth configuration for debugging
 console.log("🔐 Better Auth Configuration:");
 console.log(`  - Base URL: ${baseURL}`);
+console.log(`  - Public URL: ${publicAuthUrl || "(not set)"}`);
+console.log(`  - Internal URL: ${internalAuthUrl || "(not set)"}`);
 console.log(`  - Trusted Origins: ${trustedOrigins.join(", ")}`);
 console.log(`  - Environment: ${process.env.NODE_ENV}`);
 console.log(`  - Database: ${dbPath}`);
@@ -337,7 +342,7 @@ export const auth = betterAuth({
   // Configure secure cookies only when explicitly using HTTPS
   advanced: {
     defaultCookieAttributes: {
-      secure: baseURL.startsWith("https://"), // Secure flag only when using HTTPS
+      secure: cookieOriginUrl.startsWith("https://"), // Use the public origin when deciding cookie security
       httpOnly: true, // Prevent client-side JavaScript access
       sameSite: "lax", // CSRF protection
     },
@@ -390,4 +395,3 @@ export type AuthUser = typeof auth.$Infer.Session.user;
 
 // Export database instance for other modules (e.g., video queue)
 export { db };
-

@@ -77,6 +77,7 @@ services:
       - NEXT_PUBLIC_API_BASE_URL=/api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - BETTER_AUTH_INTERNAL_URL=${BETTER_AUTH_INTERNAL_URL:-http://127.0.0.1:3001}
       # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration
