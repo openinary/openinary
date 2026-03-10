@@ -9,6 +9,7 @@ import { videoJobQueue } from "../utils/video-job-queue";
 import { parseParams } from "../utils/parser";
 import { THUMBNAIL_PRIORITY, TRANSFORMATION_PRIORITY } from "../utils/video/config";
 import { TransformService } from "../services/transform.service";
+import heicConvert from 'heic-convert';
 
 const upload = new Hono();
 const storage = createStorageClient();
@@ -26,6 +27,8 @@ const ALLOWED_TYPES = {
   "image/webp": [".webp"],
   "image/avif": [".avif"],
   "image/gif": [".gif"],
+  "image/heic" : ['.heic', '.heif'],
+  "image/heif" : ['.heic', '.heif'],
   // Videos
   "video/mp4": [".mp4"],
   "video/quicktime": [".mov"],
@@ -342,6 +345,41 @@ async function queueVideoTransformations(
   return { queuedTransformationUrls, queueErrors };
 }
 
+async function normalizeUploadFormat(
+  buffer: Buffer,
+  mimeType: string,
+  filePath: string,
+): Promise<{ buffer: Buffer; mimeType: string; path: string, fileName: string }>{
+  let normalizedBuffer;
+  let normalizedMimeType;
+  let normalizedPath;
+  if (mimeType === "image/heic" || mimeType === "image/heif"){
+    try{
+      normalizedBuffer = await heicConvert({
+                buffer: buffer as any,
+                format: 'JPEG',
+                quality: 1
+      });
+
+      normalizedMimeType = "image/jpeg";
+      normalizedPath = filePath.replace(/\.(heic|heif)$/i, '.jpg');
+    }catch (err) {
+      throw new Error(`Failed to convert file from ${mimeType} to image/jpeg`);
+    }
+
+  } else {
+    normalizedBuffer = buffer;
+    normalizedMimeType = mimeType;
+    normalizedPath = filePath;
+  }
+  return {
+      buffer: normalizedBuffer as any,
+      mimeType : normalizedMimeType,
+      path : normalizedPath,
+      fileName : path.basename(normalizedPath)
+  }
+}
+
 /**
  * POST /upload - Upload single or multiple files
  */
@@ -418,20 +456,24 @@ upload.post("/", async (c) => {
         // Convert File to Buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-
-        // Get content type
-        const contentType = getContentType(filename);
+        
+        const {
+          buffer: normalizedBuffer, 
+          mimeType: normalizedContentType, 
+          path: normalizedPath, 
+          fileName: normalizedFileName
+        } = await normalizeUploadFormat(buffer, mimeType, rawSanitizedPath)
 
         // Compute a unique file path to avoid overwriting existing files
-        let finalPath = rawSanitizedPath;
+        let finalPath = normalizedPath;
 
         if (storage) {
-          finalPath = await getUniqueFilePath(rawSanitizedPath, async (p) =>
+          finalPath = await getUniqueFilePath(normalizedPath, async (p) =>
             storage.existsOriginalPath(p),
           );
         } else {
           finalPath = await getUniqueFilePath(
-            rawSanitizedPath,
+            normalizedPath,
             localFileExists,
           );
         }
@@ -441,8 +483,8 @@ upload.post("/", async (c) => {
           // Upload to cloud storage with full (unique) path
           const url = await storage.uploadOriginal(
             finalPath,
-            buffer,
-            contentType,
+            normalizedBuffer,
+            normalizedContentType,
           );
           logger.info(
             { originalPath: rawSanitizedPath, finalPath, url },
@@ -450,14 +492,14 @@ upload.post("/", async (c) => {
           );
 
           const uploadResult: UploadResult = {
-            filename,
+            filename : normalizedFileName,
             path: finalPath,
-            size: fileSize,
+            size: normalizedBuffer.length,
             url: `/t/${finalPath}`,
           };
 
           if (
-            contentType.startsWith("image/") &&
+            normalizedContentType.startsWith("image/") &&
             prewarmTransformations.length > 0
           ) {
             const prewarmResult = await prewarmImageTransformations(
@@ -484,7 +526,7 @@ upload.post("/", async (c) => {
           }
 
           // Queue thumbnail generation for videos (non-blocking, high priority)
-          if (contentType.startsWith("video/")) {
+          if (normalizedContentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
               logger.error({ error: serializeError(error), finalPath }, "Failed to queue thumbnail generation");
             });
@@ -508,21 +550,21 @@ upload.post("/", async (c) => {
           successfulUploads.push(uploadResult);
         } else {
           // Save locally with full path
-          await saveFileLocally(finalPath, buffer);
+          await saveFileLocally(finalPath, normalizedBuffer);
           logger.info(
             { originalPath: rawSanitizedPath, finalPath },
             "Saved locally",
           );
 
           const uploadResult: UploadResult = {
-            filename,
+            filename : normalizedFileName,
             path: finalPath,
-            size: fileSize,
+            size: normalizedBuffer.length,
             url: `/t/${finalPath}`,
           };
 
           if (
-            contentType.startsWith("image/") &&
+            normalizedContentType.startsWith("image/") &&
             prewarmTransformations.length > 0
           ) {
             const prewarmResult = await prewarmImageTransformations(
@@ -549,7 +591,7 @@ upload.post("/", async (c) => {
           }
 
           // Queue thumbnail generation for videos (non-blocking, high priority)
-          if (contentType.startsWith("video/")) {
+          if (normalizedContentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
               logger.error({ error: serializeError(error), finalPath }, "Failed to queue thumbnail generation");
             });
