@@ -36,7 +36,11 @@ function buildLocalTree(rootDir: string): StorageNode {
     return root;
   }
 
-  const walk = (absoluteDir: string, relativeDir: string, parent: StorageNode) => {
+  const walk = (
+    absoluteDir: string,
+    relativeDir: string,
+    parent: StorageNode,
+  ) => {
     const entries = fs.readdirSync(absoluteDir, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -90,7 +94,7 @@ function buildTreeFromKeys(keys: { key: string }[]): StorageNode {
       if (isFile) {
         current.children = current.children || [];
         const existing = current.children.find(
-          (child) => child.name === part && child.type === "file"
+          (child) => child.name === part && child.type === "file",
         );
         if (!existing) {
           current.children.push({
@@ -102,7 +106,7 @@ function buildTreeFromKeys(keys: { key: string }[]): StorageNode {
       } else {
         current.children = current.children || [];
         let dirNode = current.children.find(
-          (child) => child.name === part && child.type === "directory"
+          (child) => child.name === part && child.type === "directory",
         );
         if (!dirNode) {
           dirNode = {
@@ -142,15 +146,15 @@ storageRoute.get("/", async (c) => {
     if (storageClient) {
       // List only objects in the public/ folder
       const objects = await storageClient.list("public/");
-      
+
       // Remove the public/ prefix from all keys
       const publicObjects = objects
-        .filter(obj => obj.key.startsWith("public/"))
-        .map(obj => ({
+        .filter((obj) => obj.key.startsWith("public/"))
+        .map((obj) => ({
           ...obj,
-          key: obj.key.substring(7) // Remove "public/" prefix (7 characters)
+          key: obj.key.substring(7), // Remove "public/" prefix (7 characters)
         }));
-      
+
       root = buildTreeFromKeys(publicObjects);
     } else {
       const publicDir = path.join(".", "public");
@@ -161,12 +165,15 @@ storageRoute.get("/", async (c) => {
 
     return c.json(treeData);
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Failed to list storage contents");
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to list storage contents",
+    );
     return c.json(
       {
         error: "Failed to list storage contents",
       },
-      500
+      500,
     );
   }
 });
@@ -178,30 +185,32 @@ storageRoute.get("/", async (c) => {
  */
 storageRoute.get("/*", async (c) => {
   const requestPath = c.req.path;
-  
+
   // Only handle requests that end with /metadata
   if (!requestPath.endsWith("/metadata")) {
     // Let other routes handle this request
     return c.notFound();
   }
-  
+
   // Remove '/storage' prefix and '/metadata' suffix
   // requestPath will be something like '/storage/cows/black.png/metadata'
   // We need to extract 'cows/black.png'
-  const pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "").replace(/\/metadata$/, "");
-  
+  const pathWithoutPrefix = requestPath
+    .replace(/^\/storage\/?/, "")
+    .replace(/\/metadata$/, "");
+
   if (!pathWithoutPrefix) {
     return c.json(
       {
         error: "Bad request",
         message: "File path is required",
       },
-      400
+      400,
     );
   }
 
   let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
-  
+
   try {
     filePath = decodeURIComponent(filePath);
   } catch (error) {
@@ -217,10 +226,10 @@ storageRoute.get("/*", async (c) => {
             error: "Not found",
             message: "File not found",
           },
-          404
+          404,
         );
       }
-      
+
       return c.json({
         size: metadata.size,
         createdAt: metadata.createdAt.toISOString(),
@@ -228,14 +237,14 @@ storageRoute.get("/*", async (c) => {
       });
     } else {
       const localPath = path.join(".", "public", filePath);
-      
+
       if (!fs.existsSync(localPath)) {
         return c.json(
           {
             error: "Not found",
             message: "File not found",
           },
-          404
+          404,
         );
       }
 
@@ -246,7 +255,7 @@ storageRoute.get("/*", async (c) => {
             error: "Bad request",
             message: "Cannot get metadata for directories",
           },
-          400
+          400,
         );
       }
 
@@ -257,13 +266,16 @@ storageRoute.get("/*", async (c) => {
       });
     }
   } catch (error) {
-    logger.error({ error: serializeError(error), filePath }, "Failed to get file metadata");
+    logger.error(
+      { error: serializeError(error), filePath },
+      "Failed to get file metadata",
+    );
     return c.json(
       {
         error: "Internal server error",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      500
+      500,
     );
   }
 });
@@ -275,24 +287,24 @@ storageRoute.get("/*", async (c) => {
  */
 storageRoute.delete("/*", async (c) => {
   const requestPath = c.req.path;
-  
+
   // Remove '/storage' prefix from the path
   // requestPath will be something like '/storage/cows/black.png'
   // We need to extract 'cows/black.png'
   const pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "");
-  
+
   if (!pathWithoutPrefix) {
     return c.json(
       {
         error: "Bad request",
         message: "File path is required",
       },
-      400
+      400,
     );
   }
 
   let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
-  
+
   try {
     filePath = decodeURIComponent(filePath);
   } catch (error) {
@@ -302,30 +314,32 @@ storageRoute.delete("/*", async (c) => {
   try {
     // Use the complete asset deletion function
     const result = await deleteAssetCompletely(filePath, storageClient);
-    
+
     if (!result.success) {
       // Check if the file was not found
-      if (result.errors.some(err => err.includes('not found'))) {
+      if (result.errors.some((err) => err.includes("not found"))) {
         return c.json(
           {
             error: "Not found",
             message: "File not found",
           },
-          404
+          404,
         );
       }
-      
+
       // Check if trying to delete a directory
-      if (result.errors.some(err => err.includes('Cannot delete directories'))) {
+      if (
+        result.errors.some((err) => err.includes("Cannot delete directories"))
+      ) {
         return c.json(
           {
             error: "Bad request",
             message: "Cannot delete directories",
           },
-          400
+          400,
         );
       }
-      
+
       // Other errors
       return c.json(
         {
@@ -339,7 +353,7 @@ storageRoute.delete("/*", async (c) => {
             errors: result.errors,
           },
         },
-        result.originalFileDeleted ? 200 : 500
+        result.originalFileDeleted ? 200 : 500,
       );
     }
 
@@ -353,16 +367,18 @@ storageRoute.delete("/*", async (c) => {
       },
     });
   } catch (error) {
-    logger.error({ error: serializeError(error), filePath }, "Failed to delete asset");
+    logger.error(
+      { error: serializeError(error), filePath },
+      "Failed to delete asset",
+    );
     return c.json(
       {
         error: "Internal server error",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      500
+      500,
     );
   }
 });
 
 export default storageRoute;
-

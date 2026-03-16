@@ -11,15 +11,15 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TreeDataItem } from "@/components/ui/tree-view";
-import { preloadMedia } from "@/hooks/use-preload-media";
 import { useStorageTree } from "@/hooks/use-storage-tree";
-import { ArrowUpRight, FileImage } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useMemo } from "react";
-import MediaGridAssetItem from "./media-grid-asset-item";
+import UploadButtonWithDialog from "../upload-button-with-dialog";
+import { ArrowUpRight, FileImage } from "lucide-react";
 import MediaGridFolderItem from "./media-grid-folder-item";
+import MediaGridAssetItem from "./media-grid-asset-item";
 
-export type MediaFile = {
+type MediaFile = {
   id: string;
   name: string;
   path: string;
@@ -53,7 +53,7 @@ function findItemsInPath(
   // Process items in the current folder
   for (const item of currentItems) {
     const lowerName = item.name.toLowerCase();
-    const isFolder = !!item.children && item.children.length > 0;
+    const isFolder = !!item.children;
 
     if (isFolder) {
       const folderPath =
@@ -111,7 +111,6 @@ interface MediaGridProps {
 export function MediaGrid({
   onMediaSelect,
   sidebarOpen = false,
-  onUploadClick,
 }: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
   const [folderPath, setFolderPath] = useQueryState("folder");
@@ -171,7 +170,7 @@ export function MediaGrid({
           </EmptyHeader>
           <EmptyContent>
             <div className="flex gap-2">
-              {onUploadClick && <Button onClick={onUploadClick}>Upload</Button>}
+              <UploadButtonWithDialog />
               <Button variant="outline" asChild>
                 <a
                   href="https://docs.openinary.dev/"
