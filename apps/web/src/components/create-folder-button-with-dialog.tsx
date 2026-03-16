@@ -11,7 +11,7 @@ export default function CreateFolderButtonWithDialog({
   uploadToFolder?: string;
   onSuccessfulCreate?: (folder: string) => void;
 }) {
-  const dialogRef = useRef<{ close: () => void }>(null);
+  const dialogRef = useRef<{ open: () => void; close: () => void }>(null);
 
   return (
     <DefaultDialog
