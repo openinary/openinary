@@ -1,19 +1,16 @@
-"use client"
+"use client";
 
-import { TreeView } from "@/components/ui/tree-view"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useStorageTree } from "@/hooks/use-storage-tree"
-import {
-  SidebarGroup,
-  SidebarGroupLabel,
-} from "@/components/ui/sidebar"
+import { TreeView } from "@/components/ui/tree-view";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useStorageTree } from "@/hooks/use-storage-tree";
+import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar";
 
 type MediaFile = {
-  id: string
-  name: string
-  path: string
-  type: "image" | "video"
-}
+  id: string;
+  name: string;
+  path: string;
+  type: "image" | "video";
+};
 
 function TreeSkeleton() {
   return (
@@ -40,15 +37,15 @@ function TreeSkeleton() {
         <Skeleton className="h-4 w-36" />
       </div>
     </div>
-  )
+  );
 }
 
 interface NavProjectsProps {
-  onMediaSelect?: (media: MediaFile) => void
+  onMediaSelect?: (media: MediaFile) => void;
 }
 
 export function NavProjects({ onMediaSelect }: NavProjectsProps) {
-  const { data, isLoading, error } = useStorageTree()
+  const { data, isLoading, error } = useStorageTree();
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -60,12 +57,8 @@ export function NavProjects({ onMediaSelect }: NavProjectsProps) {
         </p>
       )}
       {!isLoading && !error && data && (
-        <TreeView
-          data={data}
-          expandAll
-          onMediaSelect={onMediaSelect}
-        />
+        <TreeView data={data} expandAll onMediaSelect={onMediaSelect} />
       )}
     </SidebarGroup>
-  )
+  );
 }

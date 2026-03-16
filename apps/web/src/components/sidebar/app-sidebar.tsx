@@ -1,39 +1,28 @@
-"use client"
+"use client";
 
+import { Image as ImageIcon, Package, Video } from "lucide-react";
 import Image from "next/image";
-import {
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
-  Image as ImageIcon,
-  Package,
-  Video,
-} from "lucide-react"
 
-import { NavMain } from "@/components/sidebar/nav-main"
-import { NavProjects } from "@/components/sidebar/nav-projects"
-import { NavUser } from "@/components/sidebar/nav-user"
-import { VersionDisplay } from "@/components/sidebar/version-display"
-
-type MediaFile = {
-  id: string
-  name: string
-  path: string
-  type: "image" | "video"
-}
+import { NavMain } from "@/components/sidebar/nav-main";
+import { NavProjects } from "@/components/sidebar/nav-projects";
+import { NavUser } from "@/components/sidebar/nav-user";
+import { VersionDisplay } from "@/components/sidebar/version-display";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
   useSidebar,
-} from "@/components/ui/sidebar"
-import Link from "next/link"
+} from "@/components/ui/sidebar";
+import Link from "next/link";
+
+type MediaFile = {
+  id: string;
+  name: string;
+  path: string;
+  type: "image" | "video";
+};
 
 // This is sample data.
 const data = {
@@ -57,16 +46,16 @@ const data = {
       disabled: true,
     },
   ],
-}
+};
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  onMediaSelect?: (media: MediaFile) => void
+  onMediaSelect?: (media: MediaFile) => void;
 }
 
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
-  const { state } = useSidebar()
-  const isCollapsed = state === "collapsed"
-  
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="pl-4 pt-4">
@@ -90,5 +79,5 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

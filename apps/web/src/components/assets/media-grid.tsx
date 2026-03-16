@@ -1,32 +1,32 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { FileImage, FileVideo, Folder, ArrowUpRight } from "lucide-react";
-import { useQueryState } from "nuqs";
-import { useStorageTree } from "@/hooks/use-storage-tree";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
+  EmptyContent,
+  EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-  EmptyDescription,
-  EmptyContent,
 } from "@/components/ui/empty";
-import { cn } from "@/lib/utils";
-import { preloadMedia } from "@/hooks/use-preload-media";
-import { VideoThumbnail } from "@/components/video-thumbnail";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TreeDataItem } from "@/components/ui/tree-view";
+import { preloadMedia } from "@/hooks/use-preload-media";
+import { useStorageTree } from "@/hooks/use-storage-tree";
+import { ArrowUpRight, FileImage } from "lucide-react";
+import { useQueryState } from "nuqs";
+import { useMemo } from "react";
+import MediaGridAssetItem from "./media-grid-asset-item";
+import MediaGridFolderItem from "./media-grid-folder-item";
 
-type MediaFile = {
+export type MediaFile = {
   id: string;
   name: string;
   path: string;
   type: "image" | "video";
 };
 
-type FolderItem = {
+export type FolderItem = {
   id: string;
   name: string;
   path: string;
@@ -114,7 +114,6 @@ export function MediaGrid({
   onUploadClick,
 }: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useQueryState("folder");
 
   // Parse folder path from URL - must be called before any conditional returns
@@ -203,26 +202,8 @@ export function MediaGrid({
     );
   }
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  // Use dedicated transform base URL (empty in Docker, falls back to apiBaseUrl without /api)
-  const transformBaseUrl =
-    process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL !== undefined
-      ? process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL
-      : apiBaseUrl.replace(/\/api$/, "");
-
   const handleFolderClick = (folderPath: string) => {
     setFolderPath(folderPath);
-  };
-
-  // Preload preview when hovering over a media item
-  const handleMediaHover = (media: MediaFile) => {
-    // For images: load the transformed image
-    // For videos: preload the full video (not the thumbnail, which is already loaded)
-    const previewUrl =
-      media.type === "image"
-        ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-        : `${transformBaseUrl}/t/${media.path}`;
-    preloadMedia(previewUrl, media.type);
   };
 
   if (folders.length === 0 && files.length === 0) {
@@ -237,82 +218,22 @@ export function MediaGrid({
   return (
     <div className={`grid ${gridColsClass} gap-4`}>
       {/* Render folders */}
-      {folders.map((folder) => {
-        const isHovered = hoveredId === folder.id;
-        return (
-          <div
-            key={folder.id}
-            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
-            onClick={() => handleFolderClick(folder.path)}
-            onMouseEnter={() => setHoveredId(folder.id)}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            <div className="relative w-full h-full bg-muted flex items-center justify-center">
-              <Folder className="h-16 w-16 text-muted-foreground" />
-            </div>
-            <div
-              className={cn(
-                "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <p className="text-white text-xs font-medium truncate">
-                {folder.name}
-              </p>
-            </div>
-          </div>
-        );
-      })}
+      {folders.map((folder) => (
+        <MediaGridFolderItem
+          key={folder.id}
+          folder={folder}
+          onClick={() => handleFolderClick(folder.path)}
+        />
+      ))}
 
       {/* Render media files */}
-      {files.map((media) => {
-        // For images: resize and optimize
-        // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
-        const thumbnailUrl =
-          media.type === "image"
-            ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-            : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
-        const isHovered = hoveredId === media.id;
-
-        return (
-          <div
-            key={media.id}
-            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
-            onClick={() => onMediaSelect(media)}
-            onMouseEnter={() => {
-              setHoveredId(media.id);
-              handleMediaHover(media);
-            }}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            {media.type === "image" ? (
-              <img
-                src={thumbnailUrl}
-                alt={media.name}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-            ) : (
-              <VideoThumbnail
-                src={thumbnailUrl}
-                alt={media.name}
-                className="transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-            )}
-            <div
-              className={cn(
-                "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <p className="text-white text-xs font-medium truncate">
-                {media.name}
-              </p>
-            </div>
-          </div>
-        );
-      })}
+      {files.map((media) => (
+        <MediaGridAssetItem
+          key={media.id}
+          media={media}
+          onClick={() => onMediaSelect(media)}
+        />
+      ))}
     </div>
   );
 }

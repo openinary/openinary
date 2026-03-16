@@ -1,19 +1,18 @@
-"use client"
+"use client";
 
-import React from "react"
-import { type LucideIcon } from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
-import { X, FileImage } from "lucide-react"
-import { Sidebar } from "../ui/sidebar"
-import { useAssetDetails } from "./use-asset-details"
-import { AssetPreview } from "./asset-preview"
-import { AssetDetailsTab } from "./asset-details-tab"
-import { AssetTransformationsTab } from "./asset-transformations-tab"
-import { AssetMetadataTab } from "./asset-metadata-tab"
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileImage, X, type LucideIcon } from "lucide-react";
+import React from "react";
+import { Sidebar } from "../ui/sidebar";
+import { AssetDetailsTab } from "./asset-details-tab";
+import { AssetMetadataTab } from "./asset-metadata-tab";
+import { AssetPreview } from "./asset-preview";
+import { AssetTransformationsTab } from "./asset-transformations-tab";
+import { useCurrentAssetDetails } from "./use-asset-details";
 
 export function AssetDetailsSidebar({
   items,
@@ -22,13 +21,13 @@ export function AssetDetailsSidebar({
   ...props
 }: {
   items: {
-    title: string
-    url: string
-    icon?: LucideIcon
-    isActive?: boolean
-  }[]
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
+    title: string;
+    url: string;
+    icon?: LucideIcon;
+    isActive?: boolean;
+  }[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 } & React.ComponentProps<typeof Sidebar>) {
   const {
     asset,
@@ -48,7 +47,7 @@ export function AssetDetailsSidebar({
     handleOpenInNewTab,
     handleClose,
     handleDelete,
-  } = useAssetDetails(onOpenChange)
+  } = useCurrentAssetDetails(onOpenChange);
 
   return (
     <div
@@ -91,7 +90,9 @@ export function AssetDetailsSidebar({
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="transformations">Transformations</TabsTrigger>
+                <TabsTrigger value="transformations">
+                  Transformations
+                </TabsTrigger>
                 <TabsTrigger value="metadata">Metadata</TabsTrigger>
               </TabsList>
 
@@ -113,7 +114,10 @@ export function AssetDetailsSidebar({
               </TabsContent>
 
               <TabsContent value="transformations" className="space-y-4 mt-4">
-                <AssetTransformationsTab asset={asset} apiBaseUrl={transformBaseUrl} />
+                <AssetTransformationsTab
+                  asset={asset}
+                  apiBaseUrl={transformBaseUrl}
+                />
               </TabsContent>
 
               <TabsContent value="metadata" className="space-y-4 mt-4">
@@ -124,6 +128,5 @@ export function AssetDetailsSidebar({
         )}
       </ScrollArea>
     </div>
-  )
+  );
 }
-

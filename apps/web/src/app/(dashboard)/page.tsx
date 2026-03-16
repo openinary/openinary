@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Upload, Package, Image as ImageIcon, Video } from "lucide-react";
-import { MediaGrid } from "@/components/media-grid";
+import { MediaGrid } from "@/components/assets/media-grid";
 import {
   ResizablePanelGroup,
   ResizablePanel,

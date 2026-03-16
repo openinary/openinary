@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 import {
   FileType,
   HardDrive,
@@ -13,29 +13,29 @@ import {
   Zap,
   CheckCircle2,
   AlertCircle,
-} from "lucide-react"
-import { CopyInput } from "@/components/ui/copy-input"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
-import type { MediaFile } from "./types"
-import type { VideoStatus } from "@/hooks/use-video-status"
-import { formatFileSize, formatDate, getFileType } from "./utils"
-import { Spinner } from "../ui/spinner"
+} from "lucide-react";
+import { CopyInput } from "@/components/ui/copy-input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import type { MediaFile } from "./types";
+import type { VideoStatus } from "@/hooks/use-video-status";
+import { formatFileSize, formatDate, getFileType } from "./utils";
+import { Spinner } from "../ui/spinner";
 
 interface AssetDetailsTabProps {
-  asset: MediaFile
-  fileSize: number | null
-  optimizedSize: number | null
-  createdAt: Date | null
-  mediaUrl: string
-  isDeleting: boolean
-  videoStatus?: VideoStatus
-  videoProgress?: number
-  onCopyUrl: () => void
-  onDownload: () => void
-  onOpenInNewTab: () => void
-  onDelete: () => void
+  asset: MediaFile;
+  fileSize: number | null;
+  optimizedSize: number | null;
+  createdAt: Date | null;
+  mediaUrl: string;
+  isDeleting: boolean;
+  videoStatus?: VideoStatus;
+  videoProgress?: number;
+  onCopyUrl: () => void;
+  onDownload: () => void;
+  onOpenInNewTab: () => void;
+  onDelete: () => void;
 }
 
 export function AssetDetailsTab({
@@ -52,13 +52,13 @@ export function AssetDetailsTab({
   onOpenInNewTab,
   onDelete,
 }: AssetDetailsTabProps) {
-  const [copied, setCopied] = useState<boolean>(false)
+  const [copied, setCopied] = useState<boolean>(false);
 
   const handleCopyUrl = () => {
-    onCopyUrl()
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
+    onCopyUrl();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <div className="space-y-4">
@@ -78,13 +78,16 @@ export function AssetDetailsTab({
               Optimization Status
             </label>
             <div className="text-sm text-muted-foreground flex items-center gap-2 min-h-[20px] transition-opacity duration-200">
-              {(!videoStatus || videoStatus === "unknown") ? (
+              {!videoStatus || videoStatus === "unknown" ? (
                 <span className="opacity-50">Checking status...</span>
               ) : videoStatus === "processing" ? (
                 <>
                   <Spinner size={16} className="text-primary" />
                   <span>
-                    Processing video{videoProgress > 0 ? ` (${Math.round(videoProgress)}%)` : "..."}
+                    Processing video
+                    {videoProgress > 0
+                      ? ` (${Math.round(videoProgress)}%)`
+                      : "..."}
                   </span>
                 </>
               ) : videoStatus === "ready" ? (
@@ -181,7 +184,7 @@ export function AssetDetailsTab({
               <div
                 className={cn(
                   "absolute inset-0 transition-all",
-                  copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                  copied ? "scale-100 opacity-100" : "scale-0 opacity-0",
                 )}
               >
                 <Check className="h-4 w-4 stroke-emerald-500" />
@@ -189,7 +192,7 @@ export function AssetDetailsTab({
               <div
                 className={cn(
                   "absolute inset-0 transition-all",
-                  copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
+                  copied ? "scale-0 opacity-0" : "scale-100 opacity-100",
                 )}
               >
                 <Copy className="h-4 w-4" />
@@ -228,6 +231,5 @@ export function AssetDetailsTab({
         </div>
       </div>
     </div>
-  )
+  );
 }
-
