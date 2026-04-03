@@ -210,21 +210,6 @@ function validateFileType(filename: string, mimeType: string): boolean {
 }
 
 /**
- * Gets the content type from filename extension
- */
-function getContentType(filename: string): string {
-  const ext = path.extname(filename).toLowerCase();
-
-  for (const [contentType, extensions] of Object.entries(ALLOWED_TYPES)) {
-    if (extensions.includes(ext)) {
-      return contentType;
-    }
-  }
-
-  return "application/octet-stream";
-}
-
-/**
  * Saves file to local storage (./public/)
  */
 async function saveFileLocally(
@@ -363,7 +348,7 @@ async function normalizeUploadFormat(
 
       normalizedMimeType = "image/jpeg";
       normalizedPath = filePath.replace(/\.(heic|heif)$/i, '.jpg');
-    }catch (err) {
+    }catch {
       throw new Error(`Failed to convert file from ${mimeType} to image/jpeg`);
     }
 
@@ -447,7 +432,7 @@ upload.post("/", async (c) => {
       if (!validateFileType(filename, mimeType)) {
         failedUploads.push({
           filename: rawSanitizedPath,
-          error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, png, webp, avif, gif) and videos (mp4, mov, webm)`,
+          error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif) and videos (mp4, mov, webm)`,
         });
         continue;
       }
