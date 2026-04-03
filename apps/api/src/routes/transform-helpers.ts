@@ -232,7 +232,10 @@ export async function prepareSourceFile(
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    const tempPath = path.join(tempDir, path.basename(filePath));
+    const tempPath = path.join(
+      tempDir,
+      `${crypto.randomUUID()}-${path.basename(filePath)}`,
+    );
     fs.writeFileSync(tempPath, sourceBuffer);
     return tempPath;
   } else {
@@ -256,7 +259,7 @@ export async function processImage(
 
   // Temporary save for advanced optimization
   const fs = await import("fs");
-  const tempOptimPath = originalPath + ".temp";
+  const tempOptimPath = originalPath + `.${crypto.randomUUID()}.temp`;
   fs.writeFileSync(tempOptimPath, basicBuffer);
 
   try {
