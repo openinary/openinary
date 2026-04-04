@@ -7,7 +7,10 @@ import { getUniqueFilePath } from "../utils/get-unique-file-path";
 import { getCachePath } from "../utils/cache";
 import { videoJobQueue } from "../utils/video-job-queue";
 import { parseParams } from "../utils/parser";
-import { THUMBNAIL_PRIORITY, TRANSFORMATION_PRIORITY } from "../utils/video/config";
+import {
+  THUMBNAIL_PRIORITY,
+  TRANSFORMATION_PRIORITY,
+} from "../utils/video/config";
 import { TransformService } from "../services/transform.service";
 import heicConvert from 'heic-convert';
 
@@ -108,7 +111,12 @@ function parsePrewarmTransformations(formData: FormData): string[] {
   }
 
   const normalized = parsed
-    .map((value) => value.replace(/^\/+/, "").replace(/^t\//, "").replace(/^\/t\//, ""))
+    .map((value) =>
+      value
+        .replace(/^\/+/, "")
+        .replace(/^t\//, "")
+        .replace(/^\/t\//, ""),
+    )
     .map((value) => value.replace(/^,+|,+$/g, "").trim())
     .filter(Boolean);
 
@@ -267,7 +275,10 @@ async function queueThumbnailGeneration(
       "Thumbnail generation queued",
     );
   } catch (error) {
-    logger.error({ error: serializeError(error), filePath }, "Failed to queue thumbnail generation");
+    logger.error(
+      { error: serializeError(error), filePath },
+      "Failed to queue thumbnail generation",
+    );
     // Don't throw - this is a background operation
   }
 }
@@ -513,7 +524,10 @@ upload.post("/", async (c) => {
           // Queue thumbnail generation for videos (non-blocking, high priority)
           if (normalizedContentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
-              logger.error({ error: serializeError(error), finalPath }, "Failed to queue thumbnail generation");
+              logger.error(
+                { error: serializeError(error), finalPath },
+                "Failed to queue thumbnail generation",
+              );
             });
 
             if (prewarmTransformations.length > 0) {
@@ -578,7 +592,10 @@ upload.post("/", async (c) => {
           // Queue thumbnail generation for videos (non-blocking, high priority)
           if (normalizedContentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
-              logger.error({ error: serializeError(error), finalPath }, "Failed to queue thumbnail generation");
+              logger.error(
+                { error: serializeError(error), finalPath },
+                "Failed to queue thumbnail generation",
+              );
             });
 
             if (prewarmTransformations.length > 0) {
@@ -600,7 +617,10 @@ upload.post("/", async (c) => {
           successfulUploads.push(uploadResult);
         }
       } catch (error) {
-        logger.error({ error: serializeError(error), originalPath: rawSanitizedPath }, "Failed to upload");
+        logger.error(
+          { error: serializeError(error), originalPath: rawSanitizedPath },
+          "Failed to upload",
+        );
         failedUploads.push({
           filename: rawSanitizedPath,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -640,6 +660,121 @@ upload.post("/", async (c) => {
     return c.json(
       {
         success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      500,
+    );
+  }
+});
+
+/**
+ * POST /upload/createfolder - create folder
+ */
+upload.post("/createfolder", async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const folder = formData.get("folder") as string | null;
+
+    if (!folder || typeof folder !== "string") {
+      logger.error({ folder }, "Invalid folder data provided");
+      return c.json(
+        {
+          success: false,
+          folder: null,
+          error: "Invalid folder data provided",
+        },
+        400,
+      );
+    }
+
+    const rawSanitizedPath = sanitizePath(folder.replaceAll(" ", "_")).replace(
+      /\/+$/,
+      "",
+    );
+
+    if (!rawSanitizedPath) {
+      logger.error({ folder }, "Invalid folder data provided");
+      return c.json(
+        {
+          success: false,
+          folder: null,
+          error: "Invalid folder data provided",
+        },
+        400,
+      );
+    }
+
+    if (storage) {
+      const alreadyExists = await storage.folderExists(rawSanitizedPath);
+
+      if (alreadyExists) {
+        logger.warn({ folder: rawSanitizedPath }, "Folder already exists");
+        return c.json(
+          {
+            success: false,
+            folder: null,
+            error: "Folder already exists",
+          },
+          409,
+        );
+      }
+
+      await storage.createFolder(rawSanitizedPath);
+      logger.info({ folder: rawSanitizedPath }, "Folder marker created");
+
+      return c.json(
+        {
+          success: true,
+          folder: rawSanitizedPath,
+          error: null,
+        },
+        201,
+      );
+    }
+
+    const localBasePath = path.join(".", "public");
+    const localPath = path.join(".", "public", rawSanitizedPath);
+
+    if (!fs.existsSync(localBasePath)) {
+      logger.error({ folder }, "Local storage path does not exist");
+      return c.json(
+        {
+          success: false,
+          folder: null,
+          error: "Local storage path does not exist",
+        },
+        500,
+      );
+    }
+
+    if (fs.existsSync(localPath)) {
+      logger.warn({ folder: localPath }, "Folder already exists");
+      return c.json(
+        {
+          success: false,
+          folder: null,
+          error: "Folder already exists",
+        },
+        409,
+      );
+    }
+
+    fs.mkdirSync(localPath, { recursive: true });
+    logger.info({ folder: localPath }, "Folder created");
+    return c.json(
+      {
+        success: true,
+        folder: rawSanitizedPath,
+        error: null,
+      },
+      201,
+    );
+  } catch (error) {
+    logger.error({ error: serializeError(error) }, "Folder creation error");
+    return c.json(
+      {
+        success: false,
+        folder: null,
         error: error instanceof Error ? error.message : "Unknown error",
       },
       500,
