@@ -85,10 +85,10 @@ export default function DeleteFolderButton({
 
   return (
     <Button
-      variant="ghost"
+      variant="ghostDestructive"
       size="sm"
       onClick={handleDelete}
-      className="gap-2 text-destructive hover:text-destructive"
+      className="gap-2"
     >
       <FolderX className="h-4 w-4" />
       {isDeleting ? "Deleting..." : "Delete folder"}

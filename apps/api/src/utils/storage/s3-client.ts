@@ -6,10 +6,10 @@ import {
   ListObjectsV2Command,
   DeleteObjectCommand,
   DeleteObjectsCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import https from 'https';
-import { StorageConfig } from 'shared';
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import https from "https";
+import { StorageConfig } from "shared";
 
 export class S3ClientWrapper {
   private s3Client: S3Client;
@@ -17,12 +17,21 @@ export class S3ClientWrapper {
 
   constructor(config: StorageConfig) {
     this.config = config;
-    
+
     // Configure HTTP handler with socket settings from environment variables
-    const maxSockets = parseInt(process.env.STORAGE_MAX_SOCKETS || '50', 10);
-    const connectionTimeout = parseInt(process.env.STORAGE_CONNECTION_TIMEOUT || '0', 10);
-    const requestTimeout = parseInt(process.env.STORAGE_REQUEST_TIMEOUT || '0', 10);
-    const socketTimeout = parseInt(process.env.STORAGE_SOCKET_TIMEOUT || '0', 10);
+    const maxSockets = parseInt(process.env.STORAGE_MAX_SOCKETS || "50", 10);
+    const connectionTimeout = parseInt(
+      process.env.STORAGE_CONNECTION_TIMEOUT || "0",
+      10,
+    );
+    const requestTimeout = parseInt(
+      process.env.STORAGE_REQUEST_TIMEOUT || "0",
+      10,
+    );
+    const socketTimeout = parseInt(
+      process.env.STORAGE_SOCKET_TIMEOUT || "0",
+      10,
+    );
 
     const clientConfig = {
       region: config.region,
@@ -53,10 +62,12 @@ export class S3ClientWrapper {
    */
   async objectExists(key: string): Promise<boolean> {
     try {
-      await this.s3Client.send(new HeadObjectCommand({
-        Bucket: this.config.bucketName,
-        Key: key,
-      }));
+      await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.config.bucketName,
+          Key: key,
+        }),
+      );
       return true;
     } catch {
       return false;
@@ -67,19 +78,21 @@ export class S3ClientWrapper {
    * Downloads an object from the bucket
    */
   async downloadObject(key: string): Promise<Buffer> {
-    const response = await this.s3Client.send(new GetObjectCommand({
-      Bucket: this.config.bucketName,
-      Key: key,
-    }));
+    const response = await this.s3Client.send(
+      new GetObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: key,
+      }),
+    );
 
     if (!response.Body) {
-      throw new Error('File not found');
+      throw new Error("File not found");
     }
 
     // Converts the stream to buffer
     const chunks: Uint8Array[] = [];
     const reader = response.Body.transformToWebStream().getReader();
-    
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -92,7 +105,10 @@ export class S3ClientWrapper {
   /**
    * Lists objects under an optional prefix
    */
-  async listObjects(prefix?: string): Promise<{ key: string; size?: number }[]> {
+  async listObjects(
+    prefix?: string,
+    maxKeys?: number,
+  ): Promise<{ key: string; size?: number }[]> {
     const results: { key: string; size?: number }[] = [];
     let continuationToken: string | undefined;
 
@@ -101,8 +117,9 @@ export class S3ClientWrapper {
         new ListObjectsV2Command({
           Bucket: this.config.bucketName,
           Prefix: prefix,
+          MaxKeys: maxKeys,
           ContinuationToken: continuationToken,
-        })
+        }),
       );
 
       if (response.Contents) {
@@ -116,9 +133,10 @@ export class S3ClientWrapper {
         }
       }
 
-      continuationToken = response.IsTruncated
-        ? response.NextContinuationToken
-        : undefined;
+      continuationToken =
+        response.IsTruncated && (!maxKeys || results.length < maxKeys)
+          ? response.NextContinuationToken
+          : undefined;
     } while (continuationToken);
 
     return results;
@@ -127,15 +145,36 @@ export class S3ClientWrapper {
   /**
    * Uploads an object to the bucket
    */
-  async uploadObject(key: string, buffer: Buffer, contentType: string, metadata?: Record<string, string>): Promise<void> {
-    await this.s3Client.send(new PutObjectCommand({
-      Bucket: this.config.bucketName,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-      CacheControl: 'public, max-age=31536000', // Cache 1 year
-      Metadata: metadata,
-    }));
+  async uploadObject(
+    key: string,
+    buffer: Buffer,
+    contentType: string,
+    metadata?: Record<string, string>,
+  ): Promise<void> {
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        CacheControl: "public, max-age=31536000", // Cache 1 year
+        Metadata: metadata,
+      }),
+    );
+  }
+
+  /**
+   * Creates a zero-byte object to represent a folder in S3-compatible storage
+   */
+  async createFolderMarker(key: string): Promise<void> {
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: key,
+        Body: "",
+        ContentType: "application/x-directory",
+      }),
+    );
   }
 
   /**
@@ -148,7 +187,7 @@ export class S3ClientWrapper {
         Bucket: this.config.bucketName,
         Key: key,
       }),
-      { expiresIn }
+      { expiresIn },
     );
   }
 
@@ -159,13 +198,13 @@ export class S3ClientWrapper {
     if (this.config.publicUrl) {
       return `${this.config.publicUrl}/${key}`;
     }
-    
+
     // For custom endpoints, construct URL from endpoint
     if (this.config.endpoint) {
-      const endpointUrl = this.config.endpoint.replace(/\/$/, '');
+      const endpointUrl = this.config.endpoint.replace(/\/$/, "");
       return `${endpointUrl}/${this.config.bucketName}/${key}`;
     }
-    
+
     // Default AWS S3 URL format
     return `https://${this.config.bucketName}.s3.${this.config.region}.amazonaws.com/${key}`;
   }
@@ -174,21 +213,31 @@ export class S3ClientWrapper {
    * Deletes an object from the bucket
    */
   async deleteObject(key: string): Promise<void> {
-    await this.s3Client.send(new DeleteObjectCommand({
-      Bucket: this.config.bucketName,
-      Key: key,
-    }));
+    await this.s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: key,
+      }),
+    );
   }
 
   /**
    * Gets object metadata (size, lastModified) without downloading the file
    */
-  async getObjectMetadata(key: string): Promise<{ size: number; lastModified: Date; metadata?: Record<string, string> } | null> {
+  async getObjectMetadata(
+    key: string,
+  ): Promise<{
+    size: number;
+    lastModified: Date;
+    metadata?: Record<string, string>;
+  } | null> {
     try {
-      const response = await this.s3Client.send(new HeadObjectCommand({
-        Bucket: this.config.bucketName,
-        Key: key,
-      }));
+      const response = await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.config.bucketName,
+          Key: key,
+        }),
+      );
 
       return {
         size: response.ContentLength ?? 0,
@@ -216,13 +265,15 @@ export class S3ClientWrapper {
 
     let totalDeleted = 0;
     for (const batch of batches) {
-      const response = await this.s3Client.send(new DeleteObjectsCommand({
-        Bucket: this.config.bucketName,
-        Delete: {
-          Objects: batch.map(key => ({ Key: key })),
-          Quiet: true,
-        },
-      }));
+      const response = await this.s3Client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.config.bucketName,
+          Delete: {
+            Objects: batch.map((key) => ({ Key: key })),
+            Quiet: true,
+          },
+        }),
+      );
 
       totalDeleted += batch.length - (response.Errors?.length ?? 0);
     }

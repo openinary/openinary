@@ -660,20 +660,61 @@ upload.post("/createfolder", async (c) => {
       );
     }
 
-    const rawSanitizedPath = sanitizePath(folder.replaceAll(" ", "_"));
-    const localBasePath = path.join(".", "public");
-    const localPath = path.join(".", "public", rawSanitizedPath);
+    const rawSanitizedPath = sanitizePath(folder.replaceAll(" ", "_")).replace(
+      /\/+$/,
+      "",
+    );
 
-    if (!fs.existsSync(localBasePath)) {
-      logger.error(
-        { folder },
-        "Folders can only be created for local file storage",
-      );
+    if (!rawSanitizedPath) {
+      logger.error({ folder }, "Invalid folder data provided");
       return c.json(
         {
           success: false,
           folder: null,
-          error: "Folders can only be created for local file storage",
+          error: "Invalid folder data provided",
+        },
+        400,
+      );
+    }
+
+    if (storage) {
+      const alreadyExists = await storage.folderExists(rawSanitizedPath);
+
+      if (alreadyExists) {
+        logger.warn({ folder: rawSanitizedPath }, "Folder already exists");
+        return c.json(
+          {
+            success: false,
+            folder: null,
+            error: "Folder already exists",
+          },
+          409,
+        );
+      }
+
+      await storage.createFolder(rawSanitizedPath);
+      logger.info({ folder: rawSanitizedPath }, "Folder marker created");
+
+      return c.json(
+        {
+          success: true,
+          folder: rawSanitizedPath,
+          error: null,
+        },
+        201,
+      );
+    }
+
+    const localBasePath = path.join(".", "public");
+    const localPath = path.join(".", "public", rawSanitizedPath);
+
+    if (!fs.existsSync(localBasePath)) {
+      logger.error({ folder }, "Local storage path does not exist");
+      return c.json(
+        {
+          success: false,
+          folder: null,
+          error: "Local storage path does not exist",
         },
         500,
       );
