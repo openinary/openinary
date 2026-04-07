@@ -42,7 +42,8 @@ async function fetchStorageTree(): Promise<TreeDataItem[]> {
         lowerName.endsWith(".png") ||
         lowerName.endsWith(".webp") ||
         lowerName.endsWith(".gif") ||
-        lowerName.endsWith(".avif")
+        lowerName.endsWith(".avif") ||
+        lowerName.endsWith(".psd")
       ) {
         icon = FileImage;
       } else if (

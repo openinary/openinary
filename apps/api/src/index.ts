@@ -4,6 +4,7 @@ import transform from "./routes/transform";
 import authenticated from "./routes/authenticated";
 import upload from "./routes/upload";
 import storageRoute from "./routes/storage";
+import download from "./routes/download";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
 import videoStatus from "./routes/video-status";
@@ -73,6 +74,11 @@ app.route("/video-status", videoStatus);
 app.use("/t", publicRateLimit);
 app.use("/t/*", publicRateLimit);
 app.route("/t", transform);
+
+// Original file download route (public — consistent with /t/)
+app.use("/download", publicRateLimit);
+app.use("/download/*", publicRateLimit);
+app.route("/download", download);
 
 // Authenticated image transformation route (with signature verification)
 app.use("/authenticated", publicRateLimit);

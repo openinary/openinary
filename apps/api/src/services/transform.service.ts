@@ -156,7 +156,7 @@ export class TransformService {
     let cachePath = getCachePath(path);
 
     // Determine optimal format if not explicitly specified
-    if (!params.format && ext?.match(/jpe?g|png|webp|avif|gif/)) {
+    if (!params.format && ext?.match(/jpe?g|png|webp|avif|gif|psd/)) {
       const optimalFormat = this.compression.determineOptimalFormatForCache(
         userAgent,
         acceptHeader,
@@ -263,7 +263,7 @@ export class TransformService {
       let optimizationResult: any;
 
       // Process based on file type
-      if (ext?.match(/jpe?g|png|webp|avif|gif/)) {
+      if (ext?.match(/jpe?g|png|webp|avif|gif|psd/)) {
         const result = await this.processImageFile(
           sourcePath,
           effectiveParams,

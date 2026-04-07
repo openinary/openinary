@@ -74,7 +74,8 @@ function findItemsInPath(
         lowerName.endsWith(".png") ||
         lowerName.endsWith(".webp") ||
         lowerName.endsWith(".gif") ||
-        lowerName.endsWith(".avif");
+        lowerName.endsWith(".avif") ||
+        lowerName.endsWith(".psd");
 
       const isVideo =
         lowerName.endsWith(".mp4") ||

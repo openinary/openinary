@@ -49,7 +49,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "image/*": [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"],
+      "image/*": [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".psd"],
       "video/*": [".mp4", ".mov", ".webm"],
     },
   });
@@ -165,7 +165,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                   Drop files here, or click to select files
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Supports: JPG, PNG, WebP, AVIF, GIF, MP4, MOV, WebM
+                  Supports: JPG, PNG, WebP, AVIF, GIF, PSD, MP4, MOV, WebM
                 </p>
                 <div className="flex gap-2 mt-2">
                   <Button
