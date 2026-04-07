@@ -295,6 +295,8 @@ export async function processImage(
       contentType = "image/avif";
     } else if (ext?.match(/gif/)) {
       contentType = "image/gif";
+    } else if (ext?.match(/psd/)) {
+      contentType = "image/png"; // PSD is decoded to PNG before Sharp processing
     }
 
     // Cleanup in case of error
