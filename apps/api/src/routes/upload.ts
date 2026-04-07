@@ -32,6 +32,8 @@ const ALLOWED_TYPES = {
   "image/gif": [".gif"],
   "image/heic" : ['.heic', '.heif'],
   "image/heif" : ['.heic', '.heif'],
+  "image/vnd.adobe.photoshop": [".psd"],
+  "application/octet-stream": [".psd"],
   // Videos
   "video/mp4": [".mp4"],
   "video/quicktime": [".mov"],
@@ -443,7 +445,7 @@ upload.post("/", async (c) => {
       if (!validateFileType(filename, mimeType)) {
         failedUploads.push({
           filename: rawSanitizedPath,
-          error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif) and videos (mp4, mov, webm)`,
+          error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif, psd) and videos (mp4, mov, webm)`,
         });
         continue;
       }
