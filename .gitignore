@@ -111,3 +111,6 @@ docs*
 *.db-wal
 data/
 apps/*/data/
+
+# AI 
+CLAUDE.md
