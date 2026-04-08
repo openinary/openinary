@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FileImage, FileVideo, Folder, ArrowUpRight } from "lucide-react";
+import { FileImage, FileVideo, ArrowUpRight } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useStorageTree } from "@/hooks/use-storage-tree";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +32,45 @@ type FolderItem = {
   name: string;
   path: string;
 };
+
+function getFolderInitials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return name.slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+function getFolderImages(
+  items: TreeDataItem[],
+  folderPath: string[],
+  limit = 4,
+): string[] {
+  let currentItems = items;
+  for (const seg of folderPath) {
+    const found = currentItems.find((i) => i.name === seg);
+    if (!found?.children) return [];
+    currentItems = found.children;
+  }
+  const images: string[] = [];
+  for (const item of currentItems) {
+    if (images.length >= limit) break;
+    if (!item.children) {
+      const lower = item.name.toLowerCase();
+      const isImage = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".avif",
+        ".psd",
+      ].some((ext) => lower.endsWith(ext));
+      if (isImage) {
+        images.push([...folderPath, item.name].join("/"));
+      }
+    }
+  }
+  return images;
+}
 
 // Find items in a specific folder path
 function findItemsInPath(
@@ -240,6 +279,9 @@ export function MediaGrid({
       {/* Render folders */}
       {folders.map((folder) => {
         const isHovered = hoveredId === folder.id;
+        const folderImages = treeData
+          ? getFolderImages(treeData, [...pathSegments, folder.name])
+          : [];
         return (
           <div
             key={folder.id}
@@ -248,8 +290,68 @@ export function MediaGrid({
             onMouseEnter={() => setHoveredId(folder.id)}
             onMouseLeave={() => setHoveredId(null)}
           >
-            <div className="relative w-full h-full bg-muted flex items-center justify-center">
-              <Folder className="h-16 w-16 text-muted-foreground" />
+            <div className="relative w-full h-full">
+              {folderImages.length === 4 ? (
+                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                  {folderImages.map((src, i) => (
+                    <div key={i} className="overflow-hidden">
+                      <img
+                        src={`${transformBaseUrl}/t/w_250,h_250,q_70/${src}`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : folderImages.length === 3 ? (
+                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                  <div className="overflow-hidden row-span-2">
+                    <img
+                      src={`${transformBaseUrl}/t/w_250,h_500,q_70/${folderImages[0]}`}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  {folderImages.slice(1).map((src, i) => (
+                    <div key={i} className="overflow-hidden">
+                      <img
+                        src={`${transformBaseUrl}/t/w_250,h_250,q_70/${src}`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : folderImages.length === 2 ? (
+                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                  {folderImages.map((src, i) => (
+                    <div key={i} className="overflow-hidden">
+                      <img
+                        src={`${transformBaseUrl}/t/w_250,h_500,q_70/${src}`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : folderImages.length === 1 ? (
+                <img
+                  src={`${transformBaseUrl}/t/w_500,h_500,q_70/${folderImages[0]}`}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <span className="text-muted-foreground text-2xl font-bold tracking-wide">
+                    {getFolderInitials(folder.name)}
+                  </span>
+                </div>
+              )}
             </div>
             <div
               className={cn(
