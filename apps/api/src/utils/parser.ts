@@ -16,18 +16,45 @@ export const parseParams = (path: string) => {
 };
 
 /**
- * Heuristic check if a path segment looks like a transformation
- * definition (e.g. "w_300,h_300,c_fill").
+ * Valid values for each transformation key.
+ * Used by isTransformSegment to reject folder names that happen to start with a known key.
  */
-const isTransformSegment = (segment: string): boolean => {
-  if (!segment || segment.includes(".")) return false;
-  // Must contain either "," separating options or "_" within an option
-  if (!segment.includes(",") && !segment.includes("_")) return false;
+const TRANSFORM_VALUE_PATTERNS: Readonly<Record<string, RegExp>> = {
+  w:  /^\d+$|^auto$/,
+  h:  /^\d+$|^auto$/,
+  c:  /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
+  g:  /^(center|c|north(?:_center)?|n|south(?:_center)?|s|east|e|west|w|faces?(?:_center)?|auto)$/,
+  q:  /^\d+$|^auto$/,
+  f:  /^(webp|jpe?g|png|avif|gif|psd|mp4|webm|mov|avi|mp3|wav|ogg|pdf|auto)$/,
+  a:  /^-?\d+$|^auto$/,
+  ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
+  b:  /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
+  bg: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
+  so: /^\d+(?:\.\d+)?$/,
+  eo: /^\d+(?:\.\d+)?$/,
+  t:  /^(true|1|\d+)$/,
+  tt: /^\d+(?:\.\d+)?$/,
+};
 
-  // Look for known transformation keys
-  // FIX H12: Add t and tt to recognized keys for thumbnail support
-  const hasKnownKey = /(,|^)(w|h|c|g|q|f|a|ar|b|bg|so|eo|t|tt)_/.test("," + segment);
-  return hasKnownKey;
+const isValidTransformPair = (part: string): boolean => {
+  const underscoreIndex = part.indexOf("_");
+  if (underscoreIndex === -1) return false;
+  const key = part.substring(0, underscoreIndex);
+  const value = part.substring(underscoreIndex + 1);
+  if (!value) return false;
+  const pattern = TRANSFORM_VALUE_PATTERNS[key];
+  return pattern !== undefined && pattern.test(value);
+};
+
+/**
+ * Check if a path segment is a transformation definition (e.g. "w_300,h_300,c_fill").
+ * Every comma-separated part must be a valid key_value pair to avoid false positives
+ * on folder names like "w_photos", "f_family", or "bg_images".
+ */
+export const isTransformSegment = (segment: string): boolean => {
+  if (!segment || segment.includes(".")) return false;
+  const parts = segment.split(",").filter(Boolean);
+  return parts.length > 0 && parts.every(isValidTransformPair);
 };
 
 /**
@@ -229,3 +256,4 @@ const mapBackground = (value: string): string => {
       return `#${value}`;
   }
 };
+
