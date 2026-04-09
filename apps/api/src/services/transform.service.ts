@@ -1,6 +1,6 @@
 import { Context } from 'hono';
 import { getCachePath, existsInCache, deleteCachedFiles } from '../utils/cache';
-import { parseParams } from '../utils/parser';
+import { parseParams, isTransformSegment } from '../utils/parser';
 import { createStorageClient } from '../utils/storage/index';
 import { Compression } from '../utils/image/compression';
 import logger, { serializeError } from '../utils/logger';
@@ -135,11 +135,7 @@ export class TransformService {
    * Check if the first segment is a transformation string
    */
   private hasTransformSegment(segments: string[]): boolean {
-    return (
-      segments.length > 0 &&
-      !segments[0].includes('.') &&
-      (segments[0].includes(',') || segments[0].includes('_'))
-    );
+    return segments.length > 0 && isTransformSegment(segments[0]);
   }
 
   /**
@@ -555,9 +551,7 @@ export class TransformService {
       // Invalidate cache since the file doesn't exist
       const pathSegments = request.path.split('/').slice(2);
       const hasTransform =
-        pathSegments.length > 0 &&
-        !pathSegments[0].includes('.') &&
-        (pathSegments[0].includes(',') || pathSegments[0].includes('_'));
+        pathSegments.length > 0 && isTransformSegment(pathSegments[0]);
       const filePath = hasTransform
         ? pathSegments.slice(1).join('/')
         : pathSegments.join('/');
@@ -587,3 +581,4 @@ export class TransformService {
     };
   }
 }
+
