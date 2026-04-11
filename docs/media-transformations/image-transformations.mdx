@@ -1,257 +1,198 @@
 ---
 title: "Image Transformations"
-description: "Resize, crop, rotate, and optimize images with powerful URL-based parameters"
+description: "Resize, crop, rotate, and optimize images with URL-based parameters"
 ---
 
-## Parameter Reference
+## Parameters
 
-Quick reference for all available parameters:
-
-| Parameter | Full Name | Description |
+| Parameter | Full name | Description |
 |-----------|-----------|-------------|
-| [`w`](#w) | width | Image width in pixels |
-| [`h`](#h) | height | Image height in pixels |
-| [`c`](#c) | crop | Crop mode for resizing |
-| [`ar`](#ar) | aspect ratio | Aspect ratio (format: `W:H`) |
-| [`a`](#a) | angle | Rotation angle in degrees |
+| [`w`](#w) | width | Width in pixels |
+| [`h`](#h) | height | Height in pixels |
+| [`c`](#c) | crop | Crop/resize mode |
+| [`ar`](#ar) | aspect ratio | Crop to a given ratio (`W:H`) |
+| [`a`](#a) | angle | Rotation angle or `auto` |
 | [`g`](#g) | gravity | Focal point for cropping |
-| [`b`](#b) | background | Background color |
-| [`q`](#q) | quality | Compression quality (1-100) |
-| [`f`](#f) | format | Output format (avif, webp, jpeg, png) |
+| [`b`](#b) | background | Background color (hex) |
+| [`q`](#q) | quality | Compression level (1–100) |
+| [`f`](#f) | format | Output format |
 
-## Core Parameters
+## Parameter reference
 
 <a id="w"></a>
 <ParamField path="w" type="integer">
-  Set the width of the image in pixels.
-  
-  **Examples:**
-  - `w_800` - Set width to 800 pixels
-  - `w_1920` - Set width to Full HD
-  - `w_400` - Set width to 400 pixels
+  Width of the output image in pixels.
+
+  `w_800` · `w_1920` · `w_400`
 </ParamField>
 
 <a id="h"></a>
 <ParamField path="h" type="integer">
-  Set the height of the image in pixels.
-  
-  **Examples:**
-  - `h_600` - Set height to 600 pixels
-  - `h_1080` - Set height to Full HD
-  - `h_400` - Set height to 400 pixels
+  Height of the output image in pixels.
+
+  `h_600` · `h_1080` · `h_400`
 </ParamField>
 
 <a id="c"></a>
 <ParamField path="c" type="string" default="fill">
-  Define how the image is cropped during resizing.
-  
-  **Available modes:**
-  - `fill` - Fill entire area, cropping if necessary (default)
-  - `fit` - Fit within dimensions while preserving aspect ratio
-  - `scale` - Stretch to exact dimensions, ignoring aspect ratio
-  - `crop` - Resize and crop to exact dimensions
-  - `pad` - Fit and add borders with background color
+  How the image is resized and cropped.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `fill` | Fill the area, cropping the overflow (default) |
+  | `fit` | Fit within dimensions, preserving aspect ratio |
+  | `scale` | Stretch to exact dimensions (distorts if ratios differ) |
+  | `crop` | Resize and crop to exact dimensions |
+  | `pad` | Fit and add background-colored borders |
 </ParamField>
 
 <a id="ar"></a>
 <ParamField path="ar" type="string">
-  Apply a specific aspect ratio by cropping the image. Format: `W:H`.
-  
-  **Common ratios:**
-  - `ar_16:9` - Widescreen video format
-  - `ar_1:1` - Square format (Instagram)
-  - `ar_4:3` - Classic photo format
+  Crop the image to a specific aspect ratio. Format: `W:H`.
+
+  `ar_16:9` · `ar_1:1` · `ar_4:3`
 </ParamField>
 
 <a id="a"></a>
 <ParamField path="a" type="string | number">
-  Rotate the image by specified degrees or automatically using <Tooltip tip="Exchangeable Image File Format - metadata stored in image files">EXIF</Tooltip> data.
-  
-  **Values:**
-  - `auto` - Automatic rotation based on EXIF orientation
-  - `0-360` - Rotation angle in degrees
+  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format — orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0–360) for a fixed angle.
+
+  `a_auto` · `a_90` · `a_180`
 </ParamField>
 
 <a id="g"></a>
-<ParamField path="g" type="string">
-  Define the focal point for cropping operations.
-  
-  **Available positions:**
-  - `center` - Center of the image (default)
-  - `north` - Top edge
-  - `south` - Bottom edge
-  - `east` - Right edge
-  - `west` - Left edge
-  - `face` - AI-powered face detection
-  - `auto` - Automatic detection of region of interest using entropy analysis
+<ParamField path="g" type="string" default="center">
+  Focal point used when cropping.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `center` | Center of the image (default) |
+  | `north` | Top edge |
+  | `south` | Bottom edge |
+  | `east` | Right edge |
+  | `west` | Left edge |
+  | `face` | Face detection — keeps the detected face in frame |
+  | `auto` | Entropy-based region of interest detection |
 </ParamField>
 
 <a id="b"></a>
 <ParamField path="b" type="string">
-  Set background color for rotation or pad crop mode.
-  
-  **Format:**
-  - `b_rgb:ffffff` - Hexadecimal color without `#` (e.g., `b_rgb:ffffff` for white, `b_rgb:ff0000` for red)
+  Background color for `c_pad` or rotated images. Use `rgb:` followed by a 6-digit hex value.
+
+  `b_rgb:ffffff` (white) · `b_rgb:000000` (black) · `b_rgb:f5f5f5` (light gray)
 </ParamField>
 
 <a id="q"></a>
 <ParamField path="q" type="integer" default="85">
-  Control compression quality level. Range: 1-100.
-  
-  **Recommendations:**
-  - `90-100` - High quality, larger file size
-  - `80-89` - Optimal balance (recommended)
-  - `60-79` - Higher compression, smaller files
-  - `1-59` - Maximum compression, visible artifacts
+  Compression quality from 1 (smallest file) to 100 (highest quality).
+
+  | Range | Trade-off |
+  |-------|-----------|
+  | 90–100 | High quality, larger file |
+  | 80–89 | Recommended sweet spot |
+  | 60–79 | Smaller file, slight quality loss |
+  | 1–59 | Aggressive compression, visible artifacts |
 </ParamField>
 
 <a id="f"></a>
 <ParamField path="f" type="string">
-  Force a specific output format.
-  
-  **Available formats:**
-  - `avif` - Modern format, best compression (up to 50% smaller)
-  - `webp` - Modern format, excellent compatibility
-  - `jpeg` / `jpg` - Universal standard format
-  - `png` - Lossless, supports transparency
+  Force a specific output format. When omitted, the [best format is chosen automatically](/media-transformations/intelligent-compression) based on the browser's `Accept` header.
+
+  | Value | Notes |
+  |-------|-------|
+  | `avif` | Best compression (up to 50% vs JPEG) |
+  | `webp` | Excellent compatibility, ~30% vs JPEG |
+  | `jpeg` / `jpg` | Universal fallback |
+  | `png` | Lossless, supports transparency |
 </ParamField>
 
-## Basic Examples
+## Examples
 
 <Tabs>
-<Tab title="Basic Resize">
+<Tab title="Resize">
 
 ```http
 GET /t/w_800,h_600/image.jpg
 ```
 
-Resize an image to 800×600 pixels using default fill mode.
-
 </Tab>
 
-<Tab title="Smart Cropping">
+<Tab title="Smart crop">
 
 ```http
 GET /t/w_400,h_400,c_fill,g_face/portrait.jpg
 ```
 
-Create a square thumbnail with face detection for optimal framing.
+Square thumbnail cropped around the detected face.
 
 </Tab>
 
-<Tab title="Aspect Ratio">
+<Tab title="Aspect ratio">
 
 ```http
-GET /t/ar_16:9,w_1920,h_1080/banner.jpg
+GET /t/ar_16:9,w_1920/banner.jpg
 ```
-
-Apply widescreen ratio with automatic cropping.
 
 </Tab>
 
-<Tab title="Format Conversion">
+<Tab title="Format">
 
 ```http
-GET /t/w_1200,h_800,f_avif,q_80/photo.jpg
+GET /t/w_1200,f_avif,q_80/photo.jpg
 ```
-
-Resize and convert to AVIF format with optimized compression.
 
 </Tab>
 </Tabs>
 
-## Advanced Examples
-
 <AccordionGroup>
-<Accordion title="Instagram-optimized portrait">
+<Accordion title="Instagram portrait">
 
 ```http
-GET /t/ar_1:1,w_1080,h_1080,g_face,q_85,f_webp/portrait.jpg
+GET /t/ar_1:1,w_1080,g_face,q_85,f_webp/portrait.jpg
 ```
-
-Perfect square format with face-focused cropping and WebP output for social media.
 
 </Accordion>
 
-<Accordion title="Responsive thumbnail with padding">
+<Accordion title="Padded thumbnail">
 
 ```http
 GET /t/w_400,h_300,c_pad,b_rgb:f5f5f5,q_80/thumbnail.jpg
 ```
 
-Create a padded thumbnail with light gray background for consistent dimensions.
+Consistent dimensions with a light gray background on the borders.
 
 </Accordion>
 
-<Accordion title="Rotated logo with transparency">
+<Accordion title="Rotated PNG (with transparency)">
 
 ```http
 GET /t/a_15,w_200,h_200/logo.png
 ```
 
-Rotate a logo by 15 degrees. PNG format preserves transparency automatically.
-
 </Accordion>
 
-<Accordion title="Web-optimized landscape photo">
+<Accordion title="Full HD AVIF">
 
 ```http
 GET /t/w_1920,h_1080,q_85,f_avif/landscape.jpg
 ```
 
-Full HD output with AVIF format for maximum compression and quality balance.
-
 </Accordion>
 </AccordionGroup>
 
-## Supported Image Formats
+## Supported formats
 
-<Tabs>
-<Tab title="Input Formats">
+**Input:** JPEG, PNG, WebP, AVIF, GIF (first frame), HEIC/HEIF (converted to JPEG on upload), PSD (layers composited)
 
-The system accepts the following image formats as input:
+**Output:** AVIF, WebP, JPEG, PNG
 
-- **JPEG / JPG** - Standard photo format
-- **PNG** - With full transparency support
-- **WebP** - Modern web format
-- **AVIF** - Next-generation format
-- **GIF** - First frame only (static output)
-
-</Tab>
-
-<Tab title="Output Formats">
-
-Images can be delivered in these optimized formats:
-
-- **AVIF** - Modern format with best compression (up to 50% smaller than JPEG)
-- **WebP** - Modern format with excellent browser support
-- **JPEG** - Universal compatibility across all devices
-- **PNG** - Lossless compression with transparency support
-
-<Info>
-If no format is specified, the system automatically selects the optimal format based on browser support and content type.
-</Info>
-
-</Tab>
-</Tabs>
-
-## Best Practices
+## Next steps
 
 <CardGroup cols={2}>
-<Card title="Optimize for web" icon="globe">
-  Use `q_85` with automatic format selection for the best balance of quality and file size.
-</Card>
-
-<Card title="Leverage face detection" icon="user">
-  Apply `g_face` for portraits and profile images to ensure faces remain in frame after cropping.
-</Card>
-
-<Card title="Batch similar sizes" icon="layer-group">
-  Standardize image dimensions across your application to maximize cache efficiency.
-</Card>
-
-<Card title="Use modern formats" icon="rocket">
-  Specify `f_avif` or `f_webp` for significant file size reductions on modern browsers.
-</Card>
+  <Card title="Automatic Format Selection" icon="wand-magic-sparkles" href="/media-transformations/intelligent-compression">
+    How Openinary picks the optimal format automatically.
+  </Card>
+  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
+    Pre-generate variants at upload time for instant first response.
+  </Card>
 </CardGroup>
-

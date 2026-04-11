@@ -1,95 +1,57 @@
 ---
 title: "Docker Resources"
-description: "Configure Docker container resource limits and reservations"
+description: "Set CPU and memory limits and reservations for Docker containers"
 ---
 
-## Parameter Reference
+These variables are read by `docker-compose.yml` to set resource constraints on the Openinary container.
 
-Quick reference for all available Docker resource parameters:
+## Parameters
 
 | Parameter | Description |
 |-----------|-------------|
-| [`DOCKER_CPU_LIMIT`](#docker-cpu-limit) | CPU limit in cores |
-| [`DOCKER_MEMORY_LIMIT`](#docker-memory-limit) | Memory limit |
-| [`DOCKER_CPU_RESERVATION`](#docker-cpu-reservation) | Minimum CPU reservation |
-| [`DOCKER_MEMORY_RESERVATION`](#docker-memory-reservation) | Minimum memory reservation |
+| [`DOCKER_CPU_LIMIT`](#docker-cpu-limit) | Hard CPU cap (cores) |
+| [`DOCKER_MEMORY_LIMIT`](#docker-memory-limit) | Hard memory cap |
+| [`DOCKER_CPU_RESERVATION`](#docker-cpu-reservation) | Minimum guaranteed CPU |
+| [`DOCKER_MEMORY_RESERVATION`](#docker-memory-reservation) | Minimum guaranteed memory |
 
-## Resource Limits
+## Parameter reference
 
 <a id="docker-cpu-limit"></a>
 <ParamField path="DOCKER_CPU_LIMIT" type="number" default="2.0">
-  Maximum CPU allocation for Docker containers in number of cores.
-  
-  **Examples:**
-  - `2.0` - 2 CPU cores (default)
-  - `4.0` - 4 CPU cores for high-performance workloads
-  - `1.0` - 1 CPU core for resource-constrained environments
-  - `0.5` - Half a core (minimum viable)
-  
-  <Note>
-  This is a hard limit. Containers cannot exceed this CPU allocation even if resources are available.
-  </Note>
+  Hard CPU cap in cores. The container cannot use more than this, even if the host has spare capacity.
+
+  `2.0` (default) · `4.0` (video-heavy) · `1.0` (minimal) · `0.5` (bare minimum)
 </ParamField>
 
 <a id="docker-memory-limit"></a>
 <ParamField path="DOCKER_MEMORY_LIMIT" type="string" default="4G">
-  Maximum memory allocation for Docker containers.
-  
-  **Format:**
-  - Use suffixes: `G` (gigabytes), `M` (megabytes)
-  - Examples: `4G`, `512M`, `8G`
-  
-  **Examples:**
-  - `4G` - 4 gigabytes (default)
-  - `8G` - 8 gigabytes for video processing workloads
-  - `2G` - 2 gigabytes for lightweight deployments
-  - `1G` - 1 gigabyte (minimum recommended)
-  
+  Hard memory cap. Use `G` for gigabytes, `M` for megabytes.
+
+  `4G` (default) · `8G` (video-heavy) · `2G` (minimal)
+
   <Warning>
-  Setting memory too low can cause container crashes. Ensure sufficient memory for your workload, especially for video processing.
+  If the container exceeds this limit it will be OOM-killed. Video processing is memory-intensive — allocate at least 2 GB, 4 GB recommended.
   </Warning>
 </ParamField>
 
-## Resource Reservations
-
 <a id="docker-cpu-reservation"></a>
 <ParamField path="DOCKER_CPU_RESERVATION" type="number" default="0.5">
-  Minimum guaranteed CPU allocation for Docker containers.
-  
-  **Examples:**
-  - `0.5` - Half a core guaranteed (default)
-  - `1.0` - 1 CPU core guaranteed
-  - `2.0` - 2 CPU cores guaranteed for critical workloads
-  - `0.25` - Quarter core (minimum)
-  
-  <Info>
-  Reservations ensure containers always have access to a minimum amount of resources, even under high load.
-  </Info>
+  Minimum CPU guaranteed to the container under host load.
+
+  `0.5` (default) · `1.0` · `2.0`
 </ParamField>
 
 <a id="docker-memory-reservation"></a>
 <ParamField path="DOCKER_MEMORY_RESERVATION" type="string" default="1G">
-  Minimum guaranteed memory allocation for Docker containers.
-  
-  **Format:**
-  - Use suffixes: `G` (gigabytes), `M` (megabytes)
-  - Examples: `1G`, `512M`, `2G`
-  
-  **Examples:**
-  - `1G` - 1 gigabyte guaranteed (default)
-  - `2G` - 2 gigabytes guaranteed
-  - `512M` - 512 megabytes (minimum)
-  - `4G` - 4 gigabytes for memory-intensive workloads
-  
-  <Note>
-  Reservations should be lower than limits. They ensure containers have minimum resources available.
-  </Note>
+  Minimum memory guaranteed to the container. Must be lower than `DOCKER_MEMORY_LIMIT`.
+
+  `1G` (default) · `2G` · `512M`
 </ParamField>
 
-## Configuration Examples
+## Configuration examples
 
 <Tabs>
-<Tab title="Development">
+<Tab title="Default (4 GB server)">
 
 ```bash
 DOCKER_CPU_LIMIT=2.0
@@ -98,11 +60,9 @@ DOCKER_CPU_RESERVATION=0.5
 DOCKER_MEMORY_RESERVATION=1G
 ```
 
-Standard development configuration with default resource allocations.
-
 </Tab>
 
-<Tab title="Production (High Performance)">
+<Tab title="Production (16 GB server)">
 
 ```bash
 DOCKER_CPU_LIMIT=4.0
@@ -111,11 +71,9 @@ DOCKER_CPU_RESERVATION=1.0
 DOCKER_MEMORY_RESERVATION=2G
 ```
 
-High-performance production setup with increased resources for video processing.
-
 </Tab>
 
-<Tab title="Resource Constrained">
+<Tab title="Minimal (1–2 GB server)">
 
 ```bash
 DOCKER_CPU_LIMIT=1.0
@@ -124,24 +82,18 @@ DOCKER_CPU_RESERVATION=0.25
 DOCKER_MEMORY_RESERVATION=512M
 ```
 
-Minimal resource configuration for lightweight deployments.
+Image-only deployments only — video processing will fail with less than 2 GB.
 
 </Tab>
 </Tabs>
 
-## Best Practices
+## Related
 
 <CardGroup cols={2}>
-<Card title="Resource planning" icon="calculator">
-  Plan CPU and memory limits based on your workload. Video processing requires more resources than image-only operations.
-</Card>
-
-<Card title="Memory allocation" icon="memory">
-  Allocate sufficient memory for video processing. Insufficient memory can cause job failures.
-</Card>
+  <Card title="Video Processing" icon="gear" href="/configuration/video-processing">
+    Configure worker concurrency and job queue settings.
+  </Card>
+  <Card title="Deploy on Coolify" icon="rocket" href="/guides/coolify-deployment">
+    Full deployment guide with resource configuration.
+  </Card>
 </CardGroup>
-
-<Warning>
-Resource limits are enforced by Docker. Setting limits too low can cause container crashes or job failures. Monitor container resource usage and adjust accordingly.
-</Warning>
-

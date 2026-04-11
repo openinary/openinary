@@ -1,50 +1,85 @@
 ---
 title: "Project Structure"
-description: "Understanding the Openinary monorepo structure"
+description: "Openinary monorepo layout: Hono.js API, Next.js 15 dashboard, and a shared auth/database package — with key file paths for contributors."
 ---
 
-<Info>
-Openinary is organized as a monorepo with the following structure:
-</Info>
+Openinary is a **pnpm monorepo** orchestrated by [Turbo](https://turbo.build/).
 
 ```bash
 openinary/
 ├── apps/
-│   ├── api/          # Media processing API
-│   └── web/          # Next.js Frontend
+│   ├── api/          # Hono.js media processing API
+│   └── web/          # Next.js 15 admin dashboard
 ├── packages/
-│   └── shared/       # Shared types and utilities
+│   └── shared/       # Auth config, DB instance, shared types
 ├── docker/           # Optimized Dockerfiles
 └── docker-compose.yml
 ```
 
-## Apps
+## apps/api
+
+The core API server. All media transformation, upload, and storage logic lives here.
+
+```bash
+apps/api/src/
+├── routes/           # Hono route handlers (transform, upload, storage, queue…)
+├── services/         # Business logic (TransformService)
+├── middleware/       # Auth (apiKeyAuth), rate limiting
+└── utils/
+    ├── image/        # Sharp-based image processing pipeline
+    ├── video/        # FFmpeg-based video processing + job queue
+    ├── storage/      # S3-compatible client (AWS, R2, MinIO…)
+    ├── cache/        # Local filesystem cache helpers
+    ├── parser.ts     # URL transformation parameter parser
+    └── signature.ts  # HMAC-SHA256 signed URL generation/verification
+```
+
+**Key dependencies:** `hono`, `sharp`, `fluent-ffmpeg`, `@aws-sdk/client-s3`, `better-sqlite3`, `better-auth`
+
+## apps/web
+
+The Next.js 15 admin dashboard. Provides a UI for managing uploads, API keys, and video queue status.
+
+```bash
+apps/web/src/app/
+├── (dashboard)/      # Protected dashboard routes (requires login)
+│   ├── page.tsx      # Media browser
+│   ├── api-keys/     # API key management
+│   └── debug/queue/  # Video queue inspector
+├── login/            # Login page
+├── setup/            # First-run admin account creation
+└── api/auth/         # Better Auth handler
+```
+
+**Key dependencies:** `next`, `react`, `@tanstack/react-query`, `better-auth`, Radix UI, Tailwind CSS v4
+
+## packages/shared
+
+Shared code consumed by both `api` and `web`. Keeps auth configuration and the SQLite instance in one place so both apps always use the same database.
+
+```bash
+packages/shared/src/
+├── auth.ts           # Better Auth config (API key plugin, SQLite adapter)
+├── db.ts             # better-sqlite3 instance
+└── types/            # Shared TypeScript types and Zod schemas
+```
+
+## Dependency flow
+
+```
+web  →  shared  →  better-sqlite3, better-auth, zod
+api  →  shared
+```
+
+Both apps import from `shared` via the `"shared"` and `"shared/*"` path aliases defined in `packages/shared/package.json`.
+
+## Next steps
 
 <CardGroup cols={2}>
-<Card title="api" icon="server">
-The main media processing API that handles transformations, uploads, and delivery
-</Card>
-
-<Card title="web" icon="browser">
-Next.js frontend application for managing media
-</Card>
+  <Card title="Local Development" icon="terminal" href="/local-development">
+    Run the monorepo locally with pnpm.
+  </Card>
+  <Card title="Security" icon="lock" href="/security">
+    Auth architecture, API keys, and route reference.
+  </Card>
 </CardGroup>
-
-## Packages
-
-<Card title="shared" icon="box">
-Shared TypeScript types and utilities used across apps
-</Card>
-
-## Docker
-
-<AccordionGroup>
-<Accordion title="docker/" icon="docker">
-Contains optimized Dockerfiles for containerized deployments
-</Accordion>
-
-<Accordion title="docker-compose.yml" icon="file">
-Docker Compose configuration for local development
-</Accordion>
-</AccordionGroup>
-

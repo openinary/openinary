@@ -1,294 +1,150 @@
 ---
 title: "Security"
-description: "Complete guide to Openinary security, authentication, and best practices"
+description: "Openinary authentication model: Better Auth sessions, API key management, rate limiting on public routes, Docker non-root containers, and incident response."
 ---
 
-## Overview
+Openinary uses [Better Auth](https://www.better-auth.com) v1.5 with a SQLite backend. The API supports two authentication methods: **session-based login** for the web dashboard and **API key authentication** for programmatic access.
 
-Openinary uses **Better Auth** for authentication with SQLite as the database backend. The system supports both **web-based login** (email/password) and **API key authentication** for programmatic access.
+## Database
 
-## Authentication Architecture
+All auth data is stored in a single SQLite file at `/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
 
-### Better Auth Configuration
+On startup, `scripts/secure-db.sh` automatically sets the file permissions to `600` (owner read/write only).
 
-**Shared authentication** between API and Web:
+| Table | Contents |
+|-------|----------|
+| `user` | Accounts — passwords bcrypt-hashed |
+| `session` | Web sessions |
+| `apiKey` | API keys — hashed before storage |
+| `account` | OAuth providers |
+| `verification` | Email/phone verification tokens |
 
-- Single SQLite database at `/data/auth.db`
-- Better Auth v1.1.9 with API Key plugin
-- Automatic database initialization on first startup
-- Session-based auth for web, API key for API requests
+## API keys
 
-<Info>
-The authentication system uses a shared package that both the API and Web applications access, ensuring consistent authentication across all interfaces.
-</Info>
-
-## Auth Database Security
-
-### SQLite Configuration
-
-**Location:** `/data/auth.db` (configurable via `DB_PATH`)
-
-**File Permissions:**
-
-- Automatically set to `600` (owner read/write only)
-- Enforced by `scripts/secure-db.sh` on startup
-- Validated by health check endpoint
-
-**Tables:**
-
-- `user` - User accounts (passwords bcrypt-hashed)
-- `session` - Web sessions
-- `account` - Auth providers
-- `verification` - Email/phone verification
-- `apiKey` - API keys (hashed)
-
-### What's Protected
-
-<Check>
-**Hashed/Encrypted:**
-- User passwords (bcrypt)
-- API keys (hashed)
-- Session tokens (secure cookies)
-</Check>
-
-## API Key Management
-
-### Initial Setup
+### Getting your first key
 
 <Tabs>
-<Tab title="Fullstack Mode (Default)">
+<Tab title="Fullstack mode (default)">
 
-**Mode:** `MODE=fullstack` (default)
-
-<Steps>
-<Step title="Create admin account">
-Visit `/setup` to create your first admin account.
-</Step>
-
-<Step title="Create API keys">
-Go to `/api-keys` to create API keys via the web UI.
-</Step>
-</Steps>
+1. Visit `/setup` to create your admin account.
+2. Go to `/api-keys` in the dashboard to create your first key.
 
 </Tab>
 
-<Tab title="API Standalone Mode">
+<Tab title="API-only mode">
 
-**Mode:** `MODE=api`
+On first startup the server generates a key and prints it to the console.
 
-On first startup, the system generates an API key and displays it in the console.
+```bash
+docker logs <container-id>
+```
 
 <Warning>
-**Save this key!** It's shown only once and cannot be retrieved later.
+Copy the key immediately — it is shown only once and cannot be retrieved later.
 </Warning>
-
-No email/password is created or displayed in this mode.
 
 </Tab>
 </Tabs>
 
-### Using API Keys
+### Using a key
 
-**Authorization header:**
+Pass it in the `Authorization` header:
 
 ```bash
 curl -H "Authorization: Bearer sk_your_key_here" \
-  http://localhost:3000/t/image.jpg
+  http://localhost:3000/upload
 ```
 
-## API Routes
+### Best practices
 
-### Complete API Routes Table
+- Store keys in environment variables, never in source code.
+- Create a separate key per service or environment.
+- Set an expiration when creating keys (`expiresIn` in seconds).
+- Rotate keys regularly; disable unused ones promptly.
 
-| Method | Route | Description | Authentication |
-|--------|-------|-------------|----------------|
-| **PUBLIC ROUTES** | | | |
-| `GET` | `/` | API health check | Public |
-| `GET` | `/health` | API health status | Public |
-| `GET` | `/health/database` | Database status | Protected |
-| `GET` | `/t/*` | Image/video transformation | Public |
-| `GET` | `/video-status/*` | Video processing status | Public |
-| `GET` | `/video-status/*/size` | Optimized video size | Public |
-| `GET` | `/video-status/stats` | Video queue statistics | Public |
-| `GET` | `/queue/events` | SSE stream for queue events | Public |
-| **PROTECTED ROUTES** | | | |
-| `POST` | `/upload` | Upload one or multiple files | Protected |
-| `GET` | `/storage` | List file tree structure | Protected |
-| `GET` | `/storage/*/metadata` | File metadata | Protected |
-| `DELETE` | `/storage/*` | Delete a file and its cache | Protected |
-| `POST` | `/api-keys/create` | Create a new API key | Protected |
-| `GET` | `/api-keys/list` | List user's API keys | Protected |
-| `DELETE` | `/api-keys/:keyId` | Delete an API key | Protected |
-| `PATCH` | `/api-keys/:keyId` | Update an API key | Protected |
-| `GET` | `/queue/stats` | Queue statistics | Protected |
-| `GET` | `/queue/jobs` | List jobs (pagination) | Protected |
-| `POST` | `/queue/jobs/:id/retry` | Retry a failed job | Protected |
-| `POST` | `/queue/jobs/:id/cancel` | Cancel a pending job | Protected |
-| `DELETE` | `/queue/jobs/:id` | Delete a job | Protected |
-| `GET` | `/queue/worker/stats` | Worker statistics | Protected |
+## API routes
 
-### Legend
+| Method | Route | Auth |
+|--------|-------|------|
+| `GET` | `/` | Public |
+| `GET` | `/health` | Public |
+| `GET` | `/t/*` | Public |
+| `GET` | `/download/*` | Public |
+| `GET` | `/authenticated/*` | Public (signature-verified) |
+| `GET` | `/video-status/*` | Public |
+| `GET` | `/video-status/*/size` | Public |
+| `GET` | `/video-status/stats` | Public |
+| `GET` | `/queue/events` | Public |
+| `GET` | `/health/database` | **Protected** |
+| `POST` | `/upload` | **Protected** |
+| `GET` | `/storage` | **Protected** |
+| `GET` | `/storage/*/metadata` | **Protected** |
+| `DELETE` | `/storage/*` | **Protected** |
+| `DELETE` | `/invalidate/*` | **Protected** |
+| `POST` | `/api-keys/create` | **Protected** |
+| `GET` | `/api-keys/list` | **Protected** |
+| `DELETE` | `/api-keys/:keyId` | **Protected** |
+| `PATCH` | `/api-keys/:keyId` | **Protected** |
+| `GET` | `/queue/stats` | **Protected** |
+| `GET` | `/queue/jobs` | **Protected** |
+| `POST` | `/queue/jobs/:id/retry` | **Protected** |
+| `POST` | `/queue/jobs/:id/cancel` | **Protected** |
+| `DELETE` | `/queue/jobs/:id` | **Protected** |
+| `GET` | `/queue/worker/stats` | **Protected** |
 
-- **Public**: No authentication required
-- **Protected**: API key authentication required (header `Authorization`)
+**Protected** routes require `Authorization: Bearer <API_KEY>`.
 
-### Important Notes
+## Rate limiting
 
-<Info>
-**Public routes:**
-- `/queue/events` is public (real-time SSE stream)
-- `/t/*` is public for direct access to transformations
-- Health endpoints are mostly public except `/health/database`
-</Info>
+Public routes (`/t/*`, `/health`, etc.) are rate-limited to **100 requests per 60-second window** per IP by default. Adjust with [`PUBLIC_RATE_LIMIT_MAX`](/configuration/server#public-rate-limit-max) and [`PUBLIC_RATE_LIMIT_WINDOW_MS`](/configuration/server#public-rate-limit-window-ms).
 
-<Warning>
-**Protected routes:**
-- All other `/queue/*` routes are protected
-- `/health/database` is protected (sensitive information)
-- Protected routes require `Authorization: Bearer <API_KEY>` header
-</Warning>
+## Docker security
 
-**Example - Create key:**
+- Containers run as the `node` user (non-root) to limit blast radius.
+- The `/data` volume should be mounted with appropriate host permissions.
 
-```bash
-curl -X POST http://localhost:3000/api-keys/create \
-  -H "Authorization: Bearer YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Key", "expiresIn": 31536000}'
-```
-
-## Docker Security
-
-### Non-Root User
-
-All containers run as user `node`:
-
-- Prevents privilege escalation
-- Limits damage if compromised
-- Automatic ownership: `chown -R node:node /app`
-
-### Volume Permissions
-
-```yaml
-# docker-compose.yml
-volumes:
-  - ./data:/app/data          # Database
-```
-
-### Startup Security
-
-**`scripts/secure-db.sh` runs automatically:**
-
-- Creates `/data` directory
-- Sets database permissions to 600
-- Verifies security
-- Displays status
-
-## Security Best Practices
-
-### API Keys
-
-<Check>
-**Do:**
-- Store in environment variables
-- Use different keys per service
-- Set appropriate expiration
-- Rotate regularly
-- Disable unused keys
-</Check>
-
-<Warning>
-**Don't:**
-- Commit to version control
-- Share between environments
-- Use same key everywhere
-- Keep expired keys enabled
-</Warning>
-
-### Passwords
-
-**Requirements:**
-
-- Minimum 8 characters
-- Mixed case, numbers, symbols
-
-### Rate Limiting
-
-- Built-in: 100 requests/minute per API key
-- Configurable in `packages/shared/src/auth.ts`
-
-## Incident Response
+## Incident response
 
 <AccordionGroup>
-<Accordion title="Compromised API Key">
+<Accordion title="Compromised API key">
 
 <Steps>
-<Step title="Disable immediately">
-Disable the key via web UI at `/api-keys`.
+<Step title="Disable the key">
+Go to `/api-keys` in the dashboard and disable or delete the key immediately.
 </Step>
 
-<Step title="Review audit logs">
+<Step title="Review logs">
 ```bash
 docker logs openinary_api | grep "api_key.success"
 ```
 </Step>
 
-<Step title="Generate new key">
-Create a replacement API key with appropriate permissions.
-</Step>
-
-<Step title="Update applications">
-Update all applications using the compromised key.
+<Step title="Issue a replacement">
+Create a new key and update all services that used the compromised one.
 </Step>
 </Steps>
 
 </Accordion>
 
-<Accordion title="Database Corruption">
+<Accordion title="Database integrity check">
 
-<Steps>
-<Step title="Check integrity">
 ```bash
 docker exec openinary_api sqlite3 /app/data/auth.db "PRAGMA integrity_check;"
 ```
-</Step>
 
-<Step title="Restore from backup">
-```bash
-docker exec openinary_api /app/scripts/restore-db.sh /backup/latest.db.gz
-docker compose restart
-```
-</Step>
-</Steps>
+A healthy database returns `ok`. If it reports errors, restore from your most recent backup and restart.
 
 </Accordion>
 </AccordionGroup>
 
-## Security checkup
-
-| Criterion | Status |
-|-----------|--------|
-| Authentication | Better Auth with API keys |
-| Password Hashing | bcrypt automatic |
-| API Key Hashing | Hashed in database |
-| File Permissions | Enforced 600 |
-| Backups | Daily automated |
-| Audit Logging | Structured JSON |
-| HTTPS Cookies | Production enforced |
-| Secret Validation | Startup checks |
-| Non-Root Containers | User `node` |
-| Health Monitoring | `/health/database` |
-
-## Additional Resources
+## Additional resources
 
 <CardGroup cols={2}>
-<Card title="Better Auth Documentation" icon="book" href="https://www.better-auth.com">
-Official Better Auth documentation and guides.
+<Card title="Better Auth" icon="book" href="https://www.better-auth.com">
+  Official Better Auth documentation.
 </Card>
 
 <Card title="API Key Plugin" icon="key" href="https://www.better-auth.com/docs/plugins/api-key">
-Learn more about the Better Auth API Key plugin.
+  Better Auth API Key plugin reference.
 </Card>
 </CardGroup>
-
-

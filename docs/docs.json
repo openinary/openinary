@@ -43,7 +43,8 @@
           "media-transformations/upload-and-prewarm",
           "media-transformations/image-transformations",
           "media-transformations/video-transformations",
-          "media-transformations/intelligent-compression"
+          "media-transformations/intelligent-compression",
+          "media-transformations/signed-urls"
         ]
       },
       {
@@ -68,19 +69,14 @@
   "global": {
     "anchors": [
       {
-        "anchor": "Documentation",
-        "href": "https://mintlify.com/docs",
-        "icon": "book-open-cover"
+        "anchor": "GitHub",
+        "href": "https://github.com/openinary/openinary",
+        "icon": "github"
       },
       {
-        "anchor": "Community",
-        "href": "https://mintlify.com/community",
-        "icon": "slack"
-      },
-      {
-        "anchor": "Blog",
-        "href": "https://mintlify.com/blog",
-        "icon": "newspaper"
+        "anchor": "Issues",
+        "href": "https://github.com/openinary/openinary/issues",
+        "icon": "circle-exclamation"
       }
     ]
   },

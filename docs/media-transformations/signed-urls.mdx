@@ -1,0 +1,233 @@
+---
+title: "Signed URLs"
+description: "Restrict transformation access with HMAC-signed URLs that cannot be forged or tampered with"
+---
+
+## Overview
+
+By default, the `/t/*` route is public — anyone who knows the URL can request a transformation. **Signed URLs** let you lock that down. Each signed URL carries a cryptographic signature that the server verifies before serving the asset. Requests with a missing or invalid signature are rejected with `401 Unauthorized`.
+
+This is useful when you want to:
+
+- Prevent hotlinking or unauthorized transformation of private assets
+- Control which transformations are allowed for a given file
+- Ensure only your backend can generate valid delivery URLs
+
+## How it works
+
+Signed URLs use **HMAC-SHA256** with a shared secret (`API_SECRET`) to produce a 16-character signature. The signature is embedded in the URL path. On every request the server recomputes the expected signature and compares it using a timing-safe operation.
+
+```
+/authenticated/s--{signature}/{transformations}/{file-path}
+```
+
+The signature is computed over:
+- `{transformations}/{file-path}` when a transformation string is present
+- `{file-path}` alone when no transformation is applied
+
+## Setup
+
+### 1. Set `API_SECRET`
+
+Add `API_SECRET` to your environment. It must be at least 16 characters long.
+
+```bash
+# Generate a strong secret
+openssl rand -hex 32
+```
+
+Then add it to your environment:
+
+```bash
+API_SECRET=your-generated-secret-here
+```
+
+<Warning>
+Keep `API_SECRET` private. Anyone who obtains it can generate valid signatures for any file and transformation.
+</Warning>
+
+### 2. Generate signatures in your backend
+
+Use `crypto.createHmac` (Node.js) or an equivalent library in your language. Never generate signatures client-side.
+
+<Tabs>
+<Tab title="TypeScript / Node.js">
+
+```ts
+import crypto from "node:crypto";
+
+const SIGNATURE_LENGTH = 16;
+
+function generateSignature(
+  transformations: string,
+  filePath: string,
+  secret: string
+): string {
+  const stringToSign = transformations
+    ? `${transformations}/${filePath}`
+    : filePath;
+
+  return crypto
+    .createHmac("sha256", secret)
+    .update(stringToSign)
+    .digest("hex")
+    .substring(0, SIGNATURE_LENGTH);
+}
+
+function buildSignedUrl(
+  baseUrl: string,
+  transformations: string,
+  filePath: string,
+  secret: string
+): string {
+  const signature = generateSignature(transformations, filePath, secret);
+  const parts = [baseUrl, "authenticated", `s--${signature}`];
+  if (transformations) parts.push(transformations);
+  parts.push(filePath);
+  return parts.join("/");
+}
+
+// Example
+const url = buildSignedUrl(
+  "https://media.example.com",
+  "w_800,h_600,c_fill,f_webp",
+  "uploads/photo.jpg",
+  process.env.API_SECRET!
+);
+
+console.log(url);
+// → https://media.example.com/authenticated/s--a1b2c3d4e5f6a7b8/w_800,h_600,c_fill,f_webp/uploads/photo.jpg
+```
+
+</Tab>
+
+<Tab title="Python">
+
+```python
+import hmac
+import hashlib
+
+SIGNATURE_LENGTH = 16
+
+def generate_signature(transformations: str, file_path: str, secret: str) -> str:
+    string_to_sign = f"{transformations}/{file_path}" if transformations else file_path
+    sig = hmac.new(secret.encode(), string_to_sign.encode(), hashlib.sha256).hexdigest()
+    return sig[:SIGNATURE_LENGTH]
+
+def build_signed_url(base_url: str, transformations: str, file_path: str, secret: str) -> str:
+    signature = generate_signature(transformations, file_path, secret)
+    parts = [base_url.rstrip("/"), "authenticated", f"s--{signature}"]
+    if transformations:
+        parts.append(transformations)
+    parts.append(file_path)
+    return "/".join(parts)
+
+# Example
+url = build_signed_url(
+    "https://media.example.com",
+    "w_800,h_600,c_fill,f_webp",
+    "uploads/photo.jpg",
+    "your-api-secret"
+)
+print(url)
+# → https://media.example.com/authenticated/s--a1b2c3d4e5f6a7b8/w_800,h_600,c_fill,f_webp/uploads/photo.jpg
+```
+
+</Tab>
+
+<Tab title="PHP">
+
+```php
+<?php
+const SIGNATURE_LENGTH = 16;
+
+function generateSignature(string $transformations, string $filePath, string $secret): string {
+    $stringToSign = $transformations ? "{$transformations}/{$filePath}" : $filePath;
+    $full = hash_hmac('sha256', $stringToSign, $secret);
+    return substr($full, 0, SIGNATURE_LENGTH);
+}
+
+function buildSignedUrl(string $baseUrl, string $transformations, string $filePath, string $secret): string {
+    $signature = generateSignature($transformations, $filePath, $secret);
+    $parts = [rtrim($baseUrl, '/'), 'authenticated', "s--{$signature}"];
+    if ($transformations) $parts[] = $transformations;
+    $parts[] = $filePath;
+    return implode('/', $parts);
+}
+
+// Example
+$url = buildSignedUrl(
+    'https://media.example.com',
+    'w_800,h_600,c_fill,f_webp',
+    'uploads/photo.jpg',
+    getenv('API_SECRET')
+);
+echo $url;
+// → https://media.example.com/authenticated/s--a1b2c3d4e5f6a7b8/w_800,h_600,c_fill,f_webp/uploads/photo.jpg
+```
+
+</Tab>
+</Tabs>
+
+## URL format reference
+
+```
+GET /authenticated/s--{signature}/{transformations}/{file-path}
+GET /authenticated/s--{signature}/{file-path}   ← no transformation
+```
+
+| Part | Description |
+|------|-------------|
+| `s--{signature}` | 16-character HMAC-SHA256 prefix. Always starts with `s--`. |
+| `{transformations}` | Optional. Same comma-separated params as `/t/*` (e.g. `w_800,h_600,f_webp`). |
+| `{file-path}` | Path to the file relative to your storage root (e.g. `uploads/photo.jpg`). |
+
+### Examples
+
+```http
+# Transform with signature
+GET /authenticated/s--a1b2c3d4e5f6a7b8/w_800,h_600,f_webp/uploads/photo.jpg
+
+# Serve original with signature (no transformation)
+GET /authenticated/s--a1b2c3d4e5f6a7b8/uploads/photo.jpg
+```
+
+## Error responses
+
+| Status | Cause |
+|--------|-------|
+| `400` | Malformed URL (missing signature prefix, wrong segment count) |
+| `401` | Signature is valid in format but does not match the expected HMAC |
+| `500` | `API_SECRET` is not configured on the server |
+
+## Security considerations
+
+<AccordionGroup>
+<Accordion title="Signatures are tied to exact transformations and paths">
+  Changing any character in the transformation string or file path invalidates the signature. A signature for `w_800,h_600/photo.jpg` cannot be reused for `w_400,h_300/photo.jpg`.
+</Accordion>
+
+<Accordion title="Timing-safe comparison prevents timing attacks">
+  The server uses `crypto.timingSafeEqual` to compare signatures. This prevents attackers from deducing valid signatures by measuring response time differences.
+</Accordion>
+
+<Accordion title="The signature does not expire">
+  Signed URLs do not have a built-in expiry. If you need time-limited URLs, append an expiry timestamp to the file path or transformation string and enforce it in a reverse proxy or middleware layer.
+</Accordion>
+
+<Accordion title="Rotate API_SECRET if compromised">
+  If `API_SECRET` is leaked, immediately replace it with a new value and restart the server. All previously generated signed URLs will become invalid.
+</Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+<Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  Full reference for transformation parameters you can sign.
+</Card>
+
+<Card title="Server Configuration" icon="gear" href="/configuration/server">
+  How to set `API_SECRET` and other server options.
+</Card>
+</CardGroup>

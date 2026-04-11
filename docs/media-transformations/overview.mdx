@@ -1,69 +1,50 @@
 ---
-title: "Overview"
-description: "Transform, optimize, and deliver images and videos on-the-fly with powerful URL-based parameters"
+title: "How Transformations Work"
+description: "URL structure for on-the-fly image and video transformations, caching behavior, and cache invalidation with Openinary."
 ---
 
-## Overview
+Transformations are applied by embedding parameters directly in the URL. The first request triggers processing; subsequent requests are served from cache in under 50ms.
 
-Transform and optimize your media files dynamically using URL-based parameters. The transformation engine processes images and videos on-demand, applying multiple operations in a single request with intelligent caching and automatic format optimization.
-
-<CardGroup cols={2}>
-<Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
-  Resize, crop, rotate, and optimize images with automatic format selection
-</Card>
-
-<Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
-  Resize and compress videos with quality control and efficient encoding
-</Card>
-</CardGroup>
-
-## Endpoint Structure
-
-All transformations use the following URL pattern:
+## Transformation URL
 
 ```http
-GET /t/[transformations]/path/to/file.ext
+GET /t/{transformations}/{path/to/file.ext}
 ```
 
-<Info>
-Transformations are specified as comma-separated parameters. The system will apply them sequentially to produce the final output.
-</Info>
-
-### Basic Examples
-
-<Tabs>
-<Tab title="Image Resize">
+Parameters are comma-separated. Combine as many as needed in a single request.
 
 ```http
-GET /t/w_800,h_600/image.jpg
-```
-
-Resize an image to 800×600 pixels.
-
-</Tab>
-
-<Tab title="Video Optimization">
-
-```http
+GET /t/w_800,h_600/photo.jpg
+GET /t/w_400,h_400,c_fill,g_face,q_85,f_webp/portrait.jpg
 GET /t/w_1280,h_720,q_80/video.mp4
 ```
 
-Convert video to 720p HD with quality optimization.
-
-</Tab>
-
-<Tab title="Multiple Parameters">
-
-```http
-GET /t/w_400,h_400,c_fill,g_face,q_85/portrait.jpg
-```
-
-Combine multiple transformations in a single request.
-
-</Tab>
-</Tabs>
-
 <Tip>
-All transformation parameters can be combined and applied in any order. The system intelligently processes them to produce the optimal output.
+No transformation needed? Use `GET /download/{path}` to serve the original file directly.
 </Tip>
 
+## Caching
+
+The first request to any transformation URL processes the file and writes the result to cache (local disk or S3). Every subsequent request skips processing entirely and returns the cached asset.
+
+To bust a cached file, call `DELETE /invalidate/{path}` with your API key.
+
+## Explore transformations
+
+<CardGroup cols={2}>
+<Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  Resize, crop, rotate, and convert images — with face detection and smart format selection.
+</Card>
+
+<Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+  Resize, trim, extract frames, and re-encode videos with quality control.
+</Card>
+
+<Card title="Upload & Prewarm" icon="upload" href="/media-transformations/upload-and-prewarm">
+  Upload files and pre-generate transformed variants so the first public request is already cached.
+</Card>
+
+<Card title="Signed URLs" icon="lock" href="/media-transformations/signed-urls">
+  Restrict transformations to those explicitly authorized by your backend.
+</Card>
+</CardGroup>
