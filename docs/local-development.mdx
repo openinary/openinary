@@ -1,129 +1,103 @@
 ---
 title: "Local Development"
-description: "Guide for developing Openinary locally"
+description: "Set up a local Openinary development environment with Node.js 20, pnpm, and FFmpeg. Runs the API on :3000 and the dashboard on :3001."
 ---
 
 ## Prerequisites
 
+| Tool | Version | Notes |
+|------|---------|-------|
+| Node.js | ≥ 20.0.0 | `node --version` to check |
+| pnpm | ≥ 9.0.0 | `npm install -g pnpm` to install |
+| FFmpeg | any recent | Required for video processing |
+
 <Tabs>
+<Tab title="macOS">
 
-  <Tab title="Node.js">
+```bash
+brew install ffmpeg
+```
 
-    - **Node.js**: Version 18.0.0 or higher
+</Tab>
 
-    ```bash
-    node --version  # Should be >= 18.0.0
-    ```
+<Tab title="Linux (Ubuntu/Debian)">
 
-  </Tab>
+```bash
+sudo apt-get install ffmpeg
+```
 
-  <Tab title="pnpm">
+</Tab>
 
-    - **pnpm**: Version 9.0.0 or higher
+<Tab title="Linux (Fedora)">
 
-    ```bash
-    # Install pnpm if not already installed
-    npm install -g pnpm@9.0.0
+```bash
+sudo dnf install ffmpeg
+```
 
-    # Verify installation
-    pnpm --version
-    ```
+</Tab>
 
-  </Tab>
+<Tab title="Windows">
 
-  <Tab title="FFmpeg">
+Download a build from [ffmpeg.org/download.html](https://ffmpeg.org/download.html#build-windows) and add it to your `PATH`.
 
-    - **FFmpeg**: Required for video processing
-
-    <CodeGroup>
-
-    ```bash macOS
-    brew install ffmpeg
-    ```
-
-    ```bash Windows
-    # Download a Windows build from:
-    # https://ffmpeg.org/download.html#build-windows
-    ```
-
-    ```bash Linux (Ubuntu/Debian)
-    sudo apt-get install ffmpeg
-    ```
-
-    ```bash Linux (Fedora)
-    sudo dnf install ffmpeg
-    ```
-
-    ```bash Verify installation
-    ffmpeg -version
-    ```
-
-    </CodeGroup>
-
-  </Tab>
-
-  <Tab title="Optional">
-
-    - **Cloud Storage Credentials**: Only required if using cloud storage mode (AWS S3 or Cloudflare R2)
-      - For local development, files can be placed in `apps/api/public/`
-      - See [Storage configuration](/configuration) for cloud setup
-
-  </Tab>
-
+</Tab>
 </Tabs>
 
-## Clone the repository
-
-Clone Openinary and move into the project directory:
+## Setup
 
 ```bash
 git clone https://github.com/openinary/openinary.git
 cd openinary
-```
-
-## Installation
-
-Install all dependencies:
-
-```bash
 pnpm install
 ```
 
-## Start Everything
-
-Start both the API and frontend:
+## Run
 
 ```bash
 pnpm dev
 ```
 
-This will start both the API and frontend simultaneously.
+This starts both services in parallel:
 
-## Start Separately
+| Service | URL |
+|---------|-----|
+| API | http://localhost:3000 |
+| Web dashboard | http://localhost:3001 |
 
-Run the API and frontend separately:
+To run them independently:
 
 ```bash
-pnpm dev:api
-pnpm dev:web
+pnpm dev:api   # API only  → :3000
+pnpm dev:web   # Web only  → :3001
 ```
 
-## Using Docker
+## Run with Docker Compose
 
-You can also run Openinary using Docker Compose. This is useful if you want to avoid installing dependencies locally or need isolated environments.
-
-### Start Full Stack
-
-Start both the API and frontend with Docker:
+Prefer containers? Use the compose profiles instead:
 
 ```bash
+# Full stack (API + dashboard)
 docker compose --profile full up --build
-```
 
-### Start API Only
-
-Start only the API service:
-
-```bash
+# API only
 docker compose --profile api up --build
 ```
+
+## First run
+
+On first start, visit **http://localhost:3001** — you'll be redirected to `/setup` to create your admin account. Once logged in, go to **API Keys** (bottom-left profile menu) to generate your first key.
+
+## Storage
+
+By default, uploaded files are stored in `apps/api/public/`. To use cloud storage (AWS S3, Cloudflare R2, etc.) during local development, configure the [`STORAGE_*` variables](/configuration/storage) in `apps/api/.env`.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+    Start transforming images with URL parameters.
+  </Card>
+  <Card title="Project Structure" icon="folder" href="/project-structure">
+    Understand how the monorepo is organized before contributing.
+  </Card>
+</CardGroup>

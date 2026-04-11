@@ -1,0 +1,109 @@
+---
+title: "Deploy on Railway"
+description: "One-click deploy Openinary on Railway with a pre-configured template — includes a managed S3 bucket, no infrastructure setup required."
+---
+
+Railway provides the simplest Openinary deployment: one click, one required variable, and a managed S3 bucket already connected.
+
+<Card title="Deploy on Railway" icon="rocket" href="https://railway.com/deploy/cCsRBb?referralCode=imHr5N&utm_medium=integration&utm_source=template&utm_campaign=generic">
+  One-click deploy — opens the pre-configured Openinary template
+</Card>
+
+## What's included in the template
+
+| Resource | Details |
+|----------|---------|
+| **Openinary App** | `openinary/openinary` Docker image |
+| **Assets Storage** | Railway-managed S3 bucket, pre-connected |
+| **Persistent volume** | Mounted at `/app/data` (database + API keys) |
+
+## Deployment steps
+
+<Steps>
+  <Step title="Open the template">
+    Click the **Deploy on Railway** card above. Sign in or create a Railway account if prompted.
+  </Step>
+
+  <Step title="Set BETTER_AUTH_SECRET">
+    The template requires one variable: `BETTER_AUTH_SECRET`.
+
+    Generate a secure value:
+
+    ```bash
+    openssl rand -base64 32
+    ```
+
+    Paste the output into the **BETTER_AUTH_SECRET** field in the template form.
+
+    <Warning>
+      Keep this secret private. It signs all authentication sessions and tokens.
+    </Warning>
+  </Step>
+
+  <Step title="Deploy">
+    Click **Deploy Now**. Railway will provision the app and the S3 bucket, then start the container.
+
+    Wait for both the **Openinary App** and **Assets Storage** services to show **Deployed**.
+  </Step>
+
+  <Step title="Set BETTER_AUTH_URL">
+    Once deployed, Railway generates a public URL for your app (e.g. `openinary-production.up.railway.app`).
+
+    Go to **Openinary App → Settings → Variables** and set:
+
+    ```bash
+    BETTER_AUTH_URL=https://your-app.up.railway.app
+    ```
+
+    Then redeploy the service. This is required for auth callbacks to work correctly.
+
+    <Note>
+      If you later add a custom domain, update `BETTER_AUTH_URL` to match.
+    </Note>
+  </Step>
+
+  <Step title="Complete initial setup">
+    Visit your Railway URL. You'll land on the setup page — create your administrator account.
+
+    <Warning>
+      Complete setup immediately. The `/setup` route is publicly accessible until an admin account is created.
+    </Warning>
+  </Step>
+</Steps>
+
+## Optional configuration
+
+The Railway bucket is pre-connected — no storage variables needed. You can add optional variables under **Openinary App → Settings → Variables**:
+
+```bash
+# Use a custom domain for asset URLs
+STORAGE_PUBLIC_URL=https://assets.example.com
+
+# Stricter CORS (set to your frontend origin)
+CORS_ORIGIN=https://yourapp.com
+
+# Sign transformation URLs
+API_SECRET=your-hex-secret
+```
+
+See [Server configuration](/configuration/server) and [Storage configuration](/configuration/storage) for the full variable reference.
+
+## Troubleshooting
+
+If deployment fails:
+1. Check the build logs under **Openinary App → Deployments**
+2. Confirm `BETTER_AUTH_SECRET` is at least 32 characters
+3. Confirm `BETTER_AUTH_URL` matches your Railway public URL exactly (no trailing slash)
+
+If problems persist, [open an issue on GitHub](https://github.com/openinary/openinary/issues) with your deployment logs.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+    Resize, crop, and convert images with URL parameters.
+  </Card>
+  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+    Resize, trim, and extract thumbnails from videos.
+  </Card>
+</CardGroup>
