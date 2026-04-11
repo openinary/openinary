@@ -1,0 +1,333 @@
+---
+title: "Storage"
+description: "Configure Openinary for local or cloud storage"
+---
+
+## Parameter Reference
+
+Quick reference for all available storage parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| [`STORAGE_REGION`](#storage-region) | S3 region |
+| [`STORAGE_ACCESS_KEY_ID`](#storage-access-key-id) | S3 access key ID |
+| [`STORAGE_SECRET_ACCESS_KEY`](#storage-secret-access-key) | S3 secret access key |
+| [`STORAGE_BUCKET_NAME`](#storage-bucket-name) | S3 bucket name |
+| [`STORAGE_ENDPOINT`](#storage-endpoint) | S3-compatible endpoint |
+| [`STORAGE_PUBLIC_URL`](#storage-public-url) | Public URL for stored files |
+| [`STORAGE_MAX_SOCKETS`](#storage-max-sockets) | Maximum HTTP sockets |
+| [`STORAGE_CONNECTION_TIMEOUT`](#storage-connection-timeout) | Connection timeout in ms |
+| [`STORAGE_REQUEST_TIMEOUT`](#storage-request-timeout) | Request timeout in ms |
+| [`STORAGE_SOCKET_TIMEOUT`](#storage-socket-timeout) | Socket timeout in ms |
+
+<Note>
+All `STORAGE_*` variables can also use the `S3_*` prefix (e.g., `S3_REGION` instead of `STORAGE_REGION`). Both formats are supported.
+</Note>
+
+### Local Mode (default)
+
+<Tabs>
+<Tab title="Development Mode">
+
+Place your files in `apps/api/public/`
+
+</Tab>
+
+<Tab title="Docker Mode">
+
+Files are stored in the Docker volume `openinary-public`, mounted at `/app/apps/api/public` inside the container.
+
+<Warning>
+**Volume Persistence**: Ensure the `openinary-public` volume is properly persisted across deployments. If the volume is removed or recreated during deployment, all stored files will be lost. For production environments, consider using cloud storage (S3 or R2) for better reliability and scalability.
+</Warning>
+
+</Tab>
+</Tabs>
+
+### Cloud Mode
+
+Openinary supports **any S3-compatible storage provider** with a universal configuration. No need to specify the provider - it's automatically detected!
+
+Copy and configure:
+
+```bash
+cp apps/api/env.template apps/api/.env
+```
+
+#### Universal S3 Configuration
+
+The configuration automatically detects your provider:
+- **With STORAGE_ENDPOINT**: S3-compatible provider (Cloudflare R2, Minio, DigitalOcean Spaces, Wasabi, etc.)
+- **Without STORAGE_ENDPOINT**: AWS S3 standard
+
+#### AWS S3
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=your_aws_access_key
+STORAGE_SECRET_ACCESS_KEY=your_aws_secret_key
+STORAGE_BUCKET_NAME=your-bucket-name
+STORAGE_PUBLIC_URL=https://your-bucket-name.s3.us-east-1.amazonaws.com
+```
+
+#### Cloudflare R2
+
+```bash
+STORAGE_REGION=auto
+STORAGE_ACCESS_KEY_ID=your_r2_access_key
+STORAGE_SECRET_ACCESS_KEY=your_r2_secret_key
+STORAGE_BUCKET_NAME=your-bucket-name
+STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+STORAGE_PUBLIC_URL=https://your-custom-domain.com
+```
+
+#### Other S3-Compatible Providers
+
+Works with **Minio**, **DigitalOcean Spaces**, **Wasabi**, **Backblaze B2**, and any other S3-compatible service:
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=your_access_key
+STORAGE_SECRET_ACCESS_KEY=your_secret_key
+STORAGE_BUCKET_NAME=your-bucket-name
+STORAGE_ENDPOINT=https://your-s3-compatible-endpoint.com
+STORAGE_PUBLIC_URL=https://your-cdn-domain.com
+```
+
+<Note>
+**Key difference**: Set `STORAGE_ENDPOINT` for any non-AWS S3-compatible provider. For AWS S3, leave it empty.
+</Note>
+
+## Core Parameters
+
+<a id="storage-region"></a>
+<ParamField path="STORAGE_REGION" type="string">
+  Set the S3 region for your storage provider.
+  
+  **Examples:**
+  - `us-east-1` - AWS US East (N. Virginia)
+  - `eu-west-1` - AWS Europe (Ireland)
+  - `auto` - Automatic region detection (Cloudflare R2)
+  
+  **Alternative:** `S3_REGION`
+</ParamField>
+
+<a id="storage-access-key-id"></a>
+<ParamField path="STORAGE_ACCESS_KEY_ID" type="string" required>
+  S3 access key ID for authentication.
+  
+  **Examples:**
+  - `AKIAIOSFODNN7EXAMPLE` - AWS access key format
+  - `your_r2_access_key` - Cloudflare R2 access key
+  
+  **Alternative:** `S3_ACCESS_KEY_ID`
+  
+  <Warning>
+  Keep this key secure. Never commit it to version control.
+  </Warning>
+</ParamField>
+
+<a id="storage-secret-access-key"></a>
+<ParamField path="STORAGE_SECRET_ACCESS_KEY" type="string" required>
+  S3 secret access key for authentication.
+  
+  **Examples:**
+  - `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` - AWS secret key format
+  - `your_r2_secret_key` - Cloudflare R2 secret key
+  
+  **Alternative:** `S3_SECRET_ACCESS_KEY`
+  
+  <Warning>
+  This is highly sensitive. Store securely and never expose in logs or client-side code.
+  </Warning>
+</ParamField>
+
+<a id="storage-bucket-name"></a>
+<ParamField path="STORAGE_BUCKET_NAME" type="string" required>
+  Name of the S3 bucket where files will be stored.
+  
+  **Examples:**
+  - `my-openinary-bucket` - Standard bucket name
+  - `cdn-assets` - CDN bucket
+  - `media-storage` - Media files bucket
+  
+  **Alternative:** `S3_BUCKET_NAME`
+  
+  <Note>
+  Bucket names must be globally unique and follow S3 naming conventions.
+  </Note>
+</ParamField>
+
+<a id="storage-endpoint"></a>
+<ParamField path="STORAGE_ENDPOINT" type="string">
+  Custom S3-compatible endpoint URL.
+  
+  **When to use:**
+  - Cloudflare R2: `https://your-account-id.r2.cloudflarestorage.com`
+  - MinIO: `http://minio.example.com:9000`
+  - DigitalOcean Spaces: `https://nyc3.digitaloceanspaces.com`
+  - Wasabi: `https://s3.wasabisys.com`
+  
+  **When to omit:**
+  - AWS S3 (uses default AWS endpoints)
+  
+  **Alternative:** `S3_ENDPOINT`
+  
+  <Info>
+  Leave empty for standard AWS S3. Required for all S3-compatible providers.
+  </Info>
+</ParamField>
+
+<a id="storage-public-url"></a>
+<ParamField path="STORAGE_PUBLIC_URL" type="string">
+  Custom public URL for accessing stored files.
+  
+  **Use cases:**
+  - CDN URL: `https://cdn.example.com`
+  - Custom domain: `https://assets.example.com`
+  - Cloudflare R2 custom domain: `https://r2.example.com`
+  
+  **Examples:**
+  - `https://cdn.example.com` - CDN endpoint
+  - `https://your-bucket-name.s3.us-east-1.amazonaws.com` - AWS S3 public URL
+  
+  <Note>
+  If not set, uses the default S3 endpoint URL. Set this when using a CDN or custom domain.
+  </Note>
+</ParamField>
+
+## Advanced Parameters
+
+<a id="storage-max-sockets"></a>
+<ParamField path="STORAGE_MAX_SOCKETS" type="integer" default="50">
+  Maximum number of simultaneous HTTP sockets for S3 connections.
+  
+  **Examples:**
+  - `50` - Default (good for most use cases)
+  - `100` - Higher concurrency for high-traffic scenarios
+  - `25` - Lower concurrency for resource-constrained environments
+  
+  <Tip>
+  Increase this value if you're experiencing connection pool exhaustion during high load.
+  </Tip>
+</ParamField>
+
+<a id="storage-connection-timeout"></a>
+<ParamField path="STORAGE_CONNECTION_TIMEOUT" type="integer" default="0">
+  Connection timeout in milliseconds. Set to `0` for no timeout.
+  
+  **Examples:**
+  - `0` - No timeout (default)
+  - `5000` - 5 seconds
+  - `10000` - 10 seconds
+  
+  <Note>
+  A value of `0` means the connection will wait indefinitely. Set a timeout for better error handling in production.
+  </Note>
+</ParamField>
+
+<a id="storage-request-timeout"></a>
+<ParamField path="STORAGE_REQUEST_TIMEOUT" type="integer" default="0">
+  Request timeout in milliseconds. Set to `0` for no timeout.
+  
+  **Examples:**
+  - `0` - No timeout (default)
+  - `30000` - 30 seconds
+  - `60000` - 60 seconds
+  
+  <Tip>
+  For large file uploads, consider setting a higher timeout (e.g., 300000 for 5 minutes).
+  </Tip>
+</ParamField>
+
+<a id="storage-socket-timeout"></a>
+<ParamField path="STORAGE_SOCKET_TIMEOUT" type="integer" default="0">
+  Socket timeout in milliseconds. Set to `0` for no timeout.
+  
+  **Examples:**
+  - `0` - No timeout (default)
+  - `60000` - 60 seconds
+  - `120000` - 2 minutes
+  
+  <Note>
+  Socket timeout applies to the underlying TCP socket connection, not individual requests.
+  </Note>
+</ParamField>
+
+## Configuration Examples
+
+<Tabs>
+<Tab title="AWS S3">
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+STORAGE_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+STORAGE_BUCKET_NAME=my-openinary-bucket
+STORAGE_PUBLIC_URL=https://my-openinary-bucket.s3.us-east-1.amazonaws.com
+```
+
+Standard AWS S3 configuration. No `STORAGE_ENDPOINT` needed.
+
+</Tab>
+
+<Tab title="Cloudflare R2">
+
+```bash
+STORAGE_REGION=auto
+STORAGE_ACCESS_KEY_ID=your_r2_access_key
+STORAGE_SECRET_ACCESS_KEY=your_r2_secret_key
+STORAGE_BUCKET_NAME=my-r2-bucket
+STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+STORAGE_PUBLIC_URL=https://cdn.example.com
+```
+
+Cloudflare R2 with custom domain and automatic region detection.
+
+</Tab>
+
+<Tab title="MinIO">
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=minioadmin
+STORAGE_SECRET_ACCESS_KEY=minioadmin
+STORAGE_BUCKET_NAME=openinary
+STORAGE_ENDPOINT=http://minio.example.com:9000
+STORAGE_PUBLIC_URL=http://minio.example.com:9000
+```
+
+Self-hosted MinIO configuration.
+
+</Tab>
+
+<Tab title="Advanced with Timeouts">
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=your_access_key
+STORAGE_SECRET_ACCESS_KEY=your_secret_key
+STORAGE_BUCKET_NAME=my-bucket
+STORAGE_MAX_SOCKETS=100
+STORAGE_CONNECTION_TIMEOUT=5000
+STORAGE_REQUEST_TIMEOUT=30000
+STORAGE_SOCKET_TIMEOUT=60000
+```
+
+Production configuration with optimized timeouts and connection pooling.
+
+</Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use S3-compatible storage" icon="cloud">
+  Leverage any S3-compatible provider for flexibility and cost optimization.
+</Card>
+
+<Card title="Set appropriate timeouts" icon="clock">
+  Configure timeouts based on your file sizes and network conditions.
+</Card>
+</CardGroup>
+

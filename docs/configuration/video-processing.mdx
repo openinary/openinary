@@ -1,0 +1,166 @@
+---
+title: "Video Processing"
+description: "Configure video processing workers, retries, and cleanup settings"
+---
+
+## Parameter Reference
+
+Quick reference for all available video processing parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| [`VIDEO_MAX_CONCURRENT`](#video-max-concurrent) | Maximum concurrent video jobs |
+| [`VIDEO_JOB_RETRY_MAX`](#video-job-retry-max) | Maximum retry attempts |
+| [`VIDEO_JOB_CLEANUP_HOURS`](#video-job-cleanup-hours) | Job cleanup time |
+| [`VIDEO_WORKER_POLL_INTERVAL_MS`](#video-worker-poll-interval-ms) | Worker polling interval |
+
+## Core Parameters
+
+<a id="video-max-concurrent"></a>
+<ParamField path="VIDEO_MAX_CONCURRENT" type="integer">
+  Maximum number of video jobs processed simultaneously.
+  
+  **Auto-detection:**
+  - Automatically detected based on available RAM (1 worker per 2GB)
+  - Maximum: 16 workers
+  
+  **Examples:**
+  - `4` - 4 concurrent jobs (default for 8GB RAM)
+  - `8` - 8 concurrent jobs (for 16GB RAM)
+  - `2` - 2 concurrent jobs (for resource-constrained environments)
+  - `16` - Maximum concurrent jobs
+  
+  <Info>
+  If not set, the system auto-detects based on available RAM. Manual configuration overrides auto-detection.
+  </Info>
+  
+  <Warning>
+  Higher values increase CPU and memory usage. Monitor system resources when adjusting.
+  </Warning>
+</ParamField>
+
+<a id="video-job-retry-max"></a>
+<ParamField path="VIDEO_JOB_RETRY_MAX" type="integer" default="3">
+  Maximum number of retry attempts for failed video jobs.
+  
+  **Examples:**
+  - `3` - Default (3 retry attempts)
+  - `5` - More retries for unreliable networks
+  - `1` - Single retry for faster failure detection
+  - `0` - No retries (not recommended)
+  
+  <Note>
+  Each retry attempts to reprocess the failed video job. Failed jobs are cleaned up after the cleanup period.
+  </Note>
+</ParamField>
+
+<a id="video-job-cleanup-hours"></a>
+<ParamField path="VIDEO_JOB_CLEANUP_HOURS" type="integer" default="24">
+  Number of hours after which completed or failed jobs are cleaned up from the database.
+  
+  **Examples:**
+  - `24` - Clean up after 1 day (default)
+  - `48` - Keep jobs for 2 days
+  - `168` - Keep jobs for 1 week
+  - `1` - Clean up after 1 hour (aggressive cleanup)
+  
+  <Tip>
+  Adjust based on your monitoring needs. Longer retention helps with debugging but increases database size.
+  </Tip>
+</ParamField>
+
+<a id="video-worker-poll-interval-ms"></a>
+<ParamField path="VIDEO_WORKER_POLL_INTERVAL_MS" type="integer" default="1000">
+  Interval in milliseconds at which the worker polls for new video jobs.
+  
+  **Examples:**
+  - `1000` - Poll every 1 second (default)
+  - `500` - Poll every 500ms (faster job pickup)
+  - `2000` - Poll every 2 seconds (reduces CPU usage)
+  - `5000` - Poll every 5 seconds (lower resource usage)
+  
+  <Note>
+  Lower intervals provide faster job processing but increase CPU usage. Higher intervals reduce CPU but add latency.
+  </Note>
+</ParamField>
+
+## Configuration Examples
+
+<Tabs>
+<Tab title="Development">
+
+```bash
+VIDEO_MAX_CONCURRENT=2
+VIDEO_JOB_RETRY_MAX=3
+VIDEO_JOB_CLEANUP_HOURS=1
+VIDEO_WORKER_POLL_INTERVAL_MS=1000
+```
+
+Development configuration with lower concurrency and faster cleanup.
+
+</Tab>
+
+<Tab title="Production (High Performance)">
+
+```bash
+VIDEO_MAX_CONCURRENT=8
+VIDEO_JOB_RETRY_MAX=5
+VIDEO_JOB_CLEANUP_HOURS=48
+VIDEO_WORKER_POLL_INTERVAL_MS=500
+```
+
+High-performance production setup with more workers and faster polling.
+
+</Tab>
+
+<Tab title="Resource Constrained">
+
+```bash
+VIDEO_MAX_CONCURRENT=1
+VIDEO_JOB_RETRY_MAX=2
+VIDEO_JOB_CLEANUP_HOURS=12
+VIDEO_WORKER_POLL_INTERVAL_MS=2000
+```
+
+Configuration for environments with limited CPU or memory.
+
+</Tab>
+
+<Tab title="Auto-Detection">
+
+```bash
+# VIDEO_MAX_CONCURRENT not set - auto-detected
+VIDEO_JOB_RETRY_MAX=3
+VIDEO_JOB_CLEANUP_HOURS=24
+VIDEO_WORKER_POLL_INTERVAL_MS=1000
+```
+
+Let the system auto-detect optimal concurrency based on available RAM.
+
+</Tab>
+</Tabs>
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+<Card title="Concurrency tuning" icon="gauge">
+  Balance `VIDEO_MAX_CONCURRENT` with available CPU cores and RAM. Each worker uses significant resources.
+</Card>
+
+<Card title="Retry strategy" icon="rotate">
+  Set `VIDEO_JOB_RETRY_MAX` based on network reliability and job criticality.
+</Card>
+
+<Card title="Cleanup frequency" icon="trash">
+  Adjust `VIDEO_JOB_CLEANUP_HOURS` to balance database size and debugging needs.
+</Card>
+
+<Card title="Polling efficiency" icon="clock">
+  Lower `VIDEO_WORKER_POLL_INTERVAL_MS` for faster processing, higher for reduced CPU usage.
+</Card>
+</CardGroup>
+
+<Warning>
+Video processing is resource-intensive. Monitor CPU, memory, and disk I/O when adjusting these parameters. Start with default values and tune based on your specific workload.
+</Warning>
+

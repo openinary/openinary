@@ -1,0 +1,69 @@
+---
+title: "Overview"
+description: "Transform, optimize, and deliver images and videos on-the-fly with powerful URL-based parameters"
+---
+
+## Overview
+
+Transform and optimize your media files dynamically using URL-based parameters. The transformation engine processes images and videos on-demand, applying multiple operations in a single request with intelligent caching and automatic format optimization.
+
+<CardGroup cols={2}>
+<Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  Resize, crop, rotate, and optimize images with automatic format selection
+</Card>
+
+<Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+  Resize and compress videos with quality control and efficient encoding
+</Card>
+</CardGroup>
+
+## Endpoint Structure
+
+All transformations use the following URL pattern:
+
+```http
+GET /t/[transformations]/path/to/file.ext
+```
+
+<Info>
+Transformations are specified as comma-separated parameters. The system will apply them sequentially to produce the final output.
+</Info>
+
+### Basic Examples
+
+<Tabs>
+<Tab title="Image Resize">
+
+```http
+GET /t/w_800,h_600/image.jpg
+```
+
+Resize an image to 800×600 pixels.
+
+</Tab>
+
+<Tab title="Video Optimization">
+
+```http
+GET /t/w_1280,h_720,q_80/video.mp4
+```
+
+Convert video to 720p HD with quality optimization.
+
+</Tab>
+
+<Tab title="Multiple Parameters">
+
+```http
+GET /t/w_400,h_400,c_fill,g_face,q_85/portrait.jpg
+```
+
+Combine multiple transformations in a single request.
+
+</Tab>
+</Tabs>
+
+<Tip>
+All transformation parameters can be combined and applied in any order. The system intelligently processes them to produce the optimal output.
+</Tip>
+

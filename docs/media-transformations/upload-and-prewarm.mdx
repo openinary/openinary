@@ -1,0 +1,208 @@
+---
+title: "Upload and Prewarm"
+description: "Upload images and videos via API and pre-generate transformed variants in cache"
+---
+
+## Overview
+
+Use `POST /upload` to upload one or multiple media files. You can optionally pass `transformations` to generate and cache transformed variants immediately after upload.
+
+This is useful for high-traffic assets because the first public request can be served from cache instead of triggering on-demand processing.
+
+## Endpoint
+
+```http
+POST /upload
+Authorization: Bearer <API_KEY>
+Content-Type: multipart/form-data
+```
+
+## Upload With Prewarmed Image Variants
+
+```bash
+curl -X POST "http://localhost:3000/upload" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "files=@./photo.jpg;type=image/jpeg" \
+  -F 'transformations=["w_800,h_600,f_webp,q_80","w_400,h_400,c_fill,f_avif,q_70"]'
+```
+
+The optional `transformations` field can be:
+
+- a JSON array of transformation segments
+- multiple `transformations` form fields (one segment per field)
+- a newline- or semicolon-separated string
+
+## Upload Video With Queued Transformations
+
+```bash
+curl -X POST "http://localhost:3000/upload" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "files=@./video.mp4;type=video/mp4" \
+  -F 'transformations=["w_1280,h_720,q_75,f_mp4","t_true,tt_3,w_320,h_180,f_webp,q_70"]'
+```
+
+Video transformations are queued in the background immediately after upload.
+
+Note: Openinary also queues its default video thumbnail generation after upload, even without `transformations`.
+
+## TypeScript Examples
+
+<Tabs>
+<Tab title="Image Upload (Node.js)">
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const apiKey = process.env.OPENINARY_API_KEY;
+if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
+
+async function uploadImage() {
+  const bytes = await readFile("./photo.jpg");
+  const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
+
+  const form = new FormData();
+  form.append("files", file);
+  form.append(
+    "transformations",
+    JSON.stringify([
+      "w_800,h_600,f_webp,q_80",
+      "w_400,h_400,c_fill,f_avif,q_70",
+    ]),
+  );
+
+  const res = await fetch("http://localhost:3000/upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  console.log(data);
+}
+
+uploadImage().catch(console.error);
+```
+
+</Tab>
+
+<Tab title="Video Upload (Node.js)">
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const apiKey = process.env.OPENINARY_API_KEY;
+if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
+
+async function uploadVideo() {
+  const bytes = await readFile("./video.mp4");
+  const file = new File([bytes], "video.mp4", { type: "video/mp4" });
+
+  const form = new FormData();
+  form.append("files", file);
+  form.append(
+    "transformations",
+    JSON.stringify([
+      "w_1280,h_720,q_75,f_mp4",
+      "t_true,tt_3,w_320,h_180,f_webp,q_70",
+    ]),
+  );
+
+  const res = await fetch("http://localhost:3000/upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  console.log(data);
+}
+
+uploadVideo().catch(console.error);
+```
+
+</Tab>
+
+<Tab title="Multiple transformation fields">
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const apiKey = process.env.OPENINARY_API_KEY;
+if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
+
+async function uploadWithMultipleFields() {
+  const bytes = await readFile("./photo.jpg");
+  const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
+
+  const form = new FormData();
+  form.append("files", file);
+  form.append("transformations", "w_1200,h_800,f_webp,q_82");
+  form.append("transformations", "w_600,h_600,c_fill,f_avif,q_70");
+
+  const res = await fetch("http://localhost:3000/upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  console.log(data);
+}
+
+uploadWithMultipleFields().catch(console.error);
+```
+
+</Tab>
+</Tabs>
+
+## Response Fields
+
+Successful uploads can include these prewarm-related fields:
+
+- `prewarmedUrls`: transformed variants generated and cached during upload (images)
+- `prewarmErrors`: transformation-specific prewarm failures (images)
+- `queuedTransformationUrls`: video transformations queued in background (videos)
+- `queueErrors`: video transformation queue errors (videos)
+
+Other always-present file fields:
+
+- `filename`
+- `path`
+- `size`
+- `url`
+
+Example response (shape can vary based on file type and transformation validity):
+
+```json
+{
+  "success": true,
+  "files": [
+    {
+      "filename": "photo.jpg",
+      "path": "uploads/photo.jpg",
+      "size": 248731,
+      "url": "/t/uploads/photo.jpg",
+      "prewarmedUrls": ["/t/w_800,h_600,f_webp,q_80/uploads/photo.jpg"]
+    }
+  ]
+}
+```
+
+## Best Practices
+
+- Prewarm only the variants you need in production to avoid unnecessary processing.
+- For video, prewarm critical variants first and monitor queue throughput.
+- Keep transformation strings consistent across frontend/backend to maximize cache hits.
+- Keep `transformations` count reasonable (API limit: 20 entries per upload request).

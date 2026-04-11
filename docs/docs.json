@@ -1,0 +1,110 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Openinary Docs",
+  "colors": {
+    "primary": "#000000",
+    "light": "#FFFFFF"
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "chatgpt",
+      "claude",
+      "cursor"
+    ]
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "icon": "rocket",
+        "pages": [
+          "index",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Configuration",
+        "icon": "gear",
+        "pages": [
+          "configuration/server",
+          "configuration/storage",
+          "configuration/video-processing",
+          "configuration/docker-resources"
+        ]
+      },
+      {
+        "group": "Media Transformations",
+        "icon": "wand-magic-sparkles",
+        "pages": [
+          "media-transformations/overview",
+          "media-transformations/upload-and-prewarm",
+          "media-transformations/image-transformations",
+          "media-transformations/video-transformations",
+          "media-transformations/intelligent-compression"
+        ]
+      },
+      {
+        "group": "Guides",
+        "icon": "book",
+        "pages": [
+          "guides/coolify-deployment",
+          "guides/dokploy-deployment"
+        ]
+      },
+      {
+        "group": "Resources",
+        "icon": "toolbox",
+        "pages": [
+          "local-development",
+          "project-structure",
+          "security"
+        ]
+      }
+    ]
+  },
+  "global": {
+    "anchors": [
+      {
+        "anchor": "Documentation",
+        "href": "https://mintlify.com/docs",
+        "icon": "book-open-cover"
+      },
+      {
+        "anchor": "Community",
+        "href": "https://mintlify.com/community",
+        "icon": "slack"
+      },
+      {
+        "anchor": "Blog",
+        "href": "https://mintlify.com/blog",
+        "icon": "newspaper"
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Contact",
+        "href": "https://x.com/initflorian"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Star on GitHub",
+      "href": "https://github.com/openinary/openinary"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/openinary/openinary",
+      "linkedin": "https://www.linkedin.com/in/florian-heysen/"
+    }
+  }
+}
