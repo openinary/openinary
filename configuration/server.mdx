@@ -1,0 +1,102 @@
+---
+title: "Server"
+description: "Configure server settings, authentication, and rate limiting"
+---
+
+## Parameter Reference
+
+Quick reference for all available server configuration parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| [`MODE`](#mode) | Execution mode |
+| [`PORT`](#port) | API server port |
+| [`BETTER_AUTH_SECRET`](#better-auth-secret) | Authentication secret key |
+| [`BETTER_AUTH_URL`](#better-auth-url) | Base URL for authentication |
+| [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max) | Maximum requests per window |
+| [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit time window |
+
+## Server Configuration
+
+<a id="mode"></a>
+<ParamField path="MODE" type="string" default="fullstack">
+  Set the execution mode for Openinary.
+  
+  **Available modes:**
+  - `fullstack` - Full application with web interface (default)
+  - `api` - API-only mode that automatically generates an API key on first startup
+  
+  <Info>
+  In API mode, the system generates an API key on first startup and displays it in the console. Save this key as it's shown only once.
+  </Info>
+</ParamField>
+
+<a id="port"></a>
+<ParamField path="PORT" type="integer" default="3000">
+  Set the port number on which the API server listens.
+  
+  **Examples:**
+  - `3000` - Default development port
+  - `8080` - Alternative port
+  - `80` - Standard HTTP port (requires root privileges)
+</ParamField>
+
+## Authentication
+
+<a id="better-auth-secret"></a>
+<ParamField path="BETTER_AUTH_SECRET" type="string">
+  Secret key for Better Auth authentication system.
+  
+  **Requirements:**
+  - Minimum 32 characters recommended
+  - Should be cryptographically random
+  - Auto-generated in Docker if not defined
+  
+  **Examples:**
+  - `your-custom-secret-key-here-minimum-32-chars`
+  - Generate with: `openssl rand -base64 32`
+  
+  <Warning>
+  In production, always set this manually. Auto-generated secrets in Docker should be replaced with a secure, persistent value.
+  </Warning>
+</ParamField>
+
+<a id="better-auth-url"></a>
+<ParamField path="BETTER_AUTH_URL" type="string" default="http://localhost:3000">
+  Base URL of the Openinary instance used for authentication and CORS configuration.
+  
+  **Examples:**
+  - `http://localhost:3000` - Local development
+  - `https://api.example.com` - Production API
+  - `https://openinary.example.com` - Custom domain
+</ParamField>
+
+## Public Routes Rate Limiting
+
+<a id="public-rate-limit-max"></a>
+<ParamField path="PUBLIC_RATE_LIMIT_MAX" type="integer" default="100">
+  Maximum number of requests allowed per time window for public routes.
+  
+  **Examples:**
+  - `100` - Default limit (100 requests per window)
+  - `200` - Higher limit for high-traffic scenarios
+  - `50` - Lower limit for stricter control
+  
+  <Note>
+  This applies to public routes like `/t/*` (transformations) and health endpoints.
+  </Note>
+</ParamField>
+
+<a id="public-rate-limit-window-ms"></a>
+<ParamField path="PUBLIC_RATE_LIMIT_WINDOW_MS" type="integer" default="60000">
+  Time window in milliseconds for rate limiting.
+  
+  **Examples:**
+  - `60000` - 1 minute (default)
+  - `300000` - 5 minutes
+  - `1000` - 1 second (very strict)
+  
+  **Common configurations:**
+  - `60000` (1 min) - Standard rate limiting
+  - `3600000` (1 hour) - Hourly limits
+</ParamField>

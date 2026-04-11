@@ -1,0 +1,129 @@
+---
+title: "Local Development"
+description: "Guide for developing Openinary locally"
+---
+
+## Prerequisites
+
+<Tabs>
+
+  <Tab title="Node.js">
+
+    - **Node.js**: Version 18.0.0 or higher
+
+    ```bash
+    node --version  # Should be >= 18.0.0
+    ```
+
+  </Tab>
+
+  <Tab title="pnpm">
+
+    - **pnpm**: Version 9.0.0 or higher
+
+    ```bash
+    # Install pnpm if not already installed
+    npm install -g pnpm@9.0.0
+
+    # Verify installation
+    pnpm --version
+    ```
+
+  </Tab>
+
+  <Tab title="FFmpeg">
+
+    - **FFmpeg**: Required for video processing
+
+    <CodeGroup>
+
+    ```bash macOS
+    brew install ffmpeg
+    ```
+
+    ```bash Windows
+    # Download a Windows build from:
+    # https://ffmpeg.org/download.html#build-windows
+    ```
+
+    ```bash Linux (Ubuntu/Debian)
+    sudo apt-get install ffmpeg
+    ```
+
+    ```bash Linux (Fedora)
+    sudo dnf install ffmpeg
+    ```
+
+    ```bash Verify installation
+    ffmpeg -version
+    ```
+
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="Optional">
+
+    - **Cloud Storage Credentials**: Only required if using cloud storage mode (AWS S3 or Cloudflare R2)
+      - For local development, files can be placed in `apps/api/public/`
+      - See [Storage configuration](/configuration) for cloud setup
+
+  </Tab>
+
+</Tabs>
+
+## Clone the repository
+
+Clone Openinary and move into the project directory:
+
+```bash
+git clone https://github.com/openinary/openinary.git
+cd openinary
+```
+
+## Installation
+
+Install all dependencies:
+
+```bash
+pnpm install
+```
+
+## Start Everything
+
+Start both the API and frontend:
+
+```bash
+pnpm dev
+```
+
+This will start both the API and frontend simultaneously.
+
+## Start Separately
+
+Run the API and frontend separately:
+
+```bash
+pnpm dev:api
+pnpm dev:web
+```
+
+## Using Docker
+
+You can also run Openinary using Docker Compose. This is useful if you want to avoid installing dependencies locally or need isolated environments.
+
+### Start Full Stack
+
+Start both the API and frontend with Docker:
+
+```bash
+docker compose --profile full up --build
+```
+
+### Start API Only
+
+Start only the API service:
+
+```bash
+docker compose --profile api up --build
+```

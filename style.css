@@ -1,0 +1,19 @@
+/* Set all border radius to 0px */
+*,
+*::before,
+*::after {
+  border-radius: 0px !important;
+}
+
+/* Target specific Mintlify components that commonly use border radius */
+img,
+video,
+iframe,
+button,
+.card,
+code,
+pre,
+[class*="rounded"],
+[class*="border-radius"] {
+  border-radius: 0px !important;
+}

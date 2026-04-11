@@ -1,0 +1,113 @@
+---
+title: "Quick Start"
+description: "Get started with Openinary in minutes"
+---
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) (version 20.x or higher)
+
+## Quick Start
+
+### Installation
+
+```bash
+docker pull openinary/openinary:latest
+```
+
+<Tabs>
+
+<Tab title="Normal">
+
+Run the dashboard and API
+
+```bash
+docker run --platform linux/amd64 -d -p 3000:3000 -v openinary-cache:/app/apps/api/cache -v openinary-public:/app/apps/api/public -v openinary-db:/app/data openinary/openinary:latest
+```
+
+</Tab>
+
+<Tab title="With S3 Compatible Storage">
+
+Run with cloud storage instead of local file storage
+
+```bash
+docker run --platform linux/amd64 -d -p 3000:3000 -v openinary-db:/app/data \
+  -e STORAGE_REGION=us-east-1 \
+  -e STORAGE_ACCESS_KEY_ID=XXXXXXXXXXXXXXXXXXXX \
+  -e STORAGE_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  -e STORAGE_BUCKET_NAME=openinary-filebase \
+  -e STORAGE_ENDPOINT=https://s3.filebase.com/ \
+  openinary/openinary:latest
+```
+
+</Tab>
+
+<Tab title="API Only">
+
+Run with a standalone API *(auto-generates API key)*
+
+```bash
+docker pull openinary/openinary-api:latest
+
+docker run --platform linux/amd64 -d -p 3000:3000 -v openinary-cache:/app/apps/api/cache -v openinary-public:/app/apps/api/public -v openinary-db:/app/data -e MODE=api openinary/openinary-api:latest
+```
+
+<Warning>
+**Important:** The generated API key will appear in the Docker container logs. Check the logs with `docker logs <container-id>` and copy and save this key! It will not be displayed again.
+</Warning>
+
+</Tab>
+
+</Tabs>
+
+### Initial Setup
+
+**Normal mode (Dashboard + API):**
+1. Open http://localhost:3000
+2. You'll be redirected to `/setup` to create your admin account
+3. Once logged in, in the bottom left of the dashboard, click on your profile and select “API Keys” from the menu to generate your first API key.
+
+<Check>
+Your Openinary instance is operational.
+</Check>
+
+## Test with Sample Files
+
+Sample files are available in the container at `/app/apps/api/public/` for testing:
+- `example-loan.jpg` - Test image transformations
+- `example-rahime-gul.mp4` - Test video transformations
+
+## Connecting External S3-Compatible Storage
+
+By default, Openinary uses local file storage. For production or to use cloud storage, you can configure environment variables to connect to any S3-compatible storage provider (AWS S3, Cloudflare R2, DigitalOcean Spaces, Minio, and more).
+
+See the [Storage configuration](/configuration) page for detailed setup instructions.
+
+## Development Mode (Alternative)
+
+If you prefer to run in development mode without Docker:
+
+```bash
+# Clone the repo
+git clone https://github.com/openinary/openinary.git && cd openinary
+
+# Install dependencies
+pnpm install
+
+# Start development servers
+pnpm dev
+```
+
+Development URLs will be the same (API: http://localhost:3000, Frontend: http://localhost:3001)
+
+---
+
+<Warning>
+**Volume Persistence**: When deploying to production, ensure all three Docker volumes are properly persisted across deployments:
+- `db-data` - Contains database file (admin account, API keys)
+- `public-files` - Contains uploaded files and media
+- `cache-data` - Contains cached transformations
+
+If any of these volumes are removed or recreated during deployment, the corresponding data will be lost. For production environments, consider using cloud storage (S3-compatible) for better reliability and scalability.
+</Warning>

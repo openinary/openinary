@@ -1,0 +1,170 @@
+---
+title: "Compression Strategy"
+description: "Automatic format selection and optimization based on browser support and content type"
+---
+
+## Overview
+
+We built a smart compression system using <Tooltip tip="Sharp is a high-performance Node.js image processing library">Sharp</Tooltip> that automatically selects the optimal output format based on multiple factors, ensuring the best possible compression while maintaining quality. This intelligent approach delivers smaller files without requiring manual format selection.
+
+## Optimization Process
+
+<Steps>
+<Step title="Browser capability detection">
+  Analyzes `Accept` header and `User-Agent` to determine supported formats.
+  
+  <Check>
+  Modern browsers receive AVIF or WebP for optimal performance.
+  </Check>
+</Step>
+
+<Step title="Content type analysis">
+  Evaluates whether the content is a photo, graphic, or contains text to choose the best compression algorithm.
+</Step>
+
+<Step title="File size optimization">
+  Compares output sizes and selects the format with the best compression ratio while maintaining quality.
+  
+  **Format priority:** AVIF → WebP → JPEG → PNG
+</Step>
+</Steps>
+
+## Format Selection Logic
+
+The system follows this decision tree when no explicit format is specified:
+
+<Tabs>
+<Tab title="Modern Browsers">
+
+**Browser supports AVIF:**
+
+```
+Content Analysis → AVIF encoding → Size comparison → Deliver AVIF
+```
+
+AVIF provides up to 50% better compression than JPEG with equivalent visual quality.
+
+</Tab>
+
+<Tab title="WebP Fallback">
+
+**Browser supports WebP but not AVIF:**
+
+```
+Content Analysis → WebP encoding → Size comparison → Deliver WebP
+```
+
+WebP provides excellent compression with broad browser support.
+
+</Tab>
+
+<Tab title="Legacy Support">
+
+**Older browsers:**
+
+```
+Content Analysis → JPEG/PNG encoding → Deliver legacy format
+```
+
+Ensures compatibility with all devices and browsers.
+
+</Tab>
+</Tabs>
+
+## Manual Override
+
+While automatic selection is recommended, you can force a specific format when needed:
+
+<Tabs>
+<Tab title="Force AVIF">
+
+```http
+GET /t/f_avif,q_80/image.jpg
+```
+
+Explicitly request AVIF output regardless of browser support.
+
+</Tab>
+
+<Tab title="Force WebP">
+
+```http
+GET /t/f_webp,q_85/image.jpg
+```
+
+Request WebP for specific compatibility requirements.
+
+</Tab>
+
+<Tab title="Force JPEG">
+
+```http
+GET /t/f_jpeg,q_90/image.jpg
+```
+
+Use JPEG for maximum compatibility or specific client requirements.
+
+</Tab>
+</Tabs>
+
+<Info>
+Manual format selection bypasses intelligent optimization. Only use this when you have specific requirements that override automatic selection.
+</Info>
+
+## Compression Statistics
+
+Typical compression improvements by format:
+
+<div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+  
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div>
+      <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem', color: '#000000' }}>
+        PNG to AVIF (50-70%)
+      </div>
+      <div style={{ background: '#F0F0F0', borderRadius: '0.375rem', height: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: '#000000', width: '60%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '500', fontSize: '0.7rem' }}>
+          60%
+        </div>
+      </div>
+    </div>
+    
+    <div>
+      <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem', color: '#000000' }}>
+        JPEG to AVIF (40-50%)
+      </div>
+      <div style={{ background: '#F0F0F0', borderRadius: '0.375rem', height: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: '#000000', width: '45%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '500', fontSize: '0.7rem' }}>
+          45%
+        </div>
+      </div>
+    </div>
+    
+    <div>
+      <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem', color: '#000000' }}>
+        PNG to WebP (25-40%)
+      </div>
+      <div style={{ background: '#F0F0F0', borderRadius: '0.375rem', height: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: '#000000', width: '32.5%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '500', fontSize: '0.7rem' }}>
+          32.5%
+        </div>
+      </div>
+    </div>
+    
+    <div>
+      <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem', color: '#000000' }}>
+        JPEG to WebP (25-35%)
+      </div>
+      <div style={{ background: '#F0F0F0', borderRadius: '0.375rem', height: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: '#000000', width: '30%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '500', fontSize: '0.7rem' }}>
+          30%
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<Note>
+Actual savings vary based on image content, quality settings, and original compression level. Reducing image size can reduce file size even more.
+</Note>
+
