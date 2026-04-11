@@ -52,7 +52,8 @@
         "icon": "book",
         "pages": [
           "guides/coolify-deployment",
-          "guides/dokploy-deployment"
+          "guides/dokploy-deployment",
+          "guides/railway-deployment"
         ]
       },
       {
