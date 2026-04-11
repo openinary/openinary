@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { TransformService } from '../services/transform.service';
 import logger, { serializeError } from '../utils/logger';
 import { verifySignature, SIGNATURE_LENGTH, sanitizeFilePath } from '../utils/signature';
+import { isTransformSegment } from '../utils/parser';
 
 const t = new Hono();
 const transformService = new TransformService();
@@ -46,9 +47,7 @@ t.get('/*', async (c) => {
     // Determine transformation string and file path
     // Format: {transformations}/{route}
     const hasTransform =
-      routeSegments.length > 0 &&
-      !routeSegments[0].includes('.') &&
-      (routeSegments[0].includes(',') || routeSegments[0].includes('_'));
+      routeSegments.length > 0 && isTransformSegment(routeSegments[0]);
 
     const transformations = hasTransform ? routeSegments[0] : '';
     const filePathSegments = hasTransform
@@ -161,3 +160,4 @@ t.get('/*', async (c) => {
 });
 
 export default t;
+

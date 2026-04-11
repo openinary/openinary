@@ -31,10 +31,12 @@ export class Compression {
     // If format is explicitly specified, use it directly (no size comparison needed)
     if (params.format) {
       const explicitFormat = params.format === 'jpg' ? 'jpeg' : params.format;
+      const userQuality = params.quality ? parseInt(String(params.quality)) : undefined;
       const optimalQuality = this.calculateOptimalQuality(
-        analysis, 
-        originalSize, 
-        explicitFormat
+        analysis,
+        originalSize,
+        explicitFormat,
+        userQuality
       );
       
       let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
@@ -109,9 +111,10 @@ export class Compression {
     // Encode in all formats and compare sizes
     const results: Array<{ format: ImageFormat; buffer: Buffer; size: number }> = [];
     
+    const userQuality = params.quality ? parseInt(String(params.quality)) : undefined;
     for (const format of formatsToTest) {
       try {
-        const quality = this.calculateOptimalQuality(analysis, originalSize, format);
+        const quality = this.calculateOptimalQuality(analysis, originalSize, format, userQuality);
         let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
         pipeline = this.applyFormat(pipeline, format, quality);
         
@@ -130,7 +133,7 @@ export class Compression {
     // Find the smallest format
     if (results.length === 0) {
       // Fallback: use JPEG
-      const quality = this.calculateOptimalQuality(analysis, originalSize, 'jpeg');
+      const quality = this.calculateOptimalQuality(analysis, originalSize, 'jpeg', userQuality);
       let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
       pipeline = this.applyFormat(pipeline, 'jpeg', quality);
       const buffer = await pipeline.toBuffer();
@@ -305,14 +308,19 @@ export class Compression {
   }
 
   /**
-   * Calculates optimal quality based on content (simplified for speed)
+   * Calculates optimal quality based on content (simplified for speed).
+   * If userQuality is provided, it takes precedence over automatic calculation.
    */
   private calculateOptimalQuality(
     analysis: ImageAnalysis,
     fileSize: number,
-    format: string
+    format: string,
+    userQuality?: number
   ): number {
-    
+    if (userQuality !== undefined && !isNaN(userQuality) && userQuality >= 1 && userQuality <= 100) {
+      return userQuality;
+    }
+
     let baseQuality = 85;
     
     // Simplified format-specific adjustments
