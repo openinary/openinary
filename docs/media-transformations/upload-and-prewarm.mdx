@@ -1,13 +1,9 @@
 ---
-title: "Upload and Prewarm"
-description: "Upload images and videos via API and pre-generate transformed variants in cache"
+title: "Upload & Cache Warming"
+description: "Upload images and videos via the API and pre-generate transformed variants so the first public request is served instantly from cache."
 ---
 
-## Overview
-
-Use `POST /upload` to upload one or multiple media files. You can optionally pass `transformations` to generate and cache transformed variants immediately after upload.
-
-This is useful for high-traffic assets because the first public request can be served from cache instead of triggering on-demand processing.
+`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately — so the first user request is served from cache instead of triggering on-demand processing.
 
 ## Endpoint
 
@@ -17,7 +13,7 @@ Authorization: Bearer <API_KEY>
 Content-Type: multipart/form-data
 ```
 
-## Upload With Prewarmed Image Variants
+## Upload with prewarmed variants
 
 ```bash
 curl -X POST "http://localhost:3000/upload" \
@@ -26,29 +22,30 @@ curl -X POST "http://localhost:3000/upload" \
   -F 'transformations=["w_800,h_600,f_webp,q_80","w_400,h_400,c_fill,f_avif,q_70"]'
 ```
 
-The optional `transformations` field can be:
+The `transformations` field accepts:
+- A JSON array of transformation strings
+- Multiple `transformations` form fields (one string per field)
+- A newline- or semicolon-separated string
 
-- a JSON array of transformation segments
-- multiple `transformations` form fields (one segment per field)
-- a newline- or semicolon-separated string
+## Upload video with queued transformations
 
-## Upload Video With Queued Transformations
+Video transformations run in a background queue — they don't block the upload response.
 
 ```bash
 curl -X POST "http://localhost:3000/upload" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "files=@./video.mp4;type=video/mp4" \
-  -F 'transformations=["w_1280,h_720,q_75,f_mp4","t_true,tt_3,w_320,h_180,f_webp,q_70"]'
+  -F 'transformations=["w_1280,h_720,q_75","w_640,h_360,q_60"]'
 ```
 
-Video transformations are queued in the background immediately after upload.
+<Note>
+Even without a `transformations` field, Openinary automatically queues a default thumbnail for every video upload.
+</Note>
 
-Note: Openinary also queues its default video thumbnail generation after upload, even without `transformations`.
-
-## TypeScript Examples
+## TypeScript examples
 
 <Tabs>
-<Tab title="Image Upload (Node.js)">
+<Tab title="Image upload">
 
 ```ts
 import { readFile } from "node:fs/promises";
@@ -56,40 +53,31 @@ import { readFile } from "node:fs/promises";
 const apiKey = process.env.OPENINARY_API_KEY;
 if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
 
-async function uploadImage() {
-  const bytes = await readFile("./photo.jpg");
-  const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
+const bytes = await readFile("./photo.jpg");
+const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
 
-  const form = new FormData();
-  form.append("files", file);
-  form.append(
-    "transformations",
-    JSON.stringify([
-      "w_800,h_600,f_webp,q_80",
-      "w_400,h_400,c_fill,f_avif,q_70",
-    ]),
-  );
+const form = new FormData();
+form.append("files", file);
+form.append(
+  "transformations",
+  JSON.stringify(["w_800,h_600,f_webp,q_80", "w_400,h_400,c_fill,f_avif,q_70"]),
+);
 
-  const res = await fetch("http://localhost:3000/upload", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
+const res = await fetch("http://localhost:3000/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${apiKey}` },
+  body: form,
+});
 
-  if (!res.ok) {
-    throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
-  }
+if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
-  const data = await res.json();
-  console.log(data);
-}
-
-uploadImage().catch(console.error);
+const data = await res.json();
+console.log(data);
 ```
 
 </Tab>
 
-<Tab title="Video Upload (Node.js)">
+<Tab title="Video upload">
 
 ```ts
 import { readFile } from "node:fs/promises";
@@ -97,40 +85,31 @@ import { readFile } from "node:fs/promises";
 const apiKey = process.env.OPENINARY_API_KEY;
 if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
 
-async function uploadVideo() {
-  const bytes = await readFile("./video.mp4");
-  const file = new File([bytes], "video.mp4", { type: "video/mp4" });
+const bytes = await readFile("./video.mp4");
+const file = new File([bytes], "video.mp4", { type: "video/mp4" });
 
-  const form = new FormData();
-  form.append("files", file);
-  form.append(
-    "transformations",
-    JSON.stringify([
-      "w_1280,h_720,q_75,f_mp4",
-      "t_true,tt_3,w_320,h_180,f_webp,q_70",
-    ]),
-  );
+const form = new FormData();
+form.append("files", file);
+form.append(
+  "transformations",
+  JSON.stringify(["w_1280,h_720,q_75", "w_640,h_360,q_60"]),
+);
 
-  const res = await fetch("http://localhost:3000/upload", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
+const res = await fetch("http://localhost:3000/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${apiKey}` },
+  body: form,
+});
 
-  if (!res.ok) {
-    throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
-  }
+if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
-  const data = await res.json();
-  console.log(data);
-}
-
-uploadVideo().catch(console.error);
+const data = await res.json();
+console.log(data);
 ```
 
 </Tab>
 
-<Tab title="Multiple transformation fields">
+<Tab title="Multiple fields">
 
 ```ts
 import { readFile } from "node:fs/promises";
@@ -138,52 +117,31 @@ import { readFile } from "node:fs/promises";
 const apiKey = process.env.OPENINARY_API_KEY;
 if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
 
-async function uploadWithMultipleFields() {
-  const bytes = await readFile("./photo.jpg");
-  const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
+const bytes = await readFile("./photo.jpg");
+const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
 
-  const form = new FormData();
-  form.append("files", file);
-  form.append("transformations", "w_1200,h_800,f_webp,q_82");
-  form.append("transformations", "w_600,h_600,c_fill,f_avif,q_70");
+const form = new FormData();
+form.append("files", file);
+// Each append is one transformation string
+form.append("transformations", "w_1200,h_800,f_webp,q_82");
+form.append("transformations", "w_600,h_600,c_fill,f_avif,q_70");
 
-  const res = await fetch("http://localhost:3000/upload", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
+const res = await fetch("http://localhost:3000/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${apiKey}` },
+  body: form,
+});
 
-  if (!res.ok) {
-    throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
-  }
+if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
-  const data = await res.json();
-  console.log(data);
-}
-
-uploadWithMultipleFields().catch(console.error);
+const data = await res.json();
+console.log(data);
 ```
 
 </Tab>
 </Tabs>
 
-## Response Fields
-
-Successful uploads can include these prewarm-related fields:
-
-- `prewarmedUrls`: transformed variants generated and cached during upload (images)
-- `prewarmErrors`: transformation-specific prewarm failures (images)
-- `queuedTransformationUrls`: video transformations queued in background (videos)
-- `queueErrors`: video transformation queue errors (videos)
-
-Other always-present file fields:
-
-- `filename`
-- `path`
-- `size`
-- `url`
-
-Example response (shape can vary based on file type and transformation validity):
+## Response
 
 ```json
 {
@@ -200,19 +158,35 @@ Example response (shape can vary based on file type and transformation validity)
 }
 ```
 
-## File Size Limit
+| Field | Type | Description |
+|-------|------|-------------|
+| `filename` | string | Original filename |
+| `path` | string | Storage path |
+| `size` | number | File size in bytes |
+| `url` | string | Base transformation URL |
+| `prewarmedUrls` | string[] | Cached variants (images) |
+| `prewarmErrors` | object[] | Prewarm failures per variant (images) |
+| `queuedTransformationUrls` | string[] | Queued variants (videos) |
+| `queueErrors` | object[] | Queue failures per variant (videos) |
 
-The default maximum upload size is **50 MB** per file. To increase it, set `MAX_FILE_SIZE_MB` in your environment:
+## Limits
 
-```env
-MAX_FILE_SIZE_MB=500
-```
+- Max **20 transformations** per upload request.
+- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb) — useful for large video uploads in self-hosted setups.
 
-This is useful for large video uploads in self-hosted setups (Docker, Railway, Coolify, etc.). See [Server configuration](/configuration/server#max-file-size-mb) for details.
+## Tips
 
-## Best Practices
+- Prewarm only the variants you actually serve — don't prewarm speculatively.
+- Use consistent transformation strings across your frontend and backend to maximize cache hits.
+- For video, monitor the queue via `GET /queue/stats` during high-volume ingestion.
 
-- Prewarm only the variants you need in production to avoid unnecessary processing.
-- For video, prewarm critical variants first and monitor queue throughput.
-- Keep transformation strings consistent across frontend/backend to maximize cache hits.
-- Keep `transformations` count reasonable (API limit: 20 entries per upload request).
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+    Full parameter reference for resizing, cropping, and format conversion.
+  </Card>
+  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+    Resize, trim, and extract thumbnails from video files.
+  </Card>
+</CardGroup>

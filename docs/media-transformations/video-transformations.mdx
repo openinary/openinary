@@ -1,258 +1,176 @@
 ---
 title: "Video Transformations"
-description: "Resize and compress videos with quality control and efficient encoding"
+description: "Resize, trim, extract thumbnails, and re-encode videos with URL-based parameters"
 ---
 
-## Parameter Reference
+<Warning>
+Video processing is resource-intensive (5–30s per file). For high-traffic assets, [prewarm](/media-transformations/upload-and-prewarm) transformed variants at upload time so the first request is served from cache.
+</Warning>
 
-Quick reference for all available parameters:
+## Parameters
 
-| Parameter | Full Name | Description |
+| Parameter | Full name | Description |
 |-----------|-----------|-------------|
-| [`w`](#w) | width | Video width in pixels |
-| [`h`](#h) | height | Video height in pixels |
-| [`c`](#c) | crop | Crop mode for resizing |
-| [`q`](#q) | quality | Compression quality using CRF (1-100) |
-| [`so`](#so) | start offset | Start time in seconds for trimming or thumbnail extraction |
-| [`eo`](#eo) | end offset | End time in seconds for trimming |
-| [`f`](#f) | format | Output format (mp4 for video, webp/jpeg/png for thumbnails) |
+| [`w`](#w) | width | Width in pixels |
+| [`h`](#h) | height | Height in pixels |
+| [`c`](#c) | crop | Crop/resize mode |
+| [`q`](#q) | quality | Quality via CRF (1–100) |
+| [`so`](#so) | start offset | Start time in seconds |
+| [`eo`](#eo) | end offset | End time in seconds (trim) |
+| [`f`](#f) | format | Output format |
 
-## Core Parameters
+## Parameter reference
 
 <a id="w"></a>
 <ParamField path="w" type="integer">
-  Set the width of the video in pixels.
-  
-  **Common resolutions:**
-  - `w_1920` - Full HD 1080p width
-  - `w_1280` - HD 720p width
-  - `w_640` - Standard definition (SD) width
+  Width of the output video in pixels.
+
+  `w_1920` (1080p) · `w_1280` (720p) · `w_640` (SD)
 </ParamField>
 
 <a id="h"></a>
 <ParamField path="h" type="integer">
-  Set the height of the video in pixels.
-  
-  **Common resolutions:**
-  - `h_1080` - Full HD 1080p height
-  - `h_720` - HD 720p height
-  - `h_480` - Standard definition (SD) height
-  - `h_360` - Low resolution preview height
+  Height of the output video in pixels.
+
+  `h_1080` · `h_720` · `h_480` · `h_360`
 </ParamField>
 
 <a id="c"></a>
 <ParamField path="c" type="string">
-  Define how the video is cropped during resizing.
-  
-  **Available modes:**
-  - `fill` - Fill entire area, cropping if necessary (scale + crop strategy)
-  - `crop` - Resize and crop to exact dimensions
+  Resize/crop strategy.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `fill` | Scale and crop to fill the target dimensions |
+  | `crop` | Resize and crop to exact dimensions |
 </ParamField>
 
 <a id="q"></a>
 <ParamField path="q" type="integer" default="75">
-  Control video quality using <Tooltip tip="Constant Rate Factor - lower values mean better quality">CRF</Tooltip> encoding. Range: 1-100.
-  
-  **Quality mapping:**
-  - `q_100` → CRF 18 (very high quality, large file)
-  - `q_85` → CRF 23 (high quality, recommended)
-  - `q_75` → CRF 28 (good quality, balanced)
-  - `q_50` → CRF 35 (medium quality, smaller file)
-  - `q_10` → CRF 45 (low quality, minimum size)
+  Video quality via <Tooltip tip="Constant Rate Factor — lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100.
+
+  | `q` value | CRF | Notes |
+  |-----------|-----|-------|
+  | 100 | 18 | Very high quality |
+  | 85 | 23 | High quality, recommended |
+  | 75 | 28 | Balanced (default) |
+  | 50 | 35 | Smaller file, noticeable loss |
+  | 10 | 45 | Low quality, minimum size |
 </ParamField>
 
 <a id="so"></a>
 <ParamField path="so" type="number">
-  Set the start time in seconds for video trimming or thumbnail extraction. When used with `eo`, creates a trimmed video segment. When used with `f` (image format), extracts a single frame as a thumbnail.
-  
-  **Examples:**
-  - `so_5` - Start at 5 seconds
-  - `so_0` - Start from the beginning
-  - `so_10.5` - Start at 10.5 seconds (supports decimals)
+  Start time in seconds. Used for trimming (with `eo`) or thumbnail extraction (with an image `f`).
+
+  `so_5` · `so_10.5`
 </ParamField>
 
 <a id="eo"></a>
 <ParamField path="eo" type="number">
-  Set the end time in seconds for video trimming. Must be used together with `so` to create a trimmed video segment. The resulting video duration is `eo - so` seconds.
-  
-  **Examples:**
-  - `eo_12` - End at 12 seconds (exclusive)
-  - `eo_30` - End at 30 seconds
-  - `eo_15.5` - End at 15.5 seconds (supports decimals)
-  
+  End time in seconds. Must be used together with `so`. The output duration is `eo − so`.
+
+  `so_5,eo_12` → 7-second clip
+
   <Note>
-  The end offset is exclusive, meaning a video trimmed with `so_5,eo_12` will be 7 seconds long (from 5s to 12s).
+  The end offset is exclusive: `so_5,eo_12` produces a clip from 5s to 12s (7 seconds).
   </Note>
 </ParamField>
 
 <a id="f"></a>
 <ParamField path="f" type="string">
-  Force a specific output format. For videos, defaults to MP4. When combined with `so` (and without `eo`), extracts a single frame as an image thumbnail.
-  
-  **Video formats:**
-  - `mp4` - Standard video format (default)
-  
-  **Thumbnail formats:**
-  - `webp` - Modern format, excellent compression
-  - `jpeg` / `jpg` - Universal image format
-  - `png` - Lossless format with transparency support
-  
-  <Tip>
-  Combine `so` with `f_webp` or `f_jpeg` to extract a single frame as a thumbnail image.
-  </Tip>
+  Output format. Defaults to `mp4` (H.264). When combined with `so` and without `eo`, extracts a single frame as an image.
+
+  | Value | Use case |
+  |-------|----------|
+  | `mp4` | Re-encoded video (H.264) — default |
+  | `webp` | Frame thumbnail |
+  | `jpeg` / `jpg` | Frame thumbnail |
+  | `png` | Frame thumbnail with transparency |
 </ParamField>
 
-## Video Examples
+## Examples
 
 <Tabs>
-<Tab title="HD Optimization">
+<Tab title="720p HD">
 
 ```http
 GET /t/w_1280,h_720,q_80/video.mp4
 ```
 
-Convert to 720p HD with high quality encoding.
-
 </Tab>
 
-<Tab title="Preview Generation">
+<Tab title="Trim">
 
 ```http
-GET /t/w_640,h_360,q_60/preview.mp4
+GET /t/so_5,eo_12/video.mp4
 ```
 
-Create a low-resolution preview for faster loading.
+7-second clip (5s → 12s).
 
 </Tab>
 
-<Tab title="Video Trimming">
-
-```http
-GET /t/w_400,h_300,so_5,eo_12/video.mp4
-```
-
-Trim video from 5 seconds to 12 seconds and resize to 400×300. Produces a 7-second video segment.
-
-</Tab>
-
-<Tab title="Thumbnail Extraction">
+<Tab title="Thumbnail">
 
 ```http
 GET /t/w_400,h_300,so_5,f_webp/video.mp4
 ```
 
-Extract a single frame at 5 seconds as a 400×300 WebP thumbnail image.
+Single frame at 5s, output as a WebP image.
+
+</Tab>
+
+<Tab title="Mobile preview">
+
+```http
+GET /t/w_640,h_360,q_60/video.mp4
+```
+
+Low-bandwidth version for mobile.
 
 </Tab>
 </Tabs>
-
-## Supported Video Formats
-
-<Tabs>
-<Tab title="Input Formats">
-
-The system accepts the following video formats as input:
-
-- **MP4** - With H.264 or H.265 codecs
-- **MOV** - QuickTime format
-- **WebM** - With VP8 or VP9 codecs
-
-</Tab>
-
-<Tab title="Output Format">
-
-All videos are output in the following standardized format:
-
-- **MP4 with H.264 codec** - Maximum device and browser compatibility
-
-<Note>
-The output codec is standardized to H.264 to ensure broad device and browser support across all platforms.
-</Note>
-
-</Tab>
-</Tabs>
-
-## Use Cases
 
 <AccordionGroup>
-<Accordion title="Social media optimization">
+<Accordion title="Square social video">
 
 ```http
 GET /t/w_1080,h_1080,q_85/social.mp4
 ```
 
-Create square videos optimized like Instagram and X feeds.
-
 </Accordion>
 
-<Accordion title="Mobile-friendly format">
-
-```http
-GET /t/w_640,h_360,q_65/video.mp4
-```
-
-Generate low-bandwidth versions for mobile users on slower connections.
-
-</Accordion>
-
-<Accordion title="High-quality presentations">
-
-```http
-GET /t/w_1920,h_1080,q_95/presentation.mp4
-```
-
-Maintain maximum quality for professional presentations and demos.
-
-</Accordion>
-
-<Accordion title="Video trimming and segments">
+<Accordion title="Trim and resize">
 
 ```http
 GET /t/w_400,h_300,so_5,eo_12/video.mp4
 ```
 
-Extract a specific segment from a video. This example creates a 7-second clip (from 5s to 12s) resized to 400×300 pixels. Perfect for creating highlights, previews, or extracting specific moments from longer videos.
+7-second clip (5s → 12s) resized to 400×300.
 
 </Accordion>
 
-<Accordion title="Video thumbnails">
+<Accordion title="High-quality presentation">
 
 ```http
-GET /t/w_400,h_300,so_5,f_webp/video.mp4
+GET /t/w_1920,h_1080,q_95/presentation.mp4
 ```
-
-Generate thumbnail images from videos by extracting a single frame at a specific timestamp. Combine `so` with an image format (`f_webp`, `f_jpeg`, or `f_png`) to create thumbnails for video galleries, preview cards, or social media sharing.
 
 </Accordion>
 </AccordionGroup>
 
-<Tip>
-For videos that will be viewed frequently, consider pre-generating them to use the cached version.
-</Tip>
+## Supported formats
 
-## Performance Considerations
+**Input:** MP4 (H.264/H.265), MOV, WebM (VP8/VP9)
 
-Video transformations are significantly more resource-intensive than image operations. Keep these factors in mind:
+**Output:** MP4 (H.264) — standardized for maximum device and browser compatibility
+
+## Next steps
 
 <CardGroup cols={2}>
-<Card title="Processing time" icon="clock">
-  Video processing can take 5-30 seconds depending on original file resolution and quality settings.
-</Card>
-
-<Card title="Cache efficiency" icon="database">
-  Cached video transformations are served in under 50ms, making caching essential for performance.
-</Card>
-
-<Card title="Storage impact" icon="hard-drive">
-  Higher quality settings result in larger file sizes. Balance quality against storage costs.
-</Card>
-
-<Card title="Bandwidth usage" icon="network-wired">
-  Consider delivering lower resolutions to mobile devices to reduce bandwidth consumption.
-</Card>
+  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
+    Pre-generate video variants at upload time — video jobs are background-queued.
+  </Card>
+  <Card title="Video Processing Config" icon="gear" href="/configuration/video-processing">
+    Tune worker concurrency, retries, and job cleanup.
+  </Card>
 </CardGroup>
-
-<Warning>
-Avoid on-demand video transformations for high-traffic scenarios. Pre-process videos during upload or content ingestion whenever possible.
-</Warning>
-
