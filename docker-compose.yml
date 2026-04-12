@@ -31,6 +31,7 @@ services:
       - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
       - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
       - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
@@ -87,6 +88,7 @@ services:
       - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
       - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
       - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server

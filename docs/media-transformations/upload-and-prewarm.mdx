@@ -200,6 +200,16 @@ Example response (shape can vary based on file type and transformation validity)
 }
 ```
 
+## File Size Limit
+
+The default maximum upload size is **50 MB** per file. To increase it, set `MAX_FILE_SIZE_MB` in your environment:
+
+```env
+MAX_FILE_SIZE_MB=500
+```
+
+This is useful for large video uploads in self-hosted setups (Docker, Railway, Coolify, etc.). See [Server configuration](/configuration/server#max-file-size-mb) for details.
+
 ## Best Practices
 
 - Prewarm only the variants you need in production to avoid unnecessary processing.

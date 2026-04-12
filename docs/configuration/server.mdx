@@ -15,6 +15,7 @@ Quick reference for all available server configuration parameters:
 | [`BETTER_AUTH_URL`](#better-auth-url) | Base URL for authentication |
 | [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max) | Maximum requests per window |
 | [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit time window |
+| [`MAX_FILE_SIZE_MB`](#max-file-size-mb) | Maximum upload file size in MB |
 
 ## Server Configuration
 
@@ -69,6 +70,22 @@ Quick reference for all available server configuration parameters:
   - `http://localhost:3000` - Local development
   - `https://api.example.com` - Production API
   - `https://openinary.example.com` - Custom domain
+</ParamField>
+
+## Upload Configuration
+
+<a id="max-file-size-mb"></a>
+<ParamField path="MAX_FILE_SIZE_MB" type="integer" default="50">
+  Maximum allowed file size for uploads, in megabytes.
+
+  **Examples:**
+  - `50` - Default (50 MB)
+  - `500` - 500 MB, suitable for large video uploads
+  - `2048` - 2 GB
+
+  <Note>
+  This is particularly relevant for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment — no image rebuild required.
+  </Note>
 </ParamField>
 
 ## Public Routes Rate Limiting

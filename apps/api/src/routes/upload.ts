@@ -18,8 +18,8 @@ const upload = new Hono();
 const storage = createStorageClient();
 const transformService = new TransformService();
 
-// File size limit: 50MB
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 52,428,800 bytes
+// File size limit: configurable via MAX_FILE_SIZE_MB env var, defaults to 50MB
+const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB ?? "50", 10) || 50) * 1024 * 1024;
 const MAX_PREWARM_TRANSFORMATIONS = 20;
 
 // Allowed file extensions and MIME types
@@ -436,7 +436,7 @@ upload.post("/", async (c) => {
       if (fileSize > MAX_FILE_SIZE) {
         failedUploads.push({
           filename: rawSanitizedPath,
-          error: `File size exceeds limit of 50MB (size: ${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
+          error: `File size exceeds limit of ${MAX_FILE_SIZE / 1024 / 1024}MB (size: ${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
         });
         continue;
       }
