@@ -16,6 +16,7 @@ description: "Environment variables for Openinary server mode, authentication se
 | [`DB_PATH`](#db-path) | Custom SQLite database path |
 | [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max) | Max requests per window |
 | [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit window (ms) |
+| [`MAX_FILE_SIZE_MB`](#max-file-size-mb) | Maximum upload file size in MB |
 
 ## Parameter reference
 
@@ -85,6 +86,19 @@ description: "Environment variables for Openinary server mode, authentication se
   Custom path for the SQLite database. Only needed when mounting to a non-standard location.
 
   `/data/auth.db` · `/mnt/volume/openinary.db`
+</ParamField>
+
+## Upload
+
+<a id="max-file-size-mb"></a>
+<ParamField path="MAX_FILE_SIZE_MB" type="integer" default="50">
+  Maximum allowed file size for uploads, in megabytes.
+
+  `50` (default) · `500` · `2048`
+
+  <Note>
+  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment — no image rebuild required.
+  </Note>
 </ParamField>
 
 ## Rate limiting
