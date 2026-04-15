@@ -7,6 +7,7 @@ import { applyResize } from './resize';
 import { applyRotation } from './rotation';
 import { applyQuality } from './quality';
 import { applyResizeComposite } from './param-registry';
+import { applyRoundCorners } from './round-corners';
 
 /**
  * Decode a PSD file into a Sharp instance via raw RGBA pixel data.
@@ -50,6 +51,7 @@ export const transformImage = async (inputPath: string, params: TransformParams)
     ...(params.background && { background: params.background }),
     ...(params.quality && { quality: String(params.quality) }),
     ...(params.format && { format: params.format }),
+    ...(params.radius && { radius: params.radius }),
   };
 
   // 1. Apply rotation (if specified)
@@ -67,7 +69,15 @@ export const transformImage = async (inputPath: string, params: TransformParams)
     image = await applyResizeComposite(image, '', paramsRecord);
   }
 
-  // 4. Apply quality (if specified)
+  // 4. Apply rounded corners (if specified)
+  if (params.radius) {
+    image = await applyRoundCorners(image, params.radius, params.background);
+    // applyRoundCorners always returns a pipeline backed by a PNG buffer
+    // (alpha-capable), so the intermediate toBuffer() in processImage will
+    // correctly preserve transparency or the filled background color.
+  }
+
+  // 5. Apply quality (if specified)
   if (params.quality) {
     image = applyQuality(image, params.quality);
   }

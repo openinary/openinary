@@ -16,6 +16,7 @@ description: "Resize, crop, rotate, and optimize images with URL-based parameter
 | [`b`](#b) | background | Background color (hex) |
 | [`q`](#q) | quality | Compression level (1–100) |
 | [`f`](#f) | format | Output format |
+| [`r`](#r) | round corners | Round corners by pixel radius, per-corner list, or `max` |
 
 ## Parameter reference
 
@@ -77,9 +78,49 @@ description: "Resize, crop, rotate, and optimize images with URL-based parameter
 
 <a id="b"></a>
 <ParamField path="b" type="string">
-  Background color for `c_pad` or rotated images. Use `rgb:` followed by a 6-digit hex value.
+  Background color used by `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Use `rgb:` followed by a 6-digit hex value.
 
   `b_rgb:ffffff` (white) · `b_rgb:000000` (black) · `b_rgb:f5f5f5` (light gray)
+</ParamField>
+
+<a id="r"></a>
+<ParamField path="r" type="string">
+  Rounds the corners of the image.
+
+  | Syntax | Behavior |
+  |--------|----------|
+  | `r_<int>` | Same radius on all four corners |
+  | `r_v1:v2` | `v1` = top-left & bottom-right, `v2` = top-right & bottom-left |
+  | `r_v1:v2:v3` | `v1` = top-left, `v2` = top-right & bottom-left, `v3` = bottom-right |
+  | `r_v1:v2:v3:v4` | Each corner individually: TL, TR, BR, BL (clockwise) |
+  | `r_max` | Circle (square image) or oval (rectangular image) |
+
+  `r_80` · `r_20:80` · `r_20:0:40:60` · `r_max`
+
+  **Transparency vs. solid background**
+
+  By default the cut corners become transparent, so the output format must support alpha — `f_png`, `f_webp`, or `f_avif`. When the format is omitted, Openinary automatically picks an alpha-capable format.
+
+  Add `b_rgb:<hex>` to fill the corners with a solid color instead. This lets you match a specific page background and works with any output format, including JPEG:
+
+  ```
+  /t/w_600,r_24,b_rgb:f5f5f5/photo.jpg   → corners filled with light gray
+  /t/w_600,r_24/photo.jpg                 → corners transparent (auto format)
+  ```
+
+  **With `c_pad`**
+
+  When combined with `c_pad`, the rounding is applied after padding. Using the same color for `b_` and the page background creates a seamless padded-and-rounded image:
+
+  ```
+  /t/w_400,h_400,c_pad,b_rgb:ffffff,r_20/photo.jpg
+  ```
+
+  **Limitations**
+
+  - Rounded corners are not supported for video.
+  - Radius values are clamped to half the shorter dimension — `r_9999` on a 200×300 image produces `r_100`.
+  - GIF input: only the first frame is processed; animation is not preserved.
 </ParamField>
 
 <a id="q"></a>
@@ -176,6 +217,46 @@ GET /t/a_15,w_200,h_200/logo.png
 ```http
 GET /t/w_1920,h_1080,q_85,f_avif/landscape.jpg
 ```
+
+</Accordion>
+
+<Accordion title="Circular avatar (transparent)">
+
+```http
+GET /t/w_400,h_400,c_fill,r_max,f_png/avatar.jpg
+```
+
+Square crop then circular mask with transparent corners. Use `f_png` or `f_webp` to preserve the alpha channel.
+
+</Accordion>
+
+<Accordion title="Circular avatar (solid background)">
+
+```http
+GET /t/w_400,h_400,c_fill,r_max,b_rgb:f3f4f6/avatar.jpg
+```
+
+Same circular crop but corners filled with a solid color — no alpha channel needed, works with any format and matches a page background.
+
+</Accordion>
+
+<Accordion title="Rounded card image">
+
+```http
+GET /t/w_600,h_400,c_fill,r_16,b_rgb:ffffff/photo.jpg
+```
+
+Uniform 16px radius with white corners — safe to use as a JPEG card thumbnail on a white page.
+
+</Accordion>
+
+<Accordion title="Padded and rounded">
+
+```http
+GET /t/w_400,h_400,c_pad,b_rgb:f5f5f5,r_20/photo.jpg
+```
+
+Pads the image to a square with a light gray background, then rounds the corners with the same color for a seamless result.
 
 </Accordion>
 </AccordionGroup>
