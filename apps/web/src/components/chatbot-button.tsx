@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   Search, 
-  BookOpen, 
-  Video, 
-  Mail, 
+  BookOpen,
+  CircleDot,
+  MessageSquare,
   X,
   Loader2
 } from "lucide-react";
@@ -241,18 +241,18 @@ export function ChatbotButton() {
               {/* Second Section */}
               <div className="space-y-0.5">
                 <HelpMenuItem
-                  icon={<Video className="h-3.5 w-3.5" />}
-                  label="Book Demo"
+                  icon={<CircleDot className="h-3.5 w-3.5" />}
+                  label="Open an Issue"
                   onClick={() => {
-                    window.open('https://cal.com/hey-florian/20-min-openinary?overlayCalendar=true', '_blank');
+                    window.open('https://github.com/openinary/openinary/issues/new', '_blank');
                     setOpen(false);
                   }}
                 />
                 <HelpMenuItem
-                  icon={<Mail className="h-3.5 w-3.5" />}
-                  label="Contact Us"
+                  icon={<MessageSquare className="h-3.5 w-3.5" />}
+                  label="Discussions"
                   onClick={() => {
-                    window.location.href = 'mailto:heysen.florian@gmail.com';
+                    window.open('https://github.com/openinary/openinary/discussions', '_blank');
                     setOpen(false);
                   }}
                 />
