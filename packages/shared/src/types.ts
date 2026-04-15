@@ -28,6 +28,7 @@ export interface TransformParams {
   background?: string;
   quality?: string | number;
   format?: ImageFormat;
+  radius?: string; // e.g. "150", "20:80", "20:0:40:60", "max"
 }
 
 export interface VideoTransformParams {

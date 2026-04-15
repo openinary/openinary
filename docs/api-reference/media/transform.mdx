@@ -44,6 +44,7 @@ GET /t/{transformations}/{path}
 | [`a`](#a) | angle | Rotation angle or `auto` |
 | [`g`](#g) | gravity | Focal point for cropping |
 | [`b`](#b) | background | Background color (hex) |
+| [`r`](#r) | round corners | Radius in pixels, per-corner list, or `max` |
 | [`q`](#q-image) | quality | Compression level (1–100) |
 | [`f`](#f-image) | format | Output format |
 
@@ -107,9 +108,30 @@ GET /t/{transformations}/{path}
 
 <a id="b"></a>
 <ParamField path="b" type="string">
-  Background color for `c_pad` or rotated images. Use `rgb:` followed by a 6-digit hex value.
+  Background color for `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Use `rgb:` followed by a 6-digit hex value.
 
   `b_rgb:ffffff` (white) · `b_rgb:000000` (black) · `b_rgb:f5f5f5` (light gray)
+</ParamField>
+
+<a id="r"></a>
+<ParamField path="r" type="string">
+  Rounds the corners of the image using an SVG alpha mask.
+
+  | Syntax | Behavior |
+  |--------|----------|
+  | `r_<int>` | Same radius on all four corners |
+  | `r_v1:v2` | `v1` = top-left & bottom-right, `v2` = top-right & bottom-left |
+  | `r_v1:v2:v3` | `v1` = top-left, `v2` = top-right & bottom-left, `v3` = bottom-right |
+  | `r_v1:v2:v3:v4` | Each corner individually: TL, TR, BR, BL (clockwise) |
+  | `r_max` | Circle (square image) or oval (rectangular image) |
+
+  `r_80` · `r_20:80` · `r_20:0:40:60` · `r_max`
+
+  By default, cut corners are transparent — use `f_png`, `f_webp`, or `f_avif`. Add `b_rgb:<hex>` to fill corners with a solid color and use any format including JPEG.
+
+  <Note>
+    Radius is clamped to half the shorter dimension. Round corners are not supported for video.
+  </Note>
 </ParamField>
 
 <a id="q-image"></a>
@@ -206,6 +228,26 @@ GET /t/a_15,w_200,h_200/logo.png
 ```http
 GET /t/w_1920,h_1080,q_85,f_avif/landscape.jpg
 ```
+
+</Accordion>
+
+<Accordion title="Circular avatar">
+
+```http
+GET /t/w_400,h_400,c_fill,r_max,f_png/avatar.jpg
+```
+
+Square crop then circular mask. Use `f_png` or `f_webp` to preserve the alpha channel, or add `b_rgb:<hex>` to fill corners with a solid color.
+
+</Accordion>
+
+<Accordion title="Rounded card image">
+
+```http
+GET /t/w_600,h_400,c_fill,r_16,b_rgb:ffffff/photo.jpg
+```
+
+Uniform 16 px radius with white corners — safe to serve as JPEG on a white page.
 
 </Accordion>
 </AccordionGroup>

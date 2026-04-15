@@ -34,6 +34,7 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<string, RegExp>> = {
   eo: /^\d+(?:\.\d+)?$/,
   t:  /^(true|1|\d+)$/,
   tt: /^\d+(?:\.\d+)?$/,
+  r:  /^max$|^\d+(?::\d+){0,3}$/,
 };
 
 const isValidTransformPair = (part: string): boolean => {
@@ -74,7 +75,8 @@ type TransformKey =
   | "so"
   | "eo"
   | "t"   // FIX H12: Add thumbnail parameter
-  | "tt"; // FIX H12: Add thumbnail time parameter
+  | "tt"  // FIX H12: Add thumbnail time parameter
+  | "r";  // Round corners
 
 /**
  * Parse a single transformation segment into our
@@ -150,6 +152,9 @@ const parseTransform = (
       case "tt":
         // FIX H12: Parse thumbnail time parameter
         params.thumbnailTime = value;
+        break;
+      case "r":
+        params.radius = value;
         break;
       default:
         // Ignore unsupported/unknown directives for now
