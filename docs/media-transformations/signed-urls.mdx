@@ -169,36 +169,7 @@ echo $url;
 </Tab>
 </Tabs>
 
-## URL format reference
-
-```
-GET /authenticated/s--{signature}/{transformations}/{file-path}
-GET /authenticated/s--{signature}/{file-path}   ← no transformation
-```
-
-| Part | Description |
-|------|-------------|
-| `s--{signature}` | 16-character HMAC-SHA256 prefix. Always starts with `s--`. |
-| `{transformations}` | Optional. Same comma-separated params as `/t/*` (e.g. `w_800,h_600,f_webp`). |
-| `{file-path}` | Path to the file relative to your storage root (e.g. `uploads/photo.jpg`). |
-
-### Examples
-
-```http
-# Transform with signature
-GET /authenticated/s--a1b2c3d4e5f6a7b8/w_800,h_600,f_webp/uploads/photo.jpg
-
-# Serve original with signature (no transformation)
-GET /authenticated/s--a1b2c3d4e5f6a7b8/uploads/photo.jpg
-```
-
-## Error responses
-
-| Status | Cause |
-|--------|-------|
-| `400` | Malformed URL (missing signature prefix, wrong segment count) |
-| `401` | Signature is valid in format but does not match the expected HMAC |
-| `500` | `API_SECRET` is not configured on the server |
+For the endpoint URL format and error responses, see the [Authenticated Transform API reference](/api-reference/media/authenticated-transform).
 
 ## Security considerations
 

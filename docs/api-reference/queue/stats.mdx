@@ -1,0 +1,44 @@
+---
+title: "Queue Statistics"
+description: "Retrieve current video processing queue statistics"
+---
+
+## Endpoint
+
+```
+GET /queue/stats
+```
+
+**Auth:** API Key required
+
+## Response
+
+Returns queue statistics including counts per status and throughput metrics.
+
+```json
+{
+  "pending": 2,
+  "running": 1,
+  "completed": 148,
+  "error": 3,
+  "cancelled": 0
+}
+```
+
+## Example
+
+```bash
+curl http://localhost:3000/queue/stats \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List Jobs" icon="list" href="/api-reference/queue/jobs">
+    View individual job details with filtering.
+  </Card>
+  <Card title="Queue Events" icon="satellite-dish" href="/api-reference/queue/events">
+    Subscribe to real-time job status updates via SSE.
+  </Card>
+</CardGroup>

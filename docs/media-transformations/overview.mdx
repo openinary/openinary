@@ -5,29 +5,7 @@ description: "URL structure for on-the-fly image and video transformations, cach
 
 Transformations are applied by embedding parameters directly in the URL. The first request triggers processing; subsequent requests are served from cache in under 50ms.
 
-## Transformation URL
-
-```http
-GET /t/{transformations}/{path/to/file.ext}
-```
-
-Parameters are comma-separated. Combine as many as needed in a single request.
-
-```http
-GET /t/w_800,h_600/photo.jpg
-GET /t/w_400,h_400,c_fill,g_face,q_85,f_webp/portrait.jpg
-GET /t/w_1280,h_720,q_80/video.mp4
-```
-
-<Tip>
-No transformation needed? Use `GET /download/{path}` to serve the original file directly.
-</Tip>
-
-## Caching
-
-The first request to any transformation URL processes the file and writes the result to cache (local disk or S3). Every subsequent request skips processing entirely and returns the cached asset.
-
-To bust a cached file, call `DELETE /invalidate/{path}` with your API key.
+For the full endpoint reference — URL structure, all parameters, and response details — see the [Transform Media API reference](/api-reference/media/transform).
 
 ## Explore transformations
 

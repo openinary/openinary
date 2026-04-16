@@ -1,0 +1,163 @@
+---
+title: "Queue Events (SSE)"
+description: "Subscribe to real-time video processing job updates via Server-Sent Events"
+---
+
+## Endpoint
+
+```
+GET /queue/events
+```
+
+**Auth:** Public (rate limited)
+
+This endpoint opens a persistent HTTP connection and streams job lifecycle events as they happen. Use this to show real-time upload/processing progress in your UI without polling.
+
+## Response headers
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `text/event-stream` |
+| `Cache-Control` | `no-cache` |
+| `Connection` | `keep-alive` |
+| `X-Accel-Buffering` | `no` |
+
+## Events
+
+Each event follows the SSE format: `event: <type>\ndata: <json>\n\n`
+
+### `connected`
+
+Sent immediately on connection.
+
+```
+event: connected
+data: {"clientId": "client_abc123"}
+```
+
+### `job:created`
+
+A new transformation job was added to the queue.
+
+```
+event: job:created
+data: {
+  "jobId": "job_xyz",
+  "filePath": "videos/clip.mp4",
+  "status": "pending",
+  "priority": 1
+}
+```
+
+### `job:started`
+
+A job began processing.
+
+```
+event: job:started
+data: {
+  "jobId": "job_xyz",
+  "filePath": "videos/clip.mp4",
+  "status": "running"
+}
+```
+
+### `job:progress`
+
+Processing progress update (0–100).
+
+```
+event: job:progress
+data: {
+  "jobId": "job_xyz",
+  "progress": 47
+}
+```
+
+### `job:completed`
+
+Job finished successfully.
+
+```
+event: job:completed
+data: {
+  "jobId": "job_xyz",
+  "filePath": "videos/clip.mp4",
+  "status": "completed"
+}
+```
+
+### `job:error`
+
+Job failed.
+
+```
+event: job:error
+data: {
+  "jobId": "job_xyz",
+  "filePath": "videos/clip.mp4",
+  "status": "error",
+  "error": "FFmpeg process exited with code 1"
+}
+```
+
+### `heartbeat`
+
+Periodic keep-alive event to prevent connection timeouts.
+
+```
+event: heartbeat
+data: {"timestamp": "2024-03-15T10:30:00.000Z"}
+```
+
+## Usage example
+
+<Tabs>
+<Tab title="JavaScript (browser)">
+
+```javascript
+const source = new EventSource('http://localhost:3000/queue/events');
+
+source.addEventListener('connected', (e) => {
+  const { clientId } = JSON.parse(e.data);
+  console.log('Connected:', clientId);
+});
+
+source.addEventListener('job:progress', (e) => {
+  const { jobId, progress } = JSON.parse(e.data);
+  console.log(`Job ${jobId}: ${progress}%`);
+  updateProgressBar(jobId, progress);
+});
+
+source.addEventListener('job:completed', (e) => {
+  const { jobId } = JSON.parse(e.data);
+  console.log('Done:', jobId);
+});
+
+source.addEventListener('job:error', (e) => {
+  const { jobId, error } = JSON.parse(e.data);
+  console.error(`Job ${jobId} failed:`, error);
+});
+```
+
+</Tab>
+
+<Tab title="curl">
+
+```bash
+curl -N http://localhost:3000/queue/events
+```
+
+</Tab>
+</Tabs>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Queue Jobs" icon="list" href="/api-reference/queue/jobs">
+    Query job details or manage individual jobs.
+  </Card>
+  <Card title="Video Status" icon="video" href="/api-reference/video/status">
+    Check processing status by file path.
+  </Card>
+</CardGroup>

@@ -1,0 +1,114 @@
+---
+title: "Video Processing Status"
+description: "Check the processing status of a video file by its storage path"
+---
+
+## Check status
+
+```
+GET /video-status/{path}
+```
+
+**Auth:** Public (rate limited)
+
+### Path parameters
+
+<ParamField path="path" type="string" required>
+  Storage path of the video file.
+
+  `videos/clip.mp4` · `clip.mp4`
+</ParamField>
+
+### Response
+
+```json
+{
+  "status": "running",
+  "progress": 62,
+  "startedAt": "2024-03-15T10:30:00.000Z",
+  "completedAt": null,
+  "error": null,
+  "message": "Processing in progress"
+}
+```
+
+<ResponseField name="status" type="string">
+  One of: `not_found` · `pending` · `running` · `completed` · `error`
+</ResponseField>
+
+<ResponseField name="progress" type="number">
+  Processing progress from 0 to 100.
+</ResponseField>
+
+<ResponseField name="startedAt" type="string">
+  ISO 8601 timestamp when processing started. `null` if not yet started.
+</ResponseField>
+
+<ResponseField name="completedAt" type="string">
+  ISO 8601 timestamp when processing finished. `null` if still in progress.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message if `status` is `error`.
+</ResponseField>
+
+**Status codes:** `200` success · `404` file not found
+
+### Example
+
+```bash
+curl http://localhost:3000/video-status/videos/clip.mp4
+```
+
+---
+
+## Get optimized video size
+
+```
+GET /video-status/{path}/size
+```
+
+Returns the file size of the optimized (processed) video variant. Returns `404` if the optimized version is not yet ready.
+
+**Auth:** Public (rate limited)
+
+### Response
+
+```json
+{
+  "size": 2097152,
+  "status": "ready"
+}
+```
+
+<ResponseField name="size" type="number">
+  Optimized video size in bytes.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Always `"ready"` when the endpoint returns 200.
+</ResponseField>
+
+**Status codes:** `200` ready · `404` not yet processed
+
+### Example
+
+```bash
+curl http://localhost:3000/video-status/videos/clip.mp4/size
+```
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Queue Events (SSE)" icon="satellite-dish" href="/api-reference/queue/events">
+    Real-time updates without polling.
+  </Card>
+  <Card title="Queue Jobs" icon="list" href="/api-reference/queue/jobs">
+    Manage jobs by ID.
+  </Card>
+  <Card title="Transform Media" icon="film" href="/api-reference/media/transform">
+    Apply transformations to videos.
+  </Card>
+</CardGroup>

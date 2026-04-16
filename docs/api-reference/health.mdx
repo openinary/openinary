@@ -1,0 +1,99 @@
+---
+title: "Health"
+description: "Check server and database availability"
+---
+
+## Server health
+
+```
+GET /health
+```
+
+**Auth:** Public (rate limited)
+
+Quick liveness check — use this for load balancer health probes or uptime monitoring.
+
+### Response
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-03-15T10:30:00.000Z",
+  "service": "openinary-api"
+}
+```
+
+**Status codes:** `200` healthy
+
+### Example
+
+```bash
+curl http://localhost:3000/health
+```
+
+---
+
+## Database health
+
+```
+GET /health/database
+```
+
+**Auth:** API Key required
+
+Detailed diagnostic — checks the SQLite database connection, file permissions, and table record counts.
+
+### Response
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-03-15T10:30:00.000Z",
+  "database": {
+    "connected": true,
+    "path": "/app/data/openinary.db",
+    "size": "2.4 MB",
+    "permissions": "0644",
+    "tables": {
+      "user": 1,
+      "session": 3,
+      "account": 1,
+      "verification": 0,
+      "apiKey": 2
+    }
+  }
+}
+```
+
+<ResponseField name="database.connected" type="boolean">
+  Whether the database connection is active.
+</ResponseField>
+
+<ResponseField name="database.path" type="string">
+  Absolute path to the database file.
+</ResponseField>
+
+<ResponseField name="database.size" type="string">
+  Database file size.
+</ResponseField>
+
+<ResponseField name="database.permissions" type="string">
+  Octal file permissions.
+</ResponseField>
+
+<ResponseField name="database.tables" type="object">
+  Record counts per table. Useful for verifying migrations applied correctly.
+</ResponseField>
+
+<ResponseField name="database.warning" type="string">
+  Optional warning (e.g. unusual permissions).
+</ResponseField>
+
+**Status codes:** `200` healthy · `503` database connection failed
+
+### Example
+
+```bash
+curl http://localhost:3000/health/database \
+  -H "Authorization: Bearer <api_key>"
+```

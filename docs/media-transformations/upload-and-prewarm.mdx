@@ -5,27 +5,7 @@ description: "Upload images and videos via the API and pre-generate transformed 
 
 `POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately — so the first user request is served from cache instead of triggering on-demand processing.
 
-## Endpoint
-
-```http
-POST /upload
-Authorization: Bearer <API_KEY>
-Content-Type: multipart/form-data
-```
-
-## Upload with prewarmed variants
-
-```bash
-curl -X POST "http://localhost:3000/upload" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -F "files=@./photo.jpg;type=image/jpeg" \
-  -F 'transformations=["w_800,h_600,f_webp,q_80","w_400,h_400,c_fill,f_avif,q_70"]'
-```
-
-The `transformations` field accepts:
-- A JSON array of transformation strings
-- Multiple `transformations` form fields (one string per field)
-- A newline- or semicolon-separated string
+For the full endpoint reference — all parameters, form fields, and response schema — see the [Upload Files API reference](/api-reference/files/upload).
 
 ## Upload video with queued transformations
 
@@ -141,34 +121,6 @@ console.log(data);
 </Tab>
 </Tabs>
 
-## Response
-
-```json
-{
-  "success": true,
-  "files": [
-    {
-      "filename": "photo.jpg",
-      "path": "uploads/photo.jpg",
-      "size": 248731,
-      "url": "/t/uploads/photo.jpg",
-      "prewarmedUrls": ["/t/w_800,h_600,f_webp,q_80/uploads/photo.jpg"]
-    }
-  ]
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `filename` | string | Original filename |
-| `path` | string | Storage path |
-| `size` | number | File size in bytes |
-| `url` | string | Base transformation URL |
-| `prewarmedUrls` | string[] | Cached variants (images) |
-| `prewarmErrors` | object[] | Prewarm failures per variant (images) |
-| `queuedTransformationUrls` | string[] | Queued variants (videos) |
-| `queueErrors` | object[] | Queue failures per variant (videos) |
-
 ## Limits
 
 - Max **20 transformations** per upload request.
@@ -183,6 +135,9 @@ console.log(data);
 ## Next steps
 
 <CardGroup cols={2}>
+  <Card title="Upload API reference" icon="code" href="/api-reference/files/upload">
+    Full endpoint reference: all fields, validation, and response schema.
+  </Card>
   <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
     Full parameter reference for resizing, cropping, and format conversion.
   </Card>

@@ -1,0 +1,72 @@
+---
+title: "List API Keys"
+description: "Retrieve all API keys for the account"
+---
+
+## Endpoint
+
+```
+GET /api-keys/list
+```
+
+**Auth:** API Key or Session
+
+## Response
+
+```json
+{
+  "success": true,
+  "keys": [
+    {
+      "id": "key_abc123",
+      "name": "production",
+      "start": "oink_xxx",
+      "prefix": "oink_",
+      "enabled": true,
+      "expiresAt": "2025-03-15T10:30:00.000Z",
+      "createdAt": "2024-03-15T10:30:00.000Z",
+      "updatedAt": "2024-03-15T10:30:00.000Z",
+      "remaining": null,
+      "rateLimitEnabled": false
+    }
+  ]
+}
+```
+
+<ResponseField name="keys" type="array">
+  <Expandable title="Key object">
+    <ResponseField name="id" type="string">Unique identifier. Used for update/delete.</ResponseField>
+    <ResponseField name="name" type="string">Display name.</ResponseField>
+    <ResponseField name="start" type="string">Key prefix — safe to display, uniquely identifies the key without exposing the full value.</ResponseField>
+    <ResponseField name="prefix" type="string">Key type prefix (e.g. `oink_`).</ResponseField>
+    <ResponseField name="enabled" type="boolean">Whether the key is currently active.</ResponseField>
+    <ResponseField name="expiresAt" type="string">ISO 8601 expiration timestamp.</ResponseField>
+    <ResponseField name="createdAt" type="string">ISO 8601 creation timestamp.</ResponseField>
+    <ResponseField name="updatedAt" type="string">ISO 8601 last-modified timestamp.</ResponseField>
+    <ResponseField name="remaining" type="number">Remaining request quota. `null` if unlimited.</ResponseField>
+    <ResponseField name="rateLimitEnabled" type="boolean">Whether per-key rate limiting is configured.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Status codes:** `200` success · `401` unauthorized · `500` error
+
+## Example
+
+```bash
+curl http://localhost:3000/api-keys/list \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Create API Key" icon="plus" href="/api-reference/api-keys/create">
+    Generate a new key.
+  </Card>
+  <Card title="Update API Key" icon="pen" href="/api-reference/api-keys/update">
+    Rename or enable/disable a key.
+  </Card>
+  <Card title="Delete API Key" icon="trash" href="/api-reference/api-keys/delete">
+    Revoke a key permanently.
+  </Card>
+</CardGroup>

@@ -1,0 +1,82 @@
+---
+title: "Update API Key"
+description: "Rename or enable/disable an existing API key"
+---
+
+## Endpoint
+
+```
+PATCH /api-keys/{keyId}
+```
+
+**Auth:** API Key or Session  
+**Content-Type:** `application/json`
+
+## Path parameters
+
+<ParamField path="keyId" type="string" required>
+  ID of the key to update. Retrieve it from [List API Keys](/api-reference/api-keys/list).
+</ParamField>
+
+## Body parameters
+
+<ParamField body="name" type="string">
+  New display name for the key.
+</ParamField>
+
+<ParamField body="enabled" type="boolean">
+  Set to `false` to temporarily disable the key without deleting it. Set to `true` to re-enable.
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "key": {
+    "id": "key_abc123",
+    "name": "production-v2",
+    "enabled": true
+  },
+  "message": "API key updated"
+}
+```
+
+**Status codes:** `200` success · `401` unauthorized · `403` forbidden · `404` not found · `500` error
+
+## Examples
+
+<Tabs>
+<Tab title="Rename key">
+
+```bash
+curl -X PATCH http://localhost:3000/api-keys/key_abc123 \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production-v2"}'
+```
+
+</Tab>
+
+<Tab title="Disable key">
+
+```bash
+curl -X PATCH http://localhost:3000/api-keys/key_abc123 \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+</Tab>
+</Tabs>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List API Keys" icon="list" href="/api-reference/api-keys/list">
+    Find the key ID.
+  </Card>
+  <Card title="Delete API Key" icon="trash" href="/api-reference/api-keys/delete">
+    Permanently revoke a key.
+  </Card>
+</CardGroup>
