@@ -4,6 +4,7 @@ import { applyAspectRatio } from './aspect-ratio';
 import { applyRotation } from './rotation';
 import { applyQuality } from './quality';
 import { applyResize } from './resize';
+import { applyRoundCorners } from './round-corners';
 
 /**
  * Parameter processor function type
@@ -122,6 +123,15 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
       return image;
     },
     priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: 'r',
+    name: 'Round Corners',
+    description: 'Rounds the corners of the image. Pass a single integer for uniform radius, 1–4 colon-separated integers for per-corner radii (CSS border-radius semantics, clockwise from top-left when 4 values are given), or `max` for a circle/oval.',
+    example: 'r_150',
+    validValues: ['<integer>', 'v1:v2', 'v1:v2:v3', 'v1:v2:v3:v4', 'max'],
+    processor: async (image, value) => applyRoundCorners(image, value),
+    priority: 3.5,
   },
   {
     param: 'q',
