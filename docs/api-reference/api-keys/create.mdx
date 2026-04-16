@@ -1,0 +1,83 @@
+---
+title: "Create API Key"
+description: "Generate a new API key for authenticating requests"
+---
+
+## Endpoint
+
+```
+POST /api-keys/create
+```
+
+**Auth:** API Key or Session  
+**Content-Type:** `application/json`
+
+<Note>
+  The full API key is only returned once at creation time. Store it securely — it cannot be retrieved again.
+</Note>
+
+## Body parameters
+
+<ParamField body="name" type="string">
+  A human-readable label to identify this key.
+
+  `production` · `staging` · `ci-deploy`
+</ParamField>
+
+<ParamField body="expiresIn" type="number">
+  Expiration time in seconds from now. Defaults to 365 days (31536000).
+
+  `86400` (1 day) · `2592000` (30 days) · `31536000` (1 year)
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "apiKey": {
+    "id": "key_abc123",
+    "key": "oink_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "name": "production",
+    "start": "oink_xxx",
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "expiresAt": "2025-03-15T10:30:00.000Z"
+  },
+  "message": "API key created successfully"
+}
+```
+
+<ResponseField name="success" type="boolean">Whether the key was created.</ResponseField>
+
+<ResponseField name="apiKey" type="object">
+  <Expandable title="API key object">
+    <ResponseField name="id" type="string">Unique key identifier. Use this for update/delete operations.</ResponseField>
+    <ResponseField name="key" type="string">The full API key value. Only returned here — save it immediately.</ResponseField>
+    <ResponseField name="name" type="string">The key's display name.</ResponseField>
+    <ResponseField name="start" type="string">Key prefix for identification (safe to display).</ResponseField>
+    <ResponseField name="createdAt" type="string">ISO 8601 creation timestamp.</ResponseField>
+    <ResponseField name="expiresAt" type="string">ISO 8601 expiration timestamp.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Status codes:** `200` success · `401` unauthorized · `500` error
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/api-keys/create \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production", "expiresIn": 31536000}'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List API Keys" icon="list" href="/api-reference/api-keys/list">
+    View all active keys.
+  </Card>
+  <Card title="Delete API Key" icon="trash" href="/api-reference/api-keys/delete">
+    Revoke a key.
+  </Card>
+</CardGroup>

@@ -1,0 +1,88 @@
+---
+title: "Delete File"
+description: "Permanently delete a file from storage along with all its cached transformation variants"
+---
+
+<Warning>
+  This action is irreversible. The file and all its cached variants are permanently removed.
+</Warning>
+
+## Endpoint
+
+```
+DELETE /storage/{path}
+```
+
+**Auth:** API Key required
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the file relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+
+  `photo.jpg` · `photos/portrait.jpg`
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "message": "File deleted successfully",
+  "details": {
+    "jobsDeleted": 0,
+    "localCacheFilesDeleted": 3,
+    "cloudCacheFilesDeleted": 0,
+    "errors": []
+  }
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if the original file was deleted. May be `true` even when some cache cleanup had errors.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable result summary.
+</ResponseField>
+
+<ResponseField name="details" type="object">
+  <Expandable title="Details">
+    <ResponseField name="jobsDeleted" type="number">
+      Number of queued processing jobs cancelled and removed.
+    </ResponseField>
+    <ResponseField name="localCacheFilesDeleted" type="number">
+      Number of cached transformation variants removed from local disk.
+    </ResponseField>
+    <ResponseField name="cloudCacheFilesDeleted" type="number">
+      Number of cached transformation variants removed from cloud storage.
+    </ResponseField>
+    <ResponseField name="errors" type="string[]">
+      Non-fatal cleanup errors (e.g. a cache variant that was already missing).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Status codes:** `200` success (or partial) · `400` path is a directory · `404` not found · `500` error
+
+## Example
+
+```bash
+curl -X DELETE http://localhost:3000/storage/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Cache-only invalidation
+
+To clear cached variants without deleting the original file, use [Invalidate Cache](/api-reference/cache/invalidate) instead.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Invalidate Cache" icon="rotate" href="/api-reference/cache/invalidate">
+    Clear cached variants while keeping the original.
+  </Card>
+  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
+    Browse all files before deleting.
+  </Card>
+</CardGroup>

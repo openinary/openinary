@@ -1,0 +1,92 @@
+---
+title: "API Reference"
+description: "Complete reference for the Openinary REST API"
+---
+
+## Base URL
+
+All endpoints are relative to your Openinary server URL.
+
+```
+http://localhost:3000   # default local setup
+https://your-domain.com # self-hosted production
+```
+
+## Authentication
+
+Protected endpoints require an API key passed as a Bearer token.
+
+```http
+Authorization: Bearer <your_api_key>
+```
+
+Generate API keys from the dashboard (`/api-keys`) or via the [API Keys API](/api-reference/api-keys/create). In API-only mode, the first key is printed to the server logs on startup.
+
+<Note>
+  Some endpoints (API key management) also accept a session cookie, used internally by the dashboard.
+</Note>
+
+## Rate limiting
+
+Public endpoints are rate-limited by IP address.
+
+| Default | Configurable via |
+|---------|-----------------|
+| 100 requests / 60 seconds | `PUBLIC_RATE_LIMIT_MAX`, `PUBLIC_RATE_LIMIT_WINDOW_MS` |
+
+Rate limit headers are included in every response:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests allowed in the current window |
+| `X-RateLimit-Remaining` | Requests remaining in the current window |
+| `X-RateLimit-Reset` | Unix timestamp when the window resets |
+
+Protected endpoints (API key required) are not subject to public rate limiting.
+
+## Endpoints overview
+
+| Group | Endpoint | Auth |
+|-------|----------|------|
+| **Media** | `GET /t/{transformations}/{path}` | Public |
+| | `GET /authenticated/s--{sig}/{transformations}/{path}` | Signed URL |
+| **Files** | `POST /upload` | API Key |
+| | `POST /upload/createfolder` | API Key |
+| | `GET /download/{path}` | Public |
+| **Storage** | `GET /storage` | API Key |
+| | `GET /storage/{path}/metadata` | API Key |
+| | `DELETE /storage/{path}` | API Key |
+| **Cache** | `DELETE /invalidate/{path}` | API Key |
+| **Queue** | `GET /queue/stats` | API Key |
+| | `GET /queue/jobs` | API Key |
+| | `POST /queue/jobs/{jobId}/retry` | API Key |
+| | `POST /queue/jobs/{jobId}/cancel` | API Key |
+| | `DELETE /queue/jobs/{jobId}` | API Key |
+| | `GET /queue/events` | Public |
+| **API Keys** | `POST /api-keys/create` | API Key / Session |
+| | `GET /api-keys/list` | API Key / Session |
+| | `PATCH /api-keys/{keyId}` | API Key / Session |
+| | `DELETE /api-keys/{keyId}` | API Key / Session |
+| **Health** | `GET /health` | Public |
+| | `GET /health/database` | API Key |
+
+## Error responses
+
+All errors follow a consistent shape:
+
+```json
+{
+  "error": "Human-readable error message",
+  "details": "Optional additional context"
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Bad request — invalid parameters or missing required fields |
+| `401` | Unauthorized — missing or invalid API key |
+| `403` | Forbidden — valid key but insufficient permissions |
+| `404` | Not found |
+| `409` | Conflict — resource already exists |
+| `429` | Rate limit exceeded |
+| `500` | Internal server error |

@@ -1,0 +1,55 @@
+---
+title: "Delete API Key"
+description: "Permanently revoke an API key"
+---
+
+<Warning>
+  Deleting a key is irreversible. Any service using this key will immediately lose access.
+</Warning>
+
+## Endpoint
+
+```
+DELETE /api-keys/{keyId}
+```
+
+**Auth:** API Key or Session
+
+## Path parameters
+
+<ParamField path="keyId" type="string" required>
+  ID of the key to delete. Retrieve it from [List API Keys](/api-reference/api-keys/list).
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "message": "API key deleted"
+}
+```
+
+**Status codes:** `200` success · `401` unauthorized · `403` forbidden · `404` not found · `500` error
+
+## Example
+
+```bash
+curl -X DELETE http://localhost:3000/api-keys/key_abc123 \
+  -H "Authorization: Bearer <api_key>"
+```
+
+<Tip>
+  To temporarily block access without permanent deletion, use [Update API Key](/api-reference/api-keys/update) with `"enabled": false` instead.
+</Tip>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List API Keys" icon="list" href="/api-reference/api-keys/list">
+    Find the key ID before deleting.
+  </Card>
+  <Card title="Update API Key" icon="pen" href="/api-reference/api-keys/update">
+    Disable a key temporarily.
+  </Card>
+</CardGroup>

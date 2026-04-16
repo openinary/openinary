@@ -62,41 +62,9 @@ curl -H "Authorization: Bearer sk_your_key_here" \
 - Set an expiration when creating keys (`expiresIn` in seconds).
 - Rotate keys regularly; disable unused ones promptly.
 
-## API routes
+## API routes and rate limiting
 
-| Method | Route | Auth |
-|--------|-------|------|
-| `GET` | `/` | Public |
-| `GET` | `/health` | Public |
-| `GET` | `/t/*` | Public |
-| `GET` | `/download/*` | Public |
-| `GET` | `/authenticated/*` | Public (signature-verified) |
-| `GET` | `/video-status/*` | Public |
-| `GET` | `/video-status/*/size` | Public |
-| `GET` | `/video-status/stats` | Public |
-| `GET` | `/queue/events` | Public |
-| `GET` | `/health/database` | **Protected** |
-| `POST` | `/upload` | **Protected** |
-| `GET` | `/storage` | **Protected** |
-| `GET` | `/storage/*/metadata` | **Protected** |
-| `DELETE` | `/storage/*` | **Protected** |
-| `DELETE` | `/invalidate/*` | **Protected** |
-| `POST` | `/api-keys/create` | **Protected** |
-| `GET` | `/api-keys/list` | **Protected** |
-| `DELETE` | `/api-keys/:keyId` | **Protected** |
-| `PATCH` | `/api-keys/:keyId` | **Protected** |
-| `GET` | `/queue/stats` | **Protected** |
-| `GET` | `/queue/jobs` | **Protected** |
-| `POST` | `/queue/jobs/:id/retry` | **Protected** |
-| `POST` | `/queue/jobs/:id/cancel` | **Protected** |
-| `DELETE` | `/queue/jobs/:id` | **Protected** |
-| `GET` | `/queue/worker/stats` | **Protected** |
-
-**Protected** routes require `Authorization: Bearer <API_KEY>`.
-
-## Rate limiting
-
-Public routes (`/t/*`, `/health`, etc.) are rate-limited to **100 requests per 60-second window** per IP by default. Adjust with [`PUBLIC_RATE_LIMIT_MAX`](/configuration/server#public-rate-limit-max) and [`PUBLIC_RATE_LIMIT_WINDOW_MS`](/configuration/server#public-rate-limit-window-ms).
+For the full list of routes and their auth requirements, see the [API Reference](/api-reference/introduction). Rate limiting defaults and configuration options are also documented there.
 
 ## Docker security
 

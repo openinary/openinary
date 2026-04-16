@@ -16,53 +16,136 @@
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Getting Started",
-        "icon": "rocket",
-        "pages": [
-          "index",
-          "quickstart"
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "icon": "rocket",
+            "pages": [
+              "index",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "icon": "gear",
+            "pages": [
+              "configuration/server",
+              "configuration/storage",
+              "configuration/video-processing",
+              "configuration/docker-resources"
+            ]
+          },
+          {
+            "group": "Media Transformations",
+            "icon": "wand-magic-sparkles",
+            "pages": [
+              "media-transformations/overview",
+              "media-transformations/upload-and-prewarm",
+              "media-transformations/image-transformations",
+              "media-transformations/video-transformations",
+              "media-transformations/intelligent-compression",
+              "media-transformations/signed-urls"
+            ]
+          },
+          {
+            "group": "Resources",
+            "icon": "toolbox",
+            "pages": [
+              "local-development",
+              "project-structure",
+              "security",
+              "cloudinary-comparison"
+            ]
+          }
         ]
       },
       {
-        "group": "Configuration",
-        "icon": "gear",
-        "pages": [
-          "configuration/server",
-          "configuration/storage",
-          "configuration/video-processing",
-          "configuration/docker-resources"
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Deployment",
+            "icon": "rocket",
+            "pages": [
+              "guides/coolify-deployment",
+              "guides/dokploy-deployment",
+              "guides/railway-deployment"
+            ]
+          }
         ]
       },
       {
-        "group": "Media Transformations",
-        "icon": "wand-magic-sparkles",
-        "pages": [
-          "media-transformations/overview",
-          "media-transformations/upload-and-prewarm",
-          "media-transformations/image-transformations",
-          "media-transformations/video-transformations",
-          "media-transformations/intelligent-compression",
-          "media-transformations/signed-urls"
-        ]
-      },
-      {
-        "group": "Guides",
-        "icon": "book",
-        "pages": [
-          "guides/coolify-deployment",
-          "guides/dokploy-deployment",
-          "guides/railway-deployment"
-        ]
-      },
-      {
-        "group": "Resources",
-        "icon": "toolbox",
-        "pages": [
-          "local-development",
-          "project-structure",
-          "security"
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "icon": "code",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Media",
+            "icon": "wand-magic-sparkles",
+            "pages": [
+              "api-reference/media/transform",
+              "api-reference/media/authenticated-transform"
+            ]
+          },
+          {
+            "group": "Files",
+            "icon": "file",
+            "pages": [
+              "api-reference/files/upload",
+              "api-reference/files/download",
+              "api-reference/files/create-folder"
+            ]
+          },
+          {
+            "group": "Storage",
+            "icon": "database",
+            "pages": [
+              "api-reference/storage/list",
+              "api-reference/storage/metadata",
+              "api-reference/storage/delete"
+            ]
+          },
+          {
+            "group": "Cache",
+            "icon": "rotate",
+            "pages": [
+              "api-reference/cache/invalidate"
+            ]
+          },
+          {
+            "group": "Video Processing",
+            "icon": "film",
+            "pages": [
+              "api-reference/video/status",
+              "api-reference/queue/stats",
+              "api-reference/queue/jobs",
+              "api-reference/queue/events"
+            ]
+          },
+          {
+            "group": "API Keys",
+            "icon": "key",
+            "pages": [
+              "api-reference/api-keys/create",
+              "api-reference/api-keys/list",
+              "api-reference/api-keys/update",
+              "api-reference/api-keys/delete"
+            ]
+          },
+          {
+            "group": "System",
+            "icon": "server",
+            "pages": [
+              "api-reference/health"
+            ]
+          }
         ]
       }
     ]
@@ -88,8 +171,8 @@
   "navbar": {
     "links": [
       {
-        "label": "Contact",
-        "href": "https://x.com/initflorian"
+        "label": "Discord",
+        "href": "https://discord.gg/T4PfhqkHuf"
       }
     ],
     "primary": {

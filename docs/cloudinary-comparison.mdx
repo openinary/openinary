@@ -1,0 +1,220 @@
+---
+title: "Cloudinary vs Openinary"
+description: "An honest, feature-by-feature comparison of what Cloudinary offers versus what Openinary supports today."
+---
+
+_Last updated: April 16, 2026_
+
+<Note>
+  This comparison aims to be factual and straightforward. The goal is to help you make an informed decision about whether Openinary fits your use case today. Cloudinary is a mature, commercial product with years of development. Openinary is an early-stage open-source alternative built for teams that want to self-host.
+</Note>
+
+## Summary
+
+Openinary covers the **core transformation and delivery** use cases well: resize, crop, format conversion, quality control, video trimming, upload, caching, and signed URLs. It does not yet cover advanced image effects, AI/generative features, adaptive streaming, overlays, or the enterprise DAM layer that Cloudinary provides.
+
+---
+
+## Image transformations
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Resize (`w`, `h`) | ✓ | ✓ |
+| Aspect ratio (`ar`) | ✓ | ✓ |
+| Crop modes | ✓ 14 modes (`fill`, `pad`, `thumb`, `lfill`, `imagga_crop`, …) | ✓ 5 modes (`fill`, `fit`, `scale`, `crop`, `pad`) |
+| Gravity / focal point | ✓ Face, body, object, custom coordinates, auto (entropy) | ✓ Face, compass directions, auto (entropy), center |
+| Rotation (`a`) | ✓ Degrees + `vflip`, `hflip`, `auto_right`, `auto_left`, EXIF | ✓ Degrees + EXIF `auto` |
+| Background color (`b`) | ✓ Colors, blurred, `gen_fill` (AI-generated) | ✓ Hex color only |
+| Quality (`q`) | ✓ Numeric + `auto` (content-aware) | ✓ Numeric 1–100 |
+| Format (`f`) | ✓ AVIF, WebP, JPEG, PNG, GIF, HEIC, SVG, TIFF, BMP, PDF, `auto` | ✓ AVIF, WebP, JPEG, PNG, `auto` (via Accept header) |
+| Auto format selection | ✓ | ✓ |
+| Device pixel ratio (`dpr`) | ✓ Including `auto` | ✗ |
+| Zoom (`z`) | ✓ | ✗ |
+| Named transformations | ✓ (reusable presets) | ✗ |
+| Chained transformations | ✓ (multiple steps in one URL) | ✗ |
+| Default image fallback (`d`) | ✓ | ✗ |
+
+## Image effects
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Blur, sharpen, unsharp mask | ✓ | ✗ |
+| Brightness, contrast, saturation, hue | ✓ | ✗ |
+| Grayscale, sepia, negate | ✓ | ✗ |
+| Vignette, shadow, outline, border | ✓ | ✗ |
+| Pixelate (full, faces, regions) | ✓ | ✗ |
+| Cartoonify, oil paint, artistic filters | ✓ | ✗ |
+| Color tint / recolor | ✓ | ✗ |
+| Colorblind simulation / assistance | ✓ | ✗ |
+| Distort, shear, displace | ✓ | ✗ |
+
+## AI & generative features
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Background removal | ✓ | ✗ |
+| Generative fill (extend image with AI) | ✓ | ✗ |
+| Generative replace (swap objects) | ✓ | ✗ |
+| Generative remove (erase objects) | ✓ | ✗ |
+| Generative recolor | ✓ | ✗ |
+| Generative restore (denoise, enhance) | ✓ | ✗ |
+| Auto enhance (AI quality boost) | ✓ | ✗ |
+| Auto brightness / contrast / color | ✓ | ✗ |
+| Object detection / segmentation | ✓ | ✗ |
+| OCR (text extraction) | ✓ | ✗ |
+| AI content moderation | ✓ | ✗ |
+| AI auto-tagging | ✓ | ✗ |
+| Smart thumbnails via AI | ✓ | ~ (entropy-based gravity only) |
+
+## Overlays & composition
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Image overlay / watermark | ✓ | ✗ |
+| Text overlay | ✓ | ✗ |
+| Video overlay | ✓ | ✗ |
+| Underlay | ✓ | ✗ |
+| Subtitles layer | ✓ | ✗ |
+| Blend modes | ✓ | ✗ |
+
+## Video transformations
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Resize (`w`, `h`) | ✓ | ✓ |
+| Crop modes | ✓ | ✓ (`fill`, `crop`) |
+| Quality / CRF | ✓ Numeric + `auto` | ✓ Numeric 1–100 (CRF) |
+| Trim (`so`, `eo`) | ✓ | ✓ |
+| Frame thumbnail extraction | ✓ | ✓ |
+| Output format | ✓ MP4, WebM, OGV, MKV, `auto` | ✓ MP4 only |
+| Input formats | ✓ MP4, MOV, WebM, AVI, MKV, FLV, … | ✓ MP4, MOV, WebM |
+| Adaptive bitrate streaming (HLS/DASH) | ✓ | ✗ |
+| HDR / content-aware encoding | ✓ | ✗ |
+| Video effects (fade, loop, boomerang, reverse, …) | ✓ | ✗ |
+| Audio track manipulation | ✓ (codec, bitrate, frequency, remove) | ✗ |
+| Video codec control (`vc`) | ✓ H.264, H.265, VP9, AV1 | ✗ (H.264 fixed) |
+| Subtitles / captions | ✓ | ✗ |
+| Video player (embed) | ✓ | ✗ |
+| Background processing queue | ✓ | ✓ |
+| Real-time processing status (SSE) | ✗ | ✓ |
+
+## Upload & storage
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Upload via API | ✓ | ✓ |
+| Multiple files per request | ✓ | ✓ |
+| Custom filename | ✓ | ✓ |
+| Folder management | ✓ | ✓ |
+| Eager transformations (prewarm) | ✓ | ✓ |
+| Upload presets | ✓ | ✗ |
+| Upload via remote URL (fetch) | ✓ | ✗ |
+| Client-side upload (direct to cloud) | ✓ | ✗ |
+| Rename / move files | ✓ | ✗ |
+| Copy files | ✓ | ✗ |
+| Delete file | ✓ | ✓ |
+| Restore from backup | ✓ (paid plans) | ✗ |
+| File metadata (size, timestamps) | ✓ | ✓ |
+| Custom metadata fields | ✓ | ✗ |
+| Tags | ✓ | ✗ |
+| Archive / ZIP creation | ✓ | ✗ |
+| Sprite generation | ✓ | ✗ |
+| PDF page extraction | ✓ | ✗ |
+
+## Delivery & caching
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Global CDN | ✓ (included) | ✗ (self-managed) |
+| Cache invalidation | ✓ | ✓ |
+| Signed / authenticated URLs | ✓ | ✓ |
+| Custom domain | ✓ (paid plans) | ✓ (self-hosted) |
+| Rate limiting | ✓ (plan-based) | ✓ (configurable) |
+| Download original | ✓ | ✓ |
+
+## Authentication & access control
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| API keys | ✓ | ✓ |
+| Session-based auth (dashboard) | ✓ | ✓ |
+| API key expiration | ✓ | ✓ |
+| Multiple users | ✓ | ✗ (single admin) |
+| Role-based access control | ✓ | ✗ |
+| OAuth / SSO | ✓ (Enterprise) | ✗ |
+| IP allowlist | ✓ (Enterprise) | ✗ |
+
+## Webhooks & events
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Upload webhooks (outgoing HTTP) | ✓ | ✗ |
+| Transformation complete webhooks | ✓ | ✗ |
+| Real-time queue events (SSE) | ✗ | ✓ |
+
+## SDKs & integrations
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Node.js SDK | ✓ | ✗ (REST API only) |
+| Python SDK | ✓ | ✗ |
+| PHP SDK | ✓ | ✗ |
+| Ruby SDK | ✓ | ✗ |
+| Java SDK | ✓ | ✗ |
+| Go SDK | ✓ | ✗ |
+| .NET SDK | ✓ | ✗ |
+| React / Next.js component | ✓ | ✗ |
+| CMS plugins (WordPress, Contentful, …) | ✓ | ✗ |
+
+## DAM (Digital Asset Management)
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Web dashboard | ✓ | ✓ (basic) |
+| Folder browsing | ✓ | ✓ |
+| Search (by name, tag, metadata) | ✓ | ✗ |
+| Collections / albums | ✓ | ✗ |
+| Bulk operations | ✓ | ✗ |
+| Approval workflows | ✓ | ✗ |
+| Version history | ✓ | ✗ |
+| Usage analytics | ✓ | ✗ |
+| Bandwidth / storage reports | ✓ | ✗ |
+
+## Infrastructure & deployment
+
+| Feature | Cloudinary | Openinary |
+|---------|-----------|-----------|
+| Managed SaaS | ✓ | ✗ |
+| Self-hosted / Docker | ✓ (Enterprise only) | ✓ |
+| S3-compatible storage | ✓ | ✓ |
+| SQLite database | ✗ | ✓ |
+| Multi-region | ✓ | ✗ (single instance) |
+| Open source | ✗ | ✓ |
+| Free tier | ✓ (limited) | ✓ (self-hosted) |
+
+---
+
+## When Openinary fits
+
+- You want **full control** over your infrastructure and data.
+- Your use case is **core image/video delivery**: resize, crop, format, quality, signed URLs.
+- You are comfortable **managing your own hosting** (Docker, VPS, Coolify, Railway, …).
+- You want to avoid per-transformation or bandwidth costs from a SaaS vendor.
+- You are happy to trade some features today for open-source transparency and extensibility.
+
+## When Cloudinary is the better choice today
+
+- You need **AI/generative transformations** (background removal, gen fill, object removal).
+- You need **adaptive streaming** (HLS/DASH) for video.
+- You need **image effects** (blur, sharpen, overlays, text, watermarks).
+- You need a **managed CDN** without operating your own infrastructure.
+- You need **team access**, role-based permissions, or SSO.
+- You need a **full DAM** with search, tagging, metadata, and workflows.
+- You need **official SDKs** in your language.
+- You need **webhooks** for upload/transformation events.
+
+---
+
+<Note>
+  Openinary is open source and actively looking for contributors. If something on this list matters to you, that's a great starting point — pick a feature, open a discussion, and help shape what gets built next. Every contribution, big or small, moves the project forward. [Join the conversation on GitHub](https://github.com/openinary/openinary/discussions) or [browse open issues](https://github.com/openinary/openinary/issues).
+</Note>
