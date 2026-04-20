@@ -147,6 +147,10 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "Changelog",
+        "href": "/changelog"
       }
     ]
   },
