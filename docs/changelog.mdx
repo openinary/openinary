@@ -1,0 +1,43 @@
+---
+title: "Changelog"
+description: "New features, improvements, and fixes shipped in Openinary"
+---
+
+<Update label="April 20, 2026" description="April update" tags={["Feature", "Fix"]}>
+  ## New features
+
+  **Round corners transformation** — You can now round the corners of any image using the `r` parameter. Apply a uniform radius, set each corner individually, or use `r_max` for a full circle or oval. Pair with `b_rgb:<hex>` to fill the corners with a solid color. See the [transform API reference](/api-reference/media/transform#r) for all syntax options.
+
+  **PSD file support** — Openinary now accepts Adobe Photoshop (`.psd`) files. Upload PSD files through the API or the web dashboard, and apply image transformations just like any other format. PSD sources are automatically converted before processing.
+
+  **HEIC and HEIF upload support** — You can now upload images in HEIC and HEIF formats (common on iOS devices). Files are automatically normalized for compatibility with the transformation pipeline.
+
+  **Configurable upload file size limit** — The maximum upload size is no longer hardcoded. Set the `MAX_FILE_SIZE_MB` environment variable to allow larger files — useful for video uploads on self-hosted instances. Defaults to 50 MB. See [server configuration](/configuration/server#max-file-size-mb).
+
+  **Original file download route** — A new `GET /download/{path}` endpoint lets you retrieve the original uploaded file without any transformations applied. See the [download API reference](/api-reference/files/download).
+
+  **Folder management in the web UI** — You can now create and delete folders directly from the Openinary dashboard, including support for empty folders on S3 and R2 storage backends.
+
+  **Upload prewarming** — When uploading files, you can pass a list of transformations to pre-generate and cache immediately. The first public request for those variants is served instantly instead of triggering on-demand processing. See [upload & cache warming](/media-transformations/upload-and-prewarm).
+
+  **Multi-architecture Docker images** — Docker images now support both AMD64 and ARM64 architectures, so you can run Openinary on Raspberry Pi, Apple Silicon, and AWS Graviton without any extra steps.
+
+  **Cache invalidation endpoint** — A new authenticated endpoint lets you programmatically purge cached transformations. See the [cache invalidation API reference](/api-reference/cache/invalidate).
+
+  **Signed URLs** — Restrict who can request transformations by signing delivery URLs with HMAC-SHA256. Requests with a missing or invalid signature are rejected. See [signed URLs](/media-transformations/signed-urls).
+
+  **Public rate limiting** — Public transformation and download routes are now rate-limited per IP. Configure the window and max requests with `PUBLIC_RATE_LIMIT_MAX` and `PUBLIC_RATE_LIMIT_WINDOW_MS`. See [server configuration](/configuration/server#public-rate-limit-max).
+
+  ## Improvements
+
+  **Folder thumbnails** — Folders in the media grid now display thumbnail previews of their contents.
+
+  **Configurable S3/R2 connection settings** — You can now set socket limits, request timeouts, and connection timeouts for S3-compatible storage backends via environment variables. See [storage configuration](/configuration/storage).
+
+  ## Bug fixes
+
+  - **Transparency preserved with quality parameter** — Applying a `q` (quality) parameter no longer strips the alpha channel from PNG, WebP, or AVIF images.
+  - **Folder names with underscores** — Folder names containing underscores are no longer misidentified as transformation segments in the URL path.
+  - **Image transformation race condition** — Fixed a concurrency issue that could cause intermittent failures when multiple transformations were requested simultaneously.
+  - **Empty folder handling on S3/R2** — Creating and displaying empty folders now works correctly with S3 and R2 storage backends.
+</Update>
