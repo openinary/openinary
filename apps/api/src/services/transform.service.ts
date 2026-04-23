@@ -301,7 +301,8 @@ export class TransformService {
       const headers: Record<string, string> = {
         'Content-Length': buffer.length.toString(),
         'Cache-Control': 'public, max-age=31536000, must-revalidate',
-        ETag: `"${filePath}-${JSON.stringify(effectiveParams)}"`,
+        // URL-encode filePath to ensure it only contains ASCII characters for ETag
+        ETag: `"${encodeURIComponent(filePath)}-${JSON.stringify(effectiveParams)}"`,
       };
 
       // Add optimization headers if available
@@ -498,7 +499,8 @@ export class TransformService {
           'X-Video-Status': 'processing',
           'X-Original-Video': 'true',
           'Cache-Control': 'public, max-age=0, must-revalidate',
-          ETag: `"${filePath}-processing-${Date.now()}"`,
+          // URL-encode filePath to ensure it only contains ASCII characters for ETag
+          ETag: `"${encodeURIComponent(filePath)}-processing-${Date.now()}"`,
           Vary: 'Accept',
         },
         isProcessing: true,
