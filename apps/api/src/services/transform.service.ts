@@ -152,11 +152,11 @@ export class TransformService {
     let cachePath = getCachePath(path);
 
     // Determine optimal format if not explicitly specified
-    if (!params.format && ext?.match(/jpe?g|png|webp|avif|gif|psd/)) {
+    if (!params.format && ext?.toLowerCase().match(/jpe?g|png|webp|avif|gif|psd/)) {
       const optimalFormat = this.compression.determineOptimalFormatForCache(
         userAgent,
         acceptHeader,
-        ext
+        ext?.toLowerCase()
       );
       effectiveParams = { ...params, format: optimalFormat };
 
@@ -259,7 +259,7 @@ export class TransformService {
       let optimizationResult: any;
 
       // Process based on file type
-      if (ext?.match(/jpe?g|png|webp|avif|gif|psd/)) {
+      if (ext?.toLowerCase().match(/jpe?g|png|webp|avif|gif|psd/)) {
         const result = await this.processImageFile(
           sourcePath,
           effectiveParams,
@@ -269,7 +269,7 @@ export class TransformService {
         buffer = result.buffer;
         contentType = result.contentType;
         optimizationResult = result.optimizationResult;
-      } else if (ext?.match(/mp4|mov|webm/)) {
+      } else if (ext?.toLowerCase().match(/mp4|mov|webm/)) {
         const result = await this.processVideoFile(
           sourcePath,
           effectiveParams,
