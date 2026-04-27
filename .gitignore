@@ -13,6 +13,9 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 
+# DAta directory
+apps/api/public/
+
 # Cache directory (API runtime cache only)
 apps/api/cache/
 *.cache
@@ -111,4 +114,4 @@ data/
 apps/*/data/
 
 # AI 
-CLAUDE.md
+CLAUDE.mdapps/api/public/

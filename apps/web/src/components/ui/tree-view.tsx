@@ -1,599 +1,637 @@
-'use client'
+"use client";
 
-import React from 'react'
-import * as AccordionPrimitive from '@radix-ui/react-accordion'
-import { FolderIcon, FolderOpenIcon } from 'lucide-react'
-import { cva } from 'class-variance-authority'
-import { cn } from '@/lib/utils'
+import React from "react";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { FolderIcon, FolderOpenIcon } from "lucide-react";
+import { cva } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+import FolderContextMenuWrapper from "../assets/folder-context-menu";
+import ImageContextMenuWrapper from "../assets/image-context-menu";
 
 type MediaFile = {
-    id: string
-    name: string
-    path: string
-    type: "image" | "video"
-}
+  id: string;
+  name: string;
+  path: string;
+  type: "image" | "video";
+};
 
 const treeVariants = cva(
-    'group relative rounded-md hover:before:opacity-100 before:absolute before:rounded-md before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent before:h-[2rem] before:-z-10 before:transition-opacity before:duration-200 hover:bg-accent/60'
-)
+  "group relative rounded-md hover:before:opacity-100 before:absolute before:rounded-md before:left-0 px-2 before:w-full before:opacity-0 before:bg-accent before:h-[2rem] before:-z-10 before:transition-opacity before:duration-200 hover:bg-accent/60",
+);
 
 const selectedTreeVariants = cva(
-    'before:opacity-100 before:bg-accent/70 text-accent-foreground'
-)
+  "before:opacity-100 before:bg-accent/70 text-accent-foreground",
+);
 
 const dragOverVariants = cva(
-    'before:opacity-100 before:bg-primary/20 text-primary-foreground'
-)
+  "before:opacity-100 before:bg-primary/20 text-primary-foreground",
+);
 
 interface TreeDataItem {
-    id: string
-    name: string
-    icon?: any
-    selectedIcon?: any
-    openIcon?: any
-    children?: TreeDataItem[]
-    actions?: React.ReactNode
-    onClick?: () => void
-    draggable?: boolean
-    droppable?: boolean
-    disabled?: boolean
+  id: string;
+  name: string;
+  icon?: any;
+  selectedIcon?: any;
+  openIcon?: any;
+  children?: TreeDataItem[];
+  actions?: React.ReactNode;
+  onClick?: () => void;
+  draggable?: boolean;
+  droppable?: boolean;
+  disabled?: boolean;
 }
 
 type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
-    data: TreeDataItem[] | TreeDataItem
-    initialSelectedItemId?: string
-    onSelectChange?: (item: TreeDataItem | undefined) => void
-    expandAll?: boolean
-    defaultNodeIcon?: any
-    defaultLeafIcon?: any
-    onDocumentDrag?: (sourceItem: TreeDataItem, targetItem: TreeDataItem) => void
-    onMediaSelect?: (media: MediaFile) => void
-}
+  data: TreeDataItem[] | TreeDataItem;
+  initialSelectedItemId?: string;
+  onSelectChange?: (item: TreeDataItem | undefined) => void;
+  expandAll?: boolean;
+  defaultNodeIcon?: any;
+  defaultLeafIcon?: any;
+  onDocumentDrag?: (sourceItem: TreeDataItem, targetItem: TreeDataItem) => void;
+  onMediaSelect?: (media: MediaFile) => void;
+};
 
 // Helper function to find the path of an item in the tree
 function findItemPath(
-    items: TreeDataItem[] | TreeDataItem,
-    targetId: string,
-    currentPath: string[] = []
+  items: TreeDataItem[] | TreeDataItem,
+  targetId: string,
+  currentPath: string[] = [],
 ): string[] | null {
-    const itemsArray = Array.isArray(items) ? items : [items]
-    
-    for (const item of itemsArray) {
-        const newPath = [...currentPath, item.name]
-        
-        if (item.id === targetId) {
-            return newPath
-        }
-        
-        if (item.children && item.children.length > 0) {
-            const found = findItemPath(item.children, targetId, newPath)
-            if (found) return found
-        }
+  const itemsArray = Array.isArray(items) ? items : [items];
+
+  for (const item of itemsArray) {
+    const newPath = [...currentPath, item.name];
+
+    if (item.id === targetId) {
+      return newPath;
     }
-    
-    return null
+
+    if (item.children && item.children.length > 0) {
+      const found = findItemPath(item.children, targetId, newPath);
+      if (found) return found;
+    }
+  }
+
+  return null;
 }
 
 // Helper function to check if an item is a media file
-function isMediaFile(item: TreeDataItem): { isMedia: boolean; type?: "image" | "video" } {
-    const lowerName = item.name.toLowerCase()
-    
-    const isImage =
-        lowerName.endsWith(".jpg") ||
-        lowerName.endsWith(".jpeg") ||
-        lowerName.endsWith(".png") ||
-        lowerName.endsWith(".webp") ||
-        lowerName.endsWith(".gif") ||
-        lowerName.endsWith(".avif")
-    
-    const isVideo =
-        lowerName.endsWith(".mp4") ||
-        lowerName.endsWith(".mov") ||
-        lowerName.endsWith(".webm")
-    
-    if (isImage) {
-        return { isMedia: true, type: "image" }
-    }
-    if (isVideo) {
-        return { isMedia: true, type: "video" }
-    }
-    
-    return { isMedia: false }
+function isMediaFile(item: TreeDataItem): {
+  isMedia: boolean;
+  type?: "image" | "video";
+} {
+  const lowerName = item.name.toLowerCase();
+
+  const isImage =
+    lowerName.endsWith(".jpg") ||
+    lowerName.endsWith(".jpeg") ||
+    lowerName.endsWith(".png") ||
+    lowerName.endsWith(".webp") ||
+    lowerName.endsWith(".gif") ||
+    lowerName.endsWith(".avif");
+
+  const isVideo =
+    lowerName.endsWith(".mp4") ||
+    lowerName.endsWith(".mov") ||
+    lowerName.endsWith(".webm");
+
+  if (isImage) {
+    return { isMedia: true, type: "image" };
+  }
+  if (isVideo) {
+    return { isMedia: true, type: "video" };
+  }
+
+  return { isMedia: false };
 }
 
 const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
-    (
-        {
-            data,
-            initialSelectedItemId,
-            onSelectChange,
-            expandAll,
-            defaultLeafIcon,
-            defaultNodeIcon,
-            className,
-            onDocumentDrag,
-            onMediaSelect,
-            ...props
-        },
-        ref
-    ) => {
-        const [selectedItemId, setSelectedItemId] = React.useState<
-            string | undefined
-        >(initialSelectedItemId)
-        
-        const [draggedItem, setDraggedItem] = React.useState<TreeDataItem | null>(null)
+  (
+    {
+      data,
+      initialSelectedItemId,
+      onSelectChange,
+      expandAll,
+      defaultLeafIcon,
+      defaultNodeIcon,
+      className,
+      onDocumentDrag,
+      onMediaSelect,
+      ...props
+    },
+    ref,
+  ) => {
+    const [selectedItemId, setSelectedItemId] = React.useState<
+      string | undefined
+    >(initialSelectedItemId);
 
-        const handleSelectChange = React.useCallback(
-            (item: TreeDataItem | undefined) => {
-                setSelectedItemId(item?.id)
-                if (onSelectChange) {
-                    onSelectChange(item)
-                }
-            },
-            [onSelectChange]
-        )
+    const [draggedItem, setDraggedItem] = React.useState<TreeDataItem | null>(
+      null,
+    );
 
-        const handleDragStart = React.useCallback((item: TreeDataItem) => {
-            setDraggedItem(item)
-        }, [])
+    const handleSelectChange = React.useCallback(
+      (item: TreeDataItem | undefined) => {
+        setSelectedItemId(item?.id);
+        if (onSelectChange) {
+          onSelectChange(item);
+        }
+      },
+      [onSelectChange],
+    );
 
-        const handleDrop = React.useCallback((targetItem: TreeDataItem) => {
-            if (draggedItem && onDocumentDrag && draggedItem.id !== targetItem.id) {
-                onDocumentDrag(draggedItem, targetItem)
+    const handleDragStart = React.useCallback((item: TreeDataItem) => {
+      setDraggedItem(item);
+    }, []);
+
+    const handleDrop = React.useCallback(
+      (targetItem: TreeDataItem) => {
+        if (draggedItem && onDocumentDrag && draggedItem.id !== targetItem.id) {
+          onDocumentDrag(draggedItem, targetItem);
+        }
+        setDraggedItem(null);
+      },
+      [draggedItem, onDocumentDrag],
+    );
+
+    const expandedItemIds = React.useMemo(() => {
+      if (!initialSelectedItemId) {
+        return [] as string[];
+      }
+
+      const ids: string[] = [];
+
+      function walkTreeItems(
+        items: TreeDataItem[] | TreeDataItem,
+        targetId: string,
+      ) {
+        if (items instanceof Array) {
+          for (let i = 0; i < items.length; i++) {
+            ids.push(items[i]!.id);
+            if (walkTreeItems(items[i]!, targetId) && !expandAll) {
+              return true;
             }
-            setDraggedItem(null)
-        }, [draggedItem, onDocumentDrag])
+            if (!expandAll) ids.pop();
+          }
+        } else if (!expandAll && items.id === targetId) {
+          return true;
+        } else if (items.children) {
+          return walkTreeItems(items.children, targetId);
+        }
+      }
 
-        const expandedItemIds = React.useMemo(() => {
-            if (!initialSelectedItemId) {
-                return [] as string[]
-            }
+      walkTreeItems(data, initialSelectedItemId);
+      return ids;
+    }, [data, expandAll, initialSelectedItemId]);
 
-            const ids: string[] = []
-
-            function walkTreeItems(
-                items: TreeDataItem[] | TreeDataItem,
-                targetId: string
-            ) {
-                if (items instanceof Array) {
-                    for (let i = 0; i < items.length; i++) {
-                        ids.push(items[i]!.id)
-                        if (walkTreeItems(items[i]!, targetId) && !expandAll) {
-                            return true
-                        }
-                        if (!expandAll) ids.pop()
-                    }
-                } else if (!expandAll && items.id === targetId) {
-                    return true
-                } else if (items.children) {
-                    return walkTreeItems(items.children, targetId)
-                }
-            }
-
-            walkTreeItems(data, initialSelectedItemId)
-            return ids
-        }, [data, expandAll, initialSelectedItemId])
-
-        return (
-            <div className={cn('overflow-hidden relative', className)}>
-                <TreeItem
-                    data={data}
-                    ref={ref}
-                    selectedItemId={selectedItemId}
-                    handleSelectChange={handleSelectChange}
-                    expandedItemIds={expandedItemIds}
-                    defaultLeafIcon={defaultLeafIcon}
-                    defaultNodeIcon={defaultNodeIcon}
-                    handleDragStart={handleDragStart}
-                    handleDrop={handleDrop}
-                    draggedItem={draggedItem}
-                    onMediaSelect={onMediaSelect}
-                    treeData={data}
-                    {...props}
-                />
-            </div>
-        )
-    }
-)
-TreeView.displayName = 'TreeView'
+    return (
+      <div className={cn("overflow-hidden relative", className)}>
+        <TreeItem
+          data={data}
+          ref={ref}
+          selectedItemId={selectedItemId}
+          handleSelectChange={handleSelectChange}
+          expandedItemIds={expandedItemIds}
+          defaultLeafIcon={defaultLeafIcon}
+          defaultNodeIcon={defaultNodeIcon}
+          handleDragStart={handleDragStart}
+          handleDrop={handleDrop}
+          draggedItem={draggedItem}
+          onMediaSelect={onMediaSelect}
+          treeData={data}
+          {...props}
+        />
+      </div>
+    );
+  },
+);
+TreeView.displayName = "TreeView";
 
 type TreeItemProps = TreeProps & {
-    selectedItemId?: string
-    handleSelectChange: (item: TreeDataItem | undefined) => void
-    expandedItemIds: string[]
-    defaultNodeIcon?: any
-    defaultLeafIcon?: any
-    handleDragStart?: (item: TreeDataItem) => void
-    handleDrop?: (item: TreeDataItem) => void
-    draggedItem: TreeDataItem | null
-    treeData?: TreeDataItem[] | TreeDataItem
-}
+  selectedItemId?: string;
+  handleSelectChange: (item: TreeDataItem | undefined) => void;
+  expandedItemIds: string[];
+  defaultNodeIcon?: any;
+  defaultLeafIcon?: any;
+  handleDragStart?: (item: TreeDataItem) => void;
+  handleDrop?: (item: TreeDataItem) => void;
+  draggedItem: TreeDataItem | null;
+  treeData?: TreeDataItem[] | TreeDataItem;
+};
 
 const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
-    (
-        {
-            className,
-            data,
-            selectedItemId,
-            handleSelectChange,
-            expandedItemIds,
-            defaultNodeIcon,
-            defaultLeafIcon,
-            handleDragStart,
-            handleDrop,
-            draggedItem,
-            onMediaSelect,
-            treeData,
-            ...props
-        },
-        ref
-    ) => {
-        if (!(data instanceof Array)) {
-            data = [data]
-        }
-        return (
-            <div ref={ref} role="tree" className={className} {...props}>
-                {data.map((item) => (
-                    <div key={item.id}>
-                        {item.children ? (
-                            <TreeNode
-                                item={item}
-                                selectedItemId={selectedItemId}
-                                expandedItemIds={expandedItemIds}
-                                handleSelectChange={handleSelectChange}
-                                defaultNodeIcon={defaultNodeIcon}
-                                defaultLeafIcon={defaultLeafIcon}
-                                handleDragStart={handleDragStart}
-                                handleDrop={handleDrop}
-                                draggedItem={draggedItem}
-                                onMediaSelect={onMediaSelect}
-                                treeData={treeData}
-                            />
-                        ) : (
-                            <TreeLeaf
-                                item={item}
-                                selectedItemId={selectedItemId}
-                                handleSelectChange={handleSelectChange}
-                                defaultLeafIcon={defaultLeafIcon}
-                                handleDragStart={handleDragStart}
-                                handleDrop={handleDrop}
-                                draggedItem={draggedItem}
-                                onMediaSelect={onMediaSelect}
-                                treeData={treeData}
-                            />
-                        )}
-                    </div>
-                ))}
-            </div>
-        )
+  (
+    {
+      className,
+      data,
+      selectedItemId,
+      handleSelectChange,
+      expandedItemIds,
+      defaultNodeIcon,
+      defaultLeafIcon,
+      handleDragStart,
+      handleDrop,
+      draggedItem,
+      onMediaSelect,
+      treeData,
+      ...props
+    },
+    ref,
+  ) => {
+    if (!(data instanceof Array)) {
+      data = [data];
     }
-)
-TreeItem.displayName = 'TreeItem'
+    return (
+      <div ref={ref} role="tree" className={className} {...props}>
+        {data.map((item) => (
+          <div key={item.id}>
+            {item.children ? (
+              <TreeNode
+                item={item}
+                selectedItemId={selectedItemId}
+                expandedItemIds={expandedItemIds}
+                handleSelectChange={handleSelectChange}
+                defaultNodeIcon={defaultNodeIcon}
+                defaultLeafIcon={defaultLeafIcon}
+                handleDragStart={handleDragStart}
+                handleDrop={handleDrop}
+                draggedItem={draggedItem}
+                onMediaSelect={onMediaSelect}
+                treeData={treeData}
+              />
+            ) : (
+              <ImageContextMenuWrapper
+                assetId={item.id}
+                onDetailsOpen={() =>
+                  treeData &&
+                  onMediaSelect?.({
+                    id: item.id,
+                    name: item.name,
+                    path: findItemPath(treeData, item.id)?.join("/") || "",
+                    type: isMediaFile(item).type!,
+                  })
+                }
+              >
+                <TreeLeaf
+                  item={item}
+                  selectedItemId={selectedItemId}
+                  handleSelectChange={handleSelectChange}
+                  defaultLeafIcon={defaultLeafIcon}
+                  handleDragStart={handleDragStart}
+                  handleDrop={handleDrop}
+                  draggedItem={draggedItem}
+                  onMediaSelect={onMediaSelect}
+                  treeData={treeData}
+                />
+              </ImageContextMenuWrapper>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  },
+);
+TreeItem.displayName = "TreeItem";
 
 const TreeNode = ({
-    item,
-    handleSelectChange,
-    expandedItemIds,
-    selectedItemId,
-    defaultNodeIcon,
-    defaultLeafIcon,
-    handleDragStart,
-    handleDrop,
-    draggedItem,
-    onMediaSelect,
-    treeData,
+  item,
+  handleSelectChange,
+  expandedItemIds,
+  selectedItemId,
+  defaultNodeIcon,
+  defaultLeafIcon,
+  handleDragStart,
+  handleDrop,
+  draggedItem,
+  onMediaSelect,
+  treeData,
 }: {
-    item: TreeDataItem
-    handleSelectChange: (item: TreeDataItem | undefined) => void
-    expandedItemIds: string[]
-    selectedItemId?: string
-    defaultNodeIcon?: any
-    defaultLeafIcon?: any
-    handleDragStart?: (item: TreeDataItem) => void
-    handleDrop?: (item: TreeDataItem) => void
-    draggedItem: TreeDataItem | null
-    onMediaSelect?: (media: MediaFile) => void
-    treeData?: TreeDataItem[] | TreeDataItem
+  item: TreeDataItem;
+  handleSelectChange: (item: TreeDataItem | undefined) => void;
+  expandedItemIds: string[];
+  selectedItemId?: string;
+  defaultNodeIcon?: any;
+  defaultLeafIcon?: any;
+  handleDragStart?: (item: TreeDataItem) => void;
+  handleDrop?: (item: TreeDataItem) => void;
+  draggedItem: TreeDataItem | null;
+  onMediaSelect?: (media: MediaFile) => void;
+  treeData?: TreeDataItem[] | TreeDataItem;
 }) => {
-    const [value, setValue] = React.useState(
-        expandedItemIds.includes(item.id) ? [item.id] : []
-    )
-    const [isDragOver, setIsDragOver] = React.useState(false)
+  const [value, setValue] = React.useState(
+    expandedItemIds.includes(item.id) ? [item.id] : [],
+  );
+  const [isDragOver, setIsDragOver] = React.useState(false);
 
-    const onDragStart = (e: React.DragEvent) => {
-        if (!item.draggable) {
-            e.preventDefault()
-            return
-        }
-        e.dataTransfer.setData('text/plain', item.id)
-        handleDragStart?.(item)
+  const onDragStart = (e: React.DragEvent) => {
+    if (!item.draggable) {
+      e.preventDefault();
+      return;
     }
+    e.dataTransfer.setData("text/plain", item.id);
+    handleDragStart?.(item);
+  };
 
-    const onDragOver = (e: React.DragEvent) => {
-        if (item.droppable !== false && draggedItem && draggedItem.id !== item.id) {
-            e.preventDefault()
-            setIsDragOver(true)
-        }
+  const onDragOver = (e: React.DragEvent) => {
+    if (item.droppable !== false && draggedItem && draggedItem.id !== item.id) {
+      e.preventDefault();
+      setIsDragOver(true);
     }
+  };
 
-    const onDragLeave = () => {
-        setIsDragOver(false)
-    }
+  const onDragLeave = () => {
+    setIsDragOver(false);
+  };
 
-    const onDrop = (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragOver(false)
-        handleDrop?.(item)
-    }
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleDrop?.(item);
+  };
 
-    return (
-        <AccordionPrimitive.Root
-            type="multiple"
-            value={value}
-            onValueChange={(s) => setValue(s)}
+  return (
+    <AccordionPrimitive.Root
+      type="multiple"
+      value={value}
+      onValueChange={(s) => setValue(s)}
+    >
+      <AccordionPrimitive.Item value={item.id}>
+        <AccordionTrigger
+          className={cn(
+            treeVariants(),
+            selectedItemId === item.id && selectedTreeVariants(),
+            isDragOver && dragOverVariants(),
+          )}
+          onClick={() => {
+            handleSelectChange(item);
+            item.onClick?.();
+          }}
+          draggable={!!item.draggable}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          isExpanded={value.includes(item.id)}
         >
-            <AccordionPrimitive.Item value={item.id}>
-                <AccordionTrigger
-                    className={cn(
-                        treeVariants(),
-                        selectedItemId === item.id && selectedTreeVariants(),
-                        isDragOver && dragOverVariants()
-                    )}
-                    onClick={() => {
-                        handleSelectChange(item)
-                        item.onClick?.()
-                    }}
-                    draggable={!!item.draggable}
-                    onDragStart={onDragStart}
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    isExpanded={value.includes(item.id)}
-                >
-                    <TreeItemLabel className="flex-1 min-w-0">
-                        <span className="flex items-center gap-2 min-w-0 w-full">
-                            {value.includes(item.id) ? (
-                                <FolderOpenIcon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
-                            ) : (
-                                <FolderIcon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
-                            )}
-                            <span className="truncate min-w-0 flex-1 text-left">{item.name}</span>
-                        </span>
-                    </TreeItemLabel>
-                    <TreeActions isSelected={selectedItemId === item.id}>
-                        {item.actions}
-                    </TreeActions>
-                </AccordionTrigger>
-                <AccordionContent>
-                    <TreeItem
-                        data={item.children ? item.children : item}
-                        selectedItemId={selectedItemId}
-                        handleSelectChange={handleSelectChange}
-                        expandedItemIds={expandedItemIds}
-                        defaultLeafIcon={defaultLeafIcon}
-                        defaultNodeIcon={defaultNodeIcon}
-                        handleDragStart={handleDragStart}
-                        handleDrop={handleDrop}
-                        draggedItem={draggedItem}
-                        onMediaSelect={onMediaSelect}
-                        treeData={treeData}
-                    />
-                </AccordionContent>
-            </AccordionPrimitive.Item>
-        </AccordionPrimitive.Root>
-    )
-}
+          <FolderContextMenuWrapper folder={item.id}>
+            <TreeItemLabel className="flex-1 min-w-0">
+              <span className="flex items-center gap-2 min-w-0 w-full">
+                {value.includes(item.id) ? (
+                  <FolderOpenIcon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
+                ) : (
+                  <FolderIcon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
+                )}
+                <span className="truncate min-w-0 flex-1 text-left">
+                  {item.name}
+                </span>
+              </span>
+            </TreeItemLabel>
+          </FolderContextMenuWrapper>
+          <TreeActions isSelected={selectedItemId === item.id}>
+            {item.actions}
+          </TreeActions>
+        </AccordionTrigger>
+        <AccordionContent>
+          <TreeItem
+            data={item.children ? item.children : item}
+            selectedItemId={selectedItemId}
+            handleSelectChange={handleSelectChange}
+            expandedItemIds={expandedItemIds}
+            defaultLeafIcon={defaultLeafIcon}
+            defaultNodeIcon={defaultNodeIcon}
+            handleDragStart={handleDragStart}
+            handleDrop={handleDrop}
+            draggedItem={draggedItem}
+            onMediaSelect={onMediaSelect}
+            treeData={treeData}
+          />
+        </AccordionContent>
+      </AccordionPrimitive.Item>
+    </AccordionPrimitive.Root>
+  );
+};
 
 const TreeLeaf = React.forwardRef<
-    HTMLDivElement,
-    React.HTMLAttributes<HTMLDivElement> & {
-        item: TreeDataItem
-        selectedItemId?: string
-        handleSelectChange: (item: TreeDataItem | undefined) => void
-        defaultLeafIcon?: any
-        handleDragStart?: (item: TreeDataItem) => void
-        handleDrop?: (item: TreeDataItem) => void
-        draggedItem: TreeDataItem | null
-        onMediaSelect?: (media: MediaFile) => void
-        treeData?: TreeDataItem[] | TreeDataItem
-    }
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & {
+    item: TreeDataItem;
+    selectedItemId?: string;
+    handleSelectChange: (item: TreeDataItem | undefined) => void;
+    defaultLeafIcon?: any;
+    handleDragStart?: (item: TreeDataItem) => void;
+    handleDrop?: (item: TreeDataItem) => void;
+    draggedItem: TreeDataItem | null;
+    onMediaSelect?: (media: MediaFile) => void;
+    treeData?: TreeDataItem[] | TreeDataItem;
+  }
 >(
-    (
-        {
-            className,
-            item,
-            selectedItemId,
-            handleSelectChange,
-            defaultLeafIcon,
-            handleDragStart,
-            handleDrop,
-            draggedItem,
-            onMediaSelect,
-            treeData,
-            ...props
-        },
-        ref
-    ) => {
-        const [isDragOver, setIsDragOver] = React.useState(false)
+  (
+    {
+      className,
+      item,
+      selectedItemId,
+      handleSelectChange,
+      defaultLeafIcon,
+      handleDragStart,
+      handleDrop,
+      draggedItem,
+      onMediaSelect,
+      treeData,
+      ...props
+    },
+    ref,
+  ) => {
+    const [isDragOver, setIsDragOver] = React.useState(false);
 
-        const onDragStart = (e: React.DragEvent) => {
-            if (!item.draggable || item.disabled) {
-                e.preventDefault()
-                return
-            }
-            e.dataTransfer.setData('text/plain', item.id)
-            handleDragStart?.(item)
+    const onDragStart = (e: React.DragEvent) => {
+      if (!item.draggable || item.disabled) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData("text/plain", item.id);
+      handleDragStart?.(item);
+    };
+
+    const onDragOver = (e: React.DragEvent) => {
+      if (
+        item.droppable !== false &&
+        !item.disabled &&
+        draggedItem &&
+        draggedItem.id !== item.id
+      ) {
+        e.preventDefault();
+        setIsDragOver(true);
+      }
+    };
+
+    const onDragLeave = () => {
+      setIsDragOver(false);
+    };
+
+    const onDrop = (e: React.DragEvent) => {
+      if (item.disabled) return;
+      e.preventDefault();
+      setIsDragOver(false);
+      handleDrop?.(item);
+    };
+
+    const handleClick = () => {
+      if (item.disabled) return;
+
+      // Check if it's a media file
+      const mediaCheck = isMediaFile(item);
+      if (mediaCheck.isMedia && onMediaSelect && treeData) {
+        const pathSegments = findItemPath(treeData, item.id);
+        if (pathSegments && pathSegments.length > 0) {
+          const media: MediaFile = {
+            id: item.id,
+            name: item.name,
+            path: pathSegments.join("/"),
+            type: mediaCheck.type!,
+          };
+          onMediaSelect(media);
+          return;
         }
+      }
 
-        const onDragOver = (e: React.DragEvent) => {
-            if (item.droppable !== false && !item.disabled && draggedItem && draggedItem.id !== item.id) {
-                e.preventDefault()
-                setIsDragOver(true)
-            }
-        }
+      // Default behavior for non-media files
+      handleSelectChange(item);
+      item.onClick?.();
+    };
 
-        const onDragLeave = () => {
-            setIsDragOver(false)
-        }
-
-        const onDrop = (e: React.DragEvent) => {
-            if (item.disabled) return
-            e.preventDefault()
-            setIsDragOver(false)
-            handleDrop?.(item)
-        }
-
-        const handleClick = () => {
-            if (item.disabled) return
-            
-            // Check if it's a media file
-            const mediaCheck = isMediaFile(item)
-            if (mediaCheck.isMedia && onMediaSelect && treeData) {
-                const pathSegments = findItemPath(treeData, item.id)
-                if (pathSegments && pathSegments.length > 0) {
-                    const media: MediaFile = {
-                        id: item.id,
-                        name: item.name,
-                        path: pathSegments.join("/"),
-                        type: mediaCheck.type!,
-                    }
-                    onMediaSelect(media)
-                    return
-                }
-            }
-            
-            // Default behavior for non-media files
-            handleSelectChange(item)
-            item.onClick?.()
-        }
-
-        return (
-            <div
-                ref={ref}
-                className={cn(
-                    'flex text-left items-center gap-2 py-2 cursor-pointer before:right-1',
-                    treeVariants(),
-                    className,
-                    selectedItemId === item.id && selectedTreeVariants(),
-                    isDragOver && dragOverVariants(),
-                    item.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
-                )}
-                onClick={handleClick}
-                draggable={!!item.draggable && !item.disabled}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                {...props}
-            >
-                <TreeItemLabel className="flex-1 min-w-0">
-                    <span className="flex items-center gap-2 min-w-0 w-full">
-                        <TreeIcon
-                            item={item}
-                            isSelected={selectedItemId === item.id}
-                            default={defaultLeafIcon}
-                        />
-                        <span className="truncate min-w-0 flex-1">{item.name}</span>
-                    </span>
-                </TreeItemLabel>
-                <TreeActions isSelected={selectedItemId === item.id && !item.disabled}>
-                    {item.actions}
-                </TreeActions>
-            </div>
-        )
-    }
-)
-TreeLeaf.displayName = 'TreeLeaf'
-
-const AccordionTrigger = React.forwardRef<
-    React.ElementRef<typeof AccordionPrimitive.Trigger>,
-    React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger> & {
-        isExpanded?: boolean
-    }
->(({ className, children, isExpanded, ...props }, ref) => (
-    <AccordionPrimitive.Header>
-        <AccordionPrimitive.Trigger
-            ref={ref}
-            className={cn(
-                'flex flex-1 w-full items-center gap-2 py-2 transition-all',
-                className
-            )}
-            {...props}
-        >
-            {children}
-        </AccordionPrimitive.Trigger>
-    </AccordionPrimitive.Header>
-))
-AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
-
-const AccordionContent = React.forwardRef<
-    React.ElementRef<typeof AccordionPrimitive.Content>,
-    React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-    <AccordionPrimitive.Content
+    return (
+      <div
         ref={ref}
         className={cn(
-            'overflow-hidden transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down',
-            className
+          "flex text-left items-center gap-2 py-2 cursor-pointer before:right-1",
+          treeVariants(),
+          className,
+          selectedItemId === item.id && selectedTreeVariants(),
+          isDragOver && dragOverVariants(),
+          item.disabled && "opacity-50 cursor-not-allowed pointer-events-none",
         )}
+        onClick={handleClick}
+        draggable={!!item.draggable && !item.disabled}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         {...props}
+      >
+        <TreeItemLabel className="flex-1 min-w-0">
+          <span className="flex items-center gap-2 min-w-0 w-full">
+            <TreeIcon
+              item={item}
+              isSelected={selectedItemId === item.id}
+              default={defaultLeafIcon}
+            />
+            <span className="truncate min-w-0 flex-1">{item.name}</span>
+          </span>
+        </TreeItemLabel>
+        <TreeActions isSelected={selectedItemId === item.id && !item.disabled}>
+          {item.actions}
+        </TreeActions>
+      </div>
+    );
+  },
+);
+TreeLeaf.displayName = "TreeLeaf";
+
+const AccordionTrigger = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger> & {
+    isExpanded?: boolean;
+  }
+>(({ className, children, isExpanded, ...props }, ref) => (
+  <AccordionPrimitive.Header>
+    <AccordionPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex flex-1 w-full items-center gap-2 py-2 transition-all",
+        className,
+      )}
+      {...props}
     >
-        <div className="pb-1 pt-0" style={{ paddingLeft: '20px' }}>{children}</div>
-    </AccordionPrimitive.Content>
-))
-AccordionContent.displayName = AccordionPrimitive.Content.displayName
+      {children}
+    </AccordionPrimitive.Trigger>
+  </AccordionPrimitive.Header>
+));
+AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName;
+
+const AccordionContent = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Content
+    ref={ref}
+    className={cn(
+      "overflow-hidden transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+      className,
+    )}
+    {...props}
+  >
+    <div className="pb-1 pt-0" style={{ paddingLeft: "20px" }}>
+      {children}
+    </div>
+  </AccordionPrimitive.Content>
+));
+AccordionContent.displayName = AccordionPrimitive.Content.displayName;
 
 const TreeItemLabel = React.forwardRef<
-    HTMLSpanElement,
-    React.HTMLAttributes<HTMLSpanElement>
+  HTMLSpanElement,
+  React.HTMLAttributes<HTMLSpanElement>
 >(({ className, children, ...props }, ref) => (
-    <span ref={ref} className={cn('text-sm overflow-hidden', className)} {...props}>
-        {children}
-    </span>
-))
-TreeItemLabel.displayName = 'TreeItemLabel'
+  <span
+    ref={ref}
+    className={cn("text-sm overflow-hidden", className)}
+    {...props}
+  >
+    {children}
+  </span>
+));
+TreeItemLabel.displayName = "TreeItemLabel";
 
 const TreeIcon = ({
-    item,
-    isOpen,
-    isSelected,
-    default: defaultIcon
+  item,
+  isOpen,
+  isSelected,
+  default: defaultIcon,
 }: {
-    item: TreeDataItem
-    isOpen?: boolean
-    isSelected?: boolean
-    default?: any
+  item: TreeDataItem;
+  isOpen?: boolean;
+  isSelected?: boolean;
+  default?: any;
 }) => {
-    let Icon = defaultIcon
-    if (isSelected && item.selectedIcon) {
-        Icon = item.selectedIcon
-    } else if (isOpen && item.openIcon) {
-        Icon = item.openIcon
-    } else if (item.icon) {
-        Icon = item.icon
-    }
-    return Icon ? (
-        <Icon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
-    ) : null
-}
+  let Icon = defaultIcon;
+  if (isSelected && item.selectedIcon) {
+    Icon = item.selectedIcon;
+  } else if (isOpen && item.openIcon) {
+    Icon = item.openIcon;
+  } else if (item.icon) {
+    Icon = item.icon;
+  }
+  return Icon ? (
+    <Icon className="pointer-events-none size-4 text-muted-foreground shrink-0" />
+  ) : null;
+};
 
 const TreeActions = ({
-    children,
-    isSelected
+  children,
+  isSelected,
 }: {
-    children: React.ReactNode
-    isSelected: boolean
+  children: React.ReactNode;
+  isSelected: boolean;
 }) => {
-    return (
-        <div
-            className={cn(
-                isSelected ? 'block' : 'hidden',
-                'absolute right-3 group-hover:block'
-            )}
-        >
-            {children}
-        </div>
-    )
-}
+  return (
+    <div
+      className={cn(
+        isSelected ? "block" : "hidden",
+        "absolute right-3 group-hover:block",
+      )}
+    >
+      {children}
+    </div>
+  );
+};
 
-export { TreeView, type TreeDataItem }
+export { TreeView, type TreeDataItem };

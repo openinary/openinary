@@ -13,6 +13,11 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 
+export interface DialogRefProps {
+  open: () => void;
+  close: () => void;
+}
+
 export default function DefaultDialog({
   title,
   isOpen,
@@ -26,7 +31,7 @@ export default function DefaultDialog({
   trigger?: ReactNode;
   children: ReactNode;
   onClose?: () => void;
-  ref?: Ref<{ close: () => void }>;
+  ref?: Ref<DialogRefProps>;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -39,6 +44,7 @@ export default function DefaultDialog({
   };
 
   useImperativeHandle(ref, () => ({
+    open: () => setOpen(true),
     close: () => handleOpenChange(false),
   }));
 

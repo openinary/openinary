@@ -1,8 +1,8 @@
 "use client";
 
+import { MediaGrid } from "@/components/assets/media-grid";
 import { AssetDetailsSidebar } from "@/components/details-sidebar";
 import HeaderBar from "@/components/headerbar";
-import { MediaGrid } from "@/components/media-grid";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import {
   ResizableHandle,
@@ -13,9 +13,9 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/auth-client";
 import { Image as ImageIcon, Package, Video } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 
 type MediaFile = {
