@@ -1,10 +1,31 @@
 import sharp from 'sharp';
+import { readFile } from 'fs/promises';
+import Psd from '@webtoon/psd';
 import { TransformParams } from 'shared';
 import { applyAspectRatio } from './aspect-ratio';
 import { applyResize } from './resize';
 import { applyRotation } from './rotation';
 import { applyQuality } from './quality';
 import { applyResizeComposite } from './param-registry';
+import { applyRoundCorners } from './round-corners';
+
+/**
+ * Decode a PSD file into a Sharp instance via raw RGBA pixel data.
+ * Sharp cannot read PSD natively; @webtoon/psd composites all layers first.
+ * The output is encoded as PNG so the temp-file step in processImage can read it.
+ */
+async function decodePsd(inputPath: string): Promise<sharp.Sharp> {
+  const fileBuffer = await readFile(inputPath);
+  const arrayBuffer = fileBuffer.buffer.slice(
+    fileBuffer.byteOffset,
+    fileBuffer.byteOffset + fileBuffer.byteLength
+  ) as ArrayBuffer;
+  const psd = Psd.parse(arrayBuffer);
+  const pixelData = await psd.composite();
+  return sharp(Buffer.from(pixelData), {
+    raw: { width: psd.width, height: psd.height, channels: 4 },
+  }).png();
+}
 
 // Re-export types for backward compatibility
 export * from './types';
@@ -14,7 +35,9 @@ export * from './param-registry';
  * Transform an image with the specified parameters
  */
 export const transformImage = async (inputPath: string, params: TransformParams): Promise<Buffer> => {
-  let image = sharp(inputPath);
+  let image = inputPath.toLowerCase().endsWith('.psd')
+    ? await decodePsd(inputPath)
+    : sharp(inputPath);
 
   // Convert TransformParams to a record for easier access
   const paramsRecord: Record<string, string> = {
@@ -28,6 +51,7 @@ export const transformImage = async (inputPath: string, params: TransformParams)
     ...(params.background && { background: params.background }),
     ...(params.quality && { quality: String(params.quality) }),
     ...(params.format && { format: params.format }),
+    ...(params.radius && { radius: params.radius }),
   };
 
   // 1. Apply rotation (if specified)
@@ -45,7 +69,15 @@ export const transformImage = async (inputPath: string, params: TransformParams)
     image = await applyResizeComposite(image, '', paramsRecord);
   }
 
-  // 4. Apply quality (if specified)
+  // 4. Apply rounded corners (if specified)
+  if (params.radius) {
+    image = await applyRoundCorners(image, params.radius, params.background);
+    // applyRoundCorners always returns a pipeline backed by a PNG buffer
+    // (alpha-capable), so the intermediate toBuffer() in processImage will
+    // correctly preserve transparency or the filled background color.
+  }
+
+  // 5. Apply quality (if specified)
   if (params.quality) {
     image = applyQuality(image, params.quality);
   }

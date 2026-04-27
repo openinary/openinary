@@ -12,13 +12,14 @@ import {
   TRANSFORMATION_PRIORITY,
 } from "../utils/video/config";
 import { TransformService } from "../services/transform.service";
+import heicConvert from 'heic-convert';
 
 const upload = new Hono();
 const storage = createStorageClient();
 const transformService = new TransformService();
 
-// File size limit: 50MB
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 52,428,800 bytes
+// File size limit: configurable via MAX_FILE_SIZE_MB env var, defaults to 50MB
+const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB ?? "50", 10) || 50) * 1024 * 1024;
 const MAX_PREWARM_TRANSFORMATIONS = 20;
 
 // Allowed file extensions and MIME types
@@ -29,6 +30,10 @@ const ALLOWED_TYPES = {
   "image/webp": [".webp"],
   "image/avif": [".avif"],
   "image/gif": [".gif"],
+  "image/heic" : ['.heic', '.heif'],
+  "image/heif" : ['.heic', '.heif'],
+  "image/vnd.adobe.photoshop": [".psd"],
+  "application/octet-stream": [".psd"],
   // Videos
   "video/mp4": [".mp4"],
   "video/quicktime": [".mov"],
@@ -215,21 +220,6 @@ function validateFileType(filename: string, mimeType: string): boolean {
 }
 
 /**
- * Gets the content type from filename extension
- */
-function getContentType(filename: string): string {
-  const ext = path.extname(filename).toLowerCase();
-
-  for (const [contentType, extensions] of Object.entries(ALLOWED_TYPES)) {
-    if (extensions.includes(ext)) {
-      return contentType;
-    }
-  }
-
-  return "application/octet-stream";
-}
-
-/**
  * Saves file to local storage (./public/)
  */
 async function saveFileLocally(
@@ -353,6 +343,41 @@ async function queueVideoTransformations(
   return { queuedTransformationUrls, queueErrors };
 }
 
+async function normalizeUploadFormat(
+  buffer: Buffer,
+  mimeType: string,
+  filePath: string,
+): Promise<{ buffer: Buffer; mimeType: string; path: string, fileName: string }>{
+  let normalizedBuffer;
+  let normalizedMimeType;
+  let normalizedPath;
+  if (mimeType === "image/heic" || mimeType === "image/heif"){
+    try{
+      normalizedBuffer = await heicConvert({
+                buffer: buffer as any,
+                format: 'JPEG',
+                quality: 1
+      });
+
+      normalizedMimeType = "image/jpeg";
+      normalizedPath = filePath.replace(/\.(heic|heif)$/i, '.jpg');
+    }catch {
+      throw new Error(`Failed to convert file from ${mimeType} to image/jpeg`);
+    }
+
+  } else {
+    normalizedBuffer = buffer;
+    normalizedMimeType = mimeType;
+    normalizedPath = filePath;
+  }
+  return {
+      buffer: normalizedBuffer as any,
+      mimeType : normalizedMimeType,
+      path : normalizedPath,
+      fileName : path.basename(normalizedPath)
+  }
+}
+
 /**
  * POST /upload - Upload single or multiple files
  */
@@ -411,7 +436,7 @@ upload.post("/", async (c) => {
       if (fileSize > MAX_FILE_SIZE) {
         failedUploads.push({
           filename: rawSanitizedPath,
-          error: `File size exceeds limit of 50MB (size: ${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
+          error: `File size exceeds limit of ${MAX_FILE_SIZE / 1024 / 1024}MB (size: ${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
         });
         continue;
       }
@@ -420,7 +445,7 @@ upload.post("/", async (c) => {
       if (!validateFileType(filename, mimeType)) {
         failedUploads.push({
           filename: rawSanitizedPath,
-          error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, png, webp, avif, gif) and videos (mp4, mov, webm)`,
+          error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif, psd) and videos (mp4, mov, webm)`,
         });
         continue;
       }
@@ -429,20 +454,24 @@ upload.post("/", async (c) => {
         // Convert File to Buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-
-        // Get content type
-        const contentType = getContentType(filename);
+        
+        const {
+          buffer: normalizedBuffer, 
+          mimeType: normalizedContentType, 
+          path: normalizedPath, 
+          fileName: normalizedFileName
+        } = await normalizeUploadFormat(buffer, mimeType, rawSanitizedPath)
 
         // Compute a unique file path to avoid overwriting existing files
-        let finalPath = rawSanitizedPath;
+        let finalPath = normalizedPath;
 
         if (storage) {
-          finalPath = await getUniqueFilePath(rawSanitizedPath, async (p) =>
+          finalPath = await getUniqueFilePath(normalizedPath, async (p) =>
             storage.existsOriginalPath(p),
           );
         } else {
           finalPath = await getUniqueFilePath(
-            rawSanitizedPath,
+            normalizedPath,
             localFileExists,
           );
         }
@@ -452,8 +481,8 @@ upload.post("/", async (c) => {
           // Upload to cloud storage with full (unique) path
           const url = await storage.uploadOriginal(
             finalPath,
-            buffer,
-            contentType,
+            normalizedBuffer,
+            normalizedContentType,
           );
           logger.info(
             { originalPath: rawSanitizedPath, finalPath, url },
@@ -461,14 +490,14 @@ upload.post("/", async (c) => {
           );
 
           const uploadResult: UploadResult = {
-            filename,
+            filename : normalizedFileName,
             path: finalPath,
-            size: fileSize,
+            size: normalizedBuffer.length,
             url: `/t/${finalPath}`,
           };
 
           if (
-            contentType.startsWith("image/") &&
+            normalizedContentType.startsWith("image/") &&
             prewarmTransformations.length > 0
           ) {
             const prewarmResult = await prewarmImageTransformations(
@@ -495,7 +524,7 @@ upload.post("/", async (c) => {
           }
 
           // Queue thumbnail generation for videos (non-blocking, high priority)
-          if (contentType.startsWith("video/")) {
+          if (normalizedContentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
               logger.error(
                 { error: serializeError(error), finalPath },
@@ -522,21 +551,21 @@ upload.post("/", async (c) => {
           successfulUploads.push(uploadResult);
         } else {
           // Save locally with full path
-          await saveFileLocally(finalPath, buffer);
+          await saveFileLocally(finalPath, normalizedBuffer);
           logger.info(
             { originalPath: rawSanitizedPath, finalPath },
             "Saved locally",
           );
 
           const uploadResult: UploadResult = {
-            filename,
+            filename : normalizedFileName,
             path: finalPath,
-            size: fileSize,
+            size: normalizedBuffer.length,
             url: `/t/${finalPath}`,
           };
 
           if (
-            contentType.startsWith("image/") &&
+            normalizedContentType.startsWith("image/") &&
             prewarmTransformations.length > 0
           ) {
             const prewarmResult = await prewarmImageTransformations(
@@ -563,7 +592,7 @@ upload.post("/", async (c) => {
           }
 
           // Queue thumbnail generation for videos (non-blocking, high priority)
-          if (contentType.startsWith("video/")) {
+          if (normalizedContentType.startsWith("video/")) {
             queueThumbnailGeneration(finalPath, storage).catch((error) => {
               logger.error(
                 { error: serializeError(error), finalPath },
@@ -660,20 +689,61 @@ upload.post("/createfolder", async (c) => {
       );
     }
 
-    const rawSanitizedPath = sanitizePath(folder.replaceAll(" ", "_"));
-    const localBasePath = path.join(".", "public");
-    const localPath = path.join(".", "public", rawSanitizedPath);
+    const rawSanitizedPath = sanitizePath(folder.replaceAll(" ", "_")).replace(
+      /\/+$/,
+      "",
+    );
 
-    if (!fs.existsSync(localBasePath)) {
-      logger.error(
-        { folder },
-        "Folders can only be created for local file storage",
-      );
+    if (!rawSanitizedPath) {
+      logger.error({ folder }, "Invalid folder data provided");
       return c.json(
         {
           success: false,
           folder: null,
-          error: "Folders can only be created for local file storage",
+          error: "Invalid folder data provided",
+        },
+        400,
+      );
+    }
+
+    if (storage) {
+      const alreadyExists = await storage.folderExists(rawSanitizedPath);
+
+      if (alreadyExists) {
+        logger.warn({ folder: rawSanitizedPath }, "Folder already exists");
+        return c.json(
+          {
+            success: false,
+            folder: null,
+            error: "Folder already exists",
+          },
+          409,
+        );
+      }
+
+      await storage.createFolder(rawSanitizedPath);
+      logger.info({ folder: rawSanitizedPath }, "Folder marker created");
+
+      return c.json(
+        {
+          success: true,
+          folder: rawSanitizedPath,
+          error: null,
+        },
+        201,
+      );
+    }
+
+    const localBasePath = path.join(".", "public");
+    const localPath = path.join(".", "public", rawSanitizedPath);
+
+    if (!fs.existsSync(localBasePath)) {
+      logger.error({ folder }, "Local storage path does not exist");
+      return c.json(
+        {
+          success: false,
+          folder: null,
+          error: "Local storage path does not exist",
         },
         500,
       );

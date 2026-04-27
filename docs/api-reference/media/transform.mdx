@@ -1,0 +1,451 @@
+---
+title: "Transform Media"
+description: "Apply on-the-fly transformations to images and videos via URL parameters"
+---
+
+<Note>
+  This is the core Openinary endpoint. The first request processes and caches the result; subsequent requests are served from cache in ~50ms.
+</Note>
+
+## Endpoint
+
+```
+GET /t/{transformations}/{path}
+```
+
+**Auth:** Public (rate limited)
+
+## Path parameters
+
+<ParamField path="transformations" type="string">
+  Comma-separated transformation parameters. Omit this segment (or use `t/`) to serve the original file without transformations.
+
+  `w_800,h_600,c_fill,q_85,f_webp`
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Path to the file relative to the storage root, including the file extension.
+
+  `image.jpg` · `photos/portrait.png` · `videos/clip.mp4`
+</ParamField>
+
+---
+
+## Image parameters
+
+### Quick reference
+
+| Param | Full name | Description |
+|-------|-----------|-------------|
+| [`w`](#w) | width | Width in pixels |
+| [`h`](#h) | height | Height in pixels |
+| [`c`](#c) | crop | Crop/resize mode |
+| [`ar`](#ar) | aspect ratio | Crop to a given ratio (`W:H`) |
+| [`a`](#a) | angle | Rotation angle or `auto` |
+| [`g`](#g) | gravity | Focal point for cropping |
+| [`b`](#b) | background | Background color (hex) |
+| [`r`](#r) | round corners | Radius in pixels, per-corner list, or `max` |
+| [`q`](#q-image) | quality | Compression level (1–100) |
+| [`f`](#f-image) | format | Output format |
+
+### Parameter reference
+
+<a id="w"></a>
+<ParamField path="w" type="integer">
+  Width of the output image in pixels.
+
+  `w_800` · `w_1920` · `w_400`
+</ParamField>
+
+<a id="h"></a>
+<ParamField path="h" type="integer">
+  Height of the output image in pixels.
+
+  `h_600` · `h_1080` · `h_400`
+</ParamField>
+
+<a id="c"></a>
+<ParamField path="c" type="string" default="fill">
+  How the image is resized and cropped.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `fill` | Fill the area, cropping the overflow (default) |
+  | `fit` | Fit within dimensions, preserving aspect ratio |
+  | `scale` | Stretch to exact dimensions (distorts if ratios differ) |
+  | `crop` | Resize and crop to exact dimensions |
+  | `pad` | Fit and add background-colored borders |
+</ParamField>
+
+<a id="ar"></a>
+<ParamField path="ar" type="string">
+  Crop the image to a specific aspect ratio. Format: `W:H`.
+
+  `ar_16:9` · `ar_1:1` · `ar_4:3`
+</ParamField>
+
+<a id="a"></a>
+<ParamField path="a" type="string | number">
+  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format — orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0–360) for a fixed angle.
+
+  `a_auto` · `a_90` · `a_180`
+</ParamField>
+
+<a id="g"></a>
+<ParamField path="g" type="string" default="center">
+  Focal point used when cropping.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `center` | Center of the image (default) |
+  | `north` | Top edge |
+  | `south` | Bottom edge |
+  | `east` | Right edge |
+  | `west` | Left edge |
+  | `face` | Face detection — keeps the detected face in frame |
+  | `auto` | Entropy-based region of interest detection |
+</ParamField>
+
+<a id="b"></a>
+<ParamField path="b" type="string">
+  Background color for `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Use `rgb:` followed by a 6-digit hex value.
+
+  `b_rgb:ffffff` (white) · `b_rgb:000000` (black) · `b_rgb:f5f5f5` (light gray)
+</ParamField>
+
+<a id="r"></a>
+<ParamField path="r" type="string">
+  Rounds the corners of the image using an SVG alpha mask.
+
+  | Syntax | Behavior |
+  |--------|----------|
+  | `r_<int>` | Same radius on all four corners |
+  | `r_v1:v2` | `v1` = top-left & bottom-right, `v2` = top-right & bottom-left |
+  | `r_v1:v2:v3` | `v1` = top-left, `v2` = top-right & bottom-left, `v3` = bottom-right |
+  | `r_v1:v2:v3:v4` | Each corner individually: TL, TR, BR, BL (clockwise) |
+  | `r_max` | Circle (square image) or oval (rectangular image) |
+
+  `r_80` · `r_20:80` · `r_20:0:40:60` · `r_max`
+
+  By default, cut corners are transparent — use `f_png`, `f_webp`, or `f_avif`. Add `b_rgb:<hex>` to fill corners with a solid color and use any format including JPEG.
+
+  <Note>
+    Radius is clamped to half the shorter dimension. Round corners are not supported for video.
+  </Note>
+</ParamField>
+
+<a id="q-image"></a>
+<ParamField path="q" type="integer" default="85">
+  Compression quality from 1 (smallest file) to 100 (highest quality).
+
+  | Range | Trade-off |
+  |-------|-----------|
+  | 90–100 | High quality, larger file |
+  | 80–89 | Recommended sweet spot |
+  | 60–79 | Smaller file, slight quality loss |
+  | 1–59 | Aggressive compression, visible artifacts |
+</ParamField>
+
+<a id="f-image"></a>
+<ParamField path="f" type="string">
+  Force a specific output format. When omitted, the [best format is chosen automatically](/media-transformations/intelligent-compression) based on the browser's `Accept` header.
+
+  | Value | Notes |
+  |-------|-------|
+  | `avif` | Best compression (up to 50% vs JPEG) |
+  | `webp` | Excellent compatibility, ~30% vs JPEG |
+  | `jpeg` / `jpg` | Universal fallback |
+  | `png` | Lossless, supports transparency |
+</ParamField>
+
+### Image examples
+
+<Tabs>
+<Tab title="Resize">
+
+```http
+GET /t/w_800,h_600/image.jpg
+```
+
+</Tab>
+
+<Tab title="Smart crop">
+
+```http
+GET /t/w_400,h_400,c_fill,g_face/portrait.jpg
+```
+
+Square thumbnail cropped around the detected face.
+
+</Tab>
+
+<Tab title="Aspect ratio">
+
+```http
+GET /t/ar_16:9,w_1920/banner.jpg
+```
+
+</Tab>
+
+<Tab title="Format">
+
+```http
+GET /t/w_1200,f_avif,q_80/photo.jpg
+```
+
+</Tab>
+</Tabs>
+
+<AccordionGroup>
+<Accordion title="Instagram portrait">
+
+```http
+GET /t/ar_1:1,w_1080,g_face,q_85,f_webp/portrait.jpg
+```
+
+</Accordion>
+
+<Accordion title="Padded thumbnail">
+
+```http
+GET /t/w_400,h_300,c_pad,b_rgb:f5f5f5,q_80/thumbnail.jpg
+```
+
+Consistent dimensions with a light gray background on the borders.
+
+</Accordion>
+
+<Accordion title="Rotated PNG (with transparency)">
+
+```http
+GET /t/a_15,w_200,h_200/logo.png
+```
+
+</Accordion>
+
+<Accordion title="Full HD AVIF">
+
+```http
+GET /t/w_1920,h_1080,q_85,f_avif/landscape.jpg
+```
+
+</Accordion>
+
+<Accordion title="Circular avatar">
+
+```http
+GET /t/w_400,h_400,c_fill,r_max,f_png/avatar.jpg
+```
+
+Square crop then circular mask. Use `f_png` or `f_webp` to preserve the alpha channel, or add `b_rgb:<hex>` to fill corners with a solid color.
+
+</Accordion>
+
+<Accordion title="Rounded card image">
+
+```http
+GET /t/w_600,h_400,c_fill,r_16,b_rgb:ffffff/photo.jpg
+```
+
+Uniform 16 px radius with white corners — safe to serve as JPEG on a white page.
+
+</Accordion>
+</AccordionGroup>
+
+### Supported image formats
+
+**Input:** JPEG, PNG, WebP, AVIF, GIF (first frame), HEIC/HEIF (converted to JPEG on upload), PSD (layers composited)
+
+**Output:** AVIF, WebP, JPEG, PNG
+
+---
+
+## Video parameters
+
+<Warning>
+  Video processing is resource-intensive (5–30s per file). For high-traffic assets, [prewarm](/media-transformations/upload-and-prewarm) transformed variants at upload time so the first request is served from cache.
+</Warning>
+
+### Quick reference
+
+| Param | Full name | Description |
+|-------|-----------|-------------|
+| [`w`](#w-video) | width | Width in pixels |
+| [`h`](#h-video) | height | Height in pixels |
+| [`c`](#c-video) | crop | Crop/resize mode |
+| [`q`](#q-video) | quality | CRF quality (1–100) |
+| [`so`](#so) | start offset | Start time in seconds |
+| [`eo`](#eo) | end offset | End time in seconds (trim) |
+| [`f`](#f-video) | format | Output format |
+
+### Parameter reference
+
+<a id="w-video"></a>
+<ParamField path="w" type="integer">
+  Width of the output video in pixels.
+
+  `w_1920` (1080p) · `w_1280` (720p) · `w_640` (SD)
+</ParamField>
+
+<a id="h-video"></a>
+<ParamField path="h" type="integer">
+  Height of the output video in pixels.
+
+  `h_1080` · `h_720` · `h_480` · `h_360`
+</ParamField>
+
+<a id="c-video"></a>
+<ParamField path="c" type="string">
+  Resize/crop strategy.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `fill` | Scale and crop to fill the target dimensions |
+  | `crop` | Resize and crop to exact dimensions |
+</ParamField>
+
+<a id="q-video"></a>
+<ParamField path="q" type="integer" default="75">
+  Video quality via <Tooltip tip="Constant Rate Factor — lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100.
+
+  | `q` value | CRF | Notes |
+  |-----------|-----|-------|
+  | 100 | 18 | Very high quality |
+  | 85 | 23 | High quality, recommended |
+  | 75 | 28 | Balanced (default) |
+  | 50 | 35 | Smaller file, noticeable loss |
+  | 10 | 45 | Low quality, minimum size |
+</ParamField>
+
+<a id="so"></a>
+<ParamField path="so" type="number">
+  Start time in seconds. Used for trimming (with `eo`) or thumbnail extraction (with an image `f`).
+
+  `so_5` · `so_10.5`
+</ParamField>
+
+<a id="eo"></a>
+<ParamField path="eo" type="number">
+  End time in seconds. Must be used together with `so`. The output duration is `eo − so`.
+
+  `so_5,eo_12` → 7-second clip
+
+  <Note>
+  The end offset is exclusive: `so_5,eo_12` produces a clip from 5s to 12s (7 seconds).
+  </Note>
+</ParamField>
+
+<a id="f-video"></a>
+<ParamField path="f" type="string">
+  Output format. Defaults to `mp4` (H.264). When combined with `so` and without `eo`, extracts a single frame as an image.
+
+  | Value | Use case |
+  |-------|----------|
+  | `mp4` | Re-encoded video (H.264) — default |
+  | `webp` | Frame thumbnail |
+  | `jpeg` / `jpg` | Frame thumbnail |
+  | `png` | Frame thumbnail with transparency |
+</ParamField>
+
+### Video examples
+
+<Tabs>
+<Tab title="720p HD">
+
+```http
+GET /t/w_1280,h_720,q_80/video.mp4
+```
+
+</Tab>
+
+<Tab title="Trim">
+
+```http
+GET /t/so_5,eo_12/video.mp4
+```
+
+7-second clip (5s → 12s).
+
+</Tab>
+
+<Tab title="Thumbnail">
+
+```http
+GET /t/w_400,h_300,so_5,f_webp/video.mp4
+```
+
+Single frame at 5s, output as a WebP image.
+
+</Tab>
+
+<Tab title="Mobile preview">
+
+```http
+GET /t/w_640,h_360,q_60/video.mp4
+```
+
+Low-bandwidth version for mobile.
+
+</Tab>
+</Tabs>
+
+<AccordionGroup>
+<Accordion title="Square social video">
+
+```http
+GET /t/w_1080,h_1080,q_85/social.mp4
+```
+
+</Accordion>
+
+<Accordion title="Trim and resize">
+
+```http
+GET /t/w_400,h_300,so_5,eo_12/video.mp4
+```
+
+7-second clip (5s → 12s) resized to 400×300.
+
+</Accordion>
+
+<Accordion title="High-quality presentation">
+
+```http
+GET /t/w_1920,h_1080,q_95/presentation.mp4
+```
+
+</Accordion>
+</AccordionGroup>
+
+### Supported video formats
+
+**Input:** MP4 (H.264/H.265), MOV, WebM (VP8/VP9)
+
+**Output:** MP4 (H.264) — standardized for maximum device and browser compatibility
+
+---
+
+## Response
+
+Returns the binary content of the transformed file.
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | Detected from output format (e.g. `image/webp`, `video/mp4`) |
+| `Cache-Control` | Set for browser caching |
+
+**Status codes:** `200` success · `404` file not found · `500` processing error
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Authenticated Transform" icon="lock" href="/api-reference/media/authenticated-transform">
+    Signed URLs for restricted transformations.
+  </Card>
+  <Card title="Upload Files" icon="upload" href="/api-reference/files/upload">
+    Upload files and pre-generate variants.
+  </Card>
+  <Card title="Intelligent Compression" icon="wand-magic-sparkles" href="/media-transformations/intelligent-compression">
+    How Openinary picks the optimal format automatically.
+  </Card>
+</CardGroup>

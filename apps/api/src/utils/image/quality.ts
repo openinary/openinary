@@ -1,17 +1,13 @@
 import sharp from 'sharp';
 
 /**
- * Apply quality settings to an image
+ * Apply quality settings to an image.
+ * Quality is deferred to the final format encoding step in the compression
+ * pipeline to avoid stripping alpha channels via premature JPEG conversion.
  */
 export const applyQuality = (
   image: sharp.Sharp,
-  qualityParam: string | number
+  _qualityParam: string | number
 ): sharp.Sharp => {
-  const quality = typeof qualityParam === 'string' ? parseInt(qualityParam) : qualityParam;
-  
-  if (!isNaN(quality) && quality >= 1 && quality <= 100) {
-    return image.jpeg({ quality });
-  }
-  
   return image;
 };

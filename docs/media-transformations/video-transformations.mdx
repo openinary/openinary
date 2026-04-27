@@ -1,0 +1,23 @@
+---
+title: "Video Transformations"
+description: "Resize, trim, extract thumbnails, and re-encode videos with URL-based parameters"
+---
+
+<Warning>
+  Video processing is resource-intensive (5–30s per file). For high-traffic assets, [prewarm](/media-transformations/upload-and-prewarm) transformed variants at upload time so the first request is served from cache.
+</Warning>
+
+All video transformation parameters, the CRF quality table, and examples are documented in the API reference.
+
+<Card title="Video Parameters — API Reference" icon="code" href="/api-reference/media/transform#video-parameters">
+  Full reference: `w`, `h`, `c`, `q` (CRF table), `so`, `eo`, `f` — with trim examples, thumbnail extraction, and supported formats.
+</Card>
+
+<CardGroup cols={2}>
+  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
+    Pre-generate video variants at upload time — video jobs are background-queued.
+  </Card>
+  <Card title="Video Processing Config" icon="gear" href="/configuration/video-processing">
+    Tune worker concurrency, retries, and job cleanup.
+  </Card>
+</CardGroup>

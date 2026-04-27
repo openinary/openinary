@@ -1,0 +1,103 @@
+---
+title: "Local Development"
+description: "Set up a local Openinary development environment with Node.js 20, pnpm, and FFmpeg. Runs the API on :3000 and the dashboard on :3001."
+---
+
+## Prerequisites
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Node.js | ≥ 20.0.0 | `node --version` to check |
+| pnpm | ≥ 9.0.0 | `npm install -g pnpm` to install |
+| FFmpeg | any recent | Required for video processing |
+
+<Tabs>
+<Tab title="macOS">
+
+```bash
+brew install ffmpeg
+```
+
+</Tab>
+
+<Tab title="Linux (Ubuntu/Debian)">
+
+```bash
+sudo apt-get install ffmpeg
+```
+
+</Tab>
+
+<Tab title="Linux (Fedora)">
+
+```bash
+sudo dnf install ffmpeg
+```
+
+</Tab>
+
+<Tab title="Windows">
+
+Download a build from [ffmpeg.org/download.html](https://ffmpeg.org/download.html#build-windows) and add it to your `PATH`.
+
+</Tab>
+</Tabs>
+
+## Setup
+
+```bash
+git clone https://github.com/openinary/openinary.git
+cd openinary
+pnpm install
+```
+
+## Run
+
+```bash
+pnpm dev
+```
+
+This starts both services in parallel:
+
+| Service | URL |
+|---------|-----|
+| API | http://localhost:3000 |
+| Web dashboard | http://localhost:3001 |
+
+To run them independently:
+
+```bash
+pnpm dev:api   # API only  → :3000
+pnpm dev:web   # Web only  → :3001
+```
+
+## Run with Docker Compose
+
+Prefer containers? Use the compose profiles instead:
+
+```bash
+# Full stack (API + dashboard)
+docker compose --profile full up --build
+
+# API only
+docker compose --profile api up --build
+```
+
+## First run
+
+On first start, visit **http://localhost:3001** — you'll be redirected to `/setup` to create your admin account. Once logged in, go to **API Keys** (bottom-left profile menu) to generate your first key.
+
+## Storage
+
+By default, uploaded files are stored in `apps/api/public/`. To use cloud storage (AWS S3, Cloudflare R2, etc.) during local development, configure the [`STORAGE_*` variables](/configuration/storage) in `apps/api/.env`.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+    Start transforming images with URL parameters.
+  </Card>
+  <Card title="Project Structure" icon="folder" href="/project-structure">
+    Understand how the monorepo is organized before contributing.
+  </Card>
+</CardGroup>

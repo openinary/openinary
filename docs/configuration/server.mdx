@@ -1,0 +1,135 @@
+---
+title: "Server Configuration"
+description: "Environment variables for Openinary server mode, authentication secrets, CORS origin, signed URL secret, database path, and public-route rate limiting."
+---
+
+## Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| [`MODE`](#mode) | Execution mode |
+| [`PORT`](#port) | API server port |
+| [`BETTER_AUTH_SECRET`](#better-auth-secret) | Authentication secret key |
+| [`BETTER_AUTH_URL`](#better-auth-url) | Base URL of the instance |
+| [`CORS_ORIGIN`](#cors-origin) | Allowed origin for external apps |
+| [`API_SECRET`](#api-secret) | Secret for signed URLs |
+| [`DB_PATH`](#db-path) | Custom SQLite database path |
+| [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max) | Max requests per window |
+| [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit window (ms) |
+| [`MAX_FILE_SIZE_MB`](#max-file-size-mb) | Maximum upload file size in MB |
+
+## Parameter reference
+
+<a id="mode"></a>
+<ParamField path="MODE" type="string" default="fullstack">
+  Execution mode.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `fullstack` | API + web dashboard (default) |
+  | `api` | API only — auto-generates an API key on first startup, printed once to the container logs |
+</ParamField>
+
+<a id="port"></a>
+<ParamField path="PORT" type="integer" default="3000">
+  Port the API server listens on.
+
+  `3000` (default) · `8080`
+</ParamField>
+
+<a id="better-auth-secret"></a>
+<ParamField path="BETTER_AUTH_SECRET" type="string" required>
+  Secret used by Better Auth to sign sessions and tokens. Must be at least 32 characters.
+
+  ```bash
+  openssl rand -base64 32
+  ```
+
+  <Warning>
+  Set this explicitly in production. Never commit it to version control.
+  </Warning>
+</ParamField>
+
+<a id="better-auth-url"></a>
+<ParamField path="BETTER_AUTH_URL" type="string" default="http://localhost:3000">
+  Public base URL of your Openinary instance. Used for auth callbacks and CORS.
+
+  `http://localhost:3000` · `https://media.example.com`
+</ParamField>
+
+<a id="cors-origin"></a>
+<ParamField path="CORS_ORIGIN" type="string">
+  Allowed origin when Openinary is called from a separate frontend. Only set this in production — by default `localhost:3001` (Next.js dev) is allowed automatically.
+
+  `https://yourapp.com`
+
+  <Warning>
+  Avoid `*`. Set the exact origin of your frontend.
+  </Warning>
+</ParamField>
+
+<a id="api-secret"></a>
+<ParamField path="API_SECRET" type="string">
+  Secret used to sign and verify [signed URLs](/media-transformations/signed-urls). Required if you use the `/authenticated/*` route. Minimum 16 characters.
+
+  ```bash
+  openssl rand -hex 32
+  ```
+
+  <Warning>
+  Never expose this in client-side code.
+  </Warning>
+</ParamField>
+
+<a id="db-path"></a>
+<ParamField path="DB_PATH" type="string" default="/data/auth.db">
+  Custom path for the SQLite database. Only needed when mounting to a non-standard location.
+
+  `/data/auth.db` · `/mnt/volume/openinary.db`
+</ParamField>
+
+## Upload
+
+<a id="max-file-size-mb"></a>
+<ParamField path="MAX_FILE_SIZE_MB" type="integer" default="50">
+  Maximum allowed file size for uploads, in megabytes.
+
+  `50` (default) · `500` · `2048`
+
+  <Note>
+  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment — no image rebuild required.
+  </Note>
+</ParamField>
+
+## Rate limiting
+
+Rate limiting applies to all **public** routes (`/t/*`, `/download/*`, `/health`, etc.).
+
+<a id="public-rate-limit-max"></a>
+<ParamField path="PUBLIC_RATE_LIMIT_MAX" type="integer" default="100">
+  Maximum requests per window.
+
+  `100` (default) · `200` (high traffic) · `50` (strict)
+</ParamField>
+
+<a id="public-rate-limit-window-ms"></a>
+<ParamField path="PUBLIC_RATE_LIMIT_WINDOW_MS" type="integer" default="60000">
+  Window duration in milliseconds.
+
+  | Value | Duration |
+  |-------|----------|
+  | `60000` | 1 minute (default) |
+  | `300000` | 5 minutes |
+  | `3600000` | 1 hour |
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Storage" icon="cloud" href="/configuration/storage">
+    Connect S3-compatible cloud storage.
+  </Card>
+  <Card title="Signed URLs" icon="lock" href="/media-transformations/signed-urls">
+    Use `API_SECRET` to sign transformation URLs.
+  </Card>
+</CardGroup>

@@ -14,7 +14,7 @@ export default function UploadButtonWithDialog({
       trigger={
         <Button variant="outline" className="gap-2">
           <Upload className="h-4 w-4" />
-          Upload {uploadToFolder && "to folder"}
+          Upload
         </Button>
       }
     >

@@ -1,0 +1,64 @@
+---
+title: "Get File Metadata"
+description: "Retrieve size and timestamps for a specific file"
+---
+
+## Endpoint
+
+```
+GET /storage/{path}/metadata
+```
+
+**Auth:** API Key required
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the file relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+
+  `photo.jpg` · `photos/portrait.jpg`
+
+  <Warning>This endpoint returns an error if `path` points to a directory rather than a file.</Warning>
+</ParamField>
+
+## Response
+
+```json
+{
+  "size": 204800,
+  "createdAt": "2024-03-15T10:30:00.000Z",
+  "updatedAt": "2024-03-15T10:30:00.000Z"
+}
+```
+
+<ResponseField name="size" type="number">
+  File size in bytes.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the file was created.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of the last modification.
+</ResponseField>
+
+**Status codes:** `200` success · `400` path is a directory · `404` not found · `500` error
+
+## Example
+
+```bash
+curl http://localhost:3000/storage/photos/portrait.jpg/metadata \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
+    Browse all files and folders.
+  </Card>
+  <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
+    Remove a file and its cached variants.
+  </Card>
+</CardGroup>

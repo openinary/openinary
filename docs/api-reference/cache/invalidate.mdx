@@ -1,0 +1,83 @@
+---
+title: "Invalidate Cache"
+description: "Clear all cached transformation variants for a file without deleting the original"
+---
+
+## Endpoint
+
+```
+DELETE /invalidate/{path}
+```
+
+**Auth:** API Key required
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the file relative to the storage root.
+
+  `photo.jpg` · `photos/portrait.jpg`
+</ParamField>
+
+## What gets cleared
+
+- **Local cache** — transformation variants stored on disk
+- **Cloud cache** — transformation variants stored in S3-compatible storage (if configured)
+- **In-memory cache** — cached metadata entries for the file
+
+The original file is not touched.
+
+## Response
+
+```json
+{
+  "success": true,
+  "message": "Cache invalidated successfully",
+  "details": {
+    "localCacheFilesDeleted": 3,
+    "cloudCacheFilesDeleted": 0
+  }
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if invalidation completed without errors. May be `true` even when some steps had non-fatal errors (see `details.errors`).
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable result summary.
+</ResponseField>
+
+<ResponseField name="details" type="object">
+  <Expandable title="Details">
+    <ResponseField name="localCacheFilesDeleted" type="number">
+      Number of cached transformation variants removed from local disk.
+    </ResponseField>
+    <ResponseField name="cloudCacheFilesDeleted" type="number">
+      Number of cached transformation variants removed from cloud storage.
+    </ResponseField>
+    <ResponseField name="errors" type="string[]">
+      Non-fatal errors encountered during cleanup. Only present when some steps failed.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Status codes:** `200` success (or partial) · `400` path missing · `500` error
+
+## Example
+
+```bash
+curl -X DELETE http://localhost:3000/invalidate/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
+    Permanently remove a file and all its cached variants.
+  </Card>
+  <Card title="Transform" icon="wand-magic-sparkles" href="/api-reference/media/transform">
+    Apply transformations — results are cached automatically.
+  </Card>
+</CardGroup>

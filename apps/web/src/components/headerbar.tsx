@@ -69,10 +69,6 @@ export default function HeaderBar() {
           </Breadcrumb>
         </div>
         <div className="flex items-center gap-2">
-          <CreateFolderButtonWithDialog
-            uploadToFolder={folderPath || undefined}
-            onSuccessfulCreate={(v) => setFolderPath(v)}
-          />
           {folderPath && (
             <DeleteFolderButton
               folderPath={folderPath}
@@ -81,6 +77,10 @@ export default function HeaderBar() {
               }
             />
           )}
+          <CreateFolderButtonWithDialog
+            uploadToFolder={folderPath || undefined}
+            onSuccessfulCreate={(v) => setFolderPath(v)}
+          />
           <UploadButtonWithDialog uploadToFolder={folderPath || undefined} />
         </div>
       </div>

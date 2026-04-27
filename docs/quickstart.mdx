@@ -1,0 +1,130 @@
+---
+title: "Quick Start"
+description: "Run Openinary with Docker in three commands, create an admin account, and make your first image transformation."
+---
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) 20.x or higher
+
+## Run
+
+```bash
+docker pull openinary/openinary:latest
+```
+
+<Tabs>
+
+<Tab title="Full stack">
+
+Starts the API and web dashboard together.
+
+```bash
+docker run --platform linux/amd64 -d -p 3000:3000 \
+  -v openinary-cache:/app/apps/api/cache \
+  -v openinary-public:/app/apps/api/public \
+  -v openinary-db:/app/data \
+  openinary/openinary:latest
+```
+
+</Tab>
+
+<Tab title="With S3 storage">
+
+Replaces local file storage with a cloud bucket.
+
+```bash
+docker run --platform linux/amd64 -d -p 3000:3000 \
+  -v openinary-db:/app/data \
+  -e STORAGE_REGION=us-east-1 \
+  -e STORAGE_ACCESS_KEY_ID=XXXXXXXXXXXXXXXXXXXX \
+  -e STORAGE_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  -e STORAGE_BUCKET_NAME=your-bucket \
+  -e STORAGE_ENDPOINT=https://s3.filebase.com/ \
+  openinary/openinary:latest
+```
+
+</Tab>
+
+<Tab title="API only">
+
+Headless mode — no web dashboard. An API key is auto-generated on first run.
+
+```bash
+docker pull openinary/openinary-api:latest
+
+docker run --platform linux/amd64 -d -p 3000:3000 \
+  -v openinary-cache:/app/apps/api/cache \
+  -v openinary-public:/app/apps/api/public \
+  -v openinary-db:/app/data \
+  -e MODE=api \
+  openinary/openinary-api:latest
+```
+
+<Warning>
+The API key appears **once** in the container logs. Retrieve it immediately:
+
+```bash
+docker logs <container-id>
+```
+</Warning>
+
+</Tab>
+
+</Tabs>
+
+## Initial setup (full stack)
+
+1. Open **http://localhost:3000** — you'll be redirected to `/setup`.
+2. Create your admin account.
+3. Click your profile in the bottom-left of the dashboard → **API Keys** → create your first key.
+
+<Check>
+Your Openinary instance is ready.
+</Check>
+
+## Sample files
+
+The container ships with two files for testing, available at `/app/apps/api/public/`:
+
+- `example-loan.jpg` — for image transformation tests
+- `example-rahime-gul.mp4` — for video transformation tests
+
+Try a transformation immediately:
+
+```http
+GET http://localhost:3000/t/w_400,h_400,c_fill/example-loan.jpg
+```
+
+## Without Docker
+
+Prefer running from source? See [Local Development](/local-development).
+
+<Warning>
+**Volume persistence** — in production, always mount all three volumes to durable storage. Losing a volume means losing that data.
+
+| Volume | Path in container | Contains |
+|--------|------------------|----------|
+| `openinary-db` | `/app/data` | Database (accounts, API keys) |
+| `openinary-public` | `/app/apps/api/public` | Uploaded files |
+| `openinary-cache` | `/app/apps/api/cache` | Cached transformations |
+
+For better durability, use [S3-compatible storage](/configuration/storage) instead of local volumes.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+    Resize, crop, convert format, and optimize images via URL.
+  </Card>
+  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+    Resize, trim, and extract thumbnails from videos.
+  </Card>
+  <Card title="Storage" icon="cloud" href="/configuration/storage">
+    Connect AWS S3, Cloudflare R2, or any S3-compatible provider.
+  </Card>
+  <Card title="Security" icon="lock" href="/security">
+    API key management, rate limiting, and best practices.
+  </Card>
+</CardGroup>

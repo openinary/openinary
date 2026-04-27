@@ -217,9 +217,17 @@ export function useAssetDetails(assetId: string | null) {
   };
 
   const handleDownload = () => {
-    if (mediaUrl) {
-      window.open(mediaUrl, "_blank");
-    }
+    if (!asset) return;
+    const downloadUrl = `${apiBaseUrl}/download/${asset.path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/")}`;
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = asset.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleOpenInNewTab = () => {

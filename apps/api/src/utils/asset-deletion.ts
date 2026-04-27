@@ -39,6 +39,17 @@ export async function deleteAssetCompletely(
 
     if (storage) {
       fileExists = await storage.existsOriginal(filePath);
+
+      if (!fileExists) {
+        const isFolder = await storage.folderExists(filePath);
+        if (isFolder) {
+          const deleted = await storage.deleteFolder(filePath);
+          logger.info({ filePath, deleted }, "Deleted cloud folder");
+          result.originalFileDeleted = true;
+          result.success = true;
+          return result;
+        }
+      }
     } else {
       const localPath = path.join(".", "public", filePath);
       fileExists = fs.existsSync(localPath);

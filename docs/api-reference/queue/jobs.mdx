@@ -1,0 +1,195 @@
+---
+title: "Queue Jobs"
+description: "List, retry, cancel, and delete video processing jobs"
+---
+
+## List jobs
+
+```
+GET /queue/jobs
+```
+
+**Auth:** API Key required
+
+### Query parameters
+
+<ParamField query="limit" type="number" default="50">
+  Maximum number of jobs to return (pagination).
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Number of jobs to skip (pagination offset).
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by job status. One of: `pending`, `running`, `completed`, `error`, `cancelled`.
+</ParamField>
+
+### Response
+
+```json
+{
+  "jobs": [
+    {
+      "id": "job_abc123",
+      "filePath": "videos/clip.mp4",
+      "status": "completed",
+      "priority": 1,
+      "progress": 100,
+      "startedAt": "2024-03-15T10:30:00.000Z",
+      "completedAt": "2024-03-15T10:31:45.000Z",
+      "error": null
+    }
+  ],
+  "limit": 50,
+  "offset": 0,
+  "count": 1
+}
+```
+
+<ResponseField name="jobs" type="array">
+  <Expandable title="Job object">
+    <ResponseField name="id" type="string">Unique job identifier.</ResponseField>
+    <ResponseField name="filePath" type="string">Storage path of the video being processed.</ResponseField>
+    <ResponseField name="status" type="string">`pending` · `running` · `completed` · `error` · `cancelled`</ResponseField>
+    <ResponseField name="priority" type="number">Processing priority (lower = higher priority).</ResponseField>
+    <ResponseField name="progress" type="number">Progress percentage (0–100).</ResponseField>
+    <ResponseField name="startedAt" type="string">ISO 8601 timestamp when processing started.</ResponseField>
+    <ResponseField name="completedAt" type="string">ISO 8601 timestamp when processing finished.</ResponseField>
+    <ResponseField name="error" type="string">Error message if `status` is `error`.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="count" type="number">Total jobs in the current result set.</ResponseField>
+
+### Example
+
+```bash
+# List all failed jobs
+curl "http://localhost:3000/queue/jobs?status=error&limit=20" \
+  -H "Authorization: Bearer <api_key>"
+```
+
+---
+
+## Retry job
+
+```
+POST /queue/jobs/{jobId}/retry
+```
+
+Re-queues a failed job for processing.
+
+**Auth:** API Key required
+
+### Path parameters
+
+<ParamField path="jobId" type="string" required>
+  ID of the job to retry. Must have `error` status.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Job queued for retry"
+}
+```
+
+**Status codes:** `200` success · `400` job not in error state · `500` error
+
+### Example
+
+```bash
+curl -X POST http://localhost:3000/queue/jobs/job_abc123/retry \
+  -H "Authorization: Bearer <api_key>"
+```
+
+---
+
+## Cancel job
+
+```
+POST /queue/jobs/{jobId}/cancel
+```
+
+Cancels a pending job before it starts processing.
+
+**Auth:** API Key required
+
+### Path parameters
+
+<ParamField path="jobId" type="string" required>
+  ID of the job to cancel. Must have `pending` status.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Job cancelled"
+}
+```
+
+**Status codes:** `200` success · `400` job not pending · `500` error
+
+### Example
+
+```bash
+curl -X POST http://localhost:3000/queue/jobs/job_abc123/cancel \
+  -H "Authorization: Bearer <api_key>"
+```
+
+---
+
+## Delete job
+
+```
+DELETE /queue/jobs/{jobId}
+```
+
+Permanently removes a job record from the queue.
+
+**Auth:** API Key required
+
+### Path parameters
+
+<ParamField path="jobId" type="string" required>
+  ID of the job to delete.
+</ParamField>
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Job deleted"
+}
+```
+
+**Status codes:** `200` success · `400` failed · `500` error
+
+### Example
+
+```bash
+curl -X DELETE http://localhost:3000/queue/jobs/job_abc123 \
+  -H "Authorization: Bearer <api_key>"
+```
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Queue Statistics" icon="chart-bar" href="/api-reference/queue/stats">
+    Aggregate counts per status.
+  </Card>
+  <Card title="Queue Events (SSE)" icon="satellite-dish" href="/api-reference/queue/events">
+    Real-time progress updates.
+  </Card>
+  <Card title="Video Status" icon="video" href="/api-reference/video/status">
+    Check processing status by file path.
+  </Card>
+</CardGroup>

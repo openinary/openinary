@@ -1,0 +1,170 @@
+---
+title: "Upload Files"
+description: "Upload one or more media files, optionally pre-generating cached transformation variants"
+---
+
+## Endpoint
+
+```
+POST /upload
+```
+
+**Auth:** API Key required  
+**Content-Type:** `multipart/form-data`
+
+## Form fields
+
+<ParamField body="files" type="file[]" required>
+  One or more files to upload. Each file is validated for type and size.
+
+  **Allowed types:** JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM
+
+  **Max size per file:** Configurable via `MAX_FILE_SIZE_MB` (default: 50 MB)
+</ParamField>
+
+<ParamField body="folder" type="string">
+  Destination folder path within storage. Nested folders are supported.
+
+  `photos` · `uploads/2024/january`
+
+  If omitted, files are stored at the root.
+</ParamField>
+
+<ParamField body="names" type="string[]">
+  Custom filenames for each uploaded file, in the same order as `files`. If omitted, the original filename is used.
+
+  Must include the file extension.
+</ParamField>
+
+<ParamField body="transformations" type="string[]">
+  Transformation segments to prewarm (pre-generate and cache) immediately after upload. Supports up to 20 variants.
+
+  `w_800,h_600,c_fill` · `w_400,f_webp,q_85`
+
+  Pre-warming ensures the first user request is served from cache without any processing delay.
+</ParamField>
+
+## Response
+
+**`200`** — All files uploaded successfully
+
+**`207`** — Partial success (some files failed)
+
+**`400`** — Validation error (invalid type, size exceeded, etc.)
+
+```json
+{
+  "success": true,
+  "files": [
+    {
+      "filename": "photo.jpg",
+      "path": "photos/photo.jpg",
+      "size": 204800,
+      "url": "http://localhost:3000/t/photos/photo.jpg",
+      "prewarmedUrls": [
+        "http://localhost:3000/t/w_800,h_600,c_fill/photos/photo.jpg"
+      ],
+      "prewarmErrors": [],
+      "queuedTransformationUrls": [],
+      "queueErrors": []
+    }
+  ],
+  "errors": []
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if all files were processed without error.
+</ResponseField>
+
+<ResponseField name="files" type="array">
+  Successfully uploaded files.
+
+  <Expandable title="File object">
+    <ResponseField name="filename" type="string">Original or custom filename.</ResponseField>
+    <ResponseField name="path" type="string">Storage path relative to root.</ResponseField>
+    <ResponseField name="size" type="number">File size in bytes.</ResponseField>
+    <ResponseField name="url" type="string">Public URL to access the file.</ResponseField>
+    <ResponseField name="prewarmedUrls" type="string[]">URLs that were successfully pre-generated and cached.</ResponseField>
+    <ResponseField name="prewarmErrors" type="string[]">Prewarm failures (file still uploaded successfully).</ResponseField>
+    <ResponseField name="queuedTransformationUrls" type="string[]">Video transformation URLs queued for background processing.</ResponseField>
+    <ResponseField name="queueErrors" type="string[]">Queue submission errors.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Files that failed to upload.
+
+  <Expandable title="Error object">
+    <ResponseField name="filename" type="string">Name of the failed file.</ResponseField>
+    <ResponseField name="error" type="string">Error message.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<Tabs>
+<Tab title="Single file">
+
+```bash
+curl -X POST http://localhost:3000/upload \
+  -H "Authorization: Bearer <api_key>" \
+  -F "files=@photo.jpg"
+```
+
+</Tab>
+
+<Tab title="Upload to folder">
+
+```bash
+curl -X POST http://localhost:3000/upload \
+  -H "Authorization: Bearer <api_key>" \
+  -F "files=@photo.jpg" \
+  -F "folder=products/2024"
+```
+
+</Tab>
+
+<Tab title="Upload with prewarm">
+
+```bash
+curl -X POST http://localhost:3000/upload \
+  -H "Authorization: Bearer <api_key>" \
+  -F "files=@photo.jpg" \
+  -F "folder=photos" \
+  -F "transformations=w_800,h_600,c_fill,f_webp" \
+  -F "transformations=w_400,h_400,c_fill,g_face"
+```
+
+Uploads the file and immediately generates two cached variants.
+
+</Tab>
+
+<Tab title="Multiple files with custom names">
+
+```bash
+curl -X POST http://localhost:3000/upload \
+  -H "Authorization: Bearer <api_key>" \
+  -F "files=@IMG_001.jpg" \
+  -F "files=@IMG_002.jpg" \
+  -F "names=hero-banner.jpg" \
+  -F "names=thumbnail.jpg" \
+  -F "folder=assets"
+```
+
+</Tab>
+</Tabs>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Create Folder" icon="folder-plus" href="/api-reference/files/create-folder">
+    Create an empty folder in storage.
+  </Card>
+  <Card title="Upload & Cache Warming" icon="bolt" href="/media-transformations/upload-and-prewarm">
+    Prewarm strategy guide.
+  </Card>
+  <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
+    Remove a file and its cached variants.
+  </Card>
+</CardGroup>

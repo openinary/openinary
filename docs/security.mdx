@@ -1,0 +1,118 @@
+---
+title: "Security"
+description: "Openinary authentication model: Better Auth sessions, API key management, rate limiting on public routes, Docker non-root containers, and incident response."
+---
+
+Openinary uses [Better Auth](https://www.better-auth.com) v1.5 with a SQLite backend. The API supports two authentication methods: **session-based login** for the web dashboard and **API key authentication** for programmatic access.
+
+## Database
+
+All auth data is stored in a single SQLite file at `/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
+
+On startup, `scripts/secure-db.sh` automatically sets the file permissions to `600` (owner read/write only).
+
+| Table | Contents |
+|-------|----------|
+| `user` | Accounts — passwords bcrypt-hashed |
+| `session` | Web sessions |
+| `apiKey` | API keys — hashed before storage |
+| `account` | OAuth providers |
+| `verification` | Email/phone verification tokens |
+
+## API keys
+
+### Getting your first key
+
+<Tabs>
+<Tab title="Fullstack mode (default)">
+
+1. Visit `/setup` to create your admin account.
+2. Go to `/api-keys` in the dashboard to create your first key.
+
+</Tab>
+
+<Tab title="API-only mode">
+
+On first startup the server generates a key and prints it to the console.
+
+```bash
+docker logs <container-id>
+```
+
+<Warning>
+Copy the key immediately — it is shown only once and cannot be retrieved later.
+</Warning>
+
+</Tab>
+</Tabs>
+
+### Using a key
+
+Pass it in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer sk_your_key_here" \
+  http://localhost:3000/upload
+```
+
+### Best practices
+
+- Store keys in environment variables, never in source code.
+- Create a separate key per service or environment.
+- Set an expiration when creating keys (`expiresIn` in seconds).
+- Rotate keys regularly; disable unused ones promptly.
+
+## API routes and rate limiting
+
+For the full list of routes and their auth requirements, see the [API Reference](/api-reference/introduction). Rate limiting defaults and configuration options are also documented there.
+
+## Docker security
+
+- Containers run as the `node` user (non-root) to limit blast radius.
+- The `/data` volume should be mounted with appropriate host permissions.
+
+## Incident response
+
+<AccordionGroup>
+<Accordion title="Compromised API key">
+
+<Steps>
+<Step title="Disable the key">
+Go to `/api-keys` in the dashboard and disable or delete the key immediately.
+</Step>
+
+<Step title="Review logs">
+```bash
+docker logs openinary_api | grep "api_key.success"
+```
+</Step>
+
+<Step title="Issue a replacement">
+Create a new key and update all services that used the compromised one.
+</Step>
+</Steps>
+
+</Accordion>
+
+<Accordion title="Database integrity check">
+
+```bash
+docker exec openinary_api sqlite3 /app/data/auth.db "PRAGMA integrity_check;"
+```
+
+A healthy database returns `ok`. If it reports errors, restore from your most recent backup and restart.
+
+</Accordion>
+</AccordionGroup>
+
+## Additional resources
+
+<CardGroup cols={2}>
+<Card title="Better Auth" icon="book" href="https://www.better-auth.com">
+  Official Better Auth documentation.
+</Card>
+
+<Card title="API Key Plugin" icon="key" href="https://www.better-auth.com/docs/plugins/api-key">
+  Better Auth API Key plugin reference.
+</Card>
+</CardGroup>

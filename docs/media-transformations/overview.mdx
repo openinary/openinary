@@ -1,0 +1,28 @@
+---
+title: "How Transformations Work"
+description: "URL structure for on-the-fly image and video transformations, caching behavior, and cache invalidation with Openinary."
+---
+
+Transformations are applied by embedding parameters directly in the URL. The first request triggers processing; subsequent requests are served from cache in under 50ms.
+
+For the full endpoint reference — URL structure, all parameters, and response details — see the [Transform Media API reference](/api-reference/media/transform).
+
+## Explore transformations
+
+<CardGroup cols={2}>
+<Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  Resize, crop, rotate, and convert images — with face detection and smart format selection.
+</Card>
+
+<Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+  Resize, trim, extract frames, and re-encode videos with quality control.
+</Card>
+
+<Card title="Upload & Prewarm" icon="upload" href="/media-transformations/upload-and-prewarm">
+  Upload files and pre-generate transformed variants so the first public request is already cached.
+</Card>
+
+<Card title="Signed URLs" icon="lock" href="/media-transformations/signed-urls">
+  Restrict transformations to those explicitly authorized by your backend.
+</Card>
+</CardGroup>

@@ -1,0 +1,55 @@
+---
+title: "Download Original File"
+description: "Download the original uploaded file without any transformation"
+---
+
+## Endpoint
+
+```
+GET /download/{path}
+```
+
+**Auth:** Public (rate limited)
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the file relative to the storage root, including the file extension.
+
+  `photo.jpg` · `videos/clip.mp4` · `assets/logo.png`
+</ParamField>
+
+## Response
+
+Returns the raw binary content of the original file with `Content-Disposition: attachment` — browsers will prompt a download rather than displaying inline.
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | Detected from file extension |
+| `Content-Disposition` | `attachment; filename="{filename}"` |
+| `Content-Length` | File size in bytes |
+| `Cache-Control` | `private, no-store` |
+
+**Status codes:** `200` success · `400` invalid path · `404` not found · `500` error
+
+## Example
+
+```bash
+curl -O -J http://localhost:3000/download/photos/portrait.jpg
+```
+
+```http
+GET /download/photos/portrait.jpg HTTP/1.1
+Host: localhost:3000
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Transform Media" icon="wand-magic-sparkles" href="/api-reference/media/transform">
+    Serve transformed versions instead of the original.
+  </Card>
+  <Card title="Upload Files" icon="upload" href="/api-reference/files/upload">
+    Upload new files.
+  </Card>
+</CardGroup>

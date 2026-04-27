@@ -82,14 +82,22 @@ function buildTreeFromKeys(keys: { key: string }[]): StorageNode {
   };
 
   for (const { key } of keys) {
-    const parts = key.split("/").filter(Boolean);
+    const normalizedKey = key.replace(/^\/+/, "");
+    const isFolderMarker = normalizedKey.endsWith("/");
+    const parts = normalizedKey.split("/").filter(Boolean);
+
+    if (parts.length === 0) {
+      continue;
+    }
+
     let current = root;
     let currentPath = "";
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       currentPath = currentPath ? `${currentPath}/${part}` : part;
-      const isFile = i === parts.length - 1;
+      const isLastPart = i === parts.length - 1;
+      const isFile = isLastPart && !isFolderMarker;
 
       if (isFile) {
         current.children = current.children || [];

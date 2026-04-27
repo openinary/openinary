@@ -1,7 +1,7 @@
 /**
  * Supported image formats for video thumbnails
  */
-export const IMAGE_FORMATS = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif"]);
+export const IMAGE_FORMATS = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif", "psd"]);
 
 /**
  * Supported video formats

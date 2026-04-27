@@ -1,0 +1,63 @@
+---
+title: "Create Folder"
+description: "Create an empty folder in storage"
+---
+
+## Endpoint
+
+```
+POST /upload/createfolder
+```
+
+**Auth:** API Key required  
+**Content-Type:** `multipart/form-data`
+
+## Form fields
+
+<ParamField body="folder" type="string" required>
+  Path of the folder to create. Nested paths are supported.
+
+  `photos` · `uploads/2024/january` · `products/thumbnails`
+</ParamField>
+
+## Response
+
+**`201`** — Folder created
+
+```json
+{
+  "success": true,
+  "folder": "uploads/2024"
+}
+```
+
+**`400`** — Invalid folder path
+
+**`409`** — Folder already exists
+
+```json
+{
+  "success": false,
+  "folder": "uploads/2024",
+  "error": "Folder already exists"
+}
+```
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/upload/createfolder \
+  -H "Authorization: Bearer <api_key>" \
+  -F "folder=products/2024"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Upload Files" icon="upload" href="/api-reference/files/upload">
+    Upload files into a folder.
+  </Card>
+  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
+    Browse the folder tree.
+  </Card>
+</CardGroup>

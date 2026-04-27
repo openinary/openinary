@@ -1,0 +1,66 @@
+---
+title: "Authenticated Transform"
+description: "Apply transformations via a signed URL that cannot be guessed or tampered with"
+---
+
+Authenticated transforms use HMAC-SHA256 signatures to prevent unauthorized access or URL manipulation. Use this for private media or to restrict which transformations can be applied.
+
+## Endpoint
+
+```
+GET /authenticated/s--{signature}/{transformations}/{path}
+```
+
+**Auth:** Signature verification (no API key needed at request time)
+
+## Path parameters
+
+<ParamField path="signature" type="string" required>
+  64-character HMAC-SHA256 signature. Computed server-side when generating the signed URL using your `API_SECRET`.
+
+  `s--a1b2c3d4e5f6...` (64 hex chars)
+</ParamField>
+
+<ParamField path="transformations" type="string">
+  Comma-separated transformation parameters, identical to the public `/t/` endpoint. Must match the transformations used when the signature was generated.
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Path to the file, identical to the public `/t/` endpoint. Must match the path used when the signature was generated.
+</ParamField>
+
+## How signatures work
+
+The signature is computed over the combination of transformations + file path using `API_SECRET` as the HMAC key. Any change to the URL (different params or path) will invalidate the signature.
+
+See [Signed URLs](/media-transformations/signed-urls) for code examples on generating signatures.
+
+## Response
+
+Same as the [public transform endpoint](/api-reference/media/transform) — returns binary file content.
+
+**Status codes:**
+
+| Code | Meaning |
+|------|---------|
+| `200` | Transformed file returned |
+| `400` | Invalid URL format or signature structure |
+| `401` | Signature does not match — tampered or wrong secret |
+| `404` | File not found |
+
+## Example
+
+```http
+GET /authenticated/s--a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/w_400,h_400,c_fill/private/photo.jpg
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Signed URLs guide" icon="signature" href="/media-transformations/signed-urls">
+    How to generate signed URLs from your backend.
+  </Card>
+  <Card title="Public Transform" icon="globe" href="/api-reference/media/transform">
+    Unrestricted on-the-fly transformations.
+  </Card>
+</CardGroup>

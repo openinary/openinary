@@ -1,0 +1,112 @@
+---
+title: "Video Processing"
+description: "Configure the video job queue: concurrency, retries, and cleanup"
+---
+
+## Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| [`VIDEO_MAX_CONCURRENT`](#video-max-concurrent) | Max simultaneous video jobs |
+| [`VIDEO_JOB_RETRY_MAX`](#video-job-retry-max) | Max retry attempts per job |
+| [`VIDEO_JOB_CLEANUP_HOURS`](#video-job-cleanup-hours) | Hours before completed jobs are purged |
+| [`VIDEO_WORKER_POLL_INTERVAL_MS`](#video-worker-poll-interval-ms) | Worker polling interval |
+
+## Parameter reference
+
+<a id="video-max-concurrent"></a>
+<ParamField path="VIDEO_MAX_CONCURRENT" type="integer">
+  Maximum number of video jobs processed at the same time.
+
+  When unset, auto-detected from available RAM (1 worker per 2 GB, max 16).
+
+  | RAM | Auto-detected workers |
+  |-----|----------------------|
+  | 4 GB | 2 |
+  | 8 GB | 4 |
+  | 16 GB | 8 |
+
+  <Warning>
+  Each worker spawns an FFmpeg process. Setting this too high will exhaust CPU and memory.
+  </Warning>
+</ParamField>
+
+<a id="video-job-retry-max"></a>
+<ParamField path="VIDEO_JOB_RETRY_MAX" type="integer" default="3">
+  Maximum retry attempts for a failed job before it is marked as permanently failed.
+
+  `3` (default) · `5` (unreliable network) · `1` (fail fast)
+</ParamField>
+
+<a id="video-job-cleanup-hours"></a>
+<ParamField path="VIDEO_JOB_CLEANUP_HOURS" type="integer" default="24">
+  Hours after which completed and failed jobs are deleted from the database.
+
+  `24` (default) · `168` (1 week, for debugging) · `1` (aggressive)
+</ParamField>
+
+<a id="video-worker-poll-interval-ms"></a>
+<ParamField path="VIDEO_WORKER_POLL_INTERVAL_MS" type="integer" default="1000">
+  How often the worker checks for new jobs, in milliseconds. Lower = faster pickup, higher CPU. Higher = slower pickup, lower CPU.
+
+  `1000` (default) · `500` (faster) · `2000` (lower resource use)
+</ParamField>
+
+## Configuration examples
+
+<Tabs>
+<Tab title="Development">
+
+```bash
+VIDEO_MAX_CONCURRENT=2
+VIDEO_JOB_RETRY_MAX=3
+VIDEO_JOB_CLEANUP_HOURS=1
+VIDEO_WORKER_POLL_INTERVAL_MS=1000
+```
+
+</Tab>
+
+<Tab title="Production (high performance)">
+
+```bash
+VIDEO_MAX_CONCURRENT=8
+VIDEO_JOB_RETRY_MAX=5
+VIDEO_JOB_CLEANUP_HOURS=48
+VIDEO_WORKER_POLL_INTERVAL_MS=500
+```
+
+</Tab>
+
+<Tab title="Resource constrained">
+
+```bash
+VIDEO_MAX_CONCURRENT=1
+VIDEO_JOB_RETRY_MAX=2
+VIDEO_JOB_CLEANUP_HOURS=12
+VIDEO_WORKER_POLL_INTERVAL_MS=2000
+```
+
+</Tab>
+
+<Tab title="Auto-detected concurrency">
+
+```bash
+# VIDEO_MAX_CONCURRENT omitted — auto-detected from RAM
+VIDEO_JOB_RETRY_MAX=3
+VIDEO_JOB_CLEANUP_HOURS=24
+VIDEO_WORKER_POLL_INTERVAL_MS=1000
+```
+
+</Tab>
+</Tabs>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+    URL parameters for resizing, trimming, and encoding videos.
+  </Card>
+  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
+    Pre-generate video variants at upload time.
+  </Card>
+</CardGroup>

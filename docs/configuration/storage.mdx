@@ -1,0 +1,203 @@
+---
+title: "Storage"
+description: "Configure local or S3-compatible cloud storage"
+---
+
+By default Openinary stores files on local disk. Set the `STORAGE_*` variables to switch to any S3-compatible provider.
+
+<Note>
+All `STORAGE_*` variables also accept the `S3_*` prefix (e.g. `S3_REGION` = `STORAGE_REGION`).
+</Note>
+
+## Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| [`STORAGE_REGION`](#storage-region) | S3 region |
+| [`STORAGE_ACCESS_KEY_ID`](#storage-access-key-id) | Access key ID |
+| [`STORAGE_SECRET_ACCESS_KEY`](#storage-secret-access-key) | Secret access key |
+| [`STORAGE_BUCKET_NAME`](#storage-bucket-name) | Bucket name |
+| [`STORAGE_ENDPOINT`](#storage-endpoint) | Custom endpoint (non-AWS providers) |
+| [`STORAGE_PUBLIC_URL`](#storage-public-url) | Public URL or CDN domain |
+| [`STORAGE_MAX_SOCKETS`](#storage-max-sockets) | Max concurrent HTTP connections |
+| [`STORAGE_CONNECTION_TIMEOUT`](#storage-connection-timeout) | Connection timeout (ms) |
+| [`STORAGE_REQUEST_TIMEOUT`](#storage-request-timeout) | Request timeout (ms) |
+| [`STORAGE_SOCKET_TIMEOUT`](#storage-socket-timeout) | Socket timeout (ms) |
+
+## Quick-start configs
+
+<Tabs>
+<Tab title="AWS S3">
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+STORAGE_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+STORAGE_BUCKET_NAME=my-openinary-bucket
+STORAGE_PUBLIC_URL=https://my-openinary-bucket.s3.us-east-1.amazonaws.com
+```
+
+No `STORAGE_ENDPOINT` needed for AWS S3.
+
+</Tab>
+
+<Tab title="Cloudflare R2">
+
+```bash
+STORAGE_REGION=auto
+STORAGE_ACCESS_KEY_ID=your_r2_access_key
+STORAGE_SECRET_ACCESS_KEY=your_r2_secret_key
+STORAGE_BUCKET_NAME=my-r2-bucket
+STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+STORAGE_PUBLIC_URL=https://cdn.example.com
+```
+
+</Tab>
+
+<Tab title="MinIO (self-hosted)">
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=minioadmin
+STORAGE_SECRET_ACCESS_KEY=minioadmin
+STORAGE_BUCKET_NAME=openinary
+STORAGE_ENDPOINT=http://minio.example.com:9000
+STORAGE_PUBLIC_URL=http://minio.example.com:9000
+```
+
+</Tab>
+
+<Tab title="Other S3-compatible">
+
+Works with DigitalOcean Spaces, Wasabi, Backblaze B2, and any S3-compatible service:
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=your_access_key
+STORAGE_SECRET_ACCESS_KEY=your_secret_key
+STORAGE_BUCKET_NAME=your-bucket-name
+STORAGE_ENDPOINT=https://your-s3-compatible-endpoint.com
+STORAGE_PUBLIC_URL=https://your-cdn-domain.com
+```
+
+</Tab>
+
+<Tab title="Production (with timeouts)">
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=your_access_key
+STORAGE_SECRET_ACCESS_KEY=your_secret_key
+STORAGE_BUCKET_NAME=my-bucket
+STORAGE_MAX_SOCKETS=100
+STORAGE_CONNECTION_TIMEOUT=5000
+STORAGE_REQUEST_TIMEOUT=30000
+STORAGE_SOCKET_TIMEOUT=60000
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS provider. Leave it unset for standard AWS S3.
+</Tip>
+
+## Parameter reference
+
+<a id="storage-region"></a>
+<ParamField path="STORAGE_REGION" type="string">
+  S3 region identifier.
+
+  `us-east-1` · `eu-west-1` · `auto` (Cloudflare R2)
+
+  **Alternative:** `S3_REGION`
+</ParamField>
+
+<a id="storage-access-key-id"></a>
+<ParamField path="STORAGE_ACCESS_KEY_ID" type="string" required>
+  Access key ID for your storage provider.
+
+  **Alternative:** `S3_ACCESS_KEY_ID`
+
+  <Warning>Never commit credentials to version control.</Warning>
+</ParamField>
+
+<a id="storage-secret-access-key"></a>
+<ParamField path="STORAGE_SECRET_ACCESS_KEY" type="string" required>
+  Secret access key for your storage provider.
+
+  **Alternative:** `S3_SECRET_ACCESS_KEY`
+
+  <Warning>Never expose in logs or client-side code.</Warning>
+</ParamField>
+
+<a id="storage-bucket-name"></a>
+<ParamField path="STORAGE_BUCKET_NAME" type="string" required>
+  Name of the bucket where files are stored.
+
+  **Alternative:** `S3_BUCKET_NAME`
+</ParamField>
+
+<a id="storage-endpoint"></a>
+<ParamField path="STORAGE_ENDPOINT" type="string">
+  Custom endpoint for non-AWS S3-compatible providers. Omit for standard AWS S3.
+
+  | Provider | Endpoint format |
+  |----------|----------------|
+  | Cloudflare R2 | `https://<account-id>.r2.cloudflarestorage.com` |
+  | MinIO | `http://minio.example.com:9000` |
+  | DigitalOcean Spaces | `https://nyc3.digitaloceanspaces.com` |
+  | Wasabi | `https://s3.wasabisys.com` |
+
+  **Alternative:** `S3_ENDPOINT`
+</ParamField>
+
+<a id="storage-public-url"></a>
+<ParamField path="STORAGE_PUBLIC_URL" type="string">
+  Public base URL used to construct file URLs. Set this to your CDN or custom domain when you don't want to expose raw S3 URLs.
+
+  `https://cdn.example.com` · `https://my-bucket.s3.us-east-1.amazonaws.com`
+
+  **Alternative:** `S3_PUBLIC_URL`
+</ParamField>
+
+## Advanced parameters
+
+<a id="storage-max-sockets"></a>
+<ParamField path="STORAGE_MAX_SOCKETS" type="integer" default="50">
+  Max simultaneous HTTP connections to the storage provider. Increase if you see connection pool exhaustion under load.
+
+  `50` (default) · `100` (high traffic) · `25` (low resource)
+</ParamField>
+
+<a id="storage-connection-timeout"></a>
+<ParamField path="STORAGE_CONNECTION_TIMEOUT" type="integer" default="0">
+  Connection timeout in ms. `0` = no timeout.
+
+  `0` · `5000` (5 s) · `10000` (10 s)
+</ParamField>
+
+<a id="storage-request-timeout"></a>
+<ParamField path="STORAGE_REQUEST_TIMEOUT" type="integer" default="0">
+  Request timeout in ms. `0` = no timeout. For large uploads, use `300000` (5 min) or higher.
+
+  `0` · `30000` (30 s) · `300000` (5 min)
+</ParamField>
+
+<a id="storage-socket-timeout"></a>
+<ParamField path="STORAGE_SOCKET_TIMEOUT" type="integer" default="0">
+  TCP socket timeout in ms. `0` = no timeout.
+
+  `0` · `60000` (1 min) · `120000` (2 min)
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt" href="/quickstart">
+    Run Openinary with local or S3 storage.
+  </Card>
+  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
+    Upload files and prewarm transformation cache.
+  </Card>
+</CardGroup>

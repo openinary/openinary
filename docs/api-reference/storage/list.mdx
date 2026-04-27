@@ -1,0 +1,72 @@
+---
+title: "List Storage"
+description: "Retrieve the full folder and file tree from storage"
+---
+
+## Endpoint
+
+```
+GET /storage
+```
+
+**Auth:** API Key required
+
+## Response
+
+Returns the storage tree as a nested array. Each node is either a folder (with `children`) or a file (no `children`).
+
+```json
+[
+  {
+    "id": "photos",
+    "name": "photos",
+    "children": [
+      {
+        "id": "photos/portrait.jpg",
+        "name": "portrait.jpg",
+        "children": []
+      },
+      {
+        "id": "photos/banner.png",
+        "name": "banner.png",
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "video.mp4",
+    "name": "video.mp4",
+    "children": []
+  }
+]
+```
+
+<ResponseField name="id" type="string">
+  Unique identifier — full path relative to storage root. Use this as the `{path}` parameter in other storage endpoints.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name of the file or folder.
+</ResponseField>
+
+<ResponseField name="children" type="array">
+  Nested files and folders. Empty array `[]` for files or empty folders.
+</ResponseField>
+
+## Example
+
+```bash
+curl http://localhost:3000/storage \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="File Metadata" icon="circle-info" href="/api-reference/storage/metadata">
+    Get size and timestamps for a specific file.
+  </Card>
+  <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
+    Remove a file and its cached variants.
+  </Card>
+</CardGroup>

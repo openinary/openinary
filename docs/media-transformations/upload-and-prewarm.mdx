@@ -1,0 +1,147 @@
+---
+title: "Upload & Cache Warming"
+description: "Upload images and videos via the API and pre-generate transformed variants so the first public request is served instantly from cache."
+---
+
+`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately — so the first user request is served from cache instead of triggering on-demand processing.
+
+For the full endpoint reference — all parameters, form fields, and response schema — see the [Upload Files API reference](/api-reference/files/upload).
+
+## Upload video with queued transformations
+
+Video transformations run in a background queue — they don't block the upload response.
+
+```bash
+curl -X POST "http://localhost:3000/upload" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "files=@./video.mp4;type=video/mp4" \
+  -F 'transformations=["w_1280,h_720,q_75","w_640,h_360,q_60"]'
+```
+
+<Note>
+Even without a `transformations` field, Openinary automatically queues a default thumbnail for every video upload.
+</Note>
+
+## TypeScript examples
+
+<Tabs>
+<Tab title="Image upload">
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const apiKey = process.env.OPENINARY_API_KEY;
+if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
+
+const bytes = await readFile("./photo.jpg");
+const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
+
+const form = new FormData();
+form.append("files", file);
+form.append(
+  "transformations",
+  JSON.stringify(["w_800,h_600,f_webp,q_80", "w_400,h_400,c_fill,f_avif,q_70"]),
+);
+
+const res = await fetch("http://localhost:3000/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${apiKey}` },
+  body: form,
+});
+
+if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+
+const data = await res.json();
+console.log(data);
+```
+
+</Tab>
+
+<Tab title="Video upload">
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const apiKey = process.env.OPENINARY_API_KEY;
+if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
+
+const bytes = await readFile("./video.mp4");
+const file = new File([bytes], "video.mp4", { type: "video/mp4" });
+
+const form = new FormData();
+form.append("files", file);
+form.append(
+  "transformations",
+  JSON.stringify(["w_1280,h_720,q_75", "w_640,h_360,q_60"]),
+);
+
+const res = await fetch("http://localhost:3000/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${apiKey}` },
+  body: form,
+});
+
+if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+
+const data = await res.json();
+console.log(data);
+```
+
+</Tab>
+
+<Tab title="Multiple fields">
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const apiKey = process.env.OPENINARY_API_KEY;
+if (!apiKey) throw new Error("Missing OPENINARY_API_KEY");
+
+const bytes = await readFile("./photo.jpg");
+const file = new File([bytes], "photo.jpg", { type: "image/jpeg" });
+
+const form = new FormData();
+form.append("files", file);
+// Each append is one transformation string
+form.append("transformations", "w_1200,h_800,f_webp,q_82");
+form.append("transformations", "w_600,h_600,c_fill,f_avif,q_70");
+
+const res = await fetch("http://localhost:3000/upload", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${apiKey}` },
+  body: form,
+});
+
+if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+
+const data = await res.json();
+console.log(data);
+```
+
+</Tab>
+</Tabs>
+
+## Limits
+
+- Max **20 transformations** per upload request.
+- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb) — useful for large video uploads in self-hosted setups.
+
+## Tips
+
+- Prewarm only the variants you actually serve — don't prewarm speculatively.
+- Use consistent transformation strings across your frontend and backend to maximize cache hits.
+- For video, monitor the queue via `GET /queue/stats` during high-volume ingestion.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Upload API reference" icon="code" href="/api-reference/files/upload">
+    Full endpoint reference: all fields, validation, and response schema.
+  </Card>
+  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+    Full parameter reference for resizing, cropping, and format conversion.
+  </Card>
+  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+    Resize, trim, and extract thumbnails from video files.
+  </Card>
+</CardGroup>
