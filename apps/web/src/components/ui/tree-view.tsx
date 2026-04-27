@@ -260,7 +260,18 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
                 treeData={treeData}
               />
             ) : (
-              <ImageContextMenuWrapper assetId={item.id}>
+              <ImageContextMenuWrapper
+                assetId={item.id}
+                onDetailsOpen={() =>
+                  treeData &&
+                  onMediaSelect?.({
+                    id: item.id,
+                    name: item.name,
+                    path: findItemPath(treeData, item.id)?.join("/") || "",
+                    type: isMediaFile(item).type!,
+                  })
+                }
+              >
                 <TreeLeaf
                   item={item}
                   selectedItemId={selectedItemId}

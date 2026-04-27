@@ -18,6 +18,7 @@ import UploadButtonWithDialog from "../upload-button-with-dialog";
 import { ArrowUpRight, FileImage } from "lucide-react";
 import MediaGridFolderItem from "./media-grid-folder-item";
 import MediaGridAssetItem from "./media-grid-asset-item";
+import MediaListContextMenuWrapper from "./media-list-context-menu";
 
 type MediaFile = {
   id: string;
@@ -157,48 +158,50 @@ export function MediaGrid({
 
   if (!treeData || treeData.length === 0) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileImage />
-            </EmptyMedia>
-            <EmptyTitle>No Media Files Yet</EmptyTitle>
-            <EmptyDescription>
-              You haven&apos;t uploaded any media files yet. Get started by
-              uploading your first image or video.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <div className="flex gap-2">
-              <UploadButtonWithDialog />
-              <Button variant="outline" asChild>
-                <a
-                  href="https://docs.openinary.dev/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Docs
-                </a>
-              </Button>
-            </div>
-          </EmptyContent>
-          <Button
-            variant="link"
-            asChild
-            className="text-muted-foreground"
-            size="sm"
-          >
-            <a
-              href="https://docs.openinary.dev/"
-              target="_blank"
-              rel="noopener noreferrer"
+      <MediaListContextMenuWrapper>
+        <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileImage />
+              </EmptyMedia>
+              <EmptyTitle>No Media Files Yet</EmptyTitle>
+              <EmptyDescription>
+                You haven&apos;t uploaded any media files yet. Get started by
+                uploading your first image or video.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <div className="flex gap-2">
+                <UploadButtonWithDialog />
+                <Button variant="outline" asChild>
+                  <a
+                    href="https://docs.openinary.dev/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Docs
+                  </a>
+                </Button>
+              </div>
+            </EmptyContent>
+            <Button
+              variant="link"
+              asChild
+              className="text-muted-foreground"
+              size="sm"
             >
-              Learn More <ArrowUpRight className="h-4 w-4" />
-            </a>
-          </Button>
-        </Empty>
-      </div>
+              <a
+                href="https://docs.openinary.dev/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Learn More <ArrowUpRight className="h-4 w-4" />
+              </a>
+            </Button>
+          </Empty>
+        </div>
+      </MediaListContextMenuWrapper>
     );
   }
 
@@ -208,33 +211,37 @@ export function MediaGrid({
 
   if (folders.length === 0 && files.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground space-y-4">
-        <FileImage className="h-12 w-12 opacity-50" />
-        <p>This folder is empty.</p>
-      </div>
+      <MediaListContextMenuWrapper folder={folderPath || undefined}>
+        <div className="flex flex-col items-center pt-[20dvh] text-muted-foreground space-y-4 h-full">
+          <FileImage className="h-12 w-12 opacity-50" />
+          <p>This folder is empty.</p>
+        </div>
+      </MediaListContextMenuWrapper>
     );
   }
 
   return (
-    <div className={`grid ${gridColsClass} gap-4`}>
-      {/* Render folders */}
-      {folders.map((folder) => (
-        <MediaGridFolderItem
-          key={folder.id}
-          folder={folder}
-          treeData={treeData}
-          onClick={() => handleFolderClick(folder.path)}
-        />
-      ))}
+    <MediaListContextMenuWrapper folder={folderPath || undefined}>
+      <div className={`grid ${gridColsClass} gap-4 w-full h-full`}>
+        {/* Render folders */}
+        {folders.map((folder) => (
+          <MediaGridFolderItem
+            key={folder.id}
+            folder={folder}
+            treeData={treeData}
+            onClick={() => handleFolderClick(folder.path)}
+          />
+        ))}
 
-      {/* Render media files */}
-      {files.map((media) => (
-        <MediaGridAssetItem
-          key={media.id}
-          media={media}
-          onClick={() => onMediaSelect(media)}
-        />
-      ))}
-    </div>
+        {/* Render media files */}
+        {files.map((media) => (
+          <MediaGridAssetItem
+            key={media.id}
+            media={media}
+            onClick={() => onMediaSelect(media)}
+          />
+        ))}
+      </div>
+    </MediaListContextMenuWrapper>
   );
 }

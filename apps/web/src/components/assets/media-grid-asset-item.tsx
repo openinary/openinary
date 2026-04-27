@@ -36,7 +36,7 @@ export default function MediaGridAssetItem({
   };
 
   return (
-    <ImageContextMenuWrapper assetId={media.id}>
+    <ImageContextMenuWrapper assetId={media.id} onDetailsOpen={props.onClick}>
       <button
         className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all group-hover:border-primary/30 group-hover:shadow-md group-focus:border-primary/30 group-focus:shadow-md"
         onMouseEnter={handleMediaHover}

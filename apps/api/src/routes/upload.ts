@@ -12,14 +12,15 @@ import {
   TRANSFORMATION_PRIORITY,
 } from "../utils/video/config";
 import { TransformService } from "../services/transform.service";
-import heicConvert from 'heic-convert';
+import heicConvert from "heic-convert";
 
 const upload = new Hono();
 const storage = createStorageClient();
 const transformService = new TransformService();
 
 // File size limit: configurable via MAX_FILE_SIZE_MB env var, defaults to 50MB
-const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB ?? "50", 10) || 50) * 1024 * 1024;
+const MAX_FILE_SIZE =
+  (parseInt(process.env.MAX_FILE_SIZE_MB ?? "50", 10) || 50) * 1024 * 1024;
 const MAX_PREWARM_TRANSFORMATIONS = 20;
 
 // Allowed file extensions and MIME types
@@ -30,8 +31,8 @@ const ALLOWED_TYPES = {
   "image/webp": [".webp"],
   "image/avif": [".avif"],
   "image/gif": [".gif"],
-  "image/heic" : ['.heic', '.heif'],
-  "image/heif" : ['.heic', '.heif'],
+  "image/heic": [".heic", ".heif"],
+  "image/heif": [".heic", ".heif"],
   "image/vnd.adobe.photoshop": [".psd"],
   "application/octet-stream": [".psd"],
   // Videos
@@ -347,35 +348,39 @@ async function normalizeUploadFormat(
   buffer: Buffer,
   mimeType: string,
   filePath: string,
-): Promise<{ buffer: Buffer; mimeType: string; path: string, fileName: string }>{
+): Promise<{
+  buffer: Buffer;
+  mimeType: string;
+  path: string;
+  fileName: string;
+}> {
   let normalizedBuffer;
   let normalizedMimeType;
   let normalizedPath;
-  if (mimeType === "image/heic" || mimeType === "image/heif"){
-    try{
+  if (mimeType === "image/heic" || mimeType === "image/heif") {
+    try {
       normalizedBuffer = await heicConvert({
-                buffer: buffer as any,
-                format: 'JPEG',
-                quality: 1
+        buffer: buffer as any,
+        format: "JPEG",
+        quality: 1,
       });
 
       normalizedMimeType = "image/jpeg";
-      normalizedPath = filePath.replace(/\.(heic|heif)$/i, '.jpg');
-    }catch {
+      normalizedPath = filePath.replace(/\.(heic|heif)$/i, ".jpg");
+    } catch {
       throw new Error(`Failed to convert file from ${mimeType} to image/jpeg`);
     }
-
   } else {
     normalizedBuffer = buffer;
     normalizedMimeType = mimeType;
     normalizedPath = filePath;
   }
   return {
-      buffer: normalizedBuffer as any,
-      mimeType : normalizedMimeType,
-      path : normalizedPath,
-      fileName : path.basename(normalizedPath)
-  }
+    buffer: normalizedBuffer as any,
+    mimeType: normalizedMimeType,
+    path: normalizedPath,
+    fileName: path.basename(normalizedPath),
+  };
 }
 
 /**
@@ -454,13 +459,13 @@ upload.post("/", async (c) => {
         // Convert File to Buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        
+
         const {
-          buffer: normalizedBuffer, 
-          mimeType: normalizedContentType, 
-          path: normalizedPath, 
-          fileName: normalizedFileName
-        } = await normalizeUploadFormat(buffer, mimeType, rawSanitizedPath)
+          buffer: normalizedBuffer,
+          mimeType: normalizedContentType,
+          path: normalizedPath,
+          fileName: normalizedFileName,
+        } = await normalizeUploadFormat(buffer, mimeType, rawSanitizedPath);
 
         // Compute a unique file path to avoid overwriting existing files
         let finalPath = normalizedPath;
@@ -470,10 +475,7 @@ upload.post("/", async (c) => {
             storage.existsOriginalPath(p),
           );
         } else {
-          finalPath = await getUniqueFilePath(
-            normalizedPath,
-            localFileExists,
-          );
+          finalPath = await getUniqueFilePath(normalizedPath, localFileExists);
         }
 
         // Upload based on storage configuration
@@ -490,7 +492,7 @@ upload.post("/", async (c) => {
           );
 
           const uploadResult: UploadResult = {
-            filename : normalizedFileName,
+            filename: normalizedFileName,
             path: finalPath,
             size: normalizedBuffer.length,
             url: `/t/${finalPath}`,
@@ -558,7 +560,7 @@ upload.post("/", async (c) => {
           );
 
           const uploadResult: UploadResult = {
-            filename : normalizedFileName,
+            filename: normalizedFileName,
             path: finalPath,
             size: normalizedBuffer.length,
             url: `/t/${finalPath}`,
@@ -673,6 +675,7 @@ upload.post("/", async (c) => {
  * POST /upload/createfolder - create folder
  */
 upload.post("/createfolder", async (c) => {
+  console.log("create folder requests");
   try {
     const formData = await c.req.formData();
     const folder = formData.get("folder") as string | null;

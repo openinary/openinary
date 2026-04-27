@@ -4,6 +4,7 @@ import { TreeView } from "@/components/ui/tree-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStorageTree } from "@/hooks/use-storage-tree";
 import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar";
+import MediaListContextMenuWrapper from "../assets/media-list-context-menu";
 
 type MediaFile = {
   id: string;
@@ -48,17 +49,19 @@ export function NavProjects({ onMediaSelect }: NavProjectsProps) {
   const { data, isLoading, error } = useStorageTree();
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Assets</SidebarGroupLabel>
-      {isLoading && <TreeSkeleton />}
-      {error && (
-        <p className="text-sm text-red-600 px-2">
-          {error instanceof Error ? error.message : "Failed to load storage"}
-        </p>
-      )}
-      {!isLoading && !error && data && (
-        <TreeView data={data} expandAll onMediaSelect={onMediaSelect} />
-      )}
-    </SidebarGroup>
+    <MediaListContextMenuWrapper>
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden h-full">
+        <SidebarGroupLabel>Assets</SidebarGroupLabel>
+        {isLoading && <TreeSkeleton />}
+        {error && (
+          <p className="text-sm text-red-600 px-2">
+            {error instanceof Error ? error.message : "Failed to load storage"}
+          </p>
+        )}
+        {!isLoading && !error && data && (
+          <TreeView data={data} expandAll onMediaSelect={onMediaSelect} />
+        )}
+      </SidebarGroup>
+    </MediaListContextMenuWrapper>
   );
 }

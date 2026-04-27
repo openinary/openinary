@@ -1,39 +1,25 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { FolderPlus, Trash2, Upload } from "lucide-react";
-import { ReactNode, useRef, useState } from "react";
-import { CreateFolderSection } from "../create-folder-section";
-import DefaultDialog, { DialogRefProps } from "../default-dialog";
-import { deleteFolder } from "../delete-folder-button";
+import { ReactNode, useRef } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuGroup,
   ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "../ui/context-menu";
+import { FolderPlus, Upload } from "lucide-react";
+import DefaultDialog, { DialogRefProps } from "../default-dialog";
+import { CreateFolderSection } from "../create-folder-section";
 import { UploadSection } from "../upload-section";
 
-export default function FolderContextMenuWrapper({
+export default function MediaListContextMenuWrapper({
   folder,
   children,
 }: {
-  folder: string;
+  folder?: string;
   children: ReactNode;
 }) {
-  const queryClient = useQueryClient();
-  const [isDeleting, setIsDeleting] = useState(false);
   const createFolderDialogRef = useRef<DialogRefProps>(null);
   const uploadDialogRef = useRef<DialogRefProps>(null);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    await deleteFolder(folder);
-
-    // Refresh the storage tree
-    await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
-    setIsDeleting(false);
-  };
 
   return (
     <>
@@ -50,17 +36,6 @@ export default function FolderContextMenuWrapper({
             >
               <FolderPlus />
               Create folder
-            </ContextMenuItem>
-          </ContextMenuGroup>
-          <ContextMenuSeparator />
-          <ContextMenuGroup>
-            <ContextMenuItem
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              <Trash2 />
-              {isDeleting ? "Deleting..." : "Delete folder"}
             </ContextMenuItem>
           </ContextMenuGroup>
         </ContextMenuContent>

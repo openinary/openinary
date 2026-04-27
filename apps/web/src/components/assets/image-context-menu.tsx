@@ -1,4 +1,11 @@
-import { Check, Copy, Download, ExternalLink, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  ExternalLink,
+  Info,
+  Trash2,
+} from "lucide-react";
 import { ReactNode, useState } from "react";
 import {
   ContextMenu,
@@ -13,9 +20,11 @@ import { useAssetDetails } from "../details-sidebar/use-asset-details";
 
 export default function ImageContextMenuWrapper({
   assetId,
+  onDetailsOpen,
   children,
 }: {
   assetId: string;
+  onDetailsOpen: () => void;
   children: ReactNode;
 }) {
   const {
@@ -37,6 +46,13 @@ export default function ImageContextMenuWrapper({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuGroup>
+          <ContextMenuItem onClick={onDetailsOpen}>
+            <Info />
+            Details
+          </ContextMenuItem>
+        </ContextMenuGroup>
+        <ContextMenuSeparator />
         <ContextMenuGroup>
           <ContextMenuItem onClick={copyUrl}>
             <div className="relative h-4 w-4">
