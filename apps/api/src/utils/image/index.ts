@@ -62,6 +62,11 @@ export const transformImage = async (inputPath: string, params: TransformParams)
   // 2. Apply aspect ratio (if specified)
   if (params.aspect) {
     image = await applyAspectRatio(image, params.aspect, params.gravity);
+    // Sharp only honors one resize() per pipeline, so a following resize would
+    // override the aspect-ratio crop. Materialize the crop into a buffer first.
+    if (params.resize || params.width || params.height) {
+      image = sharp(await image.toBuffer());
+    }
   }
 
   // 3. Apply resize (if width or height specified)
