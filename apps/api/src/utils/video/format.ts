@@ -52,3 +52,25 @@ export const determineOutputFormat = (
     isThumbnail,
   };
 };
+
+/**
+ * MIME content type for a resolved output format.
+ */
+const CONTENT_TYPE_BY_FORMAT: Readonly<Record<string, string>> = {
+  jpg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  avif: "image/avif",
+  gif: "image/gif",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+};
+
+export const contentTypeForFormat = (format: string): string => {
+  const normalized = normalizeFormat(format.toLowerCase());
+  if (CONTENT_TYPE_BY_FORMAT[normalized]) {
+    return CONTENT_TYPE_BY_FORMAT[normalized];
+  }
+  return IMAGE_FORMATS.has(normalized) ? `image/${normalized}` : "video/mp4";
+};

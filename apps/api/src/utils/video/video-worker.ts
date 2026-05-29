@@ -12,6 +12,7 @@ import {
   type VideoJob,
 } from "./queue-db";
 import { MAX_CONCURRENT_JOBS, WORKER_POLL_INTERVAL_MS } from "./config";
+import { contentTypeForFormat, determineOutputFormat } from "./format";
 
 export interface WorkerEvents {
   "job:created": (job: VideoJob) => void;
@@ -167,9 +168,9 @@ export class VideoWorker extends EventEmitter {
 
         // Upload to cloud storage if configured
         if (this.storage) {
-          const contentType = params.format === "jpg" || params.format === "png"
-            ? `image/${params.format}`
-            : "video/mp4";
+          const sourceExt = job.file_path.split(".").pop()?.toLowerCase();
+          const { format } = determineOutputFormat(sourceExt, params.format);
+          const contentType = contentTypeForFormat(format);
           await this.storage.upload(job.file_path, params, buffer, contentType);
         }
 
