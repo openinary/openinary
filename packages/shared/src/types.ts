@@ -53,6 +53,7 @@ export interface StorageConfig {
   bucketName: string;
   endpoint?: string; // Required for non-AWS providers (R2, Minio, etc.)
   publicUrl?: string; // Public URL of the bucket
+  assetsDir?: string; // Base dir/prefix for assets in the bucket (default: "public"; "" = root)
 }
 
 export interface CacheEntry {

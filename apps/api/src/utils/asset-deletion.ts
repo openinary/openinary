@@ -2,6 +2,7 @@ import fs, { Dirent } from "fs";
 import path from "path";
 import logger, { serializeError } from "./logger";
 import { CloudStorage } from "./storage/cloud-storage";
+import { getLocalAssetsBasePath } from "./storage/assets-config";
 import { deleteCachedFiles } from "./cache";
 import { deleteJobsByFilePath } from "./video/queue-db";
 
@@ -51,7 +52,7 @@ export async function deleteAssetCompletely(
         }
       }
     } else {
-      const localPath = path.join(".", "public", filePath);
+      const localPath = path.join(getLocalAssetsBasePath(), filePath);
       fileExists = fs.existsSync(localPath);
     }
 
@@ -124,7 +125,7 @@ export async function deleteAssetCompletely(
     } else {
       // Delete from local storage
       try {
-        const localPath = path.join(".", "public", filePath);
+        const localPath = path.join(getLocalAssetsBasePath(), filePath);
 
         const stats = fs.statSync(localPath);
 

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage/index";
+import { getLocalAssetsBasePath } from "../utils/storage/assets-config";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
@@ -52,7 +53,7 @@ download.get("/*", async (c) => {
       }
     } else {
       // Local storage
-      const localPath = path.join("./public", filePath);
+      const localPath = path.join(getLocalAssetsBasePath(), filePath);
       if (!fs.existsSync(localPath) || fs.statSync(localPath).isDirectory()) {
         return c.text("File not found", 404);
       }

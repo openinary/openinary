@@ -32,6 +32,8 @@ services:
       - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
       - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      # Base directory/prefix for assets (default "public"; see docker.env.example)
+      - STORAGE_ASSETS_DIR=${STORAGE_ASSETS_DIR:-public}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
@@ -89,6 +91,8 @@ services:
       - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
       - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      # Base directory/prefix for assets (default "public"; see docker.env.example)
+      - STORAGE_ASSETS_DIR=${STORAGE_ASSETS_DIR:-public}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server

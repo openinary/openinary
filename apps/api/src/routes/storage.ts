@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
+import { getLocalAssetsBasePath } from "../utils/storage/assets-config";
 
 type StorageNode = {
   name: string;
@@ -152,21 +153,14 @@ storageRoute.get("/", async (c) => {
     let root: StorageNode;
 
     if (storageClient) {
-      // List only objects in the public/ folder
-      const objects = await storageClient.list("public/");
+      // List assets under the configured assets directory; keys come back
+      // already stripped of the directory prefix.
+      const assets = await storageClient.listAssets();
 
-      // Remove the public/ prefix from all keys
-      const publicObjects = objects
-        .filter((obj) => obj.key.startsWith("public/"))
-        .map((obj) => ({
-          ...obj,
-          key: obj.key.substring(7), // Remove "public/" prefix (7 characters)
-        }));
-
-      root = buildTreeFromKeys(publicObjects);
+      root = buildTreeFromKeys(assets);
     } else {
-      const publicDir = path.join(".", "public");
-      root = buildLocalTree(publicDir);
+      const assetsDir = getLocalAssetsBasePath();
+      root = buildLocalTree(assetsDir);
     }
 
     const treeData = storageTreeToTreeData(root);
@@ -244,7 +238,7 @@ storageRoute.get("/*", async (c) => {
         updatedAt: metadata.updatedAt.toISOString(),
       });
     } else {
-      const localPath = path.join(".", "public", filePath);
+      const localPath = path.join(getLocalAssetsBasePath(), filePath);
 
       if (!fs.existsSync(localPath)) {
         return c.json(
