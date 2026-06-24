@@ -1,5 +1,6 @@
 import { Context, Hono } from "hono";
 import { createStorageClient } from "../utils/storage/index";
+import { getLocalAssetsBasePath } from "../utils/storage/assets-config";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
@@ -226,7 +227,7 @@ async function saveFileLocally(
   filePath: string,
   buffer: Buffer,
 ): Promise<void> {
-  const fullPath = path.join("./public", filePath);
+  const fullPath = path.join(getLocalAssetsBasePath(), filePath);
   const dir = path.dirname(fullPath);
 
   // Create parent directories if they don't exist
@@ -238,7 +239,7 @@ async function saveFileLocally(
 }
 
 async function localFileExists(filePath: string): Promise<boolean> {
-  const fullPath = path.join("./public", filePath);
+  const fullPath = path.join(getLocalAssetsBasePath(), filePath);
   return fs.existsSync(fullPath);
 }
 
@@ -260,7 +261,7 @@ async function queueThumbnailGeneration(
     // Get source path
     const sourcePath = storage
       ? `./temp/${path.basename(filePath)}`
-      : path.join("./public", filePath);
+      : path.join(getLocalAssetsBasePath(), filePath);
 
     // Add to queue with HIGH priority for thumbnails
     const jobId = await videoJobQueue.addJob(
@@ -307,7 +308,7 @@ async function queueVideoTransformations(
     const cachePath = getCachePath(transformPath);
     const sourcePath = storage
       ? `./temp/${path.basename(filePath)}`
-      : path.join("./public", filePath);
+      : path.join(getLocalAssetsBasePath(), filePath);
     const isThumbnailRequest =
       params.thumbnail === "true" || params.thumbnail === "1";
     const priority = isThumbnailRequest
@@ -734,8 +735,8 @@ upload.post("/createfolder", async (c) => {
       );
     }
 
-    const localBasePath = path.join(".", "public");
-    const localPath = path.join(".", "public", rawSanitizedPath);
+    const localBasePath = getLocalAssetsBasePath();
+    const localPath = path.join(localBasePath, rawSanitizedPath);
 
     if (!fs.existsSync(localBasePath)) {
       logger.error({ folder }, "Local storage path does not exist");

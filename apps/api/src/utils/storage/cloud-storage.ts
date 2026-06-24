@@ -2,15 +2,56 @@ import { StorageConfig } from "shared";
 import { StorageCache } from "./cache";
 import { KeyGenerator } from "./key-generator";
 import { S3ClientWrapper } from "./s3-client";
+import { getAssetsDir } from "./assets-config";
 import logger, { serializeError } from "../logger";
 
 export class CloudStorage {
   private s3Client: S3ClientWrapper;
   private cache: StorageCache;
+  // Base directory/prefix for assets (default "public"; "" = bucket root)
+  private assetsDir: string;
 
   constructor(config: StorageConfig) {
     this.s3Client = new S3ClientWrapper(config);
     this.cache = new StorageCache();
+    this.assetsDir = (config.assetsDir ?? getAssetsDir())
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+  }
+
+  /**
+   * Builds a storage object key for a relative asset path, prefixing it with
+   * the configured assets directory. When the directory is empty (root), the
+   * relative path is returned unchanged.
+   */
+  private assetKey(relativePath: string): string {
+    const normalized = relativePath.replace(/^\/+/, "");
+    return this.assetsDir ? `${this.assetsDir}/${normalized}` : normalized;
+  }
+
+  /** Cloud listing prefix for assets (trailing slash, or "" for root). */
+  private get assetsPrefix(): string {
+    return this.assetsDir ? `${this.assetsDir}/` : "";
+  }
+
+  /**
+   * Lists assets under the configured assets directory, returning keys with the
+   * prefix already stripped (i.e. relative asset paths).
+   */
+  async listAssets(): Promise<{ key: string; size?: number }[]> {
+    const prefix = this.assetsPrefix;
+    const objects = await this.s3Client.listObjects(prefix);
+
+    if (!prefix) {
+      return objects;
+    }
+
+    return objects
+      .filter((obj) => obj.key.startsWith(prefix))
+      .map((obj) => ({
+        ...obj,
+        key: obj.key.substring(prefix.length),
+      }));
   }
 
   /**
@@ -25,7 +66,7 @@ export class CloudStorage {
    */
   async createFolder(folderPath: string): Promise<void> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const storageKey = `public/${normalized}/`;
+    const storageKey = this.assetKey(`${normalized}/`);
 
     await this.s3Client.createFolderMarker(storageKey);
   }
@@ -35,7 +76,7 @@ export class CloudStorage {
    */
   async folderExists(folderPath: string): Promise<boolean> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const markerKey = `public/${normalized}/`;
+    const markerKey = this.assetKey(`${normalized}/`);
 
     if (await this.s3Client.objectExists(markerKey)) {
       return true;
@@ -50,7 +91,7 @@ export class CloudStorage {
    */
   async deleteFolder(folderPath: string): Promise<number> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const prefix = `public/${normalized}/`;
+    const prefix = this.assetKey(`${normalized}/`);
 
     const objects = await this.s3Client.listObjects(prefix);
     if (objects.length === 0) {
@@ -102,7 +143,7 @@ export class CloudStorage {
    * Used after deletion to ensure we don't serve stale cache data
    */
   async existsOriginalNoCache(originalPath: string): Promise<boolean> {
-    const storageKey = `public/${originalPath}`;
+    const storageKey = this.assetKey(originalPath);
     try {
       const exists = await this.s3Client.objectExists(storageKey);
 
@@ -139,7 +180,7 @@ export class CloudStorage {
       return cached.exists;
     }
 
-    const storageKey = `public/${filePath}`;
+    const storageKey = this.assetKey(filePath);
     try {
       const exists = await this.s3Client.objectExists(storageKey);
 
@@ -171,8 +212,8 @@ export class CloudStorage {
    * Retrieves an original (unprocessed) file from the bucket
    */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
-    // Add public/ prefix for storage
-    const storageKey = `public/${originalPath}`;
+    // Prefix with the configured assets directory for storage
+    const storageKey = this.assetKey(originalPath);
     return await this.s3Client.downloadObject(storageKey);
   }
 
@@ -184,8 +225,8 @@ export class CloudStorage {
     buffer: Buffer,
     contentType: string,
   ): Promise<string> {
-    // Add public/ prefix for storage
-    const storageKey = `public/${filePath}`;
+    // Prefix with the configured assets directory for storage
+    const storageKey = this.assetKey(filePath);
     await this.s3Client.uploadObject(storageKey, buffer, contentType);
 
     // Mark the file as existing in the cache
@@ -194,7 +235,7 @@ export class CloudStorage {
       timestamp: Date.now(),
     });
 
-    // Returns the public URL (without public/ prefix since it's internal)
+    // Returns the public URL (storage key includes the assets dir prefix)
     return this.s3Client.getPublicUrl(storageKey);
   }
 
@@ -249,8 +290,8 @@ export class CloudStorage {
    * Deletes an original file from storage
    */
   async deleteOriginal(originalPath: string): Promise<void> {
-    // Add public/ prefix for storage
-    const storageKey = `public/${originalPath}`;
+    // Prefix with the configured assets directory for storage
+    const storageKey = this.assetKey(originalPath);
     await this.s3Client.deleteObject(storageKey);
 
     // Invalidate cache
@@ -263,7 +304,7 @@ export class CloudStorage {
   async getOriginalMetadata(
     originalPath: string,
   ): Promise<{ size: number; createdAt: Date; updatedAt: Date } | null> {
-    const storageKey = `public/${originalPath}`;
+    const storageKey = this.assetKey(originalPath);
     const metadata = await this.s3Client.getObjectMetadata(storageKey);
 
     if (!metadata) {

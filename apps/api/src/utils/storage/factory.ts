@@ -1,5 +1,6 @@
 import { StorageConfig } from 'shared';
 import { CloudStorage } from './cloud-storage';
+import { getAssetsDir } from './assets-config';
 import logger from '../logger';
 
 /**
@@ -13,6 +14,7 @@ export function createStorageClient(): CloudStorage | null {
     bucketName: process.env.STORAGE_BUCKET_NAME || '',
     endpoint: process.env.STORAGE_ENDPOINT,
     publicUrl: process.env.STORAGE_PUBLIC_URL,
+    assetsDir: getAssetsDir(),
   };
 
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
