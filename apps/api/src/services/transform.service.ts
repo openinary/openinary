@@ -68,7 +68,7 @@ export class TransformService {
       const fileSegments = hasTransform ? segments.slice(1) : segments;
       const filePath = fileSegments.join('/');
       const localPath = `./public/${filePath}`;
-      const ext = filePath.split('.').pop();
+      const ext = filePath.split('.').pop()?.toLowerCase();
 
       // Get effective parameters with format optimization
       const { effectiveParams, cachePath } =
@@ -147,7 +147,7 @@ export class TransformService {
     userAgent?: string,
     acceptHeader?: string
   ): Promise<{ effectiveParams: any; cachePath: string }> {
-    const ext = path.split('.').pop();
+    const ext = path.split('.').pop()?.toLowerCase();
     let effectiveParams = { ...params };
     let cachePath = getCachePath(path);
 
