@@ -226,17 +226,15 @@ export async function prepareSourceFile(
     const sourceBuffer = await storage.downloadOriginal(filePath);
 
     // Temporarily save the file locally for processing
-    const fs = await import("fs");
+    const { mkdir, writeFile } = await import("fs/promises");
     const path = await import("path");
     const tempDir = "./temp";
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    await mkdir(tempDir, { recursive: true });
     const tempPath = path.join(
       tempDir,
       `${crypto.randomUUID()}-${path.basename(filePath)}`,
     );
-    fs.writeFileSync(tempPath, sourceBuffer);
+    await writeFile(tempPath, sourceBuffer);
     return tempPath;
   } else {
     logger.debug({ localPath }, "Processing from local file");
@@ -258,9 +256,9 @@ export async function processImage(
   const basicBuffer = await transformImage(originalPath, params);
 
   // Temporary save for advanced optimization
-  const fs = await import("fs");
+  const { writeFile, unlink } = await import("fs/promises");
   const tempOptimPath = originalPath + `.${crypto.randomUUID()}.temp`;
-  fs.writeFileSync(tempOptimPath, basicBuffer);
+  await writeFile(tempOptimPath, basicBuffer);
 
   try {
     // Advanced optimization
@@ -274,7 +272,7 @@ export async function processImage(
     const contentType = `image/${optimizationResult.format}`;
 
     // Cleanup temporary file
-    fs.unlinkSync(tempOptimPath);
+    await unlink(tempOptimPath);
 
     return {
       buffer: optimizationResult.buffer,
@@ -301,7 +299,7 @@ export async function processImage(
 
     // Cleanup in case of error
     try {
-      fs.unlinkSync(tempOptimPath);
+      await unlink(tempOptimPath);
     } catch {
       // Ignore cleanup errors
     }
