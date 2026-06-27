@@ -20,8 +20,8 @@ GET /api-keys/list
     {
       "id": "key_abc123",
       "name": "production",
-      "start": "oink_xxx",
-      "prefix": "oink_",
+      "start": "xxxxxx",
+      "prefix": null,
       "enabled": true,
       "expiresAt": "2025-03-15T10:30:00.000Z",
       "createdAt": "2024-03-15T10:30:00.000Z",
@@ -38,7 +38,7 @@ GET /api-keys/list
     <ResponseField name="id" type="string">Unique identifier. Used for update/delete.</ResponseField>
     <ResponseField name="name" type="string">Display name.</ResponseField>
     <ResponseField name="start" type="string">Key prefix — safe to display, uniquely identifies the key without exposing the full value.</ResponseField>
-    <ResponseField name="prefix" type="string">Key type prefix (e.g. `oink_`).</ResponseField>
+    <ResponseField name="prefix" type="string">Key type prefix. `null` if no prefix is configured.</ResponseField>
     <ResponseField name="enabled" type="boolean">Whether the key is currently active.</ResponseField>
     <ResponseField name="expiresAt" type="string">ISO 8601 expiration timestamp.</ResponseField>
     <ResponseField name="createdAt" type="string">ISO 8601 creation timestamp.</ResponseField>
