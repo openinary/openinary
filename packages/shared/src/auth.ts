@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
+import crypto from "crypto";
 
 // Get the project root directory (3 levels up from this file)
 const __filename = fileURLToPath(import.meta.url);
@@ -12,16 +13,32 @@ const __dirname = dirname(__filename);
 const projectRoot = path.resolve(__dirname, "../../../");
 
 // Configurable database path via environment variable
-const dataDir = process.env.DB_PATH 
+const dataDir = process.env.DB_PATH
   ? path.dirname(process.env.DB_PATH)
   : path.join(projectRoot, "data");
 const dbPath = process.env.DB_PATH || path.join(dataDir, "auth.db");
 
+// Load BETTER_AUTH_SECRET from root .env if not already in process.env.
+// This avoids duplicating the secret in each app's individual .env file.
+if (!process.env.BETTER_AUTH_SECRET) {
+  const rootEnvPath = path.join(projectRoot, ".env");
+  if (fs.existsSync(rootEnvPath)) {
+    const lines = fs.readFileSync(rootEnvPath, "utf-8").split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("BETTER_AUTH_SECRET=") && !trimmed.startsWith("#")) {
+        process.env.BETTER_AUTH_SECRET = trimmed.slice("BETTER_AUTH_SECRET=".length).trim();
+        break;
+      }
+    }
+  }
+}
+
 // Security validation for production
-const secret = process.env.BETTER_AUTH_SECRET;
 const isProduction = process.env.NODE_ENV === "production";
-const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
+const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" ||
                     process.env.npm_lifecycle_event === "build";
+const secret = process.env.BETTER_AUTH_SECRET;
 
 // Only validate secrets at runtime, not during build
 if (isProduction && !isBuildTime) {
@@ -32,7 +49,7 @@ if (isProduction && !isBuildTime) {
       "Generate one with: openssl rand -hex 32"
     );
   }
-  
+
   // Critical: Secret must not be the build-time placeholder
   if (secret === "build-time-secret-will-be-replaced") {
     throw new Error(
@@ -40,7 +57,7 @@ if (isProduction && !isBuildTime) {
       "You must set a unique secret in production."
     );
   }
-  
+
   // Warning: Secret should be strong (at least 32 characters)
   if (secret.length < 32) {
     console.warn(
@@ -48,6 +65,12 @@ if (isProduction && !isBuildTime) {
       "For better security, use: openssl rand -hex 32"
     );
   }
+} else if (!isProduction && !isBuildTime && !secret) {
+  throw new Error(
+    "🚨 BETTER_AUTH_SECRET is not set.\n" +
+    "Add it to your root .env file: BETTER_AUTH_SECRET=<your-secret>\n" +
+    "Generate one with: openssl rand -hex 32"
+  );
 } else if (isBuildTime && secret === "build-time-secret-will-be-replaced") {
   console.warn("Build phase detected - using placeholder secret (will be validated at runtime)");
 }
@@ -291,6 +314,27 @@ function initializeTables() {
 
 // Initialize tables before creating Better Auth instance
 initializeTables();
+
+// Validate that the secret hasn't changed between processes or restarts.
+// Stores a SHA-256 hash of the secret in the DB on first use; throws if it
+// differs on subsequent startups (would invalidate all existing sessions).
+(function validateSecretConsistency() {
+  if (!secret || isBuildTime) return;
+
+  db.exec(`CREATE TABLE IF NOT EXISTS _auth_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+
+  const hash = crypto.createHash("sha256").update(secret).digest("hex");
+  const row = db.prepare("SELECT value FROM _auth_config WHERE key = 'secret_hash'").get() as { value: string } | undefined;
+
+  if (!row) {
+    db.prepare("INSERT INTO _auth_config (key, value) VALUES ('secret_hash', ?)").run(hash);
+  } else if (row.value !== hash) {
+    throw new Error(
+      "🚨 BETTER_AUTH_SECRET mismatch: the secret has changed since the database was created.\n" +
+      "All existing sessions will be invalid. If this is intentional, delete the _auth_config table row with key='secret_hash' and restart."
+    );
+  }
+})();
 
 const publicAuthUrl = process.env.BETTER_AUTH_URL;
 const internalAuthUrl = process.env.BETTER_AUTH_INTERNAL_URL;

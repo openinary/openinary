@@ -139,6 +139,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow API requests with Bearer token through — API key validation happens in the Hono backend
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const response = NextResponse.next();
+    if (pathname.startsWith("/api/")) {
+      return addCorsHeaders(response, allowedOrigin, requestOrigin, pathname);
+    }
+    return response;
+  }
+
   // If user is not authenticated, redirect to login
   // The login page will handle redirecting to setup if needed
   const authenticated = await isAuthenticated(request);
