@@ -258,6 +258,29 @@ export class CloudStorage {
   }
 
   /**
+   * Copies an original file to a new path within storage
+   */
+  async copyOriginal(sourcePath: string, destPath: string): Promise<void> {
+    const sourceKey = `public/${sourcePath}`;
+    const destKey = `public/${destPath}`;
+    await this.s3Client.copyObject(sourceKey, destKey);
+
+    // Mark the new file as existing in the cache
+    this.cache.set(`original:${destPath}`, {
+      exists: true,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Renames/moves an original file to a new path (copy + delete)
+   */
+  async renameOriginal(sourcePath: string, destPath: string): Promise<void> {
+    await this.copyOriginal(sourcePath, destPath);
+    await this.deleteOriginal(sourcePath);
+  }
+
+  /**
    * Gets metadata for an original file (size, dates)
    */
   async getOriginalMetadata(
