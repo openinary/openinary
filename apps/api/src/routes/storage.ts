@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
+import { getUniqueFilePath } from "../utils/get-unique-file-path";
+import { deleteCachedFiles } from "../utils/cache";
 
 type StorageNode = {
   name: string;
@@ -378,6 +380,203 @@ storageRoute.delete("/*", async (c) => {
     logger.error(
       { error: serializeError(error), filePath },
       "Failed to delete asset",
+    );
+    return c.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      500,
+    );
+  }
+});
+
+async function pathExists(filePath: string): Promise<boolean> {
+  if (storageClient) {
+    return storageClient.existsOriginalPath(filePath);
+  }
+  return fs.existsSync(path.join(".", "public", filePath));
+}
+
+function extractFilePath(requestPath: string, suffix?: RegExp): string {
+  let pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "");
+  if (suffix) {
+    pathWithoutPrefix = pathWithoutPrefix.replace(suffix, "");
+  }
+  let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch {
+    // If decoding fails, use the original path
+  }
+  return filePath;
+}
+
+/**
+ * Rename a file in place
+ * PATCH /storage/* with body { name: string }
+ */
+storageRoute.patch("/*", async (c) => {
+  const filePath = extractFilePath(c.req.path);
+
+  if (!filePath) {
+    return c.json(
+      { error: "Bad request", message: "File path is required" },
+      400,
+    );
+  }
+
+  let body: { name?: unknown } = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      { error: "Bad request", message: "Invalid JSON body" },
+      400,
+    );
+  }
+
+  const newName = typeof body.name === "string" ? body.name.trim() : "";
+  if (!newName || newName.includes("/") || newName.includes("\\")) {
+    return c.json(
+      { error: "Bad request", message: "A valid file name is required" },
+      400,
+    );
+  }
+
+  const dir = path.posix.dirname(filePath);
+  const newPath = dir === "." ? newName : `${dir}/${newName}`;
+
+  try {
+    if (!(await pathExists(filePath))) {
+      return c.json({ error: "Not found", message: "File not found" }, 404);
+    }
+    if (newPath !== filePath && (await pathExists(newPath))) {
+      return c.json(
+        { error: "Conflict", message: "A file with that name already exists" },
+        409,
+      );
+    }
+
+    if (storageClient) {
+      await storageClient.renameOriginal(filePath, newPath);
+      storageClient.invalidateAllCacheEntries(filePath);
+    } else {
+      const sourceAbs = path.join(".", "public", filePath);
+      const destAbs = path.join(".", "public", newPath);
+      fs.renameSync(sourceAbs, destAbs);
+    }
+
+    await deleteCachedFiles(filePath);
+
+    return c.json({ success: true, path: newPath });
+  } catch (error) {
+    logger.error(
+      { error: serializeError(error), filePath, newPath },
+      "Failed to rename asset",
+    );
+    return c.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      500,
+    );
+  }
+});
+
+/**
+ * Copy or move a file
+ * POST /storage/*\/copy
+ * POST /storage/*\/move with body { destination?: string }
+ */
+storageRoute.post("/*", async (c) => {
+  const requestPath = c.req.path;
+  const isCopy = requestPath.endsWith("/copy");
+  const isMove = requestPath.endsWith("/move");
+
+  if (!isCopy && !isMove) {
+    return c.notFound();
+  }
+
+  const filePath = extractFilePath(requestPath, /\/(copy|move)$/);
+
+  if (!filePath) {
+    return c.json(
+      { error: "Bad request", message: "File path is required" },
+      400,
+    );
+  }
+
+  try {
+    if (!(await pathExists(filePath))) {
+      return c.json({ error: "Not found", message: "File not found" }, 404);
+    }
+
+    const dir = path.posix.dirname(filePath);
+    const normalizedDir = dir === "." ? "" : dir;
+    const baseName = path.posix.basename(filePath);
+
+    let targetDir = normalizedDir;
+    if (isMove) {
+      let body: { destination?: unknown } = {};
+      try {
+        body = await c.req.json();
+      } catch {
+        // No body means move to root
+      }
+      targetDir =
+        typeof body.destination === "string"
+          ? body.destination.trim().replace(/^\/+|\/+$/g, "")
+          : "";
+
+      if (targetDir === normalizedDir) {
+        return c.json(
+          { error: "Bad request", message: "File is already in that folder" },
+          400,
+        );
+      }
+    }
+
+    let candidatePath: string;
+    if (isCopy) {
+      const ext = path.posix.extname(baseName);
+      const nameWithoutExt = ext ? baseName.slice(0, -ext.length) : baseName;
+      const copyName = `${nameWithoutExt} copy${ext}`;
+      candidatePath = targetDir ? `${targetDir}/${copyName}` : copyName;
+    } else {
+      candidatePath = targetDir ? `${targetDir}/${baseName}` : baseName;
+    }
+
+    const newPath = await getUniqueFilePath(candidatePath, pathExists);
+
+    if (storageClient) {
+      if (isCopy) {
+        await storageClient.copyOriginal(filePath, newPath);
+      } else {
+        await storageClient.renameOriginal(filePath, newPath);
+        storageClient.invalidateAllCacheEntries(filePath);
+      }
+    } else {
+      const sourceAbs = path.join(".", "public", filePath);
+      const destAbs = path.join(".", "public", newPath);
+      fs.mkdirSync(path.dirname(destAbs), { recursive: true });
+      if (isCopy) {
+        fs.copyFileSync(sourceAbs, destAbs);
+      } else {
+        fs.renameSync(sourceAbs, destAbs);
+      }
+    }
+
+    if (isMove) {
+      await deleteCachedFiles(filePath);
+    }
+
+    return c.json({ success: true, path: newPath });
+  } catch (error) {
+    logger.error(
+      { error: serializeError(error), filePath },
+      `Failed to ${isCopy ? "copy" : "move"} asset`,
     );
     return c.json(
       {
