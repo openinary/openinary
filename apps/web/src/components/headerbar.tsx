@@ -1,5 +1,5 @@
 import { useQueryState } from "nuqs";
-import CreateFolderButtonWithDialog from "./create-folder-button-with-dialog";
+import ColumnCountSlider from "./column-count-slider";
 import DeleteFolderButton from "./delete-folder-button";
 import {
   Breadcrumb,
@@ -13,7 +13,13 @@ import { Separator } from "./ui/separator";
 import { SidebarTrigger } from "./ui/sidebar";
 import UploadButtonWithDialog from "./upload-button-with-dialog";
 
-export default function HeaderBar() {
+export default function HeaderBar({
+  columns,
+  onColumnsChange,
+}: {
+  columns: number;
+  onColumnsChange: (columns: number) => void;
+}) {
   const [folderPath, setFolderPath] = useQueryState("folder");
 
   return (
@@ -77,10 +83,7 @@ export default function HeaderBar() {
               }
             />
           )}
-          <CreateFolderButtonWithDialog
-            uploadToFolder={folderPath || undefined}
-            onSuccessfulCreate={(v) => setFolderPath(v)}
-          />
+          <ColumnCountSlider value={columns} onChange={onColumnsChange} />
           <UploadButtonWithDialog uploadToFolder={folderPath || undefined} />
         </div>
       </div>

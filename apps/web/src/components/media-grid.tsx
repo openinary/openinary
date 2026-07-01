@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FileImage, FileVideo, ArrowUpRight } from "lucide-react";
+import { FileImage, FileVideo, ArrowUpRight, Folder, Plus } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useStorageTree } from "@/hooks/use-storage-tree";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +19,7 @@ import { preloadMedia } from "@/hooks/use-preload-media";
 import { VideoThumbnail } from "@/components/video-thumbnail";
 import type { TreeDataItem } from "@/components/ui/tree-view";
 import UploadButtonWithDialog from "./upload-button-with-dialog";
+import CreateFolderButtonWithDialog from "./create-folder-button-with-dialog";
 
 type MediaFile = {
   id: string;
@@ -33,43 +34,14 @@ type FolderItem = {
   path: string;
 };
 
-function getFolderInitials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return name.slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-function getFolderImages(
-  items: TreeDataItem[],
-  folderPath: string[],
-  limit = 4,
-): string[] {
+function getFolderItemCount(items: TreeDataItem[], folderPath: string[]): number {
   let currentItems = items;
   for (const seg of folderPath) {
     const found = currentItems.find((i) => i.name === seg);
-    if (!found?.children) return [];
+    if (!found?.children) return 0;
     currentItems = found.children;
   }
-  const images: string[] = [];
-  for (const item of currentItems) {
-    if (images.length >= limit) break;
-    if (!item.children) {
-      const lower = item.name.toLowerCase();
-      const isImage = [
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".webp",
-        ".gif",
-        ".avif",
-        ".psd",
-      ].some((ext) => lower.endsWith(ext));
-      if (isImage) {
-        images.push([...folderPath, item.name].join("/"));
-      }
-    }
-  }
-  return images;
+  return currentItems.length;
 }
 
 // Find items in a specific folder path
@@ -147,11 +119,13 @@ interface MediaGridProps {
   onMediaSelect: (media: MediaFile) => void;
   sidebarOpen?: boolean;
   onUploadClick?: () => void;
+  columns?: number;
 }
 
 export function MediaGrid({
   onMediaSelect,
   sidebarOpen = false,
+  columns = 6,
 }: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -170,14 +144,13 @@ export function MediaGrid({
     return findItemsInPath(treeData, pathSegments);
   }, [treeData, pathSegments]);
 
-  // Adjust grid columns based on sidebar state
-  const gridColsClass = sidebarOpen
-    ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${sidebarOpen ? Math.max(2, columns - 1) : columns}, minmax(0, 1fr))`,
+  };
 
   if (isLoading) {
     return (
-      <div className={`grid ${gridColsClass} gap-4`}>
+      <div className="grid gap-4" style={gridStyle}>
         {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="space-y-2">
             <Skeleton className="aspect-square w-full rounded-lg" />
@@ -265,157 +238,98 @@ export function MediaGrid({
     preloadMedia(previewUrl, media.type);
   };
 
-  if (folders.length === 0 && files.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground space-y-4">
-        <FileImage className="h-12 w-12 opacity-50" />
-        <p>This folder is empty.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className={`grid ${gridColsClass} gap-4`}>
-      {/* Render folders */}
-      {folders.map((folder) => {
-        const isHovered = hoveredId === folder.id;
-        const folderImages = treeData
-          ? getFolderImages(treeData, [...pathSegments, folder.name])
-          : [];
-        return (
-          <div
-            key={folder.id}
-            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
-            onClick={() => handleFolderClick(folder.path)}
-            onMouseEnter={() => setHoveredId(folder.id)}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            <div className="relative w-full h-full">
-              {folderImages.length === 4 ? (
-                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
-                  {folderImages.map((src, i) => (
-                    <div key={i} className="overflow-hidden">
-                      <img
-                        src={`${transformBaseUrl}/t/w_250,h_250,q_70/${src}`}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : folderImages.length === 3 ? (
-                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
-                  <div className="overflow-hidden row-span-2">
-                    <img
-                      src={`${transformBaseUrl}/t/w_250,h_500,q_70/${folderImages[0]}`}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  {folderImages.slice(1).map((src, i) => (
-                    <div key={i} className="overflow-hidden">
-                      <img
-                        src={`${transformBaseUrl}/t/w_250,h_250,q_70/${src}`}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : folderImages.length === 2 ? (
-                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
-                  {folderImages.map((src, i) => (
-                    <div key={i} className="overflow-hidden">
-                      <img
-                        src={`${transformBaseUrl}/t/w_250,h_500,q_70/${src}`}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : folderImages.length === 1 ? (
-                <img
-                  src={`${transformBaseUrl}/t/w_500,h_500,q_70/${folderImages[0]}`}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted">
-                  <span className="text-muted-foreground text-2xl font-bold tracking-wide">
-                    {getFolderInitials(folder.name)}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div
-              className={cn(
-                "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <p className="text-white text-xs font-medium truncate">
-                {folder.name}
-              </p>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Render media files */}
-      {files.map((media) => {
-        // For images: resize and optimize
-        // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
-        const thumbnailUrl =
-          media.type === "image"
-            ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-            : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
-        const isHovered = hoveredId === media.id;
-
-        return (
-          <div
-            key={media.id}
-            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
-            onClick={() => onMediaSelect(media)}
-            onMouseEnter={() => {
-              setHoveredId(media.id);
-              handleMediaHover(media);
-            }}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            {media.type === "image" ? (
-              <img
-                src={thumbnailUrl}
-                alt={media.name}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4">
+        <CreateFolderButtonWithDialog
+          uploadToFolder={folderPath || undefined}
+          trigger={
+            <div className="group relative w-[190px] h-[180px] rounded-lg border border-dashed border-border cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center justify-center gap-2">
+              <Plus
+                className="h-6 w-6 text-muted-foreground"
+                strokeWidth={1.5}
               />
-            ) : (
-              <VideoThumbnail
-                src={thumbnailUrl}
-                alt={media.name}
-                className="transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-            )}
-            <div
-              className={cn(
-                "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
-                isHovered ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <p className="text-white text-xs font-medium truncate">
-                {media.name}
-              </p>
+              <p className="text-sm text-muted-foreground">New folder</p>
             </div>
-          </div>
-        );
-      })}
+          }
+        />
+        {folders.map((folder) => {
+          const itemCount = treeData
+            ? getFolderItemCount(treeData, [...pathSegments, folder.name])
+            : 0;
+          return (
+            <div
+              key={folder.id}
+              className="group relative w-[190px] h-[180px] rounded-lg border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md flex items-center justify-center"
+              onClick={() => handleFolderClick(folder.path)}
+            >
+              <Folder
+                className="h-8 w-8 text-muted-foreground"
+                strokeWidth={1.5}
+              />
+              <div className="absolute bottom-0 left-0 max-w-full p-3 text-left">
+                <p className="text-sm font-medium truncate">{folder.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {itemCount} {itemCount === 1 ? "item" : "items"}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {files.length > 0 && (
+        <div className="grid gap-4" style={gridStyle}>
+          {files.map((media) => {
+            // For images: resize and optimize
+            // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
+            const thumbnailUrl =
+              media.type === "image"
+                ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
+                : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+            const isHovered = hoveredId === media.id;
+
+            return (
+              <div
+                key={media.id}
+                className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
+                onClick={() => onMediaSelect(media)}
+                onMouseEnter={() => {
+                  setHoveredId(media.id);
+                  handleMediaHover(media);
+                }}
+                onMouseLeave={() => setHoveredId(null)}
+              >
+                {media.type === "image" ? (
+                  <img
+                    src={thumbnailUrl}
+                    alt={media.name}
+                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    loading="lazy"
+                  />
+                ) : (
+                  <VideoThumbnail
+                    src={thumbnailUrl}
+                    alt={media.name}
+                    className="transition-transform group-hover:scale-105"
+                    loading="lazy"
+                  />
+                )}
+                <div
+                  className={cn(
+                    "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
+                    isHovered ? "opacity-100" : "opacity-0",
+                  )}
+                >
+                  <p className="text-white text-xs font-medium truncate">
+                    {media.name}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

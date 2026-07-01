@@ -4,21 +4,29 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { X } from "lucide-react";
+import { Ban, Power, Trash2, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "./ui/form";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "./ui/form";
 import { CopyInput } from "./ui/copy-input";
 import { Separator } from "./ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import { authClient } from "@/lib/auth-client";
 import logger from "@/lib/logger";
+import { cn } from "@/lib/utils";
 
 const apiKeyFormSchema = z.object({
   name: z.string().min(1, {
@@ -157,61 +165,54 @@ export function ApiKeyManager() {
     }
   };
 
-
   return (
     <div className="space-y-6">
-      {/* Created Key Alert */}
+      <p className="text-sm text-muted-foreground">
+        Create keys to authenticate requests to the Openinary API.
+      </p>
+
       {createdKey && (
-        <div className="relative p-4 border-2 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-lg">
+        <div className="relative rounded-lg border p-3 pr-9">
           <button
             onClick={() => setCreatedKey(null)}
-            className="absolute top-2 right-2 p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+            className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Dismiss"
           >
-            <X size={18} className="text-gray-600 dark:text-gray-400" />
+            <X size={14} />
           </button>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 pr-6">
-            API Key Created Successfully!
-          </h3>
-          <p className="text-sm text-gray-800 dark:text-gray-200 mb-2">
-            Save this key now - it will not be shown again!
+          <p className="mb-2 text-xs text-muted-foreground">
+            Copy this key now — it won&apos;t be shown again.
           </p>
           <CopyInput value={createdKey} />
         </div>
       )}
 
-      {/* Error Alert */}
       {error && (
-        <div className="p-4 border border-red-500 bg-red-50 dark:bg-red-950 rounded-lg">
-          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-          <Button
+        <div className="flex items-center justify-between rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {error}
+          <button
             onClick={() => setError(null)}
-            variant="ghost"
-            className="mt-2"
-            size="sm"
+            className="text-xs underline underline-offset-2"
           >
             Dismiss
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Create New Key */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Create New API Key</h3>
+        <p className="mb-3 text-sm font-medium">New key</p>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onCreateKey)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onCreateKey)}
+            className="flex items-start gap-2"
+          >
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Key Name</FormLabel>
+                <FormItem className="flex-1 space-y-1">
                   <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="My API Key"
-                      {...field}
-                    />
+                    <Input type="text" placeholder="Key name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -221,8 +222,7 @@ export function ApiKeyManager() {
               control={form.control}
               name="expires"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Expires In (days)</FormLabel>
+                <FormItem className="w-24 space-y-1">
                   <FormControl>
                     <Input
                       type="number"
@@ -237,71 +237,110 @@ export function ApiKeyManager() {
               )}
             />
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Creating..." : "Create API Key"}
+              {form.formState.isSubmitting ? "Creating..." : "Create"}
             </Button>
           </form>
         </Form>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Expires in days, defaults to 365.
+        </p>
       </div>
 
       <Separator />
 
-      {/* Existing Keys */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Your API Keys</h3>
+        <p className="mb-3 text-sm font-medium">Your keys</p>
         {loading ? (
-          <p className="text-sm text-gray-500">Loading...</p>
+          <p className="text-sm text-muted-foreground">Loading...</p>
         ) : keys.length === 0 ? (
-          <p className="text-sm text-gray-500">No API keys yet. Create one above!</p>
+          <p className="text-sm text-muted-foreground">
+            No API keys yet. Create one above.
+          </p>
         ) : (
-          <div className="space-y-4">
-            {keys.map((key) => (
-              <div
-                key={key.id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h4 className="font-medium">{key.name || "Unnamed Key"}</h4>
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        key.enabled
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                      }`}
-                    >
-                      {key.enabled ? "Active" : "Disabled"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Created: {new Date(key.createdAt).toLocaleDateString()}
-                    {key.expiresAt && (
-                      <> • Expires: {new Date(key.expiresAt).toLocaleDateString()}</>
-                    )}
-                    {key.start && ` • Start with: ${key.start}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => updateKey(key.id, { enabled: !key.enabled })}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {key.enabled ? "Disable" : "Enable"}
-                  </Button>
-                  <Button
-                    onClick={() => deleteKey(key.id)}
-                    variant="destructive"
-                    size="sm"
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-lg border">
+            <TooltipProvider delayDuration={0}>
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-8 px-3 text-xs">Name</TableHead>
+                  <TableHead className="h-8 px-3 text-xs">Prefix</TableHead>
+                  <TableHead className="h-8 px-3 text-xs">Status</TableHead>
+                  <TableHead className="h-8 px-3 text-xs">Created</TableHead>
+                  <TableHead className="h-8 w-16 px-3" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {keys.map((key) => (
+                  <TableRow key={key.id}>
+                    <TableCell className="px-3 py-2 font-medium">
+                      {key.name || "Unnamed Key"}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      {key.start ? `${key.start}…` : "—"}
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
+                      <span
+                        className={cn(
+                          "text-xs",
+                          key.enabled
+                            ? "text-foreground"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {key.enabled ? "Active" : "Disabled"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-xs text-muted-foreground">
+                      {new Date(key.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() =>
+                                updateKey(key.id, { enabled: !key.enabled })
+                              }
+                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              aria-label={
+                                key.enabled ? "Disable key" : "Enable key"
+                              }
+                            >
+                              {key.enabled ? (
+                                <Ban size={14} />
+                              ) : (
+                                <Power size={14} />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="px-2 py-1 text-xs">
+                            {key.enabled ? "Disable" : "Enable"}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => deleteKey(key.id)}
+                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              aria-label="Delete key"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="px-2 py-1 text-xs">
+                            Delete
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </TooltipProvider>
           </div>
         )}
       </div>
     </div>
   );
 }
-

@@ -12,7 +12,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form"
 import logger from "@/lib/logger"
 
@@ -83,61 +82,63 @@ export function AccountTab({
   return (
     <Form {...accountForm}>
       <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-4">
-        <FormField
-          control={accountForm.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input
-                  disabled
-                  type="text"
-                  placeholder="Your name"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={accountForm.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input
-                  disabled
-                  type="email"
-                  placeholder="your.email@example.com"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={accountForm.control}
-          name="image"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Avatar URL (optional)</FormLabel>
-              <FormControl>
-                <Input
-                  disabled
-                  type="url"
-                  placeholder="https://example.com/avatar.jpg"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="divide-y rounded-lg border">
+          <FormField
+            control={accountForm.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
+                <FormLabel className="text-muted-foreground">Name</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled
+                    type="text"
+                    placeholder="Your name"
+                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    {...field}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={accountForm.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
+                <FormLabel className="text-muted-foreground">Email</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled
+                    type="email"
+                    placeholder="your.email@example.com"
+                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    {...field}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={accountForm.control}
+            name="image"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
+                <FormLabel className="text-muted-foreground">Avatar URL</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled
+                    type="url"
+                    placeholder="https://example.com/avatar.jpg"
+                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    {...field}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
           <Button
             disabled
             type="button"

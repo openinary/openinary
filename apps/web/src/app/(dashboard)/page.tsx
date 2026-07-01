@@ -31,6 +31,7 @@ function HomePageContent() {
     parseAsString.withOptions({ clearOnDefault: true }),
   );
   const [assetSidebarOpen, setAssetSidebarOpen] = useState(false);
+  const [columns, setColumns] = useState(6);
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Sync sidebar open state with asset selection
@@ -73,11 +74,12 @@ function HomePageContent() {
             minSize={30}
             id="main-panel"
           >
-            <HeaderBar />
+            <HeaderBar columns={columns} onColumnsChange={setColumns} />
             <div className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto h-[calc(100vh-64px)] overflow-y-scoll">
               <MediaGrid
                 onMediaSelect={handleMediaSelect}
                 sidebarOpen={assetSidebarOpen}
+                columns={columns}
               />
             </div>
           </ResizablePanel>
