@@ -1,0 +1,39 @@
+---
+title: "Telemetry"
+description: "What anonymous usage data Openinary collects, and how to disable it"
+---
+
+Openinary sends a small amount of anonymous, aggregated usage data to help prioritize development. This page lists **exactly** what is sent — nothing more.
+
+## Why
+
+Openinary is self-hosted and the entire codebase is public, so there is no way to track usage the way a hosted SaaS would. Without any signal, it's hard to know which features are actually used or how many instances exist. Telemetry gives directional data (not precise counts) while staying anonymous.
+
+## What is sent
+
+Two events, both with a fixed, whitelisted set of properties. No file names, media content, URLs, user data, or IP addresses are ever included.
+
+| Event | When | Properties |
+|-------|------|------------|
+| `instance_started` | Once, on first ever boot of an instance | `version`, `deployment_mode`, `storage_backend`, `os_platform`, `os_arch`, `node_version` |
+| `daily_heartbeat` | Once every ~24h while the process runs | `version`, `deployment_mode`, `storage_backend`, `video_jobs_bucket` |
+
+Counts are never sent as raw numbers — they're bucketed into ranges (`0`, `1-10`, `11-100`, `101-1000`, `1000+`).
+
+Each instance has a random UUID (`instance_id`) generated on first boot and stored in the local database. It cannot be linked back to you or your data.
+
+## Where it goes
+
+Events are sent to `telemetry.openinary.dev`, a small proxy maintained by the Openinary project. The proxy validates the payload against the same whitelist, rate-limits per instance, and forwards accepted events to a PostHog project. Your instance never talks to PostHog directly, and never holds a PostHog key.
+
+## Disabling it
+
+<ParamField path="OPENINARY_TELEMETRY" type="boolean" default="true">
+  Set to `false` to disable telemetry entirely. No requests are made.
+</ParamField>
+
+```bash
+OPENINARY_TELEMETRY=false
+```
+
+The code that generates and sends these events lives in [`apps/api/src/utils/telemetry.ts`](https://github.com/openinary/openinary/blob/main/apps/api/src/utils/telemetry.ts) — read it if you want to verify this page is accurate.

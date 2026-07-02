@@ -35,7 +35,8 @@
               "configuration/server",
               "configuration/storage",
               "configuration/video-processing",
-              "configuration/docker-resources"
+              "configuration/docker-resources",
+              "configuration/telemetry"
             ]
           },
           {
