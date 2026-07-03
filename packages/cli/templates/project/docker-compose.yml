@@ -1,0 +1,85 @@
+services:
+  # API Only - Profile: api
+  api:
+    profiles: ["api"]
+    image: openinary/openinary-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${OPENINARY_PORT:-3000}:3000"
+    volumes:
+      # Mount cache folder for persistence
+      - cache-data:/app/apps/api/cache
+      # Mount public folder for static files
+      - public-files:/app/apps/api/public
+      # Mount data folder for shared auth database
+      - db-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - MODE=api
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - IMAGE_TAG=${IMAGE_TAG:-latest}
+      - VIDEO_MAX_CONCURRENT=${VIDEO_MAX_CONCURRENT:-}
+      - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
+      - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
+      - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+    networks:
+      - openinary-network
+    deploy:
+      resources:
+        limits:
+          cpus: "${DOCKER_CPU_LIMIT:-2.0}"
+          memory: ${DOCKER_MEMORY_LIMIT:-4G}
+        reservations:
+          cpus: "${DOCKER_CPU_RESERVATION:-0.5}"
+          memory: ${DOCKER_MEMORY_RESERVATION:-1G}
+
+  # Full Stack (API + Web + Nginx) - Profile: full
+  openinary:
+    profiles: ["full"]
+    image: openinary/openinary:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${OPENINARY_PORT:-3000}:3000"
+    volumes:
+      # Mount cache folder for persistence
+      - cache-data:/app/apps/api/cache
+      # Mount public folder for static files
+      - public-files:/app/apps/api/public
+      # Mount shared data folder for auth database persistence
+      - db-data:/app/data
+      # Also mount for web standalone path (for backwards compatibility)
+      - db-data:/app/web-standalone/data
+    environment:
+      - NODE_ENV=production
+      - MODE=fullstack
+      - NEXT_PUBLIC_API_BASE_URL=/api
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - BETTER_AUTH_INTERNAL_URL=${BETTER_AUTH_INTERNAL_URL:-http://127.0.0.1:3001}
+      - IMAGE_TAG=${IMAGE_TAG:-latest}
+      - VIDEO_MAX_CONCURRENT=${VIDEO_MAX_CONCURRENT:-}
+      - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
+      - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
+      - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+    networks:
+      - openinary-network
+    deploy:
+      resources:
+        limits:
+          cpus: "${DOCKER_CPU_LIMIT:-2.0}"
+          memory: ${DOCKER_MEMORY_LIMIT:-4G}
+        reservations:
+          cpus: "${DOCKER_CPU_RESERVATION:-0.5}"
+          memory: ${DOCKER_MEMORY_RESERVATION:-1G}
+
+networks:
+  openinary-network:
+    driver: bridge
+
+volumes:
+  cache-data:
+  public-files:
+  db-data:

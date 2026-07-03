@@ -53,6 +53,14 @@ Pull requests are welcome! Here's how to get started:
 
 PRs will be reviewed by maintainers and merged once they meet quality standards and align with the project direction.
 
+### A note on `docker.env.example`
+
+The `openinary upgrade` command (in `packages/cli`) fetches `docker.env.example`
+from the target release tag and diffs it against a project's local `.env` to
+detect newly introduced variables. If you add or rename an environment
+variable, please keep changes to this file **additive** — avoid renaming or
+removing existing keys — so upgrades across versions stay reliable.
+
 ---
 
 ## Contributor License Agreement (CLA)

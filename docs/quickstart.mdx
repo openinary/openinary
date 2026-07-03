@@ -1,13 +1,83 @@
 ---
 title: "Quick Start"
-description: "Run Openinary with Docker in three commands, create an admin account, and make your first image transformation."
+description: "Install Openinary with one command, create an admin account, and make your first image transformation."
 ---
 
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) 20.x or higher
+- Node.js 20+ (only needed to run the CLI)
 
-## Run
+## Install
+
+The `openinary` CLI scaffolds a project, generates your configuration, and starts
+Docker for you.
+
+<Tabs>
+
+<Tab title="pnpm">
+
+```bash
+pnpm create openinary
+```
+
+</Tab>
+
+<Tab title="npx">
+
+```bash
+npx create-openinary
+```
+
+</Tab>
+
+</Tabs>
+
+Follow the prompts to choose full stack vs. API-only and, optionally, S3-compatible
+storage. By default it scaffolds into an `openinary/` directory, writes a
+`docker-compose.yml` and `.env` with a generated `BETTER_AUTH_SECRET`, and starts
+the containers.
+
+<Check>
+Once it finishes, your Openinary instance is running at **http://localhost:3000**.
+</Check>
+
+## CLI reference
+
+Once installed globally (`npm i -g create-openinary`), or via `npx create-openinary <command>`,
+the `openinary` command manages the project you just created:
+
+| Command | Description |
+|---------|-------------|
+| `openinary start` | Start Openinary services |
+| `openinary stop` | Stop services (data preserved) |
+| `openinary restart` | Restart services |
+| `openinary upgrade` | Update to the latest compatible version, syncing env vars and showing the changelog |
+| `openinary reset` | Delete local data (database, uploads, cache) and recreate the instance — destructive, requires confirmation |
+
+## Initial setup (full stack)
+
+1. Open **http://localhost:3000** — you'll be redirected to `/setup`.
+2. Create your admin account.
+3. Click your profile in the bottom-left of the dashboard → **API Keys** → create your first key.
+
+## Sample files
+
+The container ships with two files for testing, available at `/app/apps/api/public/`:
+
+- `example-loan.jpg` — for image transformation tests
+- `example-rahime-gul.mp4` — for video transformation tests
+
+Try a transformation immediately:
+
+```http
+GET http://localhost:3000/t/w_400,h_400,c_fill/example-loan.jpg
+```
+
+## Manual setup
+
+<AccordionGroup>
+<Accordion title="Run with raw Docker commands (no CLI)">
 
 ```bash
 docker pull openinary/openinary:latest
@@ -73,32 +143,14 @@ docker logs <container-id>
 
 </Tabs>
 
-## Initial setup (full stack)
+</Accordion>
 
-1. Open **http://localhost:3000** — you'll be redirected to `/setup`.
-2. Create your admin account.
-3. Click your profile in the bottom-left of the dashboard → **API Keys** → create your first key.
-
-<Check>
-Your Openinary instance is ready.
-</Check>
-
-## Sample files
-
-The container ships with two files for testing, available at `/app/apps/api/public/`:
-
-- `example-loan.jpg` — for image transformation tests
-- `example-rahime-gul.mp4` — for video transformation tests
-
-Try a transformation immediately:
-
-```http
-GET http://localhost:3000/t/w_400,h_400,c_fill/example-loan.jpg
-```
-
-## Without Docker
+<Accordion title="Run from source">
 
 Prefer running from source? See [Local Development](/local-development).
+
+</Accordion>
+</AccordionGroup>
 
 <Warning>
 **Volume persistence** — in production, always mount all three volumes to durable storage. Losing a volume means losing that data.
