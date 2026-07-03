@@ -10,28 +10,16 @@ description: "Install Openinary with one command, create an admin account, and m
 
 ## Install
 
-The `openinary` CLI scaffolds a project, generates your configuration, and starts
-Docker for you.
-
-<Tabs>
-
-<Tab title="pnpm">
+Install the `openinary` CLI globally, then scaffold a project. It generates your
+configuration and starts Docker for you.
 
 ```bash
-pnpm create openinary
+npm i -g create-openinary
 ```
-
-</Tab>
-
-<Tab title="npx">
 
 ```bash
-npx create-openinary
+openinary create
 ```
-
-</Tab>
-
-</Tabs>
 
 Follow the prompts to choose full stack vs. API-only and, optionally, S3-compatible
 storage. By default it scaffolds into an `openinary/` directory, writes a
@@ -42,13 +30,21 @@ the containers.
 Once it finishes, your Openinary instance is running at **http://localhost:3000**.
 </Check>
 
+<Accordion title="Prefer not to install globally?">
+
+`pnpm create openinary` and `npx create-openinary` both scaffold a project
+without a global install. Manage that project afterwards with the same prefix,
+e.g. `npx create-openinary start` — no global install required.
+
+</Accordion>
+
 ## CLI reference
 
-Once installed globally (`npm i -g create-openinary`), or via `npx create-openinary <command>`,
-the `openinary` command manages the project you just created:
+The `openinary` command manages the project you just created:
 
 | Command | Description |
 |---------|-------------|
+| `openinary create` | Scaffold a new Openinary project |
 | `openinary start` | Start Openinary services |
 | `openinary stop` | Stop services (data preserved) |
 | `openinary restart` | Restart services |
