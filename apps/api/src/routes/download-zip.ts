@@ -10,6 +10,8 @@ const storage = createStorageClient();
 
 const MAX_PATHS = 200;
 
+type ZipItem = { path: string; kind?: "file" | "folder" };
+
 function sanitizePath(raw: string): string {
   return decodeURIComponent(raw)
     .replace(/\.\./g, "")
@@ -39,31 +41,45 @@ function collectLocalFiles(
 
 /**
  * POST /download-zip
- * body: { paths: string[] }
+ * body: { items: { path: string; kind?: "file" | "folder" }[] } or { paths: string[] }
  * Bundles multiple files and/or folders (mixed) into a single ZIP archive.
  * Entries keep their full relative path so items with the same filename in
  * different folders don't collide inside the archive.
+ *
+ * When the caller already knows an item's kind, passing it via `items` skips
+ * the folderExists probe (an extra HeadObject + ListObjects round trip per
+ * item) and lets every item download in parallel instead of one at a time.
  */
 downloadZip.post("/", async (c) => {
-  let body: { paths?: unknown } = {};
+  let body: { paths?: unknown; items?: unknown } = {};
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: "Bad request", message: "Invalid JSON body" }, 400);
   }
 
-  const rawPaths = Array.isArray(body.paths)
-    ? body.paths.filter((p): p is string => typeof p === "string")
-    : [];
+  const items: ZipItem[] = Array.isArray(body.items)
+    ? body.items
+        .filter(
+          (i): i is { path: unknown; kind?: unknown } =>
+            typeof i === "object" && i !== null && typeof (i as any).path === "string",
+        )
+        .map((i) => ({
+          path: i.path as string,
+          kind: i.kind === "file" || i.kind === "folder" ? i.kind : undefined,
+        }))
+    : Array.isArray(body.paths)
+      ? body.paths.filter((p): p is string => typeof p === "string").map((path) => ({ path }))
+      : [];
 
-  if (rawPaths.length === 0) {
+  if (items.length === 0) {
     return c.json(
-      { error: "Bad request", message: "A non-empty 'paths' array is required" },
+      { error: "Bad request", message: "A non-empty 'items' or 'paths' array is required" },
       400,
     );
   }
 
-  if (rawPaths.length > MAX_PATHS) {
+  if (items.length > MAX_PATHS) {
     return c.json(
       { error: "Bad request", message: `Too many items requested (max ${MAX_PATHS})` },
       400,
@@ -73,41 +89,49 @@ downloadZip.post("/", async (c) => {
   try {
     const zipFiles: Record<string, Uint8Array> = {};
 
-    for (const raw of rawPaths) {
-      const cleanPath = sanitizePath(raw);
-      if (!cleanPath) continue;
+    const addFolder = async (cleanPath: string) => {
+      const prefix = `public/${cleanPath}/`;
+      const objects = await storage!.list(prefix);
+      await Promise.all(
+        objects.map(async (obj) => {
+          const relPath = obj.key.replace(`public/${cleanPath}/`, "");
+          if (!relPath || relPath.endsWith("/")) return;
+          const buffer = await storage!.downloadOriginal(`${cleanPath}/${relPath}`);
+          zipFiles[`${cleanPath}/${relPath}`] = new Uint8Array(buffer);
+        }),
+      );
+    };
 
-      if (storage) {
-        const isFolder = await storage.folderExists(cleanPath);
-        if (isFolder) {
-          const prefix = `public/${cleanPath}/`;
-          const objects = await storage.list(prefix);
-          for (const obj of objects) {
-            const relPath = obj.key.replace(`public/${cleanPath}/`, "");
-            if (!relPath || relPath.endsWith("/")) continue;
-            const buffer = await storage.downloadOriginal(`${cleanPath}/${relPath}`);
-            zipFiles[`${cleanPath}/${relPath}`] = new Uint8Array(buffer);
+    await Promise.all(
+      items.map(async ({ path: raw, kind }) => {
+        const cleanPath = sanitizePath(raw);
+        if (!cleanPath) return;
+
+        if (storage) {
+          const isFolder = kind ? kind === "folder" : await storage.folderExists(cleanPath);
+          if (isFolder) {
+            await addFolder(cleanPath);
+          } else {
+            try {
+              const buffer = await storage.downloadOriginal(cleanPath);
+              zipFiles[cleanPath] = new Uint8Array(buffer);
+            } catch {
+              // Skip missing files rather than failing the whole archive
+            }
           }
         } else {
-          try {
-            const buffer = await storage.downloadOriginal(cleanPath);
-            zipFiles[cleanPath] = new Uint8Array(buffer);
-          } catch {
-            // Skip missing files rather than failing the whole archive
+          const localPath = path.join("./public", cleanPath);
+          if (!fs.existsSync(localPath)) return;
+          if (fs.statSync(localPath).isDirectory()) {
+            for (const entry of collectLocalFiles(localPath, cleanPath)) {
+              zipFiles[entry.arcPath] = new Uint8Array(fs.readFileSync(entry.fullPath));
+            }
+          } else {
+            zipFiles[cleanPath] = new Uint8Array(fs.readFileSync(localPath));
           }
         }
-      } else {
-        const localPath = path.join("./public", cleanPath);
-        if (!fs.existsSync(localPath)) continue;
-        if (fs.statSync(localPath).isDirectory()) {
-          for (const entry of collectLocalFiles(localPath, cleanPath)) {
-            zipFiles[entry.arcPath] = new Uint8Array(fs.readFileSync(entry.fullPath));
-          }
-        } else {
-          zipFiles[cleanPath] = new Uint8Array(fs.readFileSync(localPath));
-        }
-      }
-    }
+      }),
+    );
 
     if (Object.keys(zipFiles).length === 0) {
       return c.json(

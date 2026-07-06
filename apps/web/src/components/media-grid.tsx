@@ -690,7 +690,9 @@ export function MediaGrid({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths: entries.map((entry) => entry.path) }),
+        body: JSON.stringify({
+          items: entries.map((entry) => ({ path: entry.path, kind: entry.kind })),
+        }),
       });
       if (!response.ok) {
         throw new Error("Failed to download items");
