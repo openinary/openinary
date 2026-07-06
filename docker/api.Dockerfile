@@ -25,9 +25,9 @@ COPY scripts/ ./scripts/
 # Install all monorepo dependencies
 RUN pnpm install --offline --frozen-lockfile
 
-# Create necessary directories with proper ownership
+# Create necessary directories with proper ownership (only writable dirs, chown -R /app is prohibitively slow)
 RUN mkdir -p apps/api/cache apps/api/public /app/data && \
-    chown -R node:node /app
+    chown -R node:node apps/api/cache apps/api/public /app/data
 
 # Make wrapper script executable and fix line endings (CRLF to LF)
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
