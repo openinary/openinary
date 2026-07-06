@@ -5,9 +5,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Ban, Power, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "./ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "./ui/form";
+import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { CopyInput } from "./ui/copy-input";
 import { Separator } from "./ui/separator";
 import {
@@ -68,6 +77,7 @@ export function ApiKeyManager() {
   const [loading, setLoading] = useState(true);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null);
 
   const form = useForm<ApiKeyFormValues>({
     resolver: zodResolver(apiKeyFormSchema),
@@ -100,50 +110,67 @@ export function ApiKeyManager() {
   };
 
   const onCreateKey = async (values: ApiKeyFormValues) => {
-    try {
-      setError(null);
-      const expiresInDays = parseInt(values.expires, 10);
-      const expiresInSeconds = expiresInDays * 24 * 60 * 60;
+    setError(null);
+    const expiresInDays = parseInt(values.expires, 10);
+    const expiresInSeconds = expiresInDays * 24 * 60 * 60;
 
+    const createKey = async () => {
       const result = await authClient.apiKey.create({
         name: values.name || "API Key",
         expiresIn: expiresInSeconds,
       });
 
-      if (result.data && "key" in result.data) {
-        setCreatedKey(result.data.key);
-        form.reset({
-          name: "",
-          expires: "365",
-        });
-        await loadKeys();
-      } else if (result.error) {
-        setError(result.error.message || "Failed to create API key");
+      if (!result.data || !("key" in result.data)) {
+        throw new Error(result.error?.message || "Failed to create API key");
       }
+
+      return result.data;
+    };
+
+    try {
+      const data = await toast.promise(createKey(), {
+        loading: `Creating "${values.name || "API Key"}"...`,
+        success: `Created "${values.name || "API Key"}"`,
+        error: (error) =>
+          error instanceof Error ? error.message : "Failed to create API key",
+      }).unwrap();
+
+      setCreatedKey(data.key);
+      form.reset({
+        name: "",
+        expires: "365",
+      });
+      await loadKeys();
     } catch (err) {
       logger.error("Error creating API key", { error: err });
-      setError("Failed to create API key");
+      setError(err instanceof Error ? err.message : "Failed to create API key");
     }
   };
 
-  const deleteKey = async (keyId: string) => {
-    if (!confirm("Are you sure you want to delete this API key?")) {
-      return;
-    }
+  const deleteKey = async (keyId: string, keyName: string | null) => {
+    const displayName = keyName || "API key";
 
-    try {
+    const del = async () => {
       const result = await authClient.apiKey.delete({
         keyId,
       });
 
-      if (result.data) {
-        await loadKeys();
-      } else if (result.error) {
-        setError(result.error.message || "Failed to delete API key");
+      if (!result.data) {
+        throw new Error(result.error?.message || "Failed to delete API key");
       }
+    };
+
+    try {
+      await toast.promise(del(), {
+        loading: `Deleting "${displayName}"...`,
+        success: `Deleted "${displayName}"`,
+        error: (error) =>
+          error instanceof Error ? error.message : "Failed to delete API key",
+      }).unwrap();
+      await loadKeys();
     } catch (err) {
       logger.error("Error deleting API key", { error: err, keyId });
-      setError("Failed to delete API key");
+      setError(err instanceof Error ? err.message : "Failed to delete API key");
     }
   };
 
@@ -200,7 +227,6 @@ export function ApiKeyManager() {
       )}
 
       <div>
-        <p className="mb-3 text-sm font-medium">New key</p>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onCreateKey)}
@@ -211,8 +237,11 @@ export function ApiKeyManager() {
               name="name"
               render={({ field }) => (
                 <FormItem className="flex-1 space-y-1">
+                  <FormLabel className="text-xs font-normal text-muted-foreground">
+                    Key name
+                  </FormLabel>
                   <FormControl>
-                    <Input type="text" placeholder="Key name" {...field} />
+                    <Input type="text" placeholder="New key" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -223,6 +252,9 @@ export function ApiKeyManager() {
               name="expires"
               render={({ field }) => (
                 <FormItem className="w-24 space-y-1">
+                  <FormLabel className="text-xs font-normal text-muted-foreground">
+                    Expires
+                  </FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -236,9 +268,12 @@ export function ApiKeyManager() {
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Creating..." : "Create"}
-            </Button>
+            <div className="space-y-1">
+              <p className="invisible text-xs">Expires</p>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create"}
+              </Button>
+            </div>
           </form>
         </Form>
         <p className="mt-2 text-xs text-muted-foreground">
@@ -320,7 +355,7 @@ export function ApiKeyManager() {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              onClick={() => deleteKey(key.id)}
+                              onClick={() => setKeyToDelete(key)}
                               className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                               aria-label="Delete key"
                             >
@@ -341,6 +376,20 @@ export function ApiKeyManager() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        isOpen={!!keyToDelete}
+        onClose={() => setKeyToDelete(null)}
+        title="Delete API key"
+        description={`Are you sure you want to delete "${
+          keyToDelete?.name || "this API key"
+        }"? This action cannot be undone.`}
+        onConfirm={async () => {
+          if (!keyToDelete) return;
+          await deleteKey(keyToDelete.id, keyToDelete.name);
+          setKeyToDelete(null);
+        }}
+      />
     </div>
   );
 }

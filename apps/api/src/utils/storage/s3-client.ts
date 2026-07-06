@@ -109,8 +109,8 @@ export class S3ClientWrapper {
   async listObjects(
     prefix?: string,
     maxKeys?: number,
-  ): Promise<{ key: string; size?: number }[]> {
-    const results: { key: string; size?: number }[] = [];
+  ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
+    const results: { key: string; size?: number; lastModified?: Date }[] = [];
     let continuationToken: string | undefined;
 
     do {
@@ -129,6 +129,7 @@ export class S3ClientWrapper {
             results.push({
               key: object.Key,
               size: object.Size,
+              lastModified: object.LastModified,
             });
           }
         }

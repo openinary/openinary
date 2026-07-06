@@ -12,8 +12,12 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form"
+import { authClient } from "@/lib/auth-client"
 import logger from "@/lib/logger"
+import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 
 const accountFormSchema = z.object({
   name: z.string().min(1, {
@@ -66,16 +70,26 @@ export function AccountTab({
   }, [isOpen, userName, userEmail, userAvatar, accountForm])
 
   const onAccountSubmit = async (values: AccountFormValues) => {
+    const updateAccount = async () => {
+      const result = await authClient.updateUser({
+        name: values.name,
+        image: values.image || undefined,
+      })
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to update account")
+      }
+    }
+
     try {
-      // TODO: Implement account update API call
-      // For now, just log the values
-      logger.info("Account update", { values })
-      // You would typically call something like:
-      // await authClient.user.update({ ...values })
-      alert("Not implemented yet")
+      await toast.promise(updateAccount(), {
+        loading: "Saving changes...",
+        success: "Account updated",
+        error: (error) =>
+          error instanceof Error ? error.message : "Failed to update account",
+      }).unwrap()
+      accountForm.reset(values)
     } catch (error) {
       logger.error("Error updating account", { error })
-      alert("Not implemented yet")
     }
   }
 
@@ -91,13 +105,13 @@ export function AccountTab({
                 <FormLabel className="text-muted-foreground">Name</FormLabel>
                 <FormControl>
                   <Input
-                    disabled
                     type="text"
                     placeholder="Your name"
                     className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
                     {...field}
                   />
                 </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -127,31 +141,32 @@ export function AccountTab({
                 <FormLabel className="text-muted-foreground">Avatar URL</FormLabel>
                 <FormControl>
                   <Input
-                    disabled
                     type="url"
                     placeholder="https://example.com/avatar.jpg"
                     className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
                     {...field}
                   />
                 </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button
-            disabled
             type="button"
             variant="ghost"
+            disabled={accountForm.formState.isSubmitting}
             onClick={() => accountForm.reset()}
           >
             Reset
           </Button>
           <Button
             type="submit"
-            disabled
+            className="w-[110px]"
+            disabled={accountForm.formState.isSubmitting}
           >
-            {accountForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
+            {accountForm.formState.isSubmitting ? <Spinner size={16} /> : "Save Changes"}
           </Button>
         </div>
       </form>

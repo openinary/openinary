@@ -46,6 +46,7 @@
     "react-hook-form": "^7.66.1",
     "react-resizable-panels": "^3.0.6",
     "shared": "workspace:*",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "three": "^0.181.2",
     "zod": "^4.1.12"

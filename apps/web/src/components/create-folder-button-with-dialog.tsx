@@ -18,6 +18,7 @@ export default function CreateFolderButtonWithDialog({
   return (
     <DefaultDialog
       ref={dialogRef}
+      contentClassName="max-w-[384px]"
       title={`Create folder ${uploadToFolder ? `inside '${uploadToFolder}'` : ""}`}
       trigger={
         trigger ?? (

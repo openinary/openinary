@@ -1,12 +1,13 @@
 "use client"
 
 import {
-  BadgeCheck,
-  Key,
+  HardDrive,
+  KeyRound,
   LogOut,
   Moon,
   Star,
   Sun,
+  User,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
@@ -96,11 +97,11 @@ export function UserDropdown({
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem onClick={onAccountClick}>
-          <BadgeCheck />
+          <User />
           Account
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onApiKeysClick}>
-          <Key />
+          <KeyRound />
           API Keys
         </DropdownMenuItem>
         <DropdownMenuSeparator />

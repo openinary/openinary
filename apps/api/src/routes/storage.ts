@@ -5,18 +5,22 @@ import path from "path";
 import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
 import { getUniqueFilePath } from "../utils/get-unique-file-path";
-import { deleteCachedFiles } from "../utils/cache";
+import { deleteCachedFiles, getCacheSize, clearAllCache } from "../utils/cache";
 
 type StorageNode = {
   name: string;
   path: string;
   type: "file" | "directory";
+  size?: number;
+  mtime?: string;
   children?: StorageNode[];
 };
 
 type TreeDataItem = {
   id: string;
   name: string;
+  size?: number;
+  mtime?: string;
   children?: TreeDataItem[];
   draggable?: boolean;
   droppable?: boolean;
@@ -60,10 +64,13 @@ function buildLocalTree(rootDir: string): StorageNode {
         parent.children.push(dirNode);
         walk(fullPath, relPath, dirNode);
       } else if (entry.isFile()) {
+        const stats = fs.statSync(fullPath);
         const fileNode: StorageNode = {
           name: entry.name,
           path: relPath,
           type: "file",
+          size: stats.size,
+          mtime: stats.mtime.toISOString(),
         };
         parent.children = parent.children || [];
         parent.children.push(fileNode);
@@ -75,7 +82,9 @@ function buildLocalTree(rootDir: string): StorageNode {
   return root;
 }
 
-function buildTreeFromKeys(keys: { key: string }[]): StorageNode {
+function buildTreeFromKeys(
+  keys: { key: string; size?: number; lastModified?: Date }[],
+): StorageNode {
   const root: StorageNode = {
     name: "storage",
     path: "",
@@ -83,7 +92,7 @@ function buildTreeFromKeys(keys: { key: string }[]): StorageNode {
     children: [],
   };
 
-  for (const { key } of keys) {
+  for (const { key, size, lastModified } of keys) {
     const normalizedKey = key.replace(/^\/+/, "");
     const isFolderMarker = normalizedKey.endsWith("/");
     const parts = normalizedKey.split("/").filter(Boolean);
@@ -111,6 +120,8 @@ function buildTreeFromKeys(keys: { key: string }[]): StorageNode {
             name: part,
             path: currentPath,
             type: "file",
+            size,
+            mtime: lastModified?.toISOString(),
           });
         }
       } else {
@@ -142,6 +153,8 @@ function storageTreeToTreeData(root: StorageNode): TreeDataItem[] {
     return {
       id: node.path || node.name,
       name: node.name || node.path,
+      size: node.size,
+      mtime: node.mtime,
       children: node.children?.map(mapNode),
     };
   };
@@ -182,6 +195,102 @@ storageRoute.get("/", async (c) => {
     return c.json(
       {
         error: "Failed to list storage contents",
+      },
+      500,
+    );
+  }
+});
+
+function sumTreeSize(node: StorageNode): { size: number; fileCount: number } {
+  let size = node.size ?? 0;
+  let fileCount = node.type === "file" ? 1 : 0;
+
+  for (const child of node.children ?? []) {
+    const childStats = sumTreeSize(child);
+    size += childStats.size;
+    fileCount += childStats.fileCount;
+  }
+
+  return { size, fileCount };
+}
+
+/**
+ * Get aggregate storage and cache stats
+ * GET /storage/stats
+ * Note: This route must be registered before GET "/*"
+ */
+storageRoute.get("/stats", async (c) => {
+  try {
+    let root: StorageNode;
+
+    if (storageClient) {
+      const objects = await storageClient.list("public/");
+      const publicObjects = objects
+        .filter((obj) => obj.key.startsWith("public/"))
+        .map((obj) => ({ ...obj, key: obj.key.substring(7) }));
+      root = buildTreeFromKeys(publicObjects);
+    } else {
+      const publicDir = path.join(".", "public");
+      root = buildLocalTree(publicDir);
+    }
+
+    const { size: storageSize, fileCount } = sumTreeSize(root);
+
+    const localCache = await getCacheSize();
+    const cloudCache = storageClient
+      ? await storageClient.getCacheStats()
+      : { size: 0, fileCount: 0 };
+
+    return c.json({
+      storage: {
+        size: storageSize,
+        fileCount,
+      },
+      cache: {
+        size: localCache.size + cloudCache.size,
+        fileCount: localCache.fileCount + cloudCache.fileCount,
+      },
+    });
+  } catch (error) {
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to get storage stats",
+    );
+    return c.json(
+      {
+        error: "Failed to get storage stats",
+      },
+      500,
+    );
+  }
+});
+
+/**
+ * Clear all cached (transformed) files, local and cloud
+ * POST /storage/cache/clear
+ * Note: This route must be registered before POST "/*"
+ */
+storageRoute.post("/cache/clear", async (c) => {
+  try {
+    const localDeleted = await clearAllCache();
+    const cloudDeleted = storageClient
+      ? await storageClient.clearAllCache()
+      : 0;
+
+    return c.json({
+      success: true,
+      message: "Cache cleared successfully",
+      details: {
+        localCacheFilesDeleted: localDeleted,
+        cloudCacheFilesDeleted: cloudDeleted,
+      },
+    });
+  } catch (error) {
+    logger.error({ error: serializeError(error) }, "Failed to clear cache");
+    return c.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
       500,
     );
@@ -398,6 +507,14 @@ async function pathExists(filePath: string): Promise<boolean> {
   return fs.existsSync(path.join(".", "public", filePath));
 }
 
+async function isDirectoryPath(filePath: string): Promise<boolean> {
+  if (storageClient) {
+    return storageClient.folderExists(filePath);
+  }
+  const localPath = path.join(".", "public", filePath);
+  return fs.existsSync(localPath) && fs.statSync(localPath).isDirectory();
+}
+
 function extractFilePath(requestPath: string, suffix?: RegExp): string {
   let pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "");
   if (suffix) {
@@ -439,7 +556,7 @@ storageRoute.patch("/*", async (c) => {
   const newName = typeof body.name === "string" ? body.name.trim() : "";
   if (!newName || newName.includes("/") || newName.includes("\\")) {
     return c.json(
-      { error: "Bad request", message: "A valid file name is required" },
+      { error: "Bad request", message: "A valid name is required" },
       400,
     );
   }
@@ -448,17 +565,34 @@ storageRoute.patch("/*", async (c) => {
   const newPath = dir === "." ? newName : `${dir}/${newName}`;
 
   try {
-    if (!(await pathExists(filePath))) {
-      return c.json({ error: "Not found", message: "File not found" }, 404);
-    }
-    if (newPath !== filePath && (await pathExists(newPath))) {
+    const isFile = await pathExists(filePath);
+    const isFolder = !isFile && (await isDirectoryPath(filePath));
+
+    if (!isFile && !isFolder) {
       return c.json(
-        { error: "Conflict", message: "A file with that name already exists" },
-        409,
+        { error: "Not found", message: "File or folder not found" },
+        404,
       );
     }
 
-    if (storageClient) {
+    if (newPath !== filePath) {
+      const targetIsFile = await pathExists(newPath);
+      const targetIsFolder = !targetIsFile && (await isDirectoryPath(newPath));
+      if (targetIsFile || targetIsFolder) {
+        return c.json(
+          {
+            error: "Conflict",
+            message: "A file or folder with that name already exists",
+          },
+          409,
+        );
+      }
+    }
+
+    if (isFolder && storageClient) {
+      await storageClient.renameFolder(filePath, newPath);
+      storageClient.invalidateAllCacheEntries(filePath);
+    } else if (storageClient) {
       await storageClient.renameOriginal(filePath, newPath);
       storageClient.invalidateAllCacheEntries(filePath);
     } else {
@@ -509,7 +643,10 @@ storageRoute.post("/*", async (c) => {
   }
 
   try {
-    if (!(await pathExists(filePath))) {
+    const isFile = await pathExists(filePath);
+    const isFolder = !isFile && isMove && (await isDirectoryPath(filePath));
+
+    if (!isFile && !isFolder) {
       return c.json({ error: "Not found", message: "File not found" }, 404);
     }
 
@@ -536,6 +673,24 @@ storageRoute.post("/*", async (c) => {
           400,
         );
       }
+    }
+
+    if (isFolder) {
+      const newPath = targetDir ? `${targetDir}/${baseName}` : baseName;
+
+      if (storageClient) {
+        await storageClient.renameFolder(filePath, newPath);
+        storageClient.invalidateAllCacheEntries(filePath);
+      } else {
+        const sourceAbs = path.join(".", "public", filePath);
+        const destAbs = path.join(".", "public", newPath);
+        fs.mkdirSync(path.dirname(destAbs), { recursive: true });
+        fs.renameSync(sourceAbs, destAbs);
+      }
+
+      await deleteCachedFiles(filePath);
+
+      return c.json({ success: true, path: newPath });
     }
 
     let candidatePath: string;

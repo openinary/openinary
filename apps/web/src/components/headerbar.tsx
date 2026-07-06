@@ -1,6 +1,8 @@
+import { LayoutGrid, List } from "lucide-react";
 import { useQueryState } from "nuqs";
 import ColumnCountSlider from "./column-count-slider";
 import DeleteFolderButton from "./delete-folder-button";
+import { Button } from "./ui/button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,9 +18,13 @@ import UploadButtonWithDialog from "./upload-button-with-dialog";
 export default function HeaderBar({
   columns,
   onColumnsChange,
+  view = "grid",
+  onViewChange,
 }: {
   columns: number;
   onColumnsChange: (columns: number) => void;
+  view?: "grid" | "list";
+  onViewChange?: (view: "grid" | "list") => void;
 }) {
   const [folderPath, setFolderPath] = useQueryState("folder");
 
@@ -83,7 +89,29 @@ export default function HeaderBar({
               }
             />
           )}
-          <ColumnCountSlider value={columns} onChange={onColumnsChange} />
+          {view === "grid" && (
+            <ColumnCountSlider value={columns} onChange={onColumnsChange} />
+          )}
+          <div className="flex items-center rounded-md border border-border p-0.5">
+            <Button
+              variant={view === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onViewChange?.("grid")}
+              aria-label="Grid view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={view === "list" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onViewChange?.("list")}
+              aria-label="List view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
           <UploadButtonWithDialog uploadToFolder={folderPath || undefined} />
         </div>
       </div>

@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 
-export const MIN_COLUMNS = 2;
+export const MIN_COLUMNS = 4;
 export const MAX_COLUMNS = 10;
 
 export default function ColumnCountSlider({
@@ -38,7 +38,7 @@ export default function ColumnCountSlider({
               onPointerUp={() => setDragging(false)}
             />
           </TooltipTrigger>
-          <TooltipContent>{value} columns</TooltipContent>
+          <TooltipContent sideOffset={14}>{value} columns</TooltipContent>
         </Tooltip>
         <LayoutGrid className="h-4 w-4 text-muted-foreground shrink-0" />
       </div>

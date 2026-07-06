@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import Image from "next/image";
 import {
@@ -8,19 +8,19 @@ import {
   Image as ImageIcon,
   Package,
   Video,
-} from "lucide-react"
+} from "lucide-react";
 
-import { NavMain } from "@/components/sidebar/nav-main"
-import { NavProjects } from "@/components/sidebar/nav-projects"
-import { NavUser } from "@/components/sidebar/nav-user"
-import { VersionDisplay } from "@/components/sidebar/version-display"
+import { NavMain } from "@/components/sidebar/nav-main";
+import { NavProjects } from "@/components/sidebar/nav-projects";
+import { NavUser } from "@/components/sidebar/nav-user";
+import { VersionDisplay } from "@/components/sidebar/version-display";
 
 type MediaFile = {
-  id: string
-  name: string
-  path: string
-  type: "image" | "video"
-}
+  id: string;
+  name: string;
+  path: string;
+  type: "image" | "video";
+};
 import {
   Sidebar,
   SidebarContent,
@@ -32,8 +32,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
-} from "@/components/ui/sidebar"
-import Link from "next/link"
+} from "@/components/ui/sidebar";
+import Link from "next/link";
 
 // This is sample data.
 const data = {
@@ -57,19 +57,19 @@ const data = {
       disabled: true,
     },
   ],
-}
+};
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  onMediaSelect?: (media: MediaFile) => void
+  onMediaSelect?: (media: MediaFile) => void;
 }
 
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
-  const { state } = useSidebar()
-  const isCollapsed = state === "collapsed"
-  
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="pl-4 pt-4">
+      <SidebarHeader className="pl-4 pt-4 group-data-[collapsible=icon]:pt-[11px] group-data-[collapsible=icon]:pl-[12px]">
         <Link href="/" className="flex items-center">
           <Image
             src={isCollapsed ? "/icon.svg" : "/openinary.svg"}
@@ -80,7 +80,14 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           />
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+        }}
+      >
         <NavMain items={data.navMain} />
         <NavProjects onMediaSelect={onMediaSelect} />
       </SidebarContent>
@@ -90,5 +97,5 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
