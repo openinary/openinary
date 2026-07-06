@@ -26,11 +26,12 @@ function auditLog(event: string, data: Record<string, any>) {
 }
 
 /**
- * Middleware to verify API key OR session cookie
- * Supports both API key authentication and web app session authentication
- * Attaches user and apiKey info to context if valid
+ * Verifies API key OR session cookie and attaches user/apiKey info to context.
+ * Does not write a response on failure — callers decide how to handle that
+ * (reject outright, or fall back to another auth mechanism).
+ * @returns true if the request is authenticated
  */
-export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
+export async function authenticateRequest(c: Context<AuthVariables>): Promise<boolean> {
   const authHeader = c.req.header("Authorization");
   const cookieHeader = c.req.header("Cookie");
 
@@ -74,8 +75,7 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
             ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
           });
 
-          await next();
-          return;
+          return true;
         } else {
           // Audit log: invalid API key
           auditLog("auth.api_key.failed", {
@@ -145,8 +145,7 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
             ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
           });
 
-          await next();
-          return;
+          return true;
         }
       }
     }
@@ -164,7 +163,23 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
     hasAuthHeader: !!authHeader,
     hasCookie: !!cookieHeader,
   });
-  
+
+  return false;
+}
+
+/**
+ * Middleware to verify API key OR session cookie
+ * Supports both API key authentication and web app session authentication
+ * Attaches user and apiKey info to context if valid
+ */
+export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
+  const authed = await authenticateRequest(c);
+
+  if (authed) {
+    await next();
+    return;
+  }
+
   return c.json(
     {
       error: "Authentication required",
