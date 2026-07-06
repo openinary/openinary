@@ -429,6 +429,11 @@ upload.post("/", async (c) => {
         (customName || (file as any).webkitRelativePath || file.name);
       const rawSanitizedPath = sanitizePath(rawPath);
       const filename = path.basename(rawSanitizedPath);
+
+      // Silently ignore macOS metadata files
+      if (filename === ".DS_Store") {
+        continue;
+      }
       const mimeType = file.type;
       const fileSize = file.size;
 

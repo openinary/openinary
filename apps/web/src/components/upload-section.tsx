@@ -35,6 +35,15 @@ interface UploadResponse {
   error?: string;
 }
 
+function isIgnoredFile(file: File) {
+  const relativePath = (file as File & { webkitRelativePath?: string })
+    .webkitRelativePath;
+  const name = relativePath
+    ? relativePath.split("/").pop() || relativePath
+    : file.name;
+  return name === ".DS_Store";
+}
+
 export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
@@ -43,7 +52,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    setSelectedFiles(acceptedFiles);
+    setSelectedFiles(acceptedFiles.filter((file) => !isIgnoredFile(file)));
     setUploadResult(null);
   }, []);
 
@@ -56,7 +65,9 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   });
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files || []).filter(
+      (file) => !isIgnoredFile(file),
+    );
     if (files.length > 0) {
       setSelectedFiles(files);
       setUploadResult(null);
