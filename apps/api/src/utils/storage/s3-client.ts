@@ -6,6 +6,7 @@ import {
   ListObjectsV2Command,
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  CopyObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import https from "https";
@@ -108,8 +109,8 @@ export class S3ClientWrapper {
   async listObjects(
     prefix?: string,
     maxKeys?: number,
-  ): Promise<{ key: string; size?: number }[]> {
-    const results: { key: string; size?: number }[] = [];
+  ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
+    const results: { key: string; size?: number; lastModified?: Date }[] = [];
     let continuationToken: string | undefined;
 
     do {
@@ -128,6 +129,7 @@ export class S3ClientWrapper {
             results.push({
               key: object.Key,
               size: object.Size,
+              lastModified: object.LastModified,
             });
           }
         }
@@ -207,6 +209,22 @@ export class S3ClientWrapper {
 
     // Default AWS S3 URL format
     return `https://${this.config.bucketName}.s3.${this.config.region}.amazonaws.com/${key}`;
+  }
+
+  /**
+   * Copies an object within the bucket to a new key
+   */
+  async copyObject(sourceKey: string, destKey: string): Promise<void> {
+    await this.s3Client.send(
+      new CopyObjectCommand({
+        Bucket: this.config.bucketName,
+        CopySource: `${this.config.bucketName}/${sourceKey
+          .split("/")
+          .map(encodeURIComponent)
+          .join("/")}`,
+        Key: destKey,
+      }),
+    );
   }
 
   /**

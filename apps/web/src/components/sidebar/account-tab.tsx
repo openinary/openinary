@@ -14,7 +14,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { authClient } from "@/lib/auth-client"
 import logger from "@/lib/logger"
+import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 
 const accountFormSchema = z.object({
   name: z.string().min(1, {
@@ -67,90 +70,103 @@ export function AccountTab({
   }, [isOpen, userName, userEmail, userAvatar, accountForm])
 
   const onAccountSubmit = async (values: AccountFormValues) => {
+    const updateAccount = async () => {
+      const result = await authClient.updateUser({
+        name: values.name,
+        image: values.image || undefined,
+      })
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to update account")
+      }
+    }
+
     try {
-      // TODO: Implement account update API call
-      // For now, just log the values
-      logger.info("Account update", { values })
-      // You would typically call something like:
-      // await authClient.user.update({ ...values })
-      alert("Not implemented yet")
+      await toast.promise(updateAccount(), {
+        loading: "Saving changes...",
+        success: "Account updated",
+        error: (error) =>
+          error instanceof Error ? error.message : "Failed to update account",
+      }).unwrap()
+      accountForm.reset(values)
     } catch (error) {
       logger.error("Error updating account", { error })
-      alert("Not implemented yet")
     }
   }
 
   return (
     <Form {...accountForm}>
       <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-4">
-        <FormField
-          control={accountForm.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input
-                  disabled
-                  type="text"
-                  placeholder="Your name"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={accountForm.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input
-                  disabled
-                  type="email"
-                  placeholder="your.email@example.com"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={accountForm.control}
-          name="image"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Avatar URL (optional)</FormLabel>
-              <FormControl>
-                <Input
-                  disabled
-                  type="url"
-                  placeholder="https://example.com/avatar.jpg"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="divide-y rounded-lg border">
+          <FormField
+            control={accountForm.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
+                <FormLabel className="text-muted-foreground">Name</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    placeholder="Your name"
+                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={accountForm.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
+                <FormLabel className="text-muted-foreground">Email</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled
+                    type="email"
+                    placeholder="your.email@example.com"
+                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    {...field}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={accountForm.control}
+            name="image"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
+                <FormLabel className="text-muted-foreground">Avatar URL</FormLabel>
+                <FormControl>
+                  <Input
+                    type="url"
+                    placeholder="https://example.com/avatar.jpg"
+                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
           <Button
-            disabled
             type="button"
             variant="ghost"
+            disabled={accountForm.formState.isSubmitting}
             onClick={() => accountForm.reset()}
           >
             Reset
           </Button>
           <Button
             type="submit"
-            disabled
+            className="w-[110px]"
+            disabled={accountForm.formState.isSubmitting}
           >
-            {accountForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
+            {accountForm.formState.isSubmitting ? <Spinner size={16} /> : "Save Changes"}
           </Button>
         </div>
       </form>

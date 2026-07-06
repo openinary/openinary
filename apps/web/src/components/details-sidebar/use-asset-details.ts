@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useQueryState, parseAsString } from "nuqs"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { useStorageTree } from "@/hooks/use-storage-tree"
 import { usePreloadMedia } from "@/hooks/use-preload-media"
 import { useVideoStatus } from "@/hooks/use-video-status"
@@ -22,6 +23,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
   const [createdAt, setCreatedAt] = useState<Date | null>(null)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""
   // Use dedicated transform base URL (empty in Docker, falls back to apiBaseUrl without /api)
@@ -216,6 +218,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
   const handleCopyUrl = () => {
     if (mediaUrl) {
       navigator.clipboard.writeText(mediaUrl)
+      toast.success("URL copied to clipboard")
     }
   }
 
@@ -231,6 +234,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
+    toast.success(`Downloading "${asset.name}"`)
   }
 
   const handleOpenInNewTab = () => {
@@ -244,28 +248,32 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     onOpenChange?.(false)
   }
 
+  const handleDeleteRequest = () => {
+    if (!asset) return
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteDialogClose = () => {
+    setDeleteDialogOpen(false)
+  }
+
   const handleDelete = async () => {
     if (!asset) return
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${asset.name}"? This action cannot be undone.`
-    )
+    const assetName = asset.name
 
-    if (!confirmed) return
-
-    setIsDeleting(true)
-    try {
+    const del = async () => {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""
-      
+
       // Encode each segment of the path separately to preserve slashes
       // This is necessary for files in subdirectories
       const encodedPath = asset.path
         .split("/")
         .map((segment) => encodeURIComponent(segment))
         .join("/")
-      
+
       const deleteUrl = `${apiBaseUrl}/storage/${encodedPath}`
-      
+
       const response = await fetch(deleteUrl, {
         method: "DELETE",
         credentials: "include",
@@ -303,16 +311,25 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
       } catch (parseError) {
         // Ignore parsing errors for success responses - we don't need the data
       }
+    }
+
+    setIsDeleting(true)
+    try {
+      await toast.promise(del(), {
+        loading: `Deleting "${assetName}"...`,
+        success: `Deleted "${assetName}"`,
+        error: (error) => (error instanceof Error ? error.message : "Failed to delete file"),
+      }).unwrap()
 
       // Refresh the storage tree
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] })
 
-      // Close the sidebar and clear selection
+      // Close the dialog, sidebar and clear selection
+      setDeleteDialogOpen(false)
       setAssetId(null)
       onOpenChange?.(false)
     } catch (error) {
       console.error("Failed to delete file:", error)
-      alert(error instanceof Error ? error.message : "Failed to delete file")
     } finally {
       setIsDeleting(false)
     }
@@ -328,6 +345,7 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     createdAt,
     updatedAt,
     isDeleting,
+    deleteDialogOpen,
     mediaUrl,
     previewUrl,
     apiBaseUrl,
@@ -338,6 +356,8 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     handleDownload,
     handleOpenInNewTab,
     handleClose,
+    handleDeleteRequest,
+    handleDeleteDialogClose,
     handleDelete,
   }
 }

@@ -201,5 +201,74 @@ export async function deleteCachedFiles(originalPath: string): Promise<number> {
   }
 }
 
+/**
+ * Gets aggregate stats for the local cache directory
+ */
+export async function getCacheSize(): Promise<{ size: number; fileCount: number }> {
+  try {
+    if (!existsSync(CACHE_DIR)) {
+      return { size: 0, fileCount: 0 };
+    }
+
+    const files = await fs.readdir(CACHE_DIR);
+    let size = 0;
+    let fileCount = 0;
+
+    for (const file of files) {
+      const filePath = join(CACHE_DIR, file);
+      try {
+        const stats = await fs.stat(filePath);
+        if (stats.isFile()) {
+          size += stats.size;
+          fileCount++;
+        }
+      } catch (error) {
+        logger.warn({ error: serializeError(error), file }, 'Failed to stat cache file');
+      }
+    }
+
+    return { size, fileCount };
+  } catch (error) {
+    logger.error({ error: serializeError(error) }, 'Failed to compute cache size');
+    return { size: 0, fileCount: 0 };
+  }
+}
+
+/**
+ * Deletes all files in the local cache directory
+ */
+export async function clearAllCache(): Promise<number> {
+  try {
+    if (!existsSync(CACHE_DIR)) {
+      return 0;
+    }
+
+    const files = await fs.readdir(CACHE_DIR);
+    let deletedCount = 0;
+
+    for (const file of files) {
+      const filePath = join(CACHE_DIR, file);
+      try {
+        const stats = await fs.stat(filePath);
+        if (stats.isFile()) {
+          await fs.unlink(filePath);
+          deletedCount++;
+        }
+      } catch (error) {
+        logger.warn({ error: serializeError(error), file }, 'Failed to delete cache file');
+      }
+    }
+
+    SmartCache['stats'].requests.clear();
+    SmartCache['stats'].totalCacheSize = 0;
+
+    logger.info({ deletedCount }, 'Cleared all local cache files');
+    return deletedCount;
+  } catch (error) {
+    logger.error({ error: serializeError(error) }, 'Failed to clear cache');
+    return 0;
+  }
+}
+
 // Initialize cache on module load
 initializeCache();

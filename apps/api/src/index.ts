@@ -5,6 +5,8 @@ import authenticated from "./routes/authenticated";
 import upload from "./routes/upload";
 import storageRoute from "./routes/storage";
 import download from "./routes/download";
+import downloadFolder from "./routes/download-folder";
+import downloadZip from "./routes/download-zip";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
 import videoStatus from "./routes/video-status";
@@ -80,6 +82,11 @@ app.use("/download", publicRateLimit);
 app.use("/download/*", publicRateLimit);
 app.route("/download", download);
 
+// Folder ZIP download route (public)
+app.use("/download-folder", publicRateLimit);
+app.use("/download-folder/*", publicRateLimit);
+app.route("/download-folder", downloadFolder);
+
 // Authenticated image transformation route (with signature verification)
 app.use("/authenticated", publicRateLimit);
 app.use("/authenticated/*", publicRateLimit);
@@ -98,6 +105,11 @@ app.route("/upload", upload);
 
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
+
+// Bulk ZIP download route (protected — accepts an arbitrary list of paths)
+app.use("/download-zip", apiKeyAuth);
+app.use("/download-zip/*", apiKeyAuth);
+app.route("/download-zip", downloadZip);
 
 // Cache invalidation route (protected)
 app.use("/invalidate/*", apiKeyAuth);

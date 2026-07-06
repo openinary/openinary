@@ -37,6 +37,8 @@ interface TreeDataItem {
     draggable?: boolean
     droppable?: boolean
     disabled?: boolean
+    size?: number
+    mtime?: string
 }
 
 type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -471,7 +473,7 @@ const TreeLeaf = React.forwardRef<
             <div
                 ref={ref}
                 className={cn(
-                    'flex text-left items-center gap-2 py-2 cursor-pointer before:right-1',
+                    'flex h-8 text-left items-center gap-2 cursor-pointer before:right-1',
                     treeVariants(),
                     className,
                     selectedItemId === item.id && selectedTreeVariants(),
@@ -515,7 +517,7 @@ const AccordionTrigger = React.forwardRef<
         <AccordionPrimitive.Trigger
             ref={ref}
             className={cn(
-                'flex flex-1 w-full items-center gap-2 py-2 transition-all',
+                'flex h-8 flex-1 w-full items-center gap-2 transition-all',
                 className
             )}
             {...props}

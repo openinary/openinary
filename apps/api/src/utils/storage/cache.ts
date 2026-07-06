@@ -74,6 +74,13 @@ export class StorageCache {
   }
 
   /**
+   * Clears all cache entries
+   */
+  clear(): void {
+    this.existsCache.clear();
+  }
+
+  /**
    * Automatic cache cleanup (LRU + TTL)
    */
   private cleanup(): void {

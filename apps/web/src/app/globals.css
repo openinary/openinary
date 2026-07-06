@@ -120,3 +120,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Sonner toasts default to `left: 0` inside a fixed-width container and rely
+   on that container being centered — fine for full-width toasts, but our
+   pill toasts shrink-to-fit (`w-fit`), so a narrower/wider toast (e.g. a
+   promise toast swapping "Uploading..." for "Uploaded 7 file(s)") ends up
+   offset instead of staying centered. Center each toast itself instead. */
+[data-sonner-toast][data-x-position="center"] {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) var(--y) !important;
+}
+
+/* Radix Slider positions the thumb via inline left/transform styles on a
+   wrapper span we can't reach with className, so animate it here instead. */
+span:has(> [data-slot="slider-thumb"]) {
+  transition: left 150ms ease-out, right 150ms ease-out;
+}

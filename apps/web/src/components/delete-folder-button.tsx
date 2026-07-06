@@ -2,6 +2,8 @@ import { FolderX } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
 export default function DeleteFolderButton({
   folderPath,
@@ -11,29 +13,21 @@ export default function DeleteFolderButton({
   onSuccessfulDelete?: (folder: string) => void;
 }) {
   const queryClient = useQueryClient();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        `Are you sure you want to delete the folder '${folderPath}' and its contents?\nThis action cannot be undone.`,
-      )
-    )
-      return;
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-    setIsDeleting(true);
-    try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+    // Encode each segment of the path separately to preserve slashes
+    // This is necessary for files in subdirectories
+    const encodedPath = folderPath
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
 
-      // Encode each segment of the path separately to preserve slashes
-      // This is necessary for files in subdirectories
-      const encodedPath = folderPath
-        .split("/")
-        .map((segment) => encodeURIComponent(segment))
-        .join("/");
+    const deleteUrl = `${apiBaseUrl}/storage/${encodedPath}`;
 
-      const deleteUrl = `${apiBaseUrl}/storage/${encodedPath}`;
-
+    const del = async () => {
       const response = await fetch(deleteUrl, {
         method: "DELETE",
         credentials: "include",
@@ -71,27 +65,44 @@ export default function DeleteFolderButton({
       } catch (parseError) {
         // Ignore parsing errors for success responses - we don't need the data
       }
+    };
+
+    try {
+      await toast.promise(del(), {
+        loading: `Deleting "${folderPath}"...`,
+        success: `Deleted "${folderPath}"`,
+        error: (error) => (error instanceof Error ? error.message : "Failed to delete file"),
+      }).unwrap();
 
       // Refresh the storage tree
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
       onSuccessfulDelete?.(folderPath);
     } catch (error) {
       console.error("Failed to delete file:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete file");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
   return (
-    <Button
-      variant="ghostDestructive"
-      size="sm"
-      onClick={handleDelete}
-      className="gap-2"
-    >
-      <FolderX className="h-4 w-4" />
-      {isDeleting ? "Deleting..." : "Delete folder"}
-    </Button>
+    <>
+      <Button
+        variant="ghostDestructive"
+        size="sm"
+        onClick={() => setConfirmOpen(true)}
+        className="gap-2"
+      >
+        <FolderX className="h-4 w-4" />
+        Delete folder
+      </Button>
+      <DeleteConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Delete Folder"
+        description={`This action cannot be undone. Are you sure you want to permanently delete "${folderPath}" and all its contents?`}
+        onConfirm={async () => {
+          await handleDelete();
+          setConfirmOpen(false);
+        }}
+      />
+    </>
   );
 }

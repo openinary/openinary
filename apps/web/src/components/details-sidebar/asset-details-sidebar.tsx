@@ -14,6 +14,7 @@ import { AssetPreview } from "./asset-preview"
 import { AssetDetailsTab } from "./asset-details-tab"
 import { AssetTransformationsTab } from "./asset-transformations-tab"
 import { AssetMetadataTab } from "./asset-metadata-tab"
+import { DeleteConfirmDialog } from "../delete-confirm-dialog"
 
 export function AssetDetailsSidebar({
   items,
@@ -38,6 +39,7 @@ export function AssetDetailsSidebar({
     createdAt,
     updatedAt,
     isDeleting,
+    deleteDialogOpen,
     mediaUrl,
     previewUrl,
     transformBaseUrl,
@@ -47,12 +49,14 @@ export function AssetDetailsSidebar({
     handleDownload,
     handleOpenInNewTab,
     handleClose,
+    handleDeleteRequest,
+    handleDeleteDialogClose,
     handleDelete,
   } = useAssetDetails(onOpenChange)
 
   return (
     <div
-      className="h-[100dvh] flex flex-col border-l bg-sidebar text-sidebar-foreground min-w-[320px]"
+      className="h-[100dvh] flex flex-col border-l bg-sidebar text-sidebar-foreground min-w-0"
       {...props}
     >
       <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
@@ -108,7 +112,7 @@ export function AssetDetailsSidebar({
                   onCopyUrl={handleCopyUrl}
                   onDownload={handleDownload}
                   onOpenInNewTab={handleOpenInNewTab}
-                  onDelete={handleDelete}
+                  onDelete={handleDeleteRequest}
                 />
               </TabsContent>
 
@@ -123,6 +127,14 @@ export function AssetDetailsSidebar({
           </div>
         )}
       </ScrollArea>
+
+      <DeleteConfirmDialog
+        isOpen={deleteDialogOpen}
+        onClose={handleDeleteDialogClose}
+        title="Delete Item"
+        description={`This action cannot be undone. Are you sure you want to permanently delete "${asset?.name ?? ""}"?`}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

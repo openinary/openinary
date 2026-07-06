@@ -5,6 +5,7 @@ import {
   useImperativeHandle,
   useState,
 } from "react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ export default function DefaultDialog({
   children,
   onClose,
   ref,
+  contentClassName,
 }: {
   title: string | ReactNode;
   isOpen?: boolean;
@@ -27,6 +29,7 @@ export default function DefaultDialog({
   children: ReactNode;
   onClose?: () => void;
   ref?: Ref<{ close: () => void }>;
+  contentClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -45,13 +48,11 @@ export default function DefaultDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="flex flex-col gap-0 p-0 max-w-2xl [&>button:last-child]:top-3.5">
-        <DialogHeader className="contents space-y-0 text-left">
-          <DialogTitle className="border-b px-6 py-4 text-base">
-            {title}
-          </DialogTitle>
+      <DialogContent className={cn("max-w-2xl", contentClassName)}>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="px-6 py-4">{children}</div>
+        {children}
       </DialogContent>
     </Dialog>
   );

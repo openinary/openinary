@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   CheckCircle2,
   FileImage,
@@ -80,7 +81,9 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
       formData.append("files", file);
     });
 
-    try {
+    const fileCount = selectedFiles.length;
+
+    const upload = async () => {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
       const response = await fetch(`${apiUrl}/upload`, {
@@ -90,13 +93,23 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
       });
 
       const data: UploadResponse = await response.json();
-      setUploadResult(data);
-
-      if (data.success) {
-        setSelectedFiles([]);
-        // Invalidate storage tree query to refresh the data
-        queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      if (!data.success) {
+        throw new Error(data.error || "Upload failed");
       }
+      return data;
+    };
+
+    try {
+      const data = await toast.promise(upload(), {
+        loading: `Uploading ${fileCount} file(s)...`,
+        success: (data) => `Uploaded ${data.files?.length ?? fileCount} file(s)`,
+        error: (error) => (error instanceof Error ? error.message : "Upload failed"),
+      }).unwrap();
+
+      setUploadResult(data);
+      setSelectedFiles([]);
+      // Invalidate storage tree query to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
     } catch (error) {
       setUploadResult({
         success: false,
@@ -213,32 +226,36 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
               </Button>
             </div>
 
-            <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
-              {selectedFiles.slice(0, 50).map((file, index) => {
-                const displayPath =
-                  (file as any).webkitRelativePath || file.name;
-                return (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted/50"
-                  >
-                    {getFileIcon(file)}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {displayPath}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </p>
+            <div className="relative rounded-lg border overflow-hidden">
+              <div className="divide-y max-h-64 overflow-y-auto">
+                {selectedFiles.slice(0, 50).map((file, index) => {
+                  const displayPath =
+                    (file as any).webkitRelativePath || file.name;
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted/50"
+                    >
+                      {getFileIcon(file)}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {displayPath}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(file.size)}
+                        </p>
+                      </div>
                     </div>
+                  );
+                })}
+                {selectedFiles.length > 50 && (
+                  <div className="px-4 py-3 text-center text-sm text-muted-foreground">
+                    ... and {selectedFiles.length - 50} more files
                   </div>
-                );
-              })}
-              {selectedFiles.length > 50 && (
-                <div className="px-4 py-3 text-center text-sm text-muted-foreground">
-                  ... and {selectedFiles.length - 50} more files
-                </div>
-              )}
+                )}
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-card to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-card to-transparent" />
             </div>
           </div>
         )}

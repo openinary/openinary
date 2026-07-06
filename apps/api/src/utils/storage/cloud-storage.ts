@@ -16,7 +16,9 @@ export class CloudStorage {
   /**
    * Lists objects in storage (cloud only)
    */
-  async list(prefix?: string): Promise<{ key: string; size?: number }[]> {
+  async list(
+    prefix?: string,
+  ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
     return await this.s3Client.listObjects(prefix);
   }
 
@@ -43,6 +45,26 @@ export class CloudStorage {
 
     const prefixedObjects = await this.s3Client.listObjects(markerKey, 1);
     return prefixedObjects.length > 0;
+  }
+
+  /**
+   * Renames/moves all objects under a folder prefix to a new prefix (copy + delete each)
+   */
+  async renameFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
+    const normalizedOld = oldFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
+    const normalizedNew = newFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
+    const prefix = `public/${normalizedOld}/`;
+
+    const objects = await this.s3Client.listObjects(prefix);
+
+    for (const obj of objects) {
+      const relativeKey = obj.key.slice(prefix.length);
+      const destKey = `public/${normalizedNew}/${relativeKey}`;
+      await this.s3Client.copyObject(obj.key, destKey);
+      await this.s3Client.deleteObject(obj.key);
+    }
+
+    this.cache.delete(`original:${normalizedOld}`);
   }
 
   /**
@@ -258,6 +280,29 @@ export class CloudStorage {
   }
 
   /**
+   * Copies an original file to a new path within storage
+   */
+  async copyOriginal(sourcePath: string, destPath: string): Promise<void> {
+    const sourceKey = `public/${sourcePath}`;
+    const destKey = `public/${destPath}`;
+    await this.s3Client.copyObject(sourceKey, destKey);
+
+    // Mark the new file as existing in the cache
+    this.cache.set(`original:${destPath}`, {
+      exists: true,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Renames/moves an original file to a new path (copy + delete)
+   */
+  async renameOriginal(sourcePath: string, destPath: string): Promise<void> {
+    await this.copyOriginal(sourcePath, destPath);
+    await this.deleteOriginal(sourcePath);
+  }
+
+  /**
    * Gets metadata for an original file (size, dates)
    */
   async getOriginalMetadata(
@@ -359,6 +404,30 @@ export class CloudStorage {
       );
       throw error;
     }
+  }
+
+  /**
+   * Gets aggregate stats for cached transformations stored in cloud storage
+   */
+  async getCacheStats(): Promise<{ size: number; fileCount: number }> {
+    const cacheObjects = await this.s3Client.listObjects("cache/");
+    const size = cacheObjects.reduce((sum, obj) => sum + (obj.size ?? 0), 0);
+    return { size, fileCount: cacheObjects.length };
+  }
+
+  /**
+   * Deletes all cached transformations from cloud storage and clears the in-memory cache
+   */
+  async clearAllCache(): Promise<number> {
+    const cacheObjects = await this.s3Client.listObjects("cache/");
+    const deletedCount =
+      cacheObjects.length === 0
+        ? 0
+        : await this.s3Client.deleteObjects(cacheObjects.map((obj) => obj.key));
+
+    this.cache.clear();
+
+    return deletedCount;
   }
 
   /**

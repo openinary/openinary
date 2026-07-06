@@ -7,6 +7,8 @@ import type { TreeDataItem } from "@/components/ui/tree-view";
 type ApiTreeItem = {
   id: string;
   name: string;
+  size?: number;
+  mtime?: string;
   children?: ApiTreeItem[];
 };
 
@@ -72,6 +74,8 @@ async function fetchStorageTree(): Promise<TreeDataItem[]> {
         id: item.id,
         name: item.name,
         icon,
+        size: item.size,
+        mtime: item.mtime,
         children: sortedChildren,
       };
     };
