@@ -9,11 +9,13 @@ RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
+
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
 # Install only the workspace dependencies needed for shared + api (dev + prod) for build
-RUN pnpm install --filter shared... --filter api... --frozen-lockfile
+RUN pnpm install --offline --filter shared... --filter api... --frozen-lockfile
 RUN mkdir -p apps/api/cache apps/api/public
 
 # Build shared package first (API depends on it)
@@ -36,10 +38,12 @@ WORKDIR /app
 COPY pnpm-workspace.yaml ./
 COPY package.json ./
 COPY pnpm-lock.yaml ./
+RUN pnpm fetch
+
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-RUN pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --offline --frozen-lockfile --prod=false
 
 # Build shared package first (web depends on it)
 RUN pnpm --filter shared build

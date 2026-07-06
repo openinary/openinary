@@ -11,6 +11,7 @@ WORKDIR /app
 
 # Copy monorepo configuration files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+RUN pnpm fetch
 
 # Copy shared packages
 COPY packages/ ./packages/
@@ -22,7 +23,7 @@ COPY apps/api/ ./apps/api/
 COPY scripts/ ./scripts/
 
 # Install all monorepo dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --offline --frozen-lockfile
 
 # Create necessary directories with proper ownership
 RUN mkdir -p apps/api/cache apps/api/public /app/data && \

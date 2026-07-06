@@ -87,15 +87,28 @@ jobs:
           echo "major_minor=${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
 
   build-full:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     needs: determine-version
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Prepare platform pair
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -106,31 +119,45 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push full image
+      - name: Build and push full image by digest
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/full.Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.version }}
-            ${{ needs.determine-version.outputs.is_release == 'true' && format('{0}:latest', env.IMAGE_FULL) || '' }}
-            ${{ needs.determine-version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_FULL, needs.determine-version.outputs.major_minor) || '' }}
-            ${{ needs.determine-version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_FULL, needs.determine-version.outputs.major) || '' }}
-          cache-from: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache,mode=max
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE_FULL }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache-${{ env.PLATFORM_PAIR }}
+          cache-to: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache-${{ env.PLATFORM_PAIR }},mode=max
 
-  build-api:
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-full-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-full:
     runs-on: ubuntu-latest
-    needs: determine-version
-    timeout-minutes: 30
+    needs: [determine-version, build-full]
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests/full
+          pattern: digests-full-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -141,24 +168,115 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push API image
+      - name: Create manifest list and push
+        working-directory: /tmp/digests/full
+        run: |
+          TAGS="-t ${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.version }}"
+          if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
+            TAGS="$TAGS -t ${{ env.IMAGE_FULL }}:latest"
+            TAGS="$TAGS -t ${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.major_minor }}"
+            TAGS="$TAGS -t ${{ env.IMAGE_FULL }}:${{ needs.determine-version.outputs.major }}"
+          fi
+          docker buildx imagetools create $TAGS \
+            $(printf '${{ env.IMAGE_FULL }}@sha256:%s ' *)
+
+  build-api:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    needs: determine-version
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare platform pair
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push API image by digest
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/api.Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.version }}
-            ${{ needs.determine-version.outputs.is_release == 'true' && format('{0}:latest', env.IMAGE_API) || '' }}
-            ${{ needs.determine-version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_API, needs.determine-version.outputs.major_minor) || '' }}
-            ${{ needs.determine-version.outputs.is_release == 'true' && format('{0}:{1}', env.IMAGE_API, needs.determine-version.outputs.major) || '' }}
-          cache-from: type=registry,ref=${{ env.IMAGE_API }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_API }}:buildcache,mode=max
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE_API }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.IMAGE_API }}:buildcache-${{ env.PLATFORM_PAIR }}
+          cache-to: type=registry,ref=${{ env.IMAGE_API }}:buildcache-${{ env.PLATFORM_PAIR }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-api-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-api:
+    runs-on: ubuntu-latest
+    needs: [determine-version, build-api]
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests/api
+          pattern: digests-api-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests/api
+        run: |
+          TAGS="-t ${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.version }}"
+          if [ "${{ needs.determine-version.outputs.is_release }}" == "true" ]; then
+            TAGS="$TAGS -t ${{ env.IMAGE_API }}:latest"
+            TAGS="$TAGS -t ${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.major_minor }}"
+            TAGS="$TAGS -t ${{ env.IMAGE_API }}:${{ needs.determine-version.outputs.major }}"
+          fi
+          docker buildx imagetools create $TAGS \
+            $(printf '${{ env.IMAGE_API }}@sha256:%s ' *)
 
   summary:
     runs-on: ubuntu-latest
-    needs: [determine-version, build-full, build-api]
+    needs: [determine-version, merge-full, merge-api]
     timeout-minutes: 5
     permissions:
       contents: write
