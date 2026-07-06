@@ -25,7 +25,8 @@
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down",
     "init-env": "node scripts/init-env.js",
-    "secure-db": "node scripts/secure-db.js"
+    "secure-db": "node scripts/secure-db.js",
+    "cli": "pnpm --filter create-openinary"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",

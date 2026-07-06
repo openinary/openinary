@@ -1,0 +1,53 @@
+{
+  "name": "create-openinary",
+  "version": "0.1.0",
+  "description": "Create and manage a self-hosted Openinary instance",
+  "type": "module",
+  "bin": {
+    "create-openinary": "./dist/create.js",
+    "openinary": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.6.0",
+    "commander": "^15.0.0",
+    "execa": "^9.6.1",
+    "fs-extra": "^11.3.6",
+    "giget": "^3.3.0",
+    "ora": "^9.4.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.2.0",
+    "@typescript-eslint/eslint-plugin": "^8",
+    "@typescript-eslint/parser": "^8",
+    "eslint": "^9",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.9"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openinary/openinary",
+    "directory": "packages/cli"
+  },
+  "license": "MIT"
+}

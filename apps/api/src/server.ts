@@ -8,6 +8,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import logger, { serializeError } from "./utils/logger";
 import { videoJobQueue } from "./utils/video-job-queue";
+import { initTelemetry } from "./utils/telemetry";
 
 // Function to clean local cache in cloud mode on startup
 const cleanupLocalCacheIfCloudMode = () => {
@@ -113,6 +114,9 @@ serve({
 });
 
 logger.info({ port }, "Server running");
+
+// Anonymous usage telemetry (non-blocking, opt-out via OPENINARY_TELEMETRY=false)
+initTelemetry();
 
 // Initialize auth in background (non-blocking)
 // This allows the server to respond to healthchecks immediately
