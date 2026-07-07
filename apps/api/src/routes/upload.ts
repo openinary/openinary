@@ -12,6 +12,8 @@ import {
   TRANSFORMATION_PRIORITY,
 } from "../utils/video/config";
 import { TransformService } from "../services/transform.service";
+import { generateUploadSignature } from "../utils/upload-signature";
+import { presignedOrApiKeyAuth } from "../middleware/presigned-upload-auth";
 import heicConvert from 'heic-convert';
 
 const upload = new Hono();
@@ -21,6 +23,10 @@ const transformService = new TransformService();
 // File size limit: configurable via MAX_FILE_SIZE_MB env var, defaults to 50MB
 const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB ?? "50", 10) || 50) * 1024 * 1024;
 const MAX_PREWARM_TRANSFORMATIONS = 20;
+
+// Presigned upload token lifetime, in seconds
+const DEFAULT_PRESIGN_EXPIRES_IN = 5 * 60; // 5 minutes
+const MAX_PRESIGN_EXPIRES_IN = 60 * 60; // 1 hour
 
 // Allowed file extensions and MIME types
 const ALLOWED_TYPES = {
@@ -379,9 +385,53 @@ async function normalizeUploadFormat(
 }
 
 /**
+ * POST /upload/sign - Generate a short-lived presigned signature for direct
+ * client-side uploads to POST /upload, without exposing the API key to the
+ * browser. Requires an existing API key or session (only trusted backends
+ * should mint these).
+ */
+upload.post("/sign", async (c) => {
+  const API_SECRET = process.env.API_SECRET;
+
+  if (!API_SECRET) {
+    return c.json(
+      { success: false, error: "API_SECRET is not configured on the server" },
+      500,
+    );
+  }
+
+  let body: { folder?: string; expiresIn?: number } = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    // No JSON body provided — fall back to defaults (root folder)
+  }
+
+  const folder = typeof body.folder === "string" ? body.folder : "";
+  const requestedExpiresIn =
+    typeof body.expiresIn === "number" && Number.isFinite(body.expiresIn)
+      ? body.expiresIn
+      : DEFAULT_PRESIGN_EXPIRES_IN;
+  const expiresIn = Math.min(
+    Math.max(requestedExpiresIn, 1),
+    MAX_PRESIGN_EXPIRES_IN,
+  );
+  const expires = Math.floor(Date.now() / 1000) + expiresIn;
+
+  const signature = generateUploadSignature(folder, expires, API_SECRET);
+
+  return c.json({
+    success: true,
+    signature,
+    expires,
+    folder,
+  });
+});
+
+/**
  * POST /upload - Upload single or multiple files
  */
-upload.post("/", async (c) => {
+upload.post("/", presignedOrApiKeyAuth, async (c) => {
   try {
     const formData = await c.req.formData();
     const uploadFolder = formData.get("folder") as string | null;
