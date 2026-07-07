@@ -16,21 +16,25 @@ import { NextResponse } from "next/server";
  * sent by the browser.
  */
 export async function POST(request: Request) {
-  const apiUrl =
+  const configuredApiUrl =
     process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+
+  // In the combined "fullstack" Docker image, NEXT_PUBLIC_API_BASE_URL is a
+  // relative path ("/api", see docker/full.Dockerfile) meant for same-origin
+  // BROWSER calls proxied by nginx. For a server-side call, resolve it
+  // against nginx's own loopback address instead — nginx, the API, and this
+  // Next.js process all run in the same container (spawned together by
+  // supervisord). Self-calling the public HTTPS hostname from inside the
+  // container doesn't reliably round-trip through the platform's edge TLS
+  // termination back to this same container (fails with a raw-HTTP-behind-TLS
+  // error), so loopback + plain HTTP avoids that path entirely.
+  const apiUrl = configuredApiUrl.startsWith("/")
+    ? `http://127.0.0.1:3000${configuredApiUrl}`
+    : configuredApiUrl;
+
   const cookie = request.headers.get("cookie") ?? "";
 
-  // NEXT_PUBLIC_API_BASE_URL can be a relative path ("/api") in the combined
-  // "fullstack" Docker image, meant for same-origin browser calls proxied by
-  // nginx. Node's server-side fetch has no notion of "current origin", so
-  // resolve it against the incoming request's own absolute URL — a no-op
-  // when apiUrl is already absolute (e.g. a split API deployment).
-  const signUrl = new URL(
-    `${apiUrl.replace(/\/$/, "")}/upload/sign`,
-    request.url,
-  );
-
-  const res = await fetch(signUrl, {
+  const res = await fetch(`${apiUrl.replace(/\/$/, "")}/upload/sign`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
