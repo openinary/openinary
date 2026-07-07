@@ -20,7 +20,17 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
   const cookie = request.headers.get("cookie") ?? "";
 
-  const res = await fetch(`${apiUrl}/upload/sign`, {
+  // NEXT_PUBLIC_API_BASE_URL can be a relative path ("/api") in the combined
+  // "fullstack" Docker image, meant for same-origin browser calls proxied by
+  // nginx. Node's server-side fetch has no notion of "current origin", so
+  // resolve it against the incoming request's own absolute URL — a no-op
+  // when apiUrl is already absolute (e.g. a split API deployment).
+  const signUrl = new URL(
+    `${apiUrl.replace(/\/$/, "")}/upload/sign`,
+    request.url,
+  );
+
+  const res = await fetch(signUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
