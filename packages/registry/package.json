@@ -1,0 +1,20 @@
+{
+  "name": "registry",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "registry:build": "shadcn build --output ../../r",
+    "test": "node --import tsx --test $(find src -name '*.test.ts')",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "@types/react": "^19",
+    "lucide-react": "^0.536.0",
+    "react": "^19",
+    "shadcn": "^3",
+    "tsx": "^4.7.0",
+    "typescript": "^5.9.2"
+  }
+}

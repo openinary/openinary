@@ -9,12 +9,8 @@ description: "Upload one or more media files, optionally pre-generating cached t
 POST /upload
 ```
 
-**Auth:** API Key, session cookie, or a presigned upload signature (see below)
+**Auth:** API Key required  
 **Content-Type:** `multipart/form-data`
-
-<Note>
-For direct browser uploads without exposing your API key client-side, generate a short-lived presigned signature server-side with [`POST /upload/sign`](#presigned-uploads) and send it alongside `files` in the form data instead of an `Authorization` header.
-</Note>
 
 ## Form fields
 
@@ -158,56 +154,6 @@ curl -X POST http://localhost:3000/upload \
 
 </Tab>
 </Tabs>
-
-## Presigned uploads
-
-Browser clients can't safely hold your `API_SECRET` or API key. Instead, have your backend mint a short-lived, folder-scoped signature and hand only that to the browser.
-
-```
-POST /upload/sign
-```
-
-**Auth:** API Key or session required (server-side only — never call this from the browser)
-**Content-Type:** `application/json`
-
-<ParamField body="folder" type="string">
-  Folder the signature will be scoped to. Must match the `folder` field sent to `POST /upload` exactly, or the signature will be rejected.
-</ParamField>
-
-<ParamField body="expiresIn" type="number" default="300">
-  Signature lifetime in seconds. Clamped between 1 second and 3600 seconds (1 hour).
-</ParamField>
-
-```json
-{
-  "success": true,
-  "signature": "33953250821896e5",
-  "expires": 1783357478,
-  "folder": "photos"
-}
-```
-
-Pass `signature`, `expires`, and `folder` as form fields on the actual `POST /upload` request, in place of an `Authorization` header:
-
-```bash
-curl -X POST http://localhost:3000/upload \
-  -F "files=@photo.jpg" \
-  -F "folder=photos" \
-  -F "signature=33953250821896e5" \
-  -F "expires=1783357478"
-```
-
-<AccordionGroup>
-<Accordion title="The signature is scoped to a single folder">
-  If the `folder` submitted with the upload doesn't exactly match the `folder` used to generate the signature, the request is rejected — clients can't redirect an upload elsewhere.
-</Accordion>
-<Accordion title="Signatures expire and cannot be renewed">
-  Once `expires` has passed, the signature is rejected with `401`. Generate a new one server-side for the next upload.
-</Accordion>
-<Accordion title="This does not add automatic cleanup of uploaded files">
-  A presigned upload authorizes *writing* a file within its time window — it does not mark the file as temporary. If you need uploads to expire or require confirmation before becoming permanent, implement that in your own application layer.
-</Accordion>
-</AccordionGroup>
 
 ## Related
 

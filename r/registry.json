@@ -1,0 +1,52 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "openinary",
+  "homepage": "https://openinary.dev",
+  "items": [
+    {
+      "name": "file-uploader",
+      "type": "registry:block",
+      "title": "Openinary File Uploader",
+      "description": "Secure drag-and-drop file uploader for self-hosted Openinary instances. Uploads with a short-lived presigned signature from POST /upload/sign — no API key in the browser.",
+      "author": "Openinary",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["button", "progress"],
+      "files": [
+        {
+          "path": "src/file-uploader/file-uploader.tsx",
+          "type": "registry:component",
+          "target": "components/openinary/file-uploader.tsx"
+        },
+        {
+          "path": "src/file-uploader/use-file-upload.ts",
+          "type": "registry:hook",
+          "target": "components/openinary/use-file-upload.ts"
+        }
+      ],
+      "envVars": {
+        "NEXT_PUBLIC_OPENINARY_URL": "http://localhost:3000"
+      },
+      "docs": "Set NEXT_PUBLIC_OPENINARY_URL to your Openinary API URL, then create a signing endpoint with @openinary/upload-token. Full guide: https://openinary.dev/docs/guides/file-uploader",
+      "categories": ["media", "upload"]
+    },
+    {
+      "name": "upload-token",
+      "type": "registry:lib",
+      "title": "Openinary Upload Signature Helper",
+      "description": "Server-side helper that requests a short-lived presigned upload signature from POST /upload/sign using an Openinary API key.",
+      "author": "Openinary",
+      "files": [
+        {
+          "path": "src/upload-token/upload-token.ts",
+          "type": "registry:lib",
+          "target": "lib/upload-token.ts"
+        }
+      ],
+      "envVars": {
+        "OPENINARY_API_KEY": ""
+      },
+      "docs": "Call signUpload(baseUrl, process.env.OPENINARY_API_KEY, { folder, expiresIn }) from a protected backend route. Never expose your API key to the browser.",
+      "categories": ["media", "upload"]
+    }
+  ]
+}

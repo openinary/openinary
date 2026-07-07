@@ -36,18 +36,22 @@ app.use(
   "/*",
   cors({
     origin: (origin) => {
-      // Allow requests from Next.js app or configured origins
+      // Allow requests from Next.js app or configured origins.
+      // CORS_ORIGIN may be a comma-separated list of allowed origins so that
+      // third-party apps embedding the file-uploader component can be added.
       const allowedOrigins = [
         "http://localhost:3001", // Next.js dev
         "http://localhost:3000", // API itself
-        process.env.CORS_ORIGIN,
+        ...(process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()) ?? []),
       ].filter(Boolean);
 
       if (!origin || allowedOrigins.includes("*")) {
         return origin || "*";
       }
 
-      return allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+      // Return an empty string for disallowed origins so the browser blocks
+      // the response (previously fell back to the first allowed origin).
+      return allowedOrigins.includes(origin) ? origin : "";
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
