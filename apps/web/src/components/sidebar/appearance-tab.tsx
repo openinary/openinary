@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Laptop, Moon, Sun } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useHideThumbnails } from "@/hooks/use-hide-thumbnails";
@@ -24,48 +26,55 @@ export function AppearanceTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-        <div>
-          <p className="text-sm font-medium">Theme</p>
-          <p className="text-xs text-muted-foreground">
-            Pick a theme. &quot;System&quot; follows your OS appearance
-            setting and updates automatically when it changes.
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-1 rounded-full border bg-muted/40 p-1">
+      <div>
+        <p className="text-sm font-medium">Theme</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Pick a theme. &quot;System&quot; follows your OS appearance
+          setting and updates automatically when it changes.
+        </p>
+        <div className="mt-3 flex w-fit gap-1 rounded-full border bg-muted/40 p-1">
           {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               type="button"
               onClick={() => setTheme(value)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors",
+                "relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors",
                 mounted && theme === value
-                  ? "bg-foreground text-background"
+                  ? "text-background"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon className="size-4" />
-              {label}
+              {mounted && theme === value && (
+                <motion.div
+                  layoutId="theme-active"
+                  className="absolute inset-0 rounded-full bg-foreground"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
+              <Icon className="relative size-4" />
+              <span className="relative">{label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-        <div>
-          <p className="text-sm font-medium">Hide thumbnails</p>
-          <p className="text-xs text-muted-foreground">
-            Show a generic icon per file type or folder instead of a
-            thumbnail preview, for better performance in the dashboard. Grid
-            and list views are affected; the Asset Details sidebar still
-            shows the full preview.
-          </p>
+      <Separator />
+
+      <div>
+        <p className="text-sm font-medium">Hide thumbnails</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Show a generic icon per file type or folder instead of a
+          thumbnail preview, for better performance in the dashboard. Grid
+          and list views are affected; the Asset Details sidebar still
+          shows the full preview.
+        </p>
+        <div className="mt-3">
+          <Switch
+            checked={hideThumbnails}
+            onCheckedChange={setHideThumbnails}
+          />
         </div>
-        <Switch
-          checked={hideThumbnails}
-          onCheckedChange={setHideThumbnails}
-        />
       </div>
     </div>
   );
