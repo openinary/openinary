@@ -1,6 +1,7 @@
 import ffmpeg, { FfmpegCommand } from 'fluent-ffmpeg';
 import { readFile, unlink, rmdir } from 'fs/promises';
 import type { VideoContext, TransformFunction } from './types';
+import { FFMPEG_THREADS, FFMPEG_NICENESS } from './config';
 
 /**
  * Builder class for constructing and executing ffmpeg commands
@@ -12,9 +13,12 @@ export class VideoCommandBuilder {
 
   constructor(context: VideoContext) {
     this.context = context;
-    this.command = ffmpeg(context.inputPath)
+    // niceness lowers ffmpeg's scheduling priority so encoding never starves
+    // the HTTP event loop; threads are capped to the container's effective
+    // CPUs (leaving one for serving) instead of a hardcoded value
+    this.command = ffmpeg(context.inputPath, { niceness: FFMPEG_NICENESS })
       .output(context.outputPath)
-      .addOption('-threads', '4'); // Increased to 4 threads for better performance
+      .addOption('-threads', String(FFMPEG_THREADS));
 
     // -movflags and -max_muxing_queue_size are MOV/MP4 container options and are
     // incompatible with image output formats (image2 muxer used for thumbnails).

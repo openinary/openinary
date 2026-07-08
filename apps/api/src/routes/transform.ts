@@ -45,19 +45,24 @@ t.get('/*', async (c) => {
       c.header('Content-Type', result.contentType);
     }
 
+    // Large payloads (e.g. original videos during processing) are streamed
+    if (result.stream) {
+      return c.body(result.stream);
+    }
+
     // Check if this is an error response
     if (
       result.contentType === 'text/plain' &&
-      result.buffer.toString().includes('failed')
+      result.buffer!.toString().includes('failed')
     ) {
-      const errorMessage = result.buffer.toString();
+      const errorMessage = result.buffer!.toString();
       if (errorMessage.includes('File not found')) {
         return c.text(errorMessage, 404);
       }
       return c.text(errorMessage, 500);
     }
 
-    return c.body(new Uint8Array(result.buffer));
+    return c.body(new Uint8Array(result.buffer!));
   } catch (error) {
     logger.error({ error: serializeError(error), path }, 'Transform route error');
     return c.text('Internal server error', 500);

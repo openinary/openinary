@@ -173,7 +173,8 @@ async function prewarmImageTransformations(
         context: c,
       });
 
-      const errorText = result.buffer.toString();
+      // prewarm only runs for images, which are always buffered (never streamed)
+      const errorText = result.buffer?.toString() ?? "";
       const failed =
         result.contentType === "text/plain" && errorText.includes("failed");
 
