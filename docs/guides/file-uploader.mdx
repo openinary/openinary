@@ -1,0 +1,371 @@
+---
+title: "File Uploader Component"
+description: "Drop a secure, ready-to-use file uploader into any React app with a single shadcn/ui command. Uploads go straight to your Openinary instance using short-lived presigned signatures — no API key in the browser."
+---
+
+The **Openinary File Uploader** is a shadcn/ui-compatible React component that lets your users upload media directly to your self-hosted Openinary instance. It ships with drag & drop, per-file progress, previews, retry, cancel, and client-side validation.
+
+It installs the same way as any shadcn component:
+
+```bash
+pnpm dlx shadcn@latest add @openinary/file-uploader
+```
+
+## Security model
+
+The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload#presigned-uploads) — the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
+
+<Steps>
+  <Step title="Your backend requests a signature">
+    A protected endpoint on your server calls `POST /upload/sign` with your **Openinary API key**, scoping the request to a `folder` and an expiry window.
+  </Step>
+  <Step title="The browser gets the signature">
+    The component calls your `sign()` function right before uploading. It returns `{ signature, expires, folder }` — opaque values that expire in minutes.
+  </Step>
+  <Step title="Openinary verifies the signature">
+    `POST /upload` checks the signature against the submitted `folder` and `expires` before accepting the file. A tampered or expired signature is rejected.
+  </Step>
+</Steps>
+
+<Warning>
+  Your Openinary **API key** never leaves your backend — only your server should
+  call `POST /upload/sign`. The endpoint you create for the component must be
+  protected by your own auth and rate limiting; derive `folder` from the
+  authenticated user, not from the client.
+</Warning>
+
+## Prerequisites
+
+- A running Openinary instance (see [Quickstart](/quickstart)).
+- `API_SECRET` set on the instance (**minimum 16 characters**) — used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+- An **API key** for your backend to call `POST /upload/sign` with (see [API Keys](/api-reference/api-keys/create)).
+- `CORS_ORIGIN` set to include the origin(s) of the app embedding the uploader. Multiple origins are comma-separated:
+  ```bash
+  CORS_ORIGIN=https://app.example.com,https://admin.example.com
+  ```
+- `MAX_FILE_SIZE_MB` if you need to raise the default 50 MB limit.
+- A project already set up for shadcn/ui (`components.json` present). See the [shadcn install guide](https://ui.shadcn.com/docs/installation). Requires the shadcn CLI **v3 or later** for namespaced registries.
+
+## Installation
+
+<Steps>
+  <Step title="Register the Openinary namespace">
+    Add the `@openinary` registry to your project's `components.json`:
+
+    ```json components.json
+    {
+      "registries": {
+        "@openinary": "https://openinary.dev/r/{name}.json"
+      }
+    }
+    ```
+
+  </Step>
+  <Step title="Add the component">
+    ```bash
+    pnpm dlx shadcn@latest add @openinary/file-uploader
+    ```
+
+    This installs the component and its hook into `components/openinary/`, pulls in the shadcn `button` and `progress` dependencies, and adds `NEXT_PUBLIC_OPENINARY_URL` to your `.env.local`.
+
+  </Step>
+  <Step title="Add the signing helper">
+    ```bash
+    pnpm dlx shadcn@latest add @openinary/upload-token
+    ```
+
+    This installs `lib/upload-token.ts`, a thin client for `POST /upload/sign` — it makes one `fetch` call and doesn't compute anything cryptographic itself; Openinary does that.
+
+  </Step>
+  <Step title="Set your environment variables">
+    ```bash .env.local
+    # Public — the browser calls this Openinary API directly for the upload
+    # /api is required in full stack mode (nginx only exposes the API under /api); drop it for API-only deployments
+    NEXT_PUBLIC_OPENINARY_URL=https://your-domain.com/api
+
+    # Secret — server only, an Openinary API key, never exposed to the browser
+    OPENINARY_API_KEY=your-openinary-api-key
+    ```
+
+  </Step>
+</Steps>
+
+## Create a signing endpoint
+
+The component needs a `sign()` function that returns a presigned signature. Back it with a small endpoint on your server using the helper you just installed.
+
+<Warning>
+  Protect this endpoint with your own authentication and derive `folder` from
+  the **authenticated user** on the server. Never trust a folder sent by the
+  browser, or a user could upload into someone else's scope.
+</Warning>
+
+<Tabs>
+  <Tab title="Next.js (App Router)">
+    ```ts app/api/upload-token/route.ts
+    import { NextResponse } from "next/server";
+    import { signUpload } from "@/lib/upload-token";
+    // import { auth } from "@/lib/auth"; // your own auth
+
+    export async function POST() {
+      // const session = await auth();
+      // if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      const signed = await signUpload(
+        process.env.NEXT_PUBLIC_OPENINARY_URL!,
+        process.env.OPENINARY_API_KEY!,
+        {
+          expiresIn: 300,
+          folder: "uploads", // e.g. `users/${session.user.id}`
+        },
+      );
+
+      return NextResponse.json(signed);
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express">
+    ```ts
+    import express from "express";
+    import { signUpload } from "./lib/upload-token";
+
+    const app = express();
+
+    app.post("/api/upload-token", requireAuth, async (req, res) => {
+      const signed = await signUpload(
+        process.env.OPENINARY_URL!,
+        process.env.OPENINARY_API_KEY!,
+        { expiresIn: 300, folder: `users/${req.user.id}` },
+      );
+      res.json(signed);
+    });
+    ```
+
+  </Tab>
+  <Tab title="Cloudflare Workers">
+    ```ts
+    import { signUpload } from "./lib/upload-token";
+
+    export default {
+      async fetch(request: Request, env: Env) {
+        // authenticate the request first...
+        const signed = await signUpload(env.OPENINARY_URL, env.OPENINARY_API_KEY, {
+          expiresIn: 300,
+          folder: "uploads",
+        });
+        return Response.json(signed);
+      },
+    };
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+  Keep `expiresIn` short — **60–300 seconds** is plenty (the server clamps it to
+  at most 3600). It only needs to live long enough to start the upload.
+</Note>
+
+## Usage
+
+<Tabs>
+  <Tab title="Next.js">
+    ```tsx
+    "use client";
+
+    import { FileUploader } from "@/components/openinary/file-uploader";
+
+    export function Uploader() {
+      const sign = async () => {
+        const res = await fetch("/api/upload-token", { method: "POST" });
+        if (!res.ok) throw new Error("Failed to sign the upload");
+        return res.json();
+      };
+
+      return (
+        <FileUploader
+          sign={sign}
+          maxFiles={10}
+          onSuccess={(files) => console.log("Uploaded:", files)}
+        />
+      );
+    }
+    ```
+
+  </Tab>
+  <Tab title="Vite / React">
+    ```tsx
+    import { FileUploader } from "@/components/openinary/file-uploader";
+
+    export function Uploader() {
+      const sign = async () => {
+        const res = await fetch("/api/upload-token", { method: "POST" });
+        return res.json();
+      };
+
+      return (
+        <FileUploader
+          baseUrl={import.meta.env.VITE_OPENINARY_URL}
+          sign={sign}
+        />
+      );
+    }
+    ```
+
+  </Tab>
+  <Tab title="Restricted type/size + transformations">
+    ```tsx
+    <FileUploader
+      sign={sign} // your signing endpoint should scope folder to "uploads/avatars"
+      accept={{ "image/jpeg": [".jpg", ".jpeg"], "image/png": [".png"] }}
+      maxSize={5 * 1024 * 1024}     // 5 MB
+      maxFiles={1}
+      multiple={false}
+      transformations={["w_512,h_512,c_fill,f_webp"]} // pre-warm a variant
+      onSuccess={(files) => setAvatar(files[0].url)}
+    />
+    ```
+  </Tab>
+</Tabs>
+
+## Props
+
+<ParamField path="sign" type="() => Promise<SignedUpload> | SignedUpload" required>
+  Returns `{ signature, expires, folder }` from your signing endpoint. Called before each upload batch and again on retry, so it always fetches a fresh signature. The upload's destination folder is whatever the signature is scoped to.
+</ParamField>
+
+<ParamField path="baseUrl" type="string">
+  Base URL of your Openinary API, e.g. `https://media.example.com`. Falls back
+  to `NEXT_PUBLIC_OPENINARY_URL`.
+</ParamField>
+
+<ParamField path="multiple" type="boolean" default="true">
+  Allow selecting more than one file.
+</ParamField>
+
+<ParamField path="accept" type="Record<string, string[]>">
+  MIME types mapped to allowed extensions. Defaults to the Openinary media types
+  (JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM).
+</ParamField>
+
+<ParamField path="maxSize" type="number" default="52428800">
+  Maximum file size in bytes. Default is 50 MB. Must not exceed the server's
+  `MAX_FILE_SIZE_MB`.
+</ParamField>
+
+<ParamField path="maxFiles" type="number">
+  Client-side cap on the number of files. This is a UI convenience only — `POST
+  /upload/sign` does not encode a file-count limit, so it isn't enforced
+  server-side.
+</ParamField>
+
+<ParamField path="transformations" type="string[]">
+  Transformation segments to pre-warm after upload, e.g. `["w_800,f_webp"]`. See
+  [Upload & Pre-warm](/media-transformations/upload-and-prewarm).
+</ParamField>
+
+<ParamField path="autoUpload" type="boolean" default="false">
+  Start uploading as soon as files are added, hiding the explicit Upload button.
+</ParamField>
+
+<ParamField path="disabled" type="boolean" default="false" />
+
+<ParamField path="className" type="string">
+  Additional classes for the root element.
+</ParamField>
+
+<ParamField path="onSuccess" type="(files: UploadedFile[]) => void">
+  Called with the stored files after a successful batch.
+</ParamField>
+
+<ParamField path="onError" type="(error: UploadFileError) => void">
+  Called when a file fails to upload.
+</ParamField>
+
+<ParamField
+  path="onProgress"
+  type="(file: FileUploadState, progress: number) => void"
+>
+  Called with upload progress (0–100) for each file.
+</ParamField>
+
+## Styling & theming
+
+The component is built entirely with shadcn's design tokens (`border`, `muted`, `primary`, `destructive`, `ring`…), so it automatically matches your theme and dark mode. Because the source is copied into your project, you own it — edit `components/openinary/file-uploader.tsx` freely. Use `className` for one-off overrides.
+
+## Server response
+
+On success, `onSuccess` receives the files stored by the API:
+
+<ResponseField name="filename" type="string">
+  The stored filename.
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  The stored path. May be renamed if a file with the same name already exists
+  (e.g. `image (1).jpg`).
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The transformation URL prefix, e.g. `/t/{path}`. Prefix it with your `baseUrl`
+  to build a full URL.
+</ResponseField>
+
+<ResponseField name="prewarmedUrls" type="string[]">
+  URLs of image variants pre-generated from `transformations`.
+</ResponseField>
+
+<ResponseField name="queuedTransformationUrls" type="string[]">
+  URLs of video variants queued for background processing.
+</ResponseField>
+
+<Note>
+  HEIC/HEIF files are automatically converted to JPEG by the server, so the
+  returned `path` may end in `.jpg`.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="CORS error in the browser console">
+    Add your app's origin to `CORS_ORIGIN` on the Openinary instance
+    (comma-separated for multiple origins) and restart the API. The origin must
+    match exactly, including scheme and port.
+  </Accordion>
+  <Accordion title="401 'Presigned upload URL has expired'">
+    The signature's `expires` timestamp passed before the upload started.
+    Increase `expiresIn` slightly (keep it under the 3600s server cap) and check
+    for clock skew between your server and the API.
+  </Accordion>
+  <Accordion title="401 'Authentication required' on POST /upload">
+    The signature didn't verify — usually because the `folder` used to sign it
+    doesn't exactly match the folder submitted with the upload, the signature
+    was tampered with, or the `API_SECRET` used by the Openinary instance
+    changed since the signature was minted. The component always uses the folder
+    returned by `sign()`, so this typically means your signing endpoint and the
+    Openinary instance disagree, or the request was hand-crafted outside the
+    component.
+  </Accordion>
+  <Accordion title="401/403 calling POST /upload/sign itself">
+    That endpoint requires a real Openinary API key or session — check
+    `OPENINARY_API_KEY` on your backend, not the browser. It should never be
+    called directly from client code.
+  </Accordion>
+  <Accordion title="signUpload throws 'Failed to sign upload (HTTP 404)', or the response is a redirect to /login">
+    `NEXT_PUBLIC_OPENINARY_URL` is pointing at a full-stack instance's bare
+    domain. In full stack mode the API only lives under `/api` (nginx routes
+    everything else to the web dashboard), so append `/api` to the URL — see the
+    note in [Set your environment variables](#installation). API-only
+    deployments don't need the suffix.
+  </Accordion>
+  <Accordion title="File rejected before upload">
+    Client-side validation mirrors the server. Check the file type is in
+    `accept` and the size is within `maxSize` (and the server's
+    `MAX_FILE_SIZE_MB`).
+  </Accordion>
+</AccordionGroup>
+
+## How it compares to Uploadcare
+
+Like Uploadcare's File Uploader, this component uses a backend-signed, short-lived credential so the browser never holds a secret. The difference: uploads go to **your** self-hosted Openinary instance and storage — no third-party service, no per-file pricing.
