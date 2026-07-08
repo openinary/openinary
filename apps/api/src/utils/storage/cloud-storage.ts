@@ -232,8 +232,10 @@ export class CloudStorage {
     const key = KeyGenerator.generateKey(originalPath, params);
 
     // Add metadata for easy cleanup later
+    // Encoded because x-amz-meta-* header values must be ASCII-safe;
+    // some S3-compatible providers reject non-ASCII bytes outright.
     const metadata = {
-      "x-original-path": originalPath,
+      "x-original-path": encodeURIComponent(originalPath),
     };
 
     await this.s3Client.uploadObject(key, buffer, contentType, metadata);
@@ -368,7 +370,10 @@ export class CloudStorage {
       for (const obj of cacheObjects) {
         try {
           const metadata = await this.s3Client.getObjectMetadata(obj.key);
-          if (metadata?.metadata?.["x-original-path"] === originalPath) {
+          if (
+            metadata?.metadata?.["x-original-path"] ===
+            encodeURIComponent(originalPath)
+          ) {
             keysToDelete.push(obj.key);
           }
         } catch (error) {
