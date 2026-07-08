@@ -318,10 +318,13 @@ export class TransformService {
       await performPeriodicCacheCleanup();
 
       // Format response
+      // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
+      // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
+      // accented characters (e.g. a combining accent has a code point > 255)
       const headers: Record<string, string> = {
         'Content-Length': buffer.length.toString(),
         'Cache-Control': 'public, max-age=31536000, must-revalidate',
-        ETag: `"${filePath}-${JSON.stringify(effectiveParams)}"`,
+        ETag: `"${encodeURIComponent(filePath)}-${JSON.stringify(effectiveParams)}"`,
       };
 
       // Add optimization headers if available
@@ -460,11 +463,14 @@ export class TransformService {
     // Stream the original video immediately, without buffering it in memory:
     // originals can weigh hundreds of MB and buffering both delays the first
     // byte and pressures the container memory while ffmpeg jobs are running
+    // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
+    // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
+    // accented characters (e.g. a combining accent has a code point > 255)
     const processingHeaders: Record<string, string> = {
       'X-Video-Status': 'processing',
       'X-Original-Video': 'true',
       'Cache-Control': 'public, max-age=0, must-revalidate',
-      ETag: `"${filePath}-processing-${Date.now()}"`,
+      ETag: `"${encodeURIComponent(filePath)}-processing-${Date.now()}"`,
       Vary: 'Accept',
     };
 
