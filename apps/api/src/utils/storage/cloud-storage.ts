@@ -199,6 +199,20 @@ export class CloudStorage {
   }
 
   /**
+   * Retrieves an original (unprocessed) file as a stream, without buffering
+   * it in memory. Used to serve large originals (e.g. videos still being
+   * optimized) directly to clients.
+   */
+  async downloadOriginalStream(originalPath: string): Promise<{
+    stream: ReadableStream<Uint8Array>;
+    contentLength?: number;
+    contentType?: string;
+  }> {
+    const storageKey = `public/${originalPath}`;
+    return await this.s3Client.downloadObjectStream(storageKey);
+  }
+
+  /**
    * Uploads an original (unprocessed) file to the bucket
    */
   async uploadOriginal(

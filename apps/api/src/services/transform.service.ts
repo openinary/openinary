@@ -6,7 +6,6 @@ import { Compression } from '../utils/image/compression';
 import logger, { serializeError } from '../utils/logger';
 import { videoJobQueue } from '../utils/video-job-queue';
 import { updateJobStatus } from '../utils/video/queue-db';
-import { readFile } from 'fs/promises';
 import {
   checkCloudCache,
   checkLocalCache,
@@ -29,7 +28,9 @@ export interface TransformRequest {
 }
 
 export interface TransformResult {
-  buffer: Buffer;
+  buffer?: Buffer;
+  /** Set instead of buffer for large payloads served without in-memory buffering */
+  stream?: ReadableStream<Uint8Array>;
   contentType: string;
   headers: Record<string, string>;
   isProcessing?: boolean;
@@ -245,6 +246,21 @@ export class TransformService {
     userAgent?: string,
     acceptHeader?: string
   ): Promise<TransformResult> {
+    // Video transformations (non-thumbnail) are processed by the background
+    // job queue, which downloads its own source copy. Skip prepareSourceFile
+    // entirely: downloading the full original here would only delay the
+    // response and waste memory/bandwidth.
+    const isThumbnailRequest =
+      effectiveParams.thumbnail === 'true' || effectiveParams.thumbnail === '1';
+    if (ext?.match(/mp4|mov|webm/) && !isThumbnailRequest) {
+      return await this.handleVideoJobQueue(
+        filePath,
+        localPath,
+        effectiveParams,
+        cachePath
+      );
+    }
+
     // Prepare source file
     const sourcePath = await prepareSourceFile(
       this.storage,
@@ -270,14 +286,18 @@ export class TransformService {
         contentType = result.contentType;
         optimizationResult = result.optimizationResult;
       } else if (ext?.match(/mp4|mov|webm/)) {
-        const result = await this.processVideoFile(
-          sourcePath,
-          effectiveParams,
-          filePath,
-          cachePath,
-          sourcePath !== localPath
-        );
-        return result; // Video processing returns immediately
+        // Only thumbnail requests reach this point (non-thumbnail video
+        // transformations are intercepted before prepareSourceFile above);
+        // thumbnails are extracted synchronously like images
+        const result = await processVideo(sourcePath, effectiveParams);
+        return {
+          buffer: result.buffer,
+          contentType: result.contentType,
+          headers: {
+            'Content-Length': result.buffer.length.toString(),
+            'Cache-Control': 'public, max-age=31536000, must-revalidate',
+          },
+        };
       } else {
         throw new Error('Unsupported file type');
       }
@@ -356,52 +376,13 @@ export class TransformService {
   }
 
   /**
-   * Process video file (including job queue management)
-   */
-  private async processVideoFile(
-    sourcePath: string,
-    params: any,
-    filePath: string,
-    cachePath: string,
-    isTempFile?: boolean
-  ): Promise<TransformResult> {
-    // Check if this is a thumbnail extraction
-    const isThumbnailRequest =
-      params.thumbnail === 'true' || params.thumbnail === '1';
-
-    // For thumbnail extraction: process synchronously
-    if (isThumbnailRequest) {
-      const result = await processVideo(sourcePath, params);
-
-      return {
-        buffer: result.buffer,
-        contentType: result.contentType,
-        headers: {
-          'Content-Length': result.buffer.length.toString(),
-          'Cache-Control': 'public, max-age=31536000, must-revalidate',
-        },
-      };
-    }
-
-    // For video transformations: handle job queue
-    return await this.handleVideoJobQueue(
-      sourcePath,
-      params,
-      filePath,
-      cachePath,
-      isTempFile
-    );
-  }
-
-  /**
    * Handle video job queue management
    */
   private async handleVideoJobQueue(
-    sourcePath: string,
-    params: any,
     filePath: string,
-    cachePath: string,
-    isTempFile?: boolean
+    localPath: string,
+    params: any,
+    cachePath: string
   ): Promise<TransformResult> {
     // Check if already being processed
     let existingJob = videoJobQueue.getJobByPath(filePath, params);
@@ -424,10 +405,6 @@ export class TransformService {
           // Cache exists, try to serve from local cache first
           const cachedBuffer = await checkLocalCache(cachePath);
           if (cachedBuffer) {
-            if (isTempFile) {
-              await cleanupTempFile(sourcePath);
-            }
-
             return {
               buffer: cachedBuffer,
               contentType: `video/${filePath.split('.').pop()}`,
@@ -471,7 +448,7 @@ export class TransformService {
           filePath,
           params,
           cachePath,
-          sourcePath,
+          localPath,
           this.storage,
           TRANSFORMATION_PRIORITY
         )
@@ -480,34 +457,49 @@ export class TransformService {
         });
     }
 
-    // Return original video immediately
-    try {
-      const originalBuffer = this.storage
-        ? await this.storage.downloadOriginal(filePath)
-        : await readFile(`./public/${filePath}`);
+    // Stream the original video immediately, without buffering it in memory:
+    // originals can weigh hundreds of MB and buffering both delays the first
+    // byte and pressures the container memory while ffmpeg jobs are running
+    const processingHeaders: Record<string, string> = {
+      'X-Video-Status': 'processing',
+      'X-Original-Video': 'true',
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+      ETag: `"${filePath}-processing-${Date.now()}"`,
+      Vary: 'Accept',
+    };
 
-      // Clean up temp file if needed
-      if (isTempFile && sourcePath !== `./public/${filePath}`) {
-        await cleanupTempFile(sourcePath);
+    try {
+      if (this.storage) {
+        const { stream, contentLength } =
+          await this.storage.downloadOriginalStream(filePath);
+        if (contentLength) {
+          processingHeaders['Content-Length'] = contentLength.toString();
+        }
+
+        return {
+          stream,
+          contentType: `video/${filePath.split('.').pop()}`,
+          headers: processingHeaders,
+          isProcessing: true,
+        };
       }
 
+      const { createReadStream } = await import('fs');
+      const { stat } = await import('fs/promises');
+      const stats = await stat(localPath);
+      processingHeaders['Content-Length'] = stats.size.toString();
+      const { Readable } = await import('stream');
+
       return {
-        buffer: originalBuffer,
+        stream: Readable.toWeb(
+          createReadStream(localPath)
+        ) as ReadableStream<Uint8Array>,
         contentType: `video/${filePath.split('.').pop()}`,
-        headers: {
-          'X-Video-Status': 'processing',
-          'X-Original-Video': 'true',
-          'Cache-Control': 'public, max-age=0, must-revalidate',
-          ETag: `"${filePath}-processing-${Date.now()}"`,
-          Vary: 'Accept',
-        },
+        headers: processingHeaders,
         isProcessing: true,
       };
     } catch (error) {
       logger.error({ error: serializeError(error), filePath }, 'Failed to serve original video');
-      if (isTempFile) {
-        await cleanupTempFile(sourcePath);
-      }
       throw new Error('Failed to load video');
     }
   }
