@@ -1,15 +1,13 @@
 "use client"
 
 import {
+  Globe,
   HardDrive,
   KeyRound,
   LogOut,
-  Moon,
+  Settings,
   Star,
-  Sun,
-  User,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signOut } from "@/lib/auth-client"
@@ -29,6 +27,7 @@ interface UserDropdownProps {
   userAvatar: string
   onAccountClick: () => void
   onApiKeysClick: () => void
+  onStorageClick: () => void
 }
 
 export function UserDropdown({
@@ -37,9 +36,9 @@ export function UserDropdown({
   userAvatar,
   onAccountClick,
   onApiKeysClick,
+  onStorageClick,
 }: UserDropdownProps) {
   const { isMobile } = useSidebar()
-  const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -49,28 +48,6 @@ export function UserDropdown({
     } catch (error) {
       console.error("Error signing out:", error)
     }
-  }
-
-  const cycleTheme = () => {
-    if (theme === "dark") {
-      setTheme("light")
-    } else if (theme === "light") {
-      setTheme("system")
-    } else {
-      setTheme("dark")
-    }
-  }
-
-  const getThemeLabel = () => {
-    if (theme === "dark") return "Dark"
-    if (theme === "light") return "Light"
-    return "System"
-  }
-
-  const getThemeIcon = () => {
-    if (theme === "dark") return <Moon />
-    if (theme === "light") return <Sun />
-    return <Sun />
   }
 
   return (
@@ -97,12 +74,16 @@ export function UserDropdown({
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem onClick={onAccountClick}>
-          <User />
-          Account
+          <Settings />
+          Settings
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onApiKeysClick}>
           <KeyRound />
           API Keys
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onStorageClick}>
+          <HardDrive />
+          Storage
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
@@ -111,13 +92,15 @@ export function UserDropdown({
             Star on GitHub
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="https://openinary.dev/" target="_blank" rel="noopener noreferrer">
+            <Globe />
+            Go to Website
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuGroup>
-      <DropdownMenuItem onClick={cycleTheme}>
-        {getThemeIcon()}
-        {getThemeLabel()}
-      </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={handleLogout}>
+      <DropdownMenuItem onClick={handleLogout} variant="destructive">
         <LogOut />
         Log out
       </DropdownMenuItem>

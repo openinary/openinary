@@ -33,6 +33,10 @@ export function NavUser() {
     setTab("api-keys")
   }
 
+  const handleStorageClick = () => {
+    setTab("storage")
+  }
+
   // Show loading state or nothing if no user
   if (isPending) {
     return (
@@ -82,6 +86,7 @@ export function NavUser() {
             userAvatar={userAvatar}
             onAccountClick={handleAccountClick}
             onApiKeysClick={handleApiKeysClick}
+            onStorageClick={handleStorageClick}
           />
         </DropdownMenu>
       </SidebarMenuItem>
