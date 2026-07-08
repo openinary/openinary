@@ -65,9 +65,17 @@ FROM node:20-slim
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
 ARG IMAGE_TAG="latest"
 
-# Install nginx, ffmpeg, supervisor, cron and sqlite3 for process management
-RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg supervisor cron sqlite3 && \
-    rm -rf /var/lib/apt/lists/*
+# Install nginx, ffmpeg, supervisor, cron, sqlite3 and jemalloc for process management
+# jemalloc replaces glibc malloc to avoid RSS bloat from arena fragmentation under
+# sharp/libvips and ffmpeg workloads (freed memory not returned to the OS)
+RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg supervisor cron sqlite3 libjemalloc2 && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -sf "$(dpkg -L libjemalloc2 | grep 'libjemalloc\.so\.2$')" /usr/lib/libjemalloc.so.2
+
+# Reduce glibc malloc arena fragmentation and preload jemalloc as the allocator for
+# all supervised processes (api, web)
+ENV MALLOC_ARENA_MAX=2
+ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
 
 WORKDIR /app
 

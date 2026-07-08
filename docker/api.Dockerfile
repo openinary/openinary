@@ -1,8 +1,14 @@
 FROM node:20-slim
 
-# Install ffmpeg for video processing and openssl for Prisma/better-auth
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg sqlite3 && \
-    rm -rf /var/lib/apt/lists/*
+# Install ffmpeg for video processing, openssl for Prisma/better-auth, and jemalloc
+# to avoid RSS bloat from glibc arena fragmentation under sharp/libvips and ffmpeg workloads
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg sqlite3 libjemalloc2 && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -sf "$(dpkg -L libjemalloc2 | grep 'libjemalloc\.so\.2$')" /usr/lib/libjemalloc.so.2
+
+# Reduce glibc malloc arena fragmentation and preload jemalloc as the allocator
+ENV MALLOC_ARENA_MAX=2
+ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
 
 # Enable Corepack to use the pnpm version specified in package.json
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
