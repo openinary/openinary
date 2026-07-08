@@ -327,7 +327,7 @@ export async function processVideo(
   
   // Get video information for better diagnostics
   try {
-    const { getVideoInfo, getResolutionLabel } = await import("../utils/video/video-info");
+    const { getVideoInfo, getResolutionLabel } = await import("../utils/video/video-info.js");
     const videoInfo = await getVideoInfo(originalPath);
     const resLabel = getResolutionLabel(videoInfo);
     
