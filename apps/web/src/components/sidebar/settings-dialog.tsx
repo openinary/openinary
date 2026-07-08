@@ -1,12 +1,13 @@
 "use client";
 
-import { HardDrive, KeyRound, User } from "lucide-react";
+import { HardDrive, KeyRound, Palette, User } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AccountTab } from "./account-tab";
 import { ApiKeysTab } from "./api-keys-tab";
+import { AppearanceTab } from "./appearance-tab";
 import { StorageTab } from "./storage-tab";
 
 interface SettingsDialogProps {
@@ -17,6 +18,7 @@ interface SettingsDialogProps {
 
 const SETTINGS_NAV = [
   { value: "account", label: "Account", icon: User },
+  { value: "appearance", label: "Appearance", icon: Palette },
   { value: "api-keys", label: "API Keys", icon: KeyRound },
   { value: "storage", label: "Storage", icon: HardDrive },
 ] as const;
@@ -74,6 +76,7 @@ export function SettingsDialog({
                 isOpen={dialogOpen && activeTab === "account"}
               />
             )}
+            {activeTab === "appearance" && <AppearanceTab />}
             {activeTab === "api-keys" && <ApiKeysTab />}
             {activeTab === "storage" && <StorageTab />}
           </div>

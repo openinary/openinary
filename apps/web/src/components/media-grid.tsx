@@ -4,6 +4,7 @@ import type React from "react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
   FileImage,
+  FileVideo,
   ArrowUpRight,
   Check,
   Copy,
@@ -22,6 +23,7 @@ import { useQueryState } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useStorageTree } from "@/hooks/use-storage-tree";
+import { useHideThumbnails } from "@/hooks/use-hide-thumbnails";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,6 +85,26 @@ const MIME_TYPES: Record<string, string> = {
 function getMimeType(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase() || "";
   return MIME_TYPES[ext] || ext;
+}
+
+function FileTypeIcon({
+  type,
+  className,
+}: {
+  type: "image" | "video";
+  className?: string;
+}) {
+  const Icon = type === "video" ? FileVideo : FileImage;
+  return (
+    <div
+      className={cn(
+        "flex h-full w-full items-center justify-center bg-muted/30",
+        className,
+      )}
+    >
+      <Icon className="h-1/3 w-1/3 text-muted-foreground" strokeWidth={1.5} />
+    </div>
+  );
 }
 
 function formatListSize(bytes?: number): string {
@@ -269,6 +291,7 @@ export function MediaGrid({
   view = "grid",
 }: MediaGridProps) {
   const { data: treeData, isLoading, error } = useStorageTree();
+  const [hideThumbnails] = useHideThumbnails();
   const queryClient = useQueryClient();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -931,9 +954,11 @@ export function MediaGrid({
                 const itemCount = treeData
                   ? getFolderItemCount(treeData, [...pathSegments, folder.name])
                   : 0;
-                const previewItems = treeData
-                  ? getFolderPreviewItems(treeData, [...pathSegments, folder.name])
-                  : [];
+                const previewItems = hideThumbnails
+                  ? []
+                  : treeData
+                    ? getFolderPreviewItems(treeData, [...pathSegments, folder.name])
+                    : [];
                 const renderPreview = (
                   item: { path: string; type: "image" | "video" },
                   size: "square" | "tall" | "large",
@@ -1022,9 +1047,30 @@ export function MediaGrid({
                             </div>
                           )}
                         </div>
-                        <div className="absolute inset-x-0 bottom-0 max-w-full bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 text-left">
-                          <p className="text-sm font-medium text-white truncate">{folder.name}</p>
-                          <p className="text-xs text-white/70">
+                        <div
+                          className={cn(
+                            "absolute inset-x-0 bottom-0 max-w-full p-3 text-left",
+                            hideThumbnails
+                              ? ""
+                              : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
+                          )}
+                        >
+                          <p
+                            className={cn(
+                              "text-sm font-medium truncate",
+                              hideThumbnails ? "text-foreground" : "text-white",
+                            )}
+                          >
+                            {folder.name}
+                          </p>
+                          <p
+                            className={cn(
+                              "text-xs",
+                              hideThumbnails
+                                ? "text-muted-foreground"
+                                : "text-white/70",
+                            )}
+                          >
                             {itemCount} {itemCount === 1 ? "item" : "items"}
                           </p>
                         </div>
@@ -1124,7 +1170,9 @@ export function MediaGrid({
                               }
                             />
                           </div>
-                          {media.type === "image" ? (
+                          {hideThumbnails ? (
+                            <FileTypeIcon type={media.type} />
+                          ) : media.type === "image" ? (
                             <img
                               src={thumbnailUrl}
                               alt={media.name}
@@ -1141,11 +1189,19 @@ export function MediaGrid({
                           )}
                           <div
                             className={cn(
-                              "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 transition-opacity",
+                              "absolute inset-x-0 bottom-0 p-2 transition-opacity",
+                              hideThumbnails
+                                ? ""
+                                : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
                               isHovered ? "opacity-100" : "opacity-0",
                             )}
                           >
-                            <p className="text-white text-xs font-medium truncate">
+                            <p
+                              className={cn(
+                                "text-xs font-medium truncate",
+                                hideThumbnails ? "text-foreground" : "text-white",
+                              )}
+                            >
                               {media.name}
                             </p>
                           </div>
@@ -1257,7 +1313,9 @@ export function MediaGrid({
                               });
                             }}
                           >
-                            {media.type === "image" ? (
+                            {hideThumbnails ? (
+                              <FileTypeIcon type={media.type} />
+                            ) : media.type === "image" ? (
                               <img
                                 src={thumbnailUrl}
                                 alt={media.name}
