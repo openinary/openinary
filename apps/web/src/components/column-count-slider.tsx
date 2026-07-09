@@ -36,6 +36,7 @@ export default function ColumnCountSlider({
               onValueChange={([v]) => onChange(v)}
               onPointerDown={() => setDragging(true)}
               onPointerUp={() => setDragging(false)}
+              thumbClassName="h-3.5 w-6 rounded-full"
             />
           </TooltipTrigger>
           <TooltipContent sideOffset={14}>{value} columns</TooltipContent>

@@ -49,7 +49,7 @@ export function AppearanceTab() {
                 <motion.div
                   layoutId="theme-active"
                   className="absolute inset-0 rounded-full bg-foreground"
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                  transition={{ type: "tween", duration: 0.2, ease: "easeOut" }}
                 />
               )}
               <Icon className="relative size-4" />
