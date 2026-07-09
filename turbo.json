@@ -4,7 +4,8 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "inputs": ["src/**", "templates/**", "package.json", "tsconfig.json"]
+      "inputs": ["src/**", "templates/**", "package.json", "tsconfig.json"],
+      "env": ["NEXT_PUBLIC_API_BASE_URL", "NEXT_PUBLIC_TRANSFORM_BASE_URL"]
     },
     "dev": {
       "cache": false,
