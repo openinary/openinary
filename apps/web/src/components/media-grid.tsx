@@ -868,6 +868,7 @@ export function MediaGrid({
         {renameTarget && (
           <RenameSection
             currentName={renameTarget.name}
+            keepExtension
             onRename={async (newName) => {
               const success = await handleRenameMedia(renameTarget.path, newName);
               if (success) setRenameTarget(null);

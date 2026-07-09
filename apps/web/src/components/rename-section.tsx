@@ -22,17 +22,29 @@ const renameFormSchema = z.object({
 
 type RenameFormValues = z.infer<typeof renameFormSchema>;
 
+function splitExtension(name: string): { base: string; extension: string } {
+  const lastDot = name.lastIndexOf(".");
+  if (lastDot <= 0) return { base: name, extension: "" };
+  return { base: name.slice(0, lastDot), extension: name.slice(lastDot) };
+}
+
 export function RenameSection({
   currentName,
+  keepExtension,
   onRename,
 }: {
   currentName: string;
+  keepExtension?: boolean;
   onRename: (newName: string) => Promise<boolean>;
 }) {
+  const { base: currentBase, extension } = keepExtension
+    ? splitExtension(currentName)
+    : { base: currentName, extension: "" };
+
   const renameForm = useForm<RenameFormValues>({
     resolver: zodResolver(renameFormSchema),
     defaultValues: {
-      name: currentName,
+      name: currentBase,
     },
   });
 
@@ -47,8 +59,9 @@ export function RenameSection({
   }, []);
 
   const onSubmit = async (values: RenameFormValues) => {
-    if (values.name === currentName) return;
-    const success = await onRename(values.name);
+    const newName = `${values.name}${extension}`;
+    if (values.name === currentBase) return;
+    const success = await onRename(newName);
     if (!success) {
       renameForm.setError("name", { message: "Failed to rename" });
     }
@@ -65,14 +78,31 @@ export function RenameSection({
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
-                    {...field}
-                    ref={(el) => {
-                      field.ref(el);
-                      inputRef.current = el;
-                    }}
-                  />
+                  {extension ? (
+                    <div className="border-input dark:bg-input/30 focus-within:border-ring focus-within:ring-ring/50 flex h-8 w-full min-w-0 items-center rounded-md border bg-transparent shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]">
+                      <input
+                        type="text"
+                        {...field}
+                        ref={(el) => {
+                          field.ref(el);
+                          inputRef.current = el;
+                        }}
+                        className="min-w-0 flex-1 truncate bg-transparent py-1 pl-3 text-base outline-none md:text-sm"
+                      />
+                      <span className="text-muted-foreground select-none whitespace-nowrap py-1 pr-3 text-base md:text-sm">
+                        {extension}
+                      </span>
+                    </div>
+                  ) : (
+                    <Input
+                      type="text"
+                      {...field}
+                      ref={(el) => {
+                        field.ref(el);
+                        inputRef.current = el;
+                      }}
+                    />
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>
