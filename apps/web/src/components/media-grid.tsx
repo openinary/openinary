@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { isMac } from "@/lib/utils";
+import { toAbsoluteUrl } from "@/lib/utils";
 import { preloadMedia } from "@/hooks/use-preload-media";
 import { VideoThumbnail } from "@/components/video-thumbnail";
 import type { TreeDataItem } from "@/components/ui/tree-view";
@@ -534,7 +535,7 @@ export function MediaGrid({
   };
 
   const handleCopyUrl = (path: string, id?: string) => {
-    navigator.clipboard.writeText(`${transformBaseUrl}/t/${path}`);
+    navigator.clipboard.writeText(toAbsoluteUrl(`${transformBaseUrl}/t/${path}`));
     toast.success("URL copied to clipboard");
     if (id) {
       setCopiedId(id);

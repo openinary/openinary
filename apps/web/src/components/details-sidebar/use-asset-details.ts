@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { useStorageTree } from "@/hooks/use-storage-tree"
 import { usePreloadMedia } from "@/hooks/use-preload-media"
 import { useVideoStatus } from "@/hooks/use-video-status"
+import { toAbsoluteUrl } from "@/lib/utils"
 import { findAssetInTree } from "./utils"
 import type { MediaFile } from "./types"
 
@@ -175,7 +176,10 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     }
   }, [asset])
 
-  const mediaUrl = asset ? `${transformBaseUrl}/t/${asset.path}` : ""
+  // Resolve to an absolute URL so Copy URL / Open / the displayed field all
+  // produce a shareable link even when transformBaseUrl is empty (same-origin
+  // Docker deployments where the bundle was built with NEXT_PUBLIC_API_BASE_URL=/api).
+  const mediaUrl = asset ? toAbsoluteUrl(`${transformBaseUrl}/t/${asset.path}`) : ""
   // For preview: use thumbnail extraction for videos with crop mode to avoid stretching
   const previewUrl = asset
     ? asset.type === "image"
