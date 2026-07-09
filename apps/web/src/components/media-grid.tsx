@@ -18,6 +18,7 @@ import {
   Trash2,
   Upload,
   FolderPlus,
+  X,
 } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
@@ -131,7 +132,10 @@ type SelectionEntry = { path: string; name: string; kind: "file" | "folder" };
 
 const BULK_TOAST_ID = "bulk-selection-bar";
 
-function getFolderItemCount(items: TreeDataItem[], folderPath: string[]): number {
+function getFolderItemCount(
+  items: TreeDataItem[],
+  folderPath: string[],
+): number {
   let currentItems = items;
   for (const seg of folderPath) {
     const found = currentItems.find((i) => i.name === seg);
@@ -157,10 +161,18 @@ function getFolderPreviewItems(
     if (previews.length >= limit) break;
     if (!item.children) {
       const lower = item.name.toLowerCase();
-      const isImage = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".psd"].some(
-        (ext) => lower.endsWith(ext),
+      const isImage = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".avif",
+        ".psd",
+      ].some((ext) => lower.endsWith(ext));
+      const isVideo = [".mp4", ".mov", ".webm"].some((ext) =>
+        lower.endsWith(ext),
       );
-      const isVideo = [".mp4", ".mov", ".webm"].some((ext) => lower.endsWith(ext));
       if (isImage || isVideo) {
         previews.push({
           path: [...folderPath, item.name].join("/"),
@@ -179,11 +191,19 @@ function getFolderThumbnailUrl(
 ): string {
   if (item.type === "video") {
     const dims =
-      size === "large" ? "w_500,h_500" : size === "tall" ? "w_250,h_500" : "w_250,h_250";
+      size === "large"
+        ? "w_500,h_500"
+        : size === "tall"
+          ? "w_250,h_500"
+          : "w_250,h_250";
     return `${transformBaseUrl}/t/t_true,tt_5,f_webp,${dims},c_fill,q_70/${item.path}`;
   }
   const dims =
-    size === "large" ? "w_500,h_500" : size === "tall" ? "w_250,h_500" : "w_250,h_250";
+    size === "large"
+      ? "w_500,h_500"
+      : size === "tall"
+        ? "w_250,h_500"
+        : "w_250,h_250";
   return `${transformBaseUrl}/t/${dims},q_70/${item.path}`;
 }
 
@@ -333,15 +353,22 @@ export function MediaGrid({
   const [gridCreateFolderOpen, setGridCreateFolderOpen] = useState(false);
 
   // Dialog state for folder context menu (upload to folder)
-  const [folderUploadTarget, setFolderUploadTarget] = useState<string | null>(null);
+  const [folderUploadTarget, setFolderUploadTarget] = useState<string | null>(
+    null,
+  );
 
   // Dialog state for rename
   const [renameTarget, setRenameTarget] = useState<MediaFile | null>(null);
-  const [renameFolderTarget, setRenameFolderTarget] = useState<FolderItem | null>(null);
+  const [renameFolderTarget, setRenameFolderTarget] =
+    useState<FolderItem | null>(null);
 
   // Dialog state for delete confirmation
-  const [deleteMediaTarget, setDeleteMediaTarget] = useState<MediaFile | null>(null);
-  const [deleteFolderTarget, setDeleteFolderTarget] = useState<string | null>(null);
+  const [deleteMediaTarget, setDeleteMediaTarget] = useState<MediaFile | null>(
+    null,
+  );
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<string | null>(
+    null,
+  );
 
   const mac = isMac();
 
@@ -396,7 +423,8 @@ export function MediaGrid({
         duration: Infinity,
         unstyled: true,
         classNames: {
-          toast: "!bg-transparent !border-0 !p-0 !shadow-none !w-fit !max-w-[90vw]",
+          toast:
+            "!bg-transparent !border-0 !p-0 !shadow-none !w-fit !max-w-[90vw]",
         },
       },
     );
@@ -510,12 +538,18 @@ export function MediaGrid({
     toast.success("URL copied to clipboard");
     if (id) {
       setCopiedId(id);
-      setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
+      setTimeout(
+        () => setCopiedId((current) => (current === id ? null : current)),
+        1500,
+      );
     }
   };
 
   const handleRenameMedia = async (path: string, newName: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
 
     const rename = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -531,11 +565,16 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(rename(), {
-        loading: `Renaming "${path}"...`,
-        success: `Renamed to "${newName}"`,
-        error: (error) => (error instanceof Error ? error.message : `Failed to rename "${path}"`),
-      }).unwrap();
+      await toast
+        .promise(rename(), {
+          loading: `Renaming "${path}"...`,
+          success: `Renamed to "${newName}"`,
+          error: (error) =>
+            error instanceof Error
+              ? error.message
+              : `Failed to rename "${path}"`,
+        })
+        .unwrap();
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
       return true;
     } catch {
@@ -544,13 +583,19 @@ export function MediaGrid({
   };
 
   const handleCopyMedia = async (path: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
 
     const copy = async () => {
-      const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}/copy`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${apiBaseUrl}/storage/${encodedPath}/copy`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.message || `Failed to copy "${path}"`);
@@ -558,11 +603,14 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(copy(), {
-        loading: `Copying "${path}"...`,
-        success: `Copied "${path}"`,
-        error: (error) => (error instanceof Error ? error.message : `Failed to copy "${path}"`),
-      }).unwrap();
+      await toast
+        .promise(copy(), {
+          loading: `Copying "${path}"...`,
+          success: `Copied "${path}"`,
+          error: (error) =>
+            error instanceof Error ? error.message : `Failed to copy "${path}"`,
+        })
+        .unwrap();
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
     } catch {
       // error toast already shown
@@ -570,15 +618,21 @@ export function MediaGrid({
   };
 
   const handleMoveMedia = async (path: string, destination: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
 
     const move = async () => {
-      const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}/move`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destination }),
-      });
+      const response = await fetch(
+        `${apiBaseUrl}/storage/${encodedPath}/move`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ destination }),
+        },
+      );
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.message || `Failed to move "${path}"`);
@@ -586,11 +640,14 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(move(), {
-        loading: `Moving "${path}"...`,
-        success: `Moved to "${destination || "Root"}"`,
-        error: (error) => (error instanceof Error ? error.message : `Failed to move "${path}"`),
-      }).unwrap();
+      await toast
+        .promise(move(), {
+          loading: `Moving "${path}"...`,
+          success: `Moved to "${destination || "Root"}"`,
+          error: (error) =>
+            error instanceof Error ? error.message : `Failed to move "${path}"`,
+        })
+        .unwrap();
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
     } catch {
       // error toast already shown
@@ -598,7 +655,10 @@ export function MediaGrid({
   };
 
   const handleDeleteMedia = async (path: string, name: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
 
     const del = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -611,11 +671,16 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(del(), {
-        loading: `Deleting "${name}"...`,
-        success: `Deleted "${name}"`,
-        error: (error) => (error instanceof Error ? error.message : `Failed to delete "${name}"`),
-      }).unwrap();
+      await toast
+        .promise(del(), {
+          loading: `Deleting "${name}"...`,
+          success: `Deleted "${name}"`,
+          error: (error) =>
+            error instanceof Error
+              ? error.message
+              : `Failed to delete "${name}"`,
+        })
+        .unwrap();
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
     } catch {
       // error toast already shown
@@ -623,7 +688,10 @@ export function MediaGrid({
   };
 
   const handleDownloadFolder = (path: string, name: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
     const a = document.createElement("a");
     a.href = `${apiBaseUrl}/download-folder/${encodedPath}`;
     a.download = `${name}.zip`;
@@ -634,7 +702,10 @@ export function MediaGrid({
   };
 
   const handleRenameFolder = async (path: string, newName: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
 
     const rename = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -650,11 +721,16 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(rename(), {
-        loading: `Renaming "${path}"...`,
-        success: `Renamed to "${newName}"`,
-        error: (error) => (error instanceof Error ? error.message : `Failed to rename "${path}"`),
-      }).unwrap();
+      await toast
+        .promise(rename(), {
+          loading: `Renaming "${path}"...`,
+          success: `Renamed to "${newName}"`,
+          error: (error) =>
+            error instanceof Error
+              ? error.message
+              : `Failed to rename "${path}"`,
+        })
+        .unwrap();
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
       // Update current folder path if we renamed the folder we're inside of
       if (path === folderPath) {
@@ -668,7 +744,10 @@ export function MediaGrid({
   };
 
   const handleDeleteFolder = async (path: string) => {
-    const encodedPath = path.split("/").map((s) => encodeURIComponent(s)).join("/");
+    const encodedPath = path
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
 
     const del = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -681,12 +760,16 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(del(), {
-        loading: `Deleting "${path}"...`,
-        success: `Deleted "${path}"`,
-        error: (error) =>
-          error instanceof Error ? error.message : `Failed to delete folder "${path}"`,
-      }).unwrap();
+      await toast
+        .promise(del(), {
+          loading: `Deleting "${path}"...`,
+          success: `Deleted "${path}"`,
+          error: (error) =>
+            error instanceof Error
+              ? error.message
+              : `Failed to delete folder "${path}"`,
+        })
+        .unwrap();
       await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
       // Navigate up if we deleted the current folder
       if (path === folderPath) setFolderPath(null);
@@ -714,7 +797,10 @@ export function MediaGrid({
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: entries.map((entry) => ({ path: entry.path, kind: entry.kind })),
+          items: entries.map((entry) => ({
+            path: entry.path,
+            kind: entry.kind,
+          })),
         }),
       });
       if (!response.ok) {
@@ -732,11 +818,13 @@ export function MediaGrid({
     };
 
     try {
-      await toast.promise(downloadZip(), {
-        loading: `Zipping ${entries.length} item(s)...`,
-        success: `Downloading ${entries.length} item(s) as a zip`,
-        error: "Failed to download items",
-      }).unwrap();
+      await toast
+        .promise(downloadZip(), {
+          loading: `Zipping ${entries.length} item(s)...`,
+          success: `Downloading ${entries.length} item(s) as a zip`,
+          error: "Failed to download items",
+        })
+        .unwrap();
     } catch {
       // error toast already shown
     }
@@ -764,16 +852,21 @@ export function MediaGrid({
       );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length > 0) {
-        throw new Error(`${failed.length} of ${entries.length} item(s) failed to move`);
+        throw new Error(
+          `${failed.length} of ${entries.length} item(s) failed to move`,
+        );
       }
     };
 
     try {
-      await toast.promise(move(), {
-        loading: `Moving ${entries.length} item(s)...`,
-        success: `Moved to "${destination || "Root"}"`,
-        error: (error) => (error instanceof Error ? error.message : "Failed to move items"),
-      }).unwrap();
+      await toast
+        .promise(move(), {
+          loading: `Moving ${entries.length} item(s)...`,
+          success: `Moved to "${destination || "Root"}"`,
+          error: (error) =>
+            error instanceof Error ? error.message : "Failed to move items",
+        })
+        .unwrap();
     } catch {
       // error toast already shown
     } finally {
@@ -796,22 +889,28 @@ export function MediaGrid({
             method: "DELETE",
             credentials: "include",
           }).then((response) => {
-            if (!response.ok) throw new Error(`Failed to delete "${entry.name}"`);
+            if (!response.ok)
+              throw new Error(`Failed to delete "${entry.name}"`);
           });
         }),
       );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length > 0) {
-        throw new Error(`${failed.length} of ${entries.length} item(s) failed to delete`);
+        throw new Error(
+          `${failed.length} of ${entries.length} item(s) failed to delete`,
+        );
       }
     };
 
     try {
-      await toast.promise(del(), {
-        loading: `Deleting ${entries.length} item(s)...`,
-        success: `Deleted ${entries.length} item(s)`,
-        error: (error) => (error instanceof Error ? error.message : "Failed to delete items"),
-      }).unwrap();
+      await toast
+        .promise(del(), {
+          loading: `Deleting ${entries.length} item(s)...`,
+          success: `Deleted ${entries.length} item(s)`,
+          error: (error) =>
+            error instanceof Error ? error.message : "Failed to delete items",
+        })
+        .unwrap();
     } catch {
       // error toast already shown
     } finally {
@@ -827,6 +926,65 @@ export function MediaGrid({
     onMove: handleBulkMove,
     onDelete: () => setBulkDeleteConfirmOpen(true),
   };
+
+  // Shared context menu shown for any thumbnail while a multi-selection is
+  // active, so right-clicking any selected (or unselected) item exposes the
+  // same actions as the floating bulk-action bar.
+  const renderBulkContextMenuContent = () => (
+    <ContextMenuContent className="w-56">
+      <ContextMenuItem onClick={clearSelection}>
+        <X className="h-4 w-4" />
+        Clear selection
+      </ContextMenuItem>
+      <ContextMenuItem onClick={handleBulkDownload}>
+        <Download className="h-4 w-4" />
+        Download selection
+      </ContextMenuItem>
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <Move className="h-4 w-4" />
+          Move selection
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent
+          className="w-48 max-h-[400px] overflow-y-auto"
+          style={{
+            maskImage:
+              "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+          }}
+        >
+          {pathSegments.length > 0 && (
+            <ContextMenuItem onClick={() => handleBulkMove("")}>
+              <Folder className="h-4 w-4" />
+              Root
+            </ContextMenuItem>
+          )}
+          {moveTargets.length === 0 && pathSegments.length === 0 ? (
+            <ContextMenuItem disabled>No folders available</ContextMenuItem>
+          ) : (
+            moveTargets.map((target) => (
+              <ContextMenuItem
+                key={target.path}
+                onClick={() => handleBulkMove(target.path)}
+              >
+                <Folder className="h-4 w-4" />
+                {target.label}
+              </ContextMenuItem>
+            ))
+          )}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        onClick={() => setBulkDeleteConfirmOpen(true)}
+        variant="destructive"
+      >
+        <Trash2 className="h-4 w-4" />
+        Delete selection
+      </ContextMenuItem>
+    </ContextMenuContent>
+  );
 
   return (
     <>
@@ -870,7 +1028,10 @@ export function MediaGrid({
             currentName={renameTarget.name}
             keepExtension
             onRename={async (newName) => {
-              const success = await handleRenameMedia(renameTarget.path, newName);
+              const success = await handleRenameMedia(
+                renameTarget.path,
+                newName,
+              );
               if (success) setRenameTarget(null);
               return success;
             }}
@@ -889,7 +1050,10 @@ export function MediaGrid({
           <RenameSection
             currentName={renameFolderTarget.name}
             onRename={async (newName) => {
-              const success = await handleRenameFolder(renameFolderTarget.path, newName);
+              const success = await handleRenameFolder(
+                renameFolderTarget.path,
+                newName,
+              );
               if (success) setRenameFolderTarget(null);
               return success;
             }}
@@ -905,7 +1069,10 @@ export function MediaGrid({
         description={`This action cannot be undone. Are you sure you want to permanently delete "${deleteMediaTarget?.name ?? ""}"?`}
         onConfirm={async () => {
           if (!deleteMediaTarget) return;
-          await handleDeleteMedia(deleteMediaTarget.path, deleteMediaTarget.name);
+          await handleDeleteMedia(
+            deleteMediaTarget.path,
+            deleteMediaTarget.name,
+          );
           setDeleteMediaTarget(null);
         }}
       />
@@ -958,7 +1125,10 @@ export function MediaGrid({
                 const previewItems = hideThumbnails
                   ? []
                   : treeData
-                    ? getFolderPreviewItems(treeData, [...pathSegments, folder.name])
+                    ? getFolderPreviewItems(treeData, [
+                        ...pathSegments,
+                        folder.name,
+                      ])
                     : [];
                 const renderPreview = (
                   item: { path: string; type: "image" | "video" },
@@ -984,8 +1154,9 @@ export function MediaGrid({
                     <ContextMenuTrigger asChild>
                       <div
                         className={cn(
-                          "group relative w-[190px] h-[180px] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md",
-                          isSelected(folder.id) && "ring-2 ring-primary border-primary",
+                          "group relative w-[190px] h-[180px] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
+                          isSelected(folder.id) &&
+                            "ring-2 ring-primary border-primary",
                         )}
                         onClick={() => handleFolderClick(folder.path)}
                       >
@@ -994,7 +1165,7 @@ export function MediaGrid({
                             "absolute top-2 left-2 z-10 transition-opacity",
                             selectionMode || isSelected(folder.id)
                               ? "opacity-100"
-                              : "opacity-0 group-hover:opacity-100",
+                              : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
                           )}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1077,49 +1248,53 @@ export function MediaGrid({
                         </div>
                       </div>
                     </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          const path = folder.path;
-                          setTimeout(() => setFolderUploadTarget(path), 0);
-                        }}
-                      >
-                        <Upload className="h-4 w-4" />
-                        Upload to folder
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          const target = folder;
-                          setTimeout(() => setRenameFolderTarget(target), 0);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Rename
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          handleDownloadFolder(folder.path, folder.name);
-                        }}
-                      >
-                        <Download className="h-4 w-4" />
-                        Download folder
-                      </ContextMenuItem>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          const path = folder.path;
-                          setTimeout(() => setDeleteFolderTarget(path), 0);
-                        }}
-                        variant="destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete folder
-                      </ContextMenuItem>
-                    </ContextMenuContent>
+                    {selectionMode ? (
+                      renderBulkContextMenuContent()
+                    ) : (
+                      <ContextMenuContent>
+                        <ContextMenuItem
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            const path = folder.path;
+                            setTimeout(() => setFolderUploadTarget(path), 0);
+                          }}
+                        >
+                          <Upload className="h-4 w-4" />
+                          Upload to folder
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            const target = folder;
+                            setTimeout(() => setRenameFolderTarget(target), 0);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Rename
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            handleDownloadFolder(folder.path, folder.name);
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                          Download folder
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            const path = folder.path;
+                            setTimeout(() => setDeleteFolderTarget(path), 0);
+                          }}
+                          variant="destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete folder
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    )}
                   </ContextMenu>
                 );
               })}
@@ -1137,12 +1312,18 @@ export function MediaGrid({
                   const isHovered = hoveredId === media.id;
 
                   return (
-                    <ContextMenu key={media.id}>
+                    <ContextMenu
+                      key={media.id}
+                      onOpenChange={(open) => {
+                        if (open) setHoveredId(media.id);
+                      }}
+                    >
                       <ContextMenuTrigger asChild>
                         <div
                           className={cn(
-                            "group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md",
-                            isSelected(media.id) && "ring-2 ring-primary border-primary",
+                            "group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
+                            isSelected(media.id) &&
+                              "ring-2 ring-primary border-primary",
                           )}
                           onClick={() => onMediaSelect(media)}
                           onMouseEnter={() => {
@@ -1156,7 +1337,7 @@ export function MediaGrid({
                               "absolute top-2 left-2 z-10 transition-opacity",
                               selectionMode || isSelected(media.id)
                                 ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-100",
+                                : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
                             )}
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -1177,14 +1358,14 @@ export function MediaGrid({
                             <img
                               src={thumbnailUrl}
                               alt={media.name}
-                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
                               loading="lazy"
                             />
                           ) : (
                             <VideoThumbnail
                               src={thumbnailUrl}
                               alt={media.name}
-                              className="transition-transform group-hover:scale-105"
+                              className="transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
                               loading="lazy"
                             />
                           )}
@@ -1195,12 +1376,15 @@ export function MediaGrid({
                                 ? ""
                                 : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
                               isHovered ? "opacity-100" : "opacity-0",
+                              "group-data-[state=open]:opacity-100",
                             )}
                           >
                             <p
                               className={cn(
                                 "text-xs font-medium truncate",
-                                hideThumbnails ? "text-foreground" : "text-white",
+                                hideThumbnails
+                                  ? "text-foreground"
+                                  : "text-white",
                               )}
                             >
                               {media.name}
@@ -1208,68 +1392,95 @@ export function MediaGrid({
                           </div>
                         </div>
                       </ContextMenuTrigger>
-                      <ContextMenuContent className="w-64">
-                        <ContextMenuItem onClick={() => onMediaSelect(media)}>
-                          <File className="h-4 w-4" />
-                          Open
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => setTimeout(() => setRenameTarget(media), 0)}>
-                          <Pencil className="h-4 w-4" />
-                          Rename
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => handleCopyMedia(media.path)}>
-                          <Copy className="h-4 w-4" />
-                          Make a copy
-                        </ContextMenuItem>
-                        <ContextMenuSub>
-                          <ContextMenuSubTrigger>
-                            <Move className="h-4 w-4" />
-                            Move to
-                          </ContextMenuSubTrigger>
-                          <ContextMenuSubContent
-                            className="w-48 max-h-[400px] overflow-y-auto"
-                            style={{
-                              maskImage:
-                                "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                              WebkitMaskImage:
-                                "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                            }}
+                      {selectionMode ? (
+                        renderBulkContextMenuContent()
+                      ) : (
+                        <ContextMenuContent className="w-64">
+                          <ContextMenuItem onClick={() => onMediaSelect(media)}>
+                            <File className="h-4 w-4" />
+                            Open
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() =>
+                              setTimeout(() => setRenameTarget(media), 0)
+                            }
                           >
-                            {pathSegments.length > 0 && (
-                              <ContextMenuItem onClick={() => handleMoveMedia(media.path, "")}>
-                                <Folder className="h-4 w-4" />
-                                Root
-                              </ContextMenuItem>
-                            )}
-                            {moveTargets.length === 0 && pathSegments.length === 0 ? (
-                              <ContextMenuItem disabled>No folders available</ContextMenuItem>
-                            ) : (
-                              moveTargets.map((target) => (
+                            <Pencil className="h-4 w-4" />
+                            Rename
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => handleCopyMedia(media.path)}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Make a copy
+                          </ContextMenuItem>
+                          <ContextMenuSub>
+                            <ContextMenuSubTrigger>
+                              <Move className="h-4 w-4" />
+                              Move to
+                            </ContextMenuSubTrigger>
+                            <ContextMenuSubContent
+                              className="w-48 max-h-[400px] overflow-y-auto"
+                              style={{
+                                maskImage:
+                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+                                WebkitMaskImage:
+                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+                              }}
+                            >
+                              {pathSegments.length > 0 && (
                                 <ContextMenuItem
-                                  key={target.path}
-                                  onClick={() => handleMoveMedia(media.path, target.path)}
+                                  onClick={() =>
+                                    handleMoveMedia(media.path, "")
+                                  }
                                 >
                                   <Folder className="h-4 w-4" />
-                                  {target.label}
+                                  Root
                                 </ContextMenuItem>
-                              ))
-                            )}
-                          </ContextMenuSubContent>
-                        </ContextMenuSub>
-                        <ContextMenuItem onClick={() => handleDownload(media.path, media.name)}>
-                          <Download className="h-4 w-4" />
-                          Download
-                          <ContextMenuShortcut>{mac ? "⇧⌘D" : "Ctrl Shift D"}</ContextMenuShortcut>
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          onClick={() => setTimeout(() => setDeleteMediaTarget(media), 0)}
-                          variant="destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </ContextMenuItem>
-                      </ContextMenuContent>
+                              )}
+                              {moveTargets.length === 0 &&
+                              pathSegments.length === 0 ? (
+                                <ContextMenuItem disabled>
+                                  No folders available
+                                </ContextMenuItem>
+                              ) : (
+                                moveTargets.map((target) => (
+                                  <ContextMenuItem
+                                    key={target.path}
+                                    onClick={() =>
+                                      handleMoveMedia(media.path, target.path)
+                                    }
+                                  >
+                                    <Folder className="h-4 w-4" />
+                                    {target.label}
+                                  </ContextMenuItem>
+                                ))
+                              )}
+                            </ContextMenuSubContent>
+                          </ContextMenuSub>
+                          <ContextMenuItem
+                            onClick={() =>
+                              handleDownload(media.path, media.name)
+                            }
+                          >
+                            <Download className="h-4 w-4" />
+                            Download
+                            <ContextMenuShortcut>
+                              {mac ? "⇧⌘D" : "Ctrl Shift D"}
+                            </ContextMenuShortcut>
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            onClick={() =>
+                              setTimeout(() => setDeleteMediaTarget(media), 0)
+                            }
+                            variant="destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      )}
                     </ContextMenu>
                   );
                 })}
@@ -1289,11 +1500,16 @@ export function MediaGrid({
                       : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
 
                   return (
-                    <ContextMenu key={media.id}>
+                    <ContextMenu
+                      key={media.id}
+                      onOpenChange={(open) => {
+                        if (open) setHoveredId(media.id);
+                      }}
+                    >
                       <ContextMenuTrigger asChild>
                         <div
                           className={cn(
-                            "group flex items-center gap-4 px-3 py-2 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50",
+                            "group flex items-center gap-4 px-3 py-2 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50",
                             isSelected(media.id) && "bg-muted/40",
                           )}
                           onClick={() => onMediaSelect(media)}
@@ -1336,7 +1552,7 @@ export function MediaGrid({
                                 "absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity",
                                 selectionMode || isSelected(media.id)
                                   ? "opacity-100"
-                                  : "opacity-0 group-hover:opacity-100",
+                                  : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
                               )}
                             >
                               <Checkbox
@@ -1411,7 +1627,10 @@ export function MediaGrid({
                                   className="cursor-pointer text-muted-foreground hover:text-destructive"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setTimeout(() => setDeleteMediaTarget(media), 0);
+                                    setTimeout(
+                                      () => setDeleteMediaTarget(media),
+                                      0,
+                                    );
                                   }}
                                   aria-label="Delete"
                                 >
@@ -1426,72 +1645,101 @@ export function MediaGrid({
                           </div>
                         </div>
                       </ContextMenuTrigger>
-                      <ContextMenuContent className="w-64">
-                        <ContextMenuItem onClick={() => onMediaSelect(media)}>
-                          <File className="h-4 w-4" />
-                          Open
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => setTimeout(() => setRenameTarget(media), 0)}>
-                          <Pencil className="h-4 w-4" />
-                          Rename
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => handleCopyMedia(media.path)}>
-                          <Copy className="h-4 w-4" />
-                          Make a copy
-                        </ContextMenuItem>
-                        <ContextMenuSub>
-                          <ContextMenuSubTrigger>
-                            <Move className="h-4 w-4" />
-                            Move to
-                          </ContextMenuSubTrigger>
-                          <ContextMenuSubContent
-                            className="w-48 max-h-[400px] overflow-y-auto"
-                            style={{
-                              maskImage:
-                                "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                              WebkitMaskImage:
-                                "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                            }}
+                      {selectionMode ? (
+                        renderBulkContextMenuContent()
+                      ) : (
+                        <ContextMenuContent className="w-64">
+                          <ContextMenuItem onClick={() => onMediaSelect(media)}>
+                            <File className="h-4 w-4" />
+                            Open
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() =>
+                              setTimeout(() => setRenameTarget(media), 0)
+                            }
                           >
-                            {pathSegments.length > 0 && (
-                              <ContextMenuItem onClick={() => handleMoveMedia(media.path, "")}>
-                                <Folder className="h-4 w-4" />
-                                Root
-                              </ContextMenuItem>
-                            )}
-                            {moveTargets.length === 0 && pathSegments.length === 0 ? (
-                              <ContextMenuItem disabled>No folders available</ContextMenuItem>
-                            ) : (
-                              moveTargets.map((target) => (
+                            <Pencil className="h-4 w-4" />
+                            Rename
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => handleCopyMedia(media.path)}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Make a copy
+                          </ContextMenuItem>
+                          <ContextMenuSub>
+                            <ContextMenuSubTrigger>
+                              <Move className="h-4 w-4" />
+                              Move to
+                            </ContextMenuSubTrigger>
+                            <ContextMenuSubContent
+                              className="w-48 max-h-[400px] overflow-y-auto"
+                              style={{
+                                maskImage:
+                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+                                WebkitMaskImage:
+                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
+                              }}
+                            >
+                              {pathSegments.length > 0 && (
                                 <ContextMenuItem
-                                  key={target.path}
-                                  onClick={() => handleMoveMedia(media.path, target.path)}
+                                  onClick={() =>
+                                    handleMoveMedia(media.path, "")
+                                  }
                                 >
                                   <Folder className="h-4 w-4" />
-                                  {target.label}
+                                  Root
                                 </ContextMenuItem>
-                              ))
-                            )}
-                          </ContextMenuSubContent>
-                        </ContextMenuSub>
-                        <ContextMenuItem onClick={() => handleCopyUrl(media.path)}>
-                          <Link2 className="h-4 w-4" />
-                          Copy URL
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => handleDownload(media.path, media.name)}>
-                          <Download className="h-4 w-4" />
-                          Download
-                          <ContextMenuShortcut>{mac ? "⇧⌘D" : "Ctrl Shift D"}</ContextMenuShortcut>
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          onClick={() => setTimeout(() => setDeleteMediaTarget(media), 0)}
-                          variant="destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </ContextMenuItem>
-                      </ContextMenuContent>
+                              )}
+                              {moveTargets.length === 0 &&
+                              pathSegments.length === 0 ? (
+                                <ContextMenuItem disabled>
+                                  No folders available
+                                </ContextMenuItem>
+                              ) : (
+                                moveTargets.map((target) => (
+                                  <ContextMenuItem
+                                    key={target.path}
+                                    onClick={() =>
+                                      handleMoveMedia(media.path, target.path)
+                                    }
+                                  >
+                                    <Folder className="h-4 w-4" />
+                                    {target.label}
+                                  </ContextMenuItem>
+                                ))
+                              )}
+                            </ContextMenuSubContent>
+                          </ContextMenuSub>
+                          <ContextMenuItem
+                            onClick={() => handleCopyUrl(media.path)}
+                          >
+                            <Link2 className="h-4 w-4" />
+                            Copy URL
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() =>
+                              handleDownload(media.path, media.name)
+                            }
+                          >
+                            <Download className="h-4 w-4" />
+                            Download
+                            <ContextMenuShortcut>
+                              {mac ? "⇧⌘D" : "Ctrl Shift D"}
+                            </ContextMenuShortcut>
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            onClick={() =>
+                              setTimeout(() => setDeleteMediaTarget(media), 0)
+                            }
+                            variant="destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      )}
                     </ContextMenu>
                   );
                 })}
@@ -1500,11 +1748,15 @@ export function MediaGrid({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => setTimeout(() => setGridUploadOpen(true), 0)}>
+          <ContextMenuItem
+            onClick={() => setTimeout(() => setGridUploadOpen(true), 0)}
+          >
             <Upload className="h-4 w-4" />
             Upload
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => setTimeout(() => setGridCreateFolderOpen(true), 0)}>
+          <ContextMenuItem
+            onClick={() => setTimeout(() => setGridCreateFolderOpen(true), 0)}
+          >
             <FolderPlus className="h-4 w-4" />
             Create folder
           </ContextMenuItem>
