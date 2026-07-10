@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
 import { X, FileImage } from "lucide-react"
 import { Sidebar } from "../ui/sidebar"
 import { useAssetDetails } from "./use-asset-details"
@@ -33,7 +32,6 @@ export function AssetDetailsSidebar({
 } & React.ComponentProps<typeof Sidebar>) {
   const {
     asset,
-    treeLoading,
     fileSize,
     optimizedSize,
     createdAt,
@@ -72,13 +70,7 @@ export function AssetDetailsSidebar({
         </Button>
       </div>
       <ScrollArea className="flex-1">
-        {treeLoading ? (
-          <div className="p-4 space-y-4">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        ) : !asset ? (
+        {!asset ? (
           <div className="p-4 text-center text-muted-foreground">
             <FileImage className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No asset selected</p>

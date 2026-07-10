@@ -6,29 +6,44 @@ import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
 import { getUniqueFilePath } from "../utils/get-unique-file-path";
 import { deleteCachedFiles, getCacheSize, clearAllCache } from "../utils/cache";
-
-type StorageNode = {
-  name: string;
-  path: string;
-  type: "file" | "directory";
-  size?: number;
-  mtime?: string;
-  children?: StorageNode[];
-};
-
-type TreeDataItem = {
-  id: string;
-  name: string;
-  size?: number;
-  mtime?: string;
-  children?: TreeDataItem[];
-  draggable?: boolean;
-  droppable?: boolean;
-  disabled?: boolean;
-};
+import {
+  buildTreeFromKeys,
+  sumTreeSize,
+  type StorageNode,
+} from "../utils/storage-tree";
+import {
+  FOLDER_PREVIEW_LIMIT,
+  FOLDER_SUMMARY_MAX_KEYS,
+  deriveFolderPaths,
+  getMediaType,
+  normalizeLevelPath,
+  type FolderPreviewItem,
+  type FolderSummary,
+  type LevelFile,
+  type LevelFolder,
+} from "../utils/storage-level";
+import {
+  getCachedFullListing,
+  invalidateListingCache,
+} from "../utils/storage/listing-cache";
 
 const storageRoute = new Hono();
 const storageClient = createStorageClient();
+
+type StorageClient = NonNullable<typeof storageClient>;
+
+/**
+ * Full recursive listing of public/ objects (keys relative, prefix stripped),
+ * shared between /stats and /folders through a short-lived TTL cache
+ */
+async function getPublicObjects(client: StorageClient) {
+  const objects = await getCachedFullListing(() =>
+    client.listAllParallel("public/"),
+  );
+  return objects
+    .filter((obj) => obj.key.startsWith("public/"))
+    .map((obj) => ({ ...obj, key: obj.key.substring(7) }));
+}
 
 function buildLocalTree(rootDir: string): StorageNode {
   const root: StorageNode = {
@@ -82,114 +97,110 @@ function buildLocalTree(rootDir: string): StorageNode {
   return root;
 }
 
-function buildTreeFromKeys(
-  keys: { key: string; size?: number; lastModified?: Date }[],
-): StorageNode {
-  const root: StorageNode = {
-    name: "storage",
-    path: "",
-    type: "directory",
-    children: [],
-  };
+function localFolderSummary(dirAbs: string, relPath: string): FolderSummary {
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dirAbs, { withFileTypes: true });
+  } catch {
+    return { itemCount: 0, truncated: false, previewItems: [] };
+  }
 
-  for (const { key, size, lastModified } of keys) {
-    const normalizedKey = key.replace(/^\/+/, "");
-    const isFolderMarker = normalizedKey.endsWith("/");
-    const parts = normalizedKey.split("/").filter(Boolean);
+  const truncated = entries.length > FOLDER_SUMMARY_MAX_KEYS;
+  const limited = entries.slice(0, FOLDER_SUMMARY_MAX_KEYS);
 
-    if (parts.length === 0) {
-      continue;
-    }
-
-    let current = root;
-    let currentPath = "";
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      currentPath = currentPath ? `${currentPath}/${part}` : part;
-      const isLastPart = i === parts.length - 1;
-      const isFile = isLastPart && !isFolderMarker;
-
-      if (isFile) {
-        current.children = current.children || [];
-        const existing = current.children.find(
-          (child) => child.name === part && child.type === "file",
-        );
-        if (!existing) {
-          current.children.push({
-            name: part,
-            path: currentPath,
-            type: "file",
-            size,
-            mtime: lastModified?.toISOString(),
-          });
-        }
-      } else {
-        current.children = current.children || [];
-        let dirNode = current.children.find(
-          (child) => child.name === part && child.type === "directory",
-        );
-        if (!dirNode) {
-          dirNode = {
-            name: part,
-            path: currentPath,
-            type: "directory",
-            children: [],
-          };
-          current.children.push(dirNode);
-        }
-        current = dirNode;
-      }
+  const previewItems: FolderPreviewItem[] = [];
+  for (const entry of limited) {
+    if (previewItems.length >= FOLDER_PREVIEW_LIMIT) break;
+    if (!entry.isFile()) continue;
+    const type = getMediaType(entry.name);
+    if (type) {
+      previewItems.push({ path: `${relPath}/${entry.name}`, type });
     }
   }
 
-  return root;
+  return { itemCount: limited.length, truncated, previewItems };
 }
 
-function storageTreeToTreeData(root: StorageNode): TreeDataItem[] {
-  if (!root.children) return [];
+function listLocalLevel(folderPath: string): {
+  folders: LevelFolder[];
+  files: LevelFile[];
+} {
+  const dirAbs = path.join(".", "public", folderPath);
 
-  const mapNode = (node: StorageNode): TreeDataItem => {
-    return {
-      id: node.path || node.name,
-      name: node.name || node.path,
-      size: node.size,
-      mtime: node.mtime,
-      children: node.children?.map(mapNode),
-    };
-  };
+  if (!fs.existsSync(dirAbs) || !fs.statSync(dirAbs).isDirectory()) {
+    return { folders: [], files: [] };
+  }
 
-  return root.children.map(mapNode);
+  const folders: LevelFolder[] = [];
+  const files: LevelFile[] = [];
+
+  for (const entry of fs.readdirSync(dirAbs, { withFileTypes: true })) {
+    const relPath = folderPath ? `${folderPath}/${entry.name}` : entry.name;
+
+    if (entry.isDirectory()) {
+      folders.push({
+        name: entry.name,
+        path: relPath,
+        ...localFolderSummary(path.join(dirAbs, entry.name), relPath),
+      });
+    } else if (entry.isFile()) {
+      const stats = fs.statSync(path.join(dirAbs, entry.name));
+      files.push({
+        name: entry.name,
+        path: relPath,
+        size: stats.size,
+        mtime: stats.mtime.toISOString(),
+      });
+    }
+  }
+
+  folders.sort((a, b) => a.name.localeCompare(b.name));
+  files.sort((a, b) => a.name.localeCompare(b.name));
+
+  return { folders, files };
 }
 
+/**
+ * List one directory level
+ * GET /storage?path=<folder> (empty or missing path = root)
+ * Returns the level's files plus each subfolder with a bounded summary
+ * (direct child count capped at FOLDER_SUMMARY_MAX_KEYS + preview items)
+ */
 storageRoute.get("/", async (c) => {
+  const levelPath = normalizeLevelPath(c.req.query("path") ?? "");
+
+  if (levelPath === null) {
+    return c.json(
+      { error: "Bad request", message: "Invalid path" },
+      400,
+    );
+  }
+
   try {
-    let root: StorageNode;
-
-    if (storageClient) {
-      // List only objects in the public/ folder
-      const objects = await storageClient.list("public/");
-
-      // Remove the public/ prefix from all keys
-      const publicObjects = objects
-        .filter((obj) => obj.key.startsWith("public/"))
-        .map((obj) => ({
-          ...obj,
-          key: obj.key.substring(7), // Remove "public/" prefix (7 characters)
-        }));
-
-      root = buildTreeFromKeys(publicObjects);
-    } else {
-      const publicDir = path.join(".", "public");
-      root = buildLocalTree(publicDir);
+    if (!storageClient) {
+      return c.json({ path: levelPath, ...listLocalLevel(levelPath) });
     }
 
-    const treeData = storageTreeToTreeData(root);
+    const { folderNames, files } = await storageClient.listLevel(levelPath);
 
-    return c.json(treeData);
+    const folders: LevelFolder[] = [];
+    const batchSize = 16;
+    for (let i = 0; i < folderNames.length; i += batchSize) {
+      const batch = folderNames.slice(i, i + batchSize);
+      const summaries = await Promise.all(
+        batch.map(async (name) => {
+          const childPath = levelPath ? `${levelPath}/${name}` : name;
+          const summary = await storageClient.getFolderSummary(childPath);
+          return { name, path: childPath, ...summary };
+        }),
+      );
+      folders.push(...summaries);
+    }
+
+    return c.json({ path: levelPath, folders, files });
   } catch (error) {
     logger.error(
-      { error: serializeError(error) },
+      { error: serializeError(error), levelPath },
       "Failed to list storage contents",
     );
     return c.json(
@@ -201,19 +212,6 @@ storageRoute.get("/", async (c) => {
   }
 });
 
-function sumTreeSize(node: StorageNode): { size: number; fileCount: number } {
-  let size = node.size ?? 0;
-  let fileCount = node.type === "file" ? 1 : 0;
-
-  for (const child of node.children ?? []) {
-    const childStats = sumTreeSize(child);
-    size += childStats.size;
-    fileCount += childStats.fileCount;
-  }
-
-  return { size, fileCount };
-}
-
 /**
  * Get aggregate storage and cache stats
  * GET /storage/stats
@@ -224,10 +222,7 @@ storageRoute.get("/stats", async (c) => {
     let root: StorageNode;
 
     if (storageClient) {
-      const objects = await storageClient.list("public/");
-      const publicObjects = objects
-        .filter((obj) => obj.key.startsWith("public/"))
-        .map((obj) => ({ ...obj, key: obj.key.substring(7) }));
+      const publicObjects = await getPublicObjects(storageClient);
       root = buildTreeFromKeys(publicObjects);
     } else {
       const publicDir = path.join(".", "public");
@@ -259,6 +254,51 @@ storageRoute.get("/stats", async (c) => {
     return c.json(
       {
         error: "Failed to get storage stats",
+      },
+      500,
+    );
+  }
+});
+
+/**
+ * List every folder path in storage (for "Move to" pickers)
+ * GET /storage/folders
+ * Note: This route must be registered before GET "/*"
+ */
+storageRoute.get("/folders", async (c) => {
+  try {
+    if (storageClient) {
+      const publicObjects = await getPublicObjects(storageClient);
+      return c.json({
+        folders: deriveFolderPaths(publicObjects.map((obj) => obj.key)),
+      });
+    }
+
+    const folders: string[] = [];
+    const walk = (absoluteDir: string, relativeDir: string) => {
+      if (!fs.existsSync(absoluteDir)) return;
+      for (const entry of fs.readdirSync(absoluteDir, {
+        withFileTypes: true,
+      })) {
+        if (!entry.isDirectory()) continue;
+        const relPath = relativeDir
+          ? `${relativeDir}/${entry.name}`
+          : entry.name;
+        folders.push(relPath);
+        walk(path.join(absoluteDir, entry.name), relPath);
+      }
+    };
+    walk(path.join(".", "public"), "");
+
+    return c.json({ folders: folders.sort((a, b) => a.localeCompare(b)) });
+  } catch (error) {
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to list storage folders",
+    );
+    return c.json(
+      {
+        error: "Failed to list storage folders",
       },
       500,
     );
@@ -434,6 +474,10 @@ storageRoute.delete("/*", async (c) => {
     // Use the complete asset deletion function
     const result = await deleteAssetCompletely(filePath, storageClient);
 
+    if (result.success || result.originalFileDeleted) {
+      invalidateListingCache();
+    }
+
     if (!result.success) {
       // Check if the file was not found
       if (result.errors.some((err) => err.includes("not found"))) {
@@ -602,6 +646,7 @@ storageRoute.patch("/*", async (c) => {
     }
 
     await deleteCachedFiles(filePath);
+    invalidateListingCache();
 
     return c.json({ success: true, path: newPath });
   } catch (error) {
@@ -689,6 +734,7 @@ storageRoute.post("/*", async (c) => {
       }
 
       await deleteCachedFiles(filePath);
+      invalidateListingCache();
 
       return c.json({ success: true, path: newPath });
     }
@@ -726,6 +772,7 @@ storageRoute.post("/*", async (c) => {
     if (isMove) {
       await deleteCachedFiles(filePath);
     }
+    invalidateListingCache();
 
     return c.json({ success: true, path: newPath });
   } catch (error) {

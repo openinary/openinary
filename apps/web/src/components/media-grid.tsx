@@ -23,7 +23,11 @@ import {
 import { useQueryState } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useStorageTree } from "@/hooks/use-storage-tree";
+import {
+  invalidateStorage,
+  useStorageFolders,
+  useStorageLevel,
+} from "@/hooks/use-storage-tree";
 import { useHideThumbnails } from "@/hooks/use-hide-thumbnails";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -51,7 +55,6 @@ import { isMac } from "@/lib/utils";
 import { toAbsoluteUrl } from "@/lib/utils";
 import { preloadMedia } from "@/hooks/use-preload-media";
 import { VideoThumbnail } from "@/components/video-thumbnail";
-import type { TreeDataItem } from "@/components/ui/tree-view";
 import { Checkbox } from "@/components/ui/checkbox";
 import UploadButtonWithDialog from "./upload-button-with-dialog";
 import CreateFolderButtonWithDialog from "./create-folder-button-with-dialog";
@@ -124,7 +127,6 @@ function formatListDate(mtime?: string): string {
 }
 
 type FolderItem = {
-  id: string;
   name: string;
   path: string;
 };
@@ -132,58 +134,6 @@ type FolderItem = {
 type SelectionEntry = { path: string; name: string; kind: "file" | "folder" };
 
 const BULK_TOAST_ID = "bulk-selection-bar";
-
-function getFolderItemCount(
-  items: TreeDataItem[],
-  folderPath: string[],
-): number {
-  let currentItems = items;
-  for (const seg of folderPath) {
-    const found = currentItems.find((i) => i.name === seg);
-    if (!found?.children) return 0;
-    currentItems = found.children;
-  }
-  return currentItems.length;
-}
-
-function getFolderPreviewItems(
-  items: TreeDataItem[],
-  folderPath: string[],
-  limit = 4,
-): { path: string; type: "image" | "video" }[] {
-  let currentItems = items;
-  for (const seg of folderPath) {
-    const found = currentItems.find((i) => i.name === seg);
-    if (!found?.children) return [];
-    currentItems = found.children;
-  }
-  const previews: { path: string; type: "image" | "video" }[] = [];
-  for (const item of currentItems) {
-    if (previews.length >= limit) break;
-    if (!item.children) {
-      const lower = item.name.toLowerCase();
-      const isImage = [
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".webp",
-        ".gif",
-        ".avif",
-        ".psd",
-      ].some((ext) => lower.endsWith(ext));
-      const isVideo = [".mp4", ".mov", ".webm"].some((ext) =>
-        lower.endsWith(ext),
-      );
-      if (isImage || isVideo) {
-        previews.push({
-          path: [...folderPath, item.name].join("/"),
-          type: isImage ? "image" : "video",
-        });
-      }
-    }
-  }
-  return previews;
-}
 
 function getFolderThumbnailUrl(
   transformBaseUrl: string,
@@ -208,95 +158,6 @@ function getFolderThumbnailUrl(
   return `${transformBaseUrl}/t/${dims},q_70/${item.path}`;
 }
 
-// Flatten all folders in the tree into a list of full paths, for "Move to" menus
-function flattenFolders(
-  items: TreeDataItem[],
-  prefix = "",
-): { path: string; label: string }[] {
-  const result: { path: string; label: string }[] = [];
-  for (const item of items) {
-    if (item.children) {
-      const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-      result.push({ path: fullPath, label: fullPath });
-      result.push(...flattenFolders(item.children, fullPath));
-    }
-  }
-  return result;
-}
-
-// Find items in a specific folder path
-function findItemsInPath(
-  items: TreeDataItem[],
-  targetPath: string[],
-): { folders: FolderItem[]; files: MediaFile[] } {
-  const folders: FolderItem[] = [];
-  const files: MediaFile[] = [];
-
-  // Navigate to the target folder
-  let currentItems = items;
-  for (const pathSegment of targetPath) {
-    const found = currentItems.find((item) => item.name === pathSegment);
-    if (!found || !found.children) {
-      return { folders, files }; // Path doesn't exist
-    }
-    currentItems = found.children;
-  }
-
-  // Process items in the current folder
-  for (const item of currentItems) {
-    const lowerName = item.name.toLowerCase();
-    const isFolder = !!item.children;
-
-    if (isFolder) {
-      const folderPath =
-        targetPath.length > 0
-          ? `${targetPath.join("/")}/${item.name}`
-          : item.name;
-      folders.push({
-        id: item.id,
-        name: item.name,
-        path: folderPath,
-      });
-    } else {
-      // Check if it's a media file
-      const isImage =
-        lowerName.endsWith(".jpg") ||
-        lowerName.endsWith(".jpeg") ||
-        lowerName.endsWith(".png") ||
-        lowerName.endsWith(".webp") ||
-        lowerName.endsWith(".gif") ||
-        lowerName.endsWith(".avif") ||
-        lowerName.endsWith(".psd");
-
-      const isVideo =
-        lowerName.endsWith(".mp4") ||
-        lowerName.endsWith(".mov") ||
-        lowerName.endsWith(".webm");
-
-      if (isImage || isVideo) {
-        const filePath =
-          targetPath.length > 0
-            ? `${targetPath.join("/")}/${item.name}`
-            : item.name;
-        files.push({
-          id: item.id,
-          name: item.name,
-          path: filePath,
-          type: isImage ? "image" : "video",
-          size: item.size,
-          mtime: item.mtime,
-        });
-      }
-    }
-  }
-
-  // Sort: folders first, then files
-  folders.sort((a, b) => a.name.localeCompare(b.name));
-  files.sort((a, b) => a.name.localeCompare(b.name));
-
-  return { folders, files };
-}
-
 interface MediaGridProps {
   onMediaSelect: (media: MediaFile) => void;
   sidebarOpen?: boolean;
@@ -311,7 +172,6 @@ export function MediaGrid({
   columns = 6,
   view = "grid",
 }: MediaGridProps) {
-  const { data: treeData, isLoading, error } = useStorageTree();
   const [hideThumbnails] = useHideThumbnails();
   const queryClient = useQueryClient();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -382,17 +242,19 @@ export function MediaGrid({
 
   const currentDir = pathSegments.join("/");
 
-  // Get items in current folder - must be called before any conditional returns
-  const { folders, files } = useMemo(() => {
-    if (!treeData) return { folders: [], files: [] };
-    return findItemsInPath(treeData, pathSegments);
-  }, [treeData, pathSegments]);
+  // Current level, loaded lazily per folder (sorted server-side)
+  const { data: level, isLoading, error } = useStorageLevel(currentDir);
+  const folders = level?.folders ?? [];
+  const files = level?.files ?? [];
 
-  // Flattened folder list for "Move to" submenus, excluding the current folder
+  // All folder paths for "Move to" submenus, excluding the current folder
+  const { data: allFolderPaths } = useStorageFolders();
   const moveTargets = useMemo(() => {
-    if (!treeData) return [];
-    return flattenFolders(treeData).filter((f) => f.path !== currentDir);
-  }, [treeData, currentDir]);
+    if (!allFolderPaths) return [];
+    return allFolderPaths
+      .filter((path) => path !== currentDir)
+      .map((path) => ({ path, label: path }));
+  }, [allFolderPaths, currentDir]);
 
   const gridStyle = {
     gridTemplateColumns: `repeat(${sidebarOpen ? Math.max(2, columns - 1) : columns}, minmax(0, 1fr))`,
@@ -429,7 +291,6 @@ export function MediaGrid({
         },
       },
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection, moveTargets, pathSegments.length]);
 
   if (isLoading) {
@@ -453,7 +314,9 @@ export function MediaGrid({
     );
   }
 
-  if (!treeData || treeData.length === 0) {
+  // Full-page empty state only at the root; inside a folder the "New folder"
+  // tile below keeps the layout
+  if (currentDir === "" && folders.length === 0 && files.length === 0) {
     return (
       <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
         <Empty>
@@ -576,7 +439,7 @@ export function MediaGrid({
               : `Failed to rename "${path}"`,
         })
         .unwrap();
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       return true;
     } catch {
       return false;
@@ -612,7 +475,7 @@ export function MediaGrid({
             error instanceof Error ? error.message : `Failed to copy "${path}"`,
         })
         .unwrap();
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
     } catch {
       // error toast already shown
     }
@@ -649,7 +512,7 @@ export function MediaGrid({
             error instanceof Error ? error.message : `Failed to move "${path}"`,
         })
         .unwrap();
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
     } catch {
       // error toast already shown
     }
@@ -682,7 +545,7 @@ export function MediaGrid({
               : `Failed to delete "${name}"`,
         })
         .unwrap();
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
     } catch {
       // error toast already shown
     }
@@ -732,7 +595,7 @@ export function MediaGrid({
               : `Failed to rename "${path}"`,
         })
         .unwrap();
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       // Update current folder path if we renamed the folder we're inside of
       if (path === folderPath) {
         const dir = path.includes("/") ? path.replace(/\/[^/]+$/, "") : "";
@@ -771,7 +634,7 @@ export function MediaGrid({
               : `Failed to delete folder "${path}"`,
         })
         .unwrap();
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       // Navigate up if we deleted the current folder
       if (path === folderPath) setFolderPath(null);
     } catch {
@@ -871,7 +734,7 @@ export function MediaGrid({
     } catch {
       // error toast already shown
     } finally {
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       clearSelection();
     }
   };
@@ -915,7 +778,7 @@ export function MediaGrid({
     } catch {
       // error toast already shown
     } finally {
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       clearSelection();
     }
   };
@@ -1120,17 +983,10 @@ export function MediaGrid({
                 }
               />
               {folders.map((folder) => {
-                const itemCount = treeData
-                  ? getFolderItemCount(treeData, [...pathSegments, folder.name])
-                  : 0;
-                const previewItems = hideThumbnails
-                  ? []
-                  : treeData
-                    ? getFolderPreviewItems(treeData, [
-                        ...pathSegments,
-                        folder.name,
-                      ])
-                    : [];
+                const itemCountLabel = folder.truncated
+                  ? `${folder.itemCount}+`
+                  : `${folder.itemCount}`;
+                const previewItems = hideThumbnails ? [] : folder.previewItems;
                 const renderPreview = (
                   item: { path: string; type: "image" | "video" },
                   size: "square" | "tall" | "large",
@@ -1151,12 +1007,12 @@ export function MediaGrid({
                     />
                   );
                 return (
-                  <ContextMenu key={folder.id}>
+                  <ContextMenu key={folder.path}>
                     <ContextMenuTrigger asChild>
                       <div
                         className={cn(
                           "group relative w-[190px] h-[180px] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
-                          isSelected(folder.id) &&
+                          isSelected(folder.path) &&
                             "ring-2 ring-primary border-primary",
                         )}
                         onClick={() => handleFolderClick(folder.path)}
@@ -1164,16 +1020,16 @@ export function MediaGrid({
                         <div
                           className={cn(
                             "absolute top-2 left-2 z-10 transition-opacity",
-                            selectionMode || isSelected(folder.id)
+                            selectionMode || isSelected(folder.path)
                               ? "opacity-100"
                               : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
                           )}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Checkbox
-                            checked={isSelected(folder.id)}
+                            checked={isSelected(folder.path)}
                             onCheckedChange={() =>
-                              toggleSelection(folder.id, {
+                              toggleSelection(folder.path, {
                                 path: folder.path,
                                 name: folder.name,
                                 kind: "folder",
@@ -1244,7 +1100,10 @@ export function MediaGrid({
                                 : "text-white/70",
                             )}
                           >
-                            {itemCount} {itemCount === 1 ? "item" : "items"}
+                            {itemCountLabel}{" "}
+                            {folder.itemCount === 1 && !folder.truncated
+                              ? "item"
+                              : "items"}
                           </p>
                         </div>
                       </div>
@@ -1322,7 +1181,7 @@ export function MediaGrid({
                       <ContextMenuTrigger asChild>
                         <div
                           className={cn(
-                            "group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
+                            "group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md [content-visibility:auto] [contain-intrinsic-size:auto_300px]",
                             isSelected(media.id) &&
                               "ring-2 ring-primary border-primary",
                           )}
@@ -1510,7 +1369,7 @@ export function MediaGrid({
                       <ContextMenuTrigger asChild>
                         <div
                           className={cn(
-                            "group flex items-center gap-4 px-3 py-2 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50",
+                            "group flex items-center gap-4 px-3 py-2 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50 [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
                             isSelected(media.id) && "bg-muted/40",
                           )}
                           onClick={() => onMediaSelect(media)}

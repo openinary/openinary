@@ -3,6 +3,13 @@ import { StorageCache } from "./cache";
 import { KeyGenerator } from "./key-generator";
 import { S3ClientWrapper } from "./s3-client";
 import logger, { serializeError } from "../logger";
+import {
+  FOLDER_SUMMARY_MAX_KEYS,
+  shapeFolderSummary,
+  shapeLevel,
+  type FolderSummary,
+  type LevelFile,
+} from "../storage-level";
 
 export class CloudStorage {
   private s3Client: S3ClientWrapper;
@@ -20,6 +27,78 @@ export class CloudStorage {
     prefix?: string,
   ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
     return await this.s3Client.listObjects(prefix);
+  }
+
+  /**
+   * Lists one directory level (direct child prefixes + objects) using Delimiter: "/"
+   */
+  async listDelimited(prefix: string): Promise<{
+    prefixes: string[];
+    objects: { key: string; size?: number; lastModified?: Date }[];
+  }> {
+    return await this.s3Client.listDelimited(prefix);
+  }
+
+  /**
+   * Lists a single page of one directory level (bounded by maxKeys)
+   */
+  async listDelimitedPage(
+    prefix: string,
+    maxKeys?: number,
+  ): Promise<{
+    prefixes: string[];
+    objects: { key: string; size?: number; lastModified?: Date }[];
+    isTruncated: boolean;
+  }> {
+    return await this.s3Client.listDelimitedPage(prefix, maxKeys);
+  }
+
+  /**
+   * Lists all objects under a prefix by fanning out one recursive listing per
+   * top-level folder in parallel, instead of a single sequential pagination
+   */
+  async listAllParallel(
+    prefix: string,
+  ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
+    const topLevel = await this.s3Client.listDelimited(prefix);
+    const results = [...topLevel.objects];
+
+    const batchSize = 16;
+    for (let i = 0; i < topLevel.prefixes.length; i += batchSize) {
+      const batch = topLevel.prefixes.slice(i, i + batchSize);
+      const nested = await Promise.all(
+        batch.map((folderPrefix) => this.s3Client.listObjects(folderPrefix)),
+      );
+      for (const objects of nested) {
+        results.push(...objects);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Lists one directory level of original files (under public/)
+   */
+  async listLevel(
+    folderPath: string,
+  ): Promise<{ folderNames: string[]; files: LevelFile[] }> {
+    const storagePrefix = folderPath ? `public/${folderPath}/` : "public/";
+    const delimited = await this.s3Client.listDelimited(storagePrefix);
+    return shapeLevel(storagePrefix, folderPath, delimited);
+  }
+
+  /**
+   * Gets a bounded summary of a folder (direct child count, truncation flag,
+   * media preview items) from a single delimiter-listed page
+   */
+  async getFolderSummary(
+    folderPath: string,
+    maxKeys = FOLDER_SUMMARY_MAX_KEYS,
+  ): Promise<FolderSummary> {
+    const storagePrefix = `public/${folderPath}/`;
+    const page = await this.s3Client.listDelimitedPage(storagePrefix, maxKeys);
+    return shapeFolderSummary(storagePrefix, folderPath, page);
   }
 
   /**

@@ -172,6 +172,84 @@ export class S3ClientWrapper {
   }
 
   /**
+   * Lists a single page of one directory level using Delimiter: "/"
+   * Returns direct child prefixes (CommonPrefixes) and direct child objects
+   */
+  async listDelimitedPage(
+    prefix: string,
+    maxKeys = 1000,
+    continuationToken?: string,
+  ): Promise<{
+    prefixes: string[];
+    objects: { key: string; size?: number; lastModified?: Date }[];
+    isTruncated: boolean;
+    nextToken?: string;
+  }> {
+    const response = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this.config.bucketName,
+        Prefix: prefix,
+        Delimiter: "/",
+        MaxKeys: maxKeys,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    const prefixes: string[] = [];
+    for (const commonPrefix of response.CommonPrefixes ?? []) {
+      if (commonPrefix.Prefix) {
+        prefixes.push(commonPrefix.Prefix);
+      }
+    }
+
+    const objects: { key: string; size?: number; lastModified?: Date }[] = [];
+    for (const object of response.Contents ?? []) {
+      if (object.Key) {
+        objects.push({
+          key: object.Key,
+          size: object.Size,
+          lastModified: object.LastModified,
+        });
+      }
+    }
+
+    return {
+      prefixes,
+      objects,
+      isTruncated: response.IsTruncated ?? false,
+      nextToken: response.NextContinuationToken,
+    };
+  }
+
+  /**
+   * Lists one full directory level (all pages) using Delimiter: "/"
+   */
+  async listDelimited(prefix: string): Promise<{
+    prefixes: string[];
+    objects: { key: string; size?: number; lastModified?: Date }[];
+  }> {
+    // Some S3-compatible providers repeat CommonPrefixes across pages
+    const prefixes = new Set<string>();
+    const objects: { key: string; size?: number; lastModified?: Date }[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const page = await this.listDelimitedPage(
+        prefix,
+        1000,
+        continuationToken,
+      );
+      for (const p of page.prefixes) {
+        prefixes.add(p);
+      }
+      objects.push(...page.objects);
+      continuationToken = page.isTruncated ? page.nextToken : undefined;
+    } while (continuationToken);
+
+    return { prefixes: [...prefixes], objects };
+  }
+
+  /**
    * Uploads an object to the bucket
    */
   async uploadObject(

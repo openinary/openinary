@@ -4,11 +4,10 @@ import { useState, useEffect } from "react"
 import { useQueryState, parseAsString } from "nuqs"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { useStorageTree } from "@/hooks/use-storage-tree"
+import { getMediaType, invalidateStorage } from "@/hooks/use-storage-tree"
 import { usePreloadMedia } from "@/hooks/use-preload-media"
 import { useVideoStatus } from "@/hooks/use-video-status"
 import { toAbsoluteUrl } from "@/lib/utils"
-import { findAssetInTree } from "./utils"
 import type { MediaFile } from "./types"
 
 export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
@@ -16,7 +15,6 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     "asset",
     parseAsString.withOptions({ clearOnDefault: true })
   )
-  const { data: treeData, isLoading: treeLoading } = useStorageTree()
   const queryClient = useQueryClient()
   const [asset, setAsset] = useState<MediaFile | null>(null)
   const [fileSize, setFileSize] = useState<number | null>(null)
@@ -59,6 +57,11 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
         if (data.updatedAt) {
           setUpdatedAt(new Date(data.updatedAt))
         }
+      } else if (response.status === 404) {
+        // Deep link to an asset that no longer exists
+        setAsset(null)
+        setAssetId(null)
+        onOpenChange?.(false)
       }
     } catch (error) {
       console.error("Failed to fetch file metadata:", error)
@@ -143,21 +146,25 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     }
   }
 
-  // Find asset when assetId or treeData changes
+  // Resolve the asset directly from its id (the id IS the storage path);
+  // existence is confirmed by the metadata fetch below (404 clears it)
   useEffect(() => {
-    if (assetId && treeData) {
-      const foundAsset = findAssetInTree(treeData, assetId)
-      setAsset(foundAsset)
-      if (foundAsset) {
-        onOpenChange?.(true)
-      }
-    } else {
+    if (!assetId) {
       setAsset(null)
-      if (!assetId) {
-        onOpenChange?.(false)
-      }
+      onOpenChange?.(false)
+      return
     }
-  }, [assetId, treeData, onOpenChange])
+
+    const name = assetId.split("/").pop() ?? assetId
+    const type = getMediaType(name)
+    if (!type) {
+      setAsset(null)
+      return
+    }
+
+    setAsset({ id: assetId, name, path: assetId, type })
+    onOpenChange?.(true)
+  }, [assetId, onOpenChange])
 
   // Fetch metadata when asset changes
   useEffect(() => {
@@ -325,8 +332,8 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
         error: (error) => (error instanceof Error ? error.message : "Failed to delete file"),
       }).unwrap()
 
-      // Refresh the storage tree
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] })
+      // Refresh the storage queries
+      invalidateStorage(queryClient)
 
       // Close the dialog, sidebar and clear selection
       setDeleteDialogOpen(false)
@@ -343,7 +350,6 @@ export function useAssetDetails(onOpenChange?: (open: boolean) => void) {
     asset,
     assetId,
     setAssetId,
-    treeLoading,
     fileSize,
     optimizedSize,
     createdAt,
