@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import transform from "./routes/transform";
 import authenticated from "./routes/authenticated";
@@ -113,6 +114,9 @@ app.use("/upload/sign", apiKeyAuth);
 app.use("/upload/createfolder", apiKeyAuth);
 app.route("/upload", upload);
 
+// Compression scoped to /storage (large JSON listings); not global because
+// /queue/events streams SSE and /t/* serves already-compressed media
+app.use("/storage/*", compress());
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
 

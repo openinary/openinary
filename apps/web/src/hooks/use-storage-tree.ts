@@ -1,25 +1,86 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { File, FileImage, FileVideo, Folder } from "lucide-react";
-import type { TreeDataItem } from "@/components/ui/tree-view";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
-type ApiTreeItem = {
-  id: string;
+export type MediaType = "image" | "video";
+
+export type StorageFolder = {
   name: string;
-  size?: number;
-  mtime?: string;
-  children?: ApiTreeItem[];
+  path: string;
 };
 
-async function fetchStorageTree(): Promise<TreeDataItem[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+export type StorageFile = {
+  id: string;
+  name: string;
+  path: string;
+  type: MediaType;
+  size?: number;
+  mtime?: string;
+};
 
+export type StorageLevel = {
+  path: string;
+  folders: StorageFolder[];
+  files: StorageFile[];
+};
+
+const IMAGE_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
+  ".avif",
+  ".psd",
+];
+
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm"];
+
+export function getMediaType(name: string): MediaType | null {
+  const lower = name.toLowerCase();
+  if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return "image";
+  if (VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext))) return "video";
+  return null;
+}
+
+function getApiBaseUrl(): string {
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   if (!baseUrl) {
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
   }
+  return baseUrl;
+}
 
-  const res = await fetch(`${baseUrl}/storage`, {
+type ApiLevelResponse = {
+  path: string;
+  folders: StorageFolder[];
+  files: { name: string; path: string; size?: number; mtime?: string }[];
+};
+
+async function fetchStorageLevel(path: string): Promise<StorageLevel> {
+  const res = await fetch(
+    `${getApiBaseUrl()}/storage?path=${encodeURIComponent(path)}`,
+    { credentials: "include" },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Request failed with status ${res.status}`);
+  }
+
+  const json: ApiLevelResponse = await res.json();
+
+  const files: StorageFile[] = [];
+  for (const file of json.files) {
+    const type = getMediaType(file.name);
+    if (!type) continue;
+    files.push({ id: file.path, type, ...file });
+  }
+
+  return { path: json.path, folders: json.folders, files };
+}
+
+async function fetchStorageFolders(): Promise<string[]> {
+  const res = await fetch(`${getApiBaseUrl()}/storage/folders`, {
     credentials: "include",
   });
 
@@ -27,82 +88,39 @@ async function fetchStorageTree(): Promise<TreeDataItem[]> {
     throw new Error(`Request failed with status ${res.status}`);
   }
 
-  const json: ApiTreeItem[] = await res.json();
-
-  const enhanceWithIcons = (items: ApiTreeItem[]): TreeDataItem[] => {
-    const mapItem = (item: ApiTreeItem): TreeDataItem => {
-      const hasChildren = !!item.children && item.children.length > 0;
-      const lowerName = item.name.toLowerCase();
-
-      let icon: any;
-
-      if (hasChildren) {
-        icon = Folder;
-      } else if (
-        lowerName.endsWith(".jpg") ||
-        lowerName.endsWith(".jpeg") ||
-        lowerName.endsWith(".png") ||
-        lowerName.endsWith(".webp") ||
-        lowerName.endsWith(".gif") ||
-        lowerName.endsWith(".avif") ||
-        lowerName.endsWith(".psd")
-      ) {
-        icon = FileImage;
-      } else if (
-        lowerName.endsWith(".mp4") ||
-        lowerName.endsWith(".mov") ||
-        lowerName.endsWith(".webm")
-      ) {
-        icon = FileVideo;
-      } else {
-        icon = File;
-      }
-
-      const children = item.children?.map(mapItem);
-
-      // Sort children: folders first, then files
-      const sortedChildren = children?.sort((a, b) => {
-        const aIsFolder = a.icon === Folder;
-        const bIsFolder = b.icon === Folder;
-
-        if (aIsFolder && !bIsFolder) return -1;
-        if (!aIsFolder && bIsFolder) return 1;
-        return a.name.localeCompare(b.name);
-      });
-
-      return {
-        id: item.id,
-        name: item.name,
-        icon,
-        size: item.size,
-        mtime: item.mtime,
-        children: sortedChildren,
-      };
-    };
-
-    const mappedItems = items.map(mapItem);
-
-    // Sort root level: folders first, then files
-    return mappedItems.sort((a, b) => {
-      const aIsFolder = a.icon === Folder;
-      const bIsFolder = b.icon === Folder;
-
-      if (aIsFolder && !bIsFolder) return -1;
-      if (!aIsFolder && bIsFolder) return 1;
-      return a.name.localeCompare(b.name);
-    });
-  };
-
-  return enhanceWithIcons(json);
+  const json: { folders: string[] } = await res.json();
+  return json.folders;
 }
 
-export function useStorageTree() {
+/**
+ * One directory level of storage, loaded lazily per folder.
+ * The "storage-tree" key prefix is shared by every level so blanket
+ * invalidation refreshes all mounted levels.
+ */
+export function useStorageLevel(path: string) {
   return useQuery({
-    queryKey: ["storage-tree"],
-    queryFn: fetchStorageTree,
+    queryKey: ["storage-tree", path],
+    queryFn: () => fetchStorageLevel(path),
   });
 }
 
+/**
+ * Every folder path in storage (for "Move to" pickers)
+ */
+export function useStorageFolders(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["storage-folders"],
+    queryFn: fetchStorageFolders,
+    staleTime: 30_000,
+    ...options,
+  });
+}
 
-
-
+/**
+ * Invalidates every storage-derived query after a mutation
+ * (all mounted levels + the folders list)
+ */
+export function invalidateStorage(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+  queryClient.invalidateQueries({ queryKey: ["storage-folders"] });
+}

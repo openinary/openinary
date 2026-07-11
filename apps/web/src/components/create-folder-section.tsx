@@ -1,6 +1,7 @@
 "use client";
 
 import logger from "@/lib/logger";
+import { invalidateStorage } from "@/hooks/use-storage-tree";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -78,7 +79,7 @@ export function CreateFolderSection({
       }).unwrap();
 
       // Invalidate storage tree query to refresh the data
-      queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       onSuccessfulCreate?.(data.folder!);
     } catch (error) {
       console.error(error);

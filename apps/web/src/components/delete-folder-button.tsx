@@ -2,6 +2,7 @@ import { FolderX } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateStorage } from "@/hooks/use-storage-tree";
 import { toast } from "sonner";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
@@ -75,7 +76,7 @@ export default function DeleteFolderButton({
       }).unwrap();
 
       // Refresh the storage tree
-      await queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      invalidateStorage(queryClient);
       onSuccessfulDelete?.(folderPath);
     } catch (error) {
       console.error("Failed to delete file:", error);

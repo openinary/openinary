@@ -1,5 +1,6 @@
 import { Context, Hono } from "hono";
 import { createStorageClient } from "../utils/storage/index";
+import { invalidateListingCache } from "../utils/storage/listing-cache";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
@@ -540,6 +541,7 @@ upload.post("/", presignedOrApiKeyAuth, async (c) => {
             normalizedBuffer,
             normalizedContentType,
           );
+          invalidateListingCache();
           logger.info(
             { originalPath: rawSanitizedPath, finalPath, url },
             "Uploaded to cloud",
@@ -778,6 +780,7 @@ upload.post("/createfolder", async (c) => {
       }
 
       await storage.createFolder(rawSanitizedPath);
+      invalidateListingCache();
       logger.info({ folder: rawSanitizedPath }, "Folder marker created");
 
       return c.json(

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateStorage } from "@/hooks/use-storage-tree";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -119,8 +120,8 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
 
       setUploadResult(data);
       setSelectedFiles([]);
-      // Invalidate storage tree query to refresh the data
-      queryClient.invalidateQueries({ queryKey: ["storage-tree"] });
+      // Invalidate storage queries to refresh the data
+      invalidateStorage(queryClient);
     } catch (error) {
       setUploadResult({
         success: false,
