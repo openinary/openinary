@@ -110,5 +110,6 @@ Thumbs.db
 data/
 apps/*/data/
 
-# AI 
+# AI
 CLAUDE.md
+.claude/
