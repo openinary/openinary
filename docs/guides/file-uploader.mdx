@@ -37,7 +37,7 @@ The component never holds an API key. Instead it uses **presigned upload signatu
 ## Prerequisites
 
 - A running Openinary instance (see [Quickstart](/quickstart)).
-- `API_SECRET` set on the instance (**minimum 16 characters**) — used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+- `API_SECRET` set on the instance (**64 characters** — `openssl rand -hex 32`) — used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
 - An **API key** for your backend to call `POST /upload/sign` with (see [API Keys](/api-reference/api-keys/create)).
 - `CORS_ORIGIN` set to include the origin(s) of the app embedding the uploader. Multiple origins are comma-separated:
   ```bash

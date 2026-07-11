@@ -11,8 +11,9 @@ description: "Environment variables for Openinary server mode, authentication se
 | [`PORT`](#port) | API server port |
 | [`BETTER_AUTH_SECRET`](#better-auth-secret) | Authentication secret key |
 | [`BETTER_AUTH_URL`](#better-auth-url) | Base URL of the instance |
+| [`NEXT_PUBLIC_API_BASE_URL`](#next-public-api-base-url) | Public base URL of the API |
 | [`CORS_ORIGIN`](#cors-origin) | Allowed origin for external apps |
-| [`API_SECRET`](#api-secret) | Secret for signed URLs |
+| [`API_SECRET`](#api-secret) | Secret for signed URLs and authenticated uploads |
 | [`DB_PATH`](#db-path) | Custom SQLite database path |
 | [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max) | Max requests per window |
 | [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit window (ms) |
@@ -57,6 +58,17 @@ description: "Environment variables for Openinary server mode, authentication se
   `http://localhost:3000` · `https://media.example.com`
 </ParamField>
 
+<a id="next-public-api-base-url"></a>
+<ParamField path="NEXT_PUBLIC_API_BASE_URL" type="string" default="http://localhost:3000">
+  Public base URL the browser uses to reach the API. Like `BETTER_AUTH_URL`, this defaults to your instance's single public URL — set it once and both point at the same place.
+
+  `http://localhost:3000` · `https://media.example.com`
+
+  <Note>
+  In the bundled `full` Docker Compose profile (API + web + nginx behind one port), this is baked in as `/api` at build time since nginx already proxies the API under that path — you don't need to set it yourself. Set it explicitly when the API is reachable at a different origin, e.g. an `api` profile deployment or an external frontend embedding the [File Uploader](/guides/file-uploader).
+  </Note>
+</ParamField>
+
 <a id="cors-origin"></a>
 <ParamField path="CORS_ORIGIN" type="string">
   Allowed origin when Openinary is called from a separate frontend. Only set this in production — by default `localhost:3001` (Next.js dev) is allowed automatically.
@@ -70,7 +82,7 @@ description: "Environment variables for Openinary server mode, authentication se
 
 <a id="api-secret"></a>
 <ParamField path="API_SECRET" type="string">
-  Secret used to sign and verify [signed URLs](/media-transformations/signed-urls). Required if you use the `/authenticated/*` route. Minimum 16 characters.
+  Secret used to sign and verify [signed URLs](/media-transformations/signed-urls) and presigned, authenticated uploads (see the [File Uploader](/guides/file-uploader)). Required if you use the `/authenticated/*` route or presigned uploads. Must be 64 characters.
 
   ```bash
   openssl rand -hex 32

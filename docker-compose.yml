@@ -22,6 +22,7 @@ services:
       - MODE=api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - API_SECRET=${API_SECRET:-}
       # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration
@@ -75,10 +76,11 @@ services:
     environment:
       - NODE_ENV=production
       - MODE=fullstack
-      - NEXT_PUBLIC_API_BASE_URL=/api
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-/api}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - BETTER_AUTH_INTERNAL_URL=${BETTER_AUTH_INTERNAL_URL:-http://127.0.0.1:3001}
+      - API_SECRET=${API_SECRET:-}
       # IMAGE_TAG automatically mapped from IMAGE_TAG (single source of truth)
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       # Video queue configuration
