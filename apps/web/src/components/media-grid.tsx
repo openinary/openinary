@@ -1060,6 +1060,39 @@ export function MediaGrid({
         }}
       />
 
+      {/* Dialog for single-item move confirmation */}
+      <DeleteConfirmDialog
+        isOpen={moveMediaTarget !== null}
+        onClose={() => setMoveMediaTarget(null)}
+        title="Move Item"
+        description={`Move "${moveMediaTarget?.media.name ?? ""}" to "${moveMediaTarget?.destination || "Root"}"?`}
+        confirmLabel="Move"
+        variant="default"
+        onConfirm={async () => {
+          if (!moveMediaTarget) return;
+          await handleMoveMedia(
+            moveMediaTarget.media.path,
+            moveMediaTarget.destination,
+          );
+          setMoveMediaTarget(null);
+        }}
+      />
+
+      {/* Dialog for bulk move confirmation */}
+      <DeleteConfirmDialog
+        isOpen={bulkMoveDestination !== null}
+        onClose={() => setBulkMoveDestination(null)}
+        title="Move Items"
+        description={`Move ${selection.size} item(s) to "${bulkMoveDestination?.destination || "Root"}"?`}
+        confirmLabel="Move"
+        variant="default"
+        onConfirm={async () => {
+          if (!bulkMoveDestination) return;
+          await handleBulkMove(bulkMoveDestination.destination);
+          setBulkMoveDestination(null);
+        }}
+      />
+
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div className="space-y-4">
