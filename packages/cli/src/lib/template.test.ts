@@ -101,7 +101,7 @@ describe("scaffoldFromEmbeddedTemplate", () => {
     expect(env).toContain("# STORAGE_BUCKET_NAME=your-bucket");
   });
 
-  it("fills in storage vars when provided", async () => {
+  it("fills in placeholder storage vars when s3 is chosen", async () => {
     await scaffoldFromEmbeddedTemplate(tmpDir, {
       projectName: "my-project",
       mode: "full",
@@ -110,18 +110,11 @@ describe("scaffoldFromEmbeddedTemplate", () => {
       authUrl: "http://localhost:3000",
       apiSecret: "y".repeat(64),
       imageTag: "v0.1.3",
-      storage: {
-        bucketName: "my-bucket",
-        region: "auto",
-        accessKeyId: "key",
-        secretAccessKey: "secret",
-        endpoint: "https://example.r2.cloudflarestorage.com",
-        publicUrl: "https://cdn.example.com",
-      },
+      storage: "s3",
     });
 
     const env = await fs.readFile(path.join(tmpDir, ".env"), "utf8");
-    expect(env).toContain("STORAGE_BUCKET_NAME=my-bucket");
-    expect(env).not.toContain("# STORAGE_BUCKET_NAME=my-bucket");
+    expect(env).toContain("STORAGE_BUCKET_NAME=your-bucket");
+    expect(env).not.toContain("# STORAGE_BUCKET_NAME=your-bucket");
   });
 });
