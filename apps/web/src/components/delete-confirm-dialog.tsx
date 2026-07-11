@@ -20,6 +20,7 @@ export function DeleteConfirmDialog({
   description,
   onConfirm,
   confirmLabel = "Delete",
+  variant = "destructive",
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -27,6 +28,7 @@ export function DeleteConfirmDialog({
   description: string;
   onConfirm: () => Promise<void>;
   confirmLabel?: string;
+  variant?: "destructive" | "default";
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -54,7 +56,7 @@ export function DeleteConfirmDialog({
           </DialogClose>
           <Button
             size="sm"
-            variant="destructive"
+            variant={variant}
             onClick={handleConfirm}
             disabled={isDeleting}
             className="w-[70px]"

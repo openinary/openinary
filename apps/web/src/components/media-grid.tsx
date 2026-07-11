@@ -24,11 +24,8 @@ import { useQueryState } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
-import {
-  invalidateStorage,
-  useStorageFolders,
-  useStorageLevel,
-} from "@/hooks/use-storage-tree";
+import { invalidateStorage, useStorageLevel } from "@/hooks/use-storage-tree";
+import { MoveToNavigator } from "./move-to-navigator";
 import { useHideThumbnails } from "@/hooks/use-hide-thumbnails";
 import { useFolderSummaries } from "@/hooks/use-folder-summaries";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,70 +72,6 @@ type MediaFile = {
   size?: number;
   mtime?: string;
 };
-
-export type MoveTargetNode = {
-  name: string;
-  path: string;
-  children: MoveTargetNode[];
-};
-
-/**
- * "Move to" destinations rendered as nested submenus mirroring the folder
- * hierarchy. Only the levels the user actually opens get mounted, instead of
- * one flat list of every folder path in the bucket.
- */
-function MoveTargetMenuItems({
-  nodes,
-  currentDir,
-  onSelect,
-}: {
-  nodes: MoveTargetNode[];
-  currentDir: string;
-  onSelect: (path: string) => void;
-}) {
-  return (
-    <>
-      {nodes.map((node) =>
-        node.children.length === 0 ? (
-          node.path === currentDir ? null : (
-            <ContextMenuItem
-              key={node.path}
-              onClick={() => onSelect(node.path)}
-            >
-              <Folder className="h-4 w-4" />
-              {node.name}
-            </ContextMenuItem>
-          )
-        ) : (
-          <ContextMenuSub key={node.path}>
-            <ContextMenuSubTrigger>
-              <Folder className="h-4 w-4" />
-              {node.name}
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent
-              className="w-48 max-h-[400px] overflow-y-auto"
-            >
-              {node.path !== currentDir && (
-                <>
-                  <ContextMenuItem onClick={() => onSelect(node.path)}>
-                    <Folder className="h-4 w-4" />
-                    Move here
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                </>
-              )}
-              <MoveTargetMenuItems
-                nodes={node.children}
-                currentDir={currentDir}
-                onSelect={onSelect}
-              />
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-        ),
-      )}
-    </>
-  );
-}
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -304,6 +237,18 @@ export function MediaGrid({
     null,
   );
 
+  // Dialog state for move confirmation, so picking a destination in the
+  // "Move to" picker doesn't fire the move on the same click that navigates
+  // the picker - a slow move (e.g. a folder with thousands of objects) can't
+  // be undone once started.
+  const [moveMediaTarget, setMoveMediaTarget] = useState<{
+    media: MediaFile;
+    destination: string;
+  } | null>(null);
+  const [bulkMoveDestination, setBulkMoveDestination] = useState<{
+    destination: string;
+  } | null>(null);
+
   const mac = isMac();
 
   // Parse folder path from URL - must be called before any conditional returns
@@ -319,31 +264,6 @@ export function MediaGrid({
   const { data: level, isLoading, error } = useStorageLevel(currentDir);
   const folders = useMemo(() => level?.folders ?? [], [level]);
   const files = useMemo(() => level?.files ?? [], [level]);
-
-  // Folder paths for "Move to" submenus, as a tree so nested submenus can
-  // mirror the folder hierarchy instead of listing every path flat.
-  const { data: allFolderPaths } = useStorageFolders();
-  const moveTree = useMemo(() => {
-    if (!allFolderPaths) return [];
-    const root: MoveTargetNode[] = [];
-    const byPath = new Map<string, MoveTargetNode>();
-    for (const path of allFolderPaths) {
-      const parts = path.split("/");
-      let current = "";
-      let siblings = root;
-      for (const part of parts) {
-        current = current ? `${current}/${part}` : part;
-        let node = byPath.get(current);
-        if (!node) {
-          node = { name: part, path: current, children: [] };
-          byPath.set(current, node);
-          siblings.push(node);
-        }
-        siblings = node.children;
-      }
-    }
-    return root;
-  }, [allFolderPaths]);
 
   const effectiveColumns = sidebarOpen ? Math.max(2, columns - 1) : columns;
 
@@ -469,10 +389,8 @@ export function MediaGrid({
           onClear={clearSelection}
           onDownload={() => bulkActionsRef.current.onDownload()}
           onDelete={() => bulkActionsRef.current.onDelete()}
-          onMove={(destination) => bulkActionsRef.current.onMove(destination)}
-          moveTree={moveTree}
+          onMove={(destination) => setBulkMoveDestination({ destination })}
           currentDir={currentDir}
-          canMoveToRoot={pathSegments.length > 0}
         />
       ),
       {
@@ -485,7 +403,7 @@ export function MediaGrid({
         },
       },
     );
-  }, [selection, moveTree, currentDir, pathSegments.length]);
+  }, [selection, currentDir]);
 
   if (isLoading) {
     return (
@@ -1006,21 +924,13 @@ export function MediaGrid({
         <ContextMenuSubContent
           className="w-48 max-h-[400px] overflow-y-auto"
         >
-          {pathSegments.length > 0 && (
-            <ContextMenuItem onClick={() => handleBulkMove("")}>
-              <Folder className="h-4 w-4" />
-              Root
-            </ContextMenuItem>
-          )}
-          {moveTree.length === 0 && pathSegments.length === 0 ? (
-            <ContextMenuItem disabled>No folders available</ContextMenuItem>
-          ) : (
-            <MoveTargetMenuItems
-              nodes={moveTree}
-              currentDir={currentDir}
-              onSelect={handleBulkMove}
-            />
-          )}
+          <MoveToNavigator
+            ItemComponent={ContextMenuItem}
+            currentDir={currentDir}
+            onSelect={(destination) =>
+              setBulkMoveDestination({ destination })
+            }
+          />
         </ContextMenuSubContent>
       </ContextMenuSub>
       <ContextMenuSeparator />
@@ -1235,6 +1145,7 @@ export function MediaGrid({
                             "ring-2 ring-primary border-primary",
                         )}
                         onClick={() => handleFolderClick(folder.path)}
+                        onContextMenu={(e) => e.stopPropagation()}
                       >
                         <div
                           className={cn(
@@ -1457,6 +1368,7 @@ export function MediaGrid({
                               isSelected(folder.path) && "bg-muted/40",
                             )}
                             onClick={() => handleFolderClick(folder.path)}
+                            onContextMenu={(e) => e.stopPropagation()}
                             onMouseEnter={() => setHoveredId(folder.path)}
                             onMouseLeave={() => setHoveredId(null)}
                           >
@@ -1677,6 +1589,7 @@ export function MediaGrid({
                               "ring-2 ring-primary border-primary",
                           )}
                           onClick={() => onMediaSelect(media)}
+                          onContextMenu={(e) => e.stopPropagation()}
                           onMouseEnter={() => {
                             setHoveredId(media.id);
                             handleMediaHover(media);
@@ -1773,30 +1686,16 @@ export function MediaGrid({
                             <ContextMenuSubContent
                               className="w-48 max-h-[400px] overflow-y-auto"
                             >
-                              {pathSegments.length > 0 && (
-                                <ContextMenuItem
-                                  onClick={() =>
-                                    handleMoveMedia(media.path, "")
-                                  }
-                                >
-                                  <Folder className="h-4 w-4" />
-                                  Root
-                                </ContextMenuItem>
-                              )}
-                              {moveTree.length === 0 &&
-                              pathSegments.length === 0 ? (
-                                <ContextMenuItem disabled>
-                                  No folders available
-                                </ContextMenuItem>
-                              ) : (
-                                <MoveTargetMenuItems
-                                  nodes={moveTree}
-                                  currentDir={currentDir}
-                                  onSelect={(path) =>
-                                    handleMoveMedia(media.path, path)
-                                  }
-                                />
-                              )}
+                              <MoveToNavigator
+                                ItemComponent={ContextMenuItem}
+                                currentDir={currentDir}
+                                onSelect={(path) =>
+                                  setMoveMediaTarget({
+                                    media,
+                                    destination: path,
+                                  })
+                                }
+                              />
                             </ContextMenuSubContent>
                           </ContextMenuSub>
                           <ContextMenuItem
@@ -1875,6 +1774,7 @@ export function MediaGrid({
                             isSelected(media.id) && "bg-muted/40",
                           )}
                           onClick={() => onMediaSelect(media)}
+                          onContextMenu={(e) => e.stopPropagation()}
                           onMouseEnter={() => {
                             setHoveredId(media.id);
                             handleMediaHover(media);
@@ -2037,30 +1937,16 @@ export function MediaGrid({
                             <ContextMenuSubContent
                               className="w-48 max-h-[400px] overflow-y-auto"
                             >
-                              {pathSegments.length > 0 && (
-                                <ContextMenuItem
-                                  onClick={() =>
-                                    handleMoveMedia(media.path, "")
-                                  }
-                                >
-                                  <Folder className="h-4 w-4" />
-                                  Root
-                                </ContextMenuItem>
-                              )}
-                              {moveTree.length === 0 &&
-                              pathSegments.length === 0 ? (
-                                <ContextMenuItem disabled>
-                                  No folders available
-                                </ContextMenuItem>
-                              ) : (
-                                <MoveTargetMenuItems
-                                  nodes={moveTree}
-                                  currentDir={currentDir}
-                                  onSelect={(path) =>
-                                    handleMoveMedia(media.path, path)
-                                  }
-                                />
-                              )}
+                              <MoveToNavigator
+                                ItemComponent={ContextMenuItem}
+                                currentDir={currentDir}
+                                onSelect={(path) =>
+                                  setMoveMediaTarget({
+                                    media,
+                                    destination: path,
+                                  })
+                                }
+                              />
                             </ContextMenuSubContent>
                           </ContextMenuSub>
                           <ContextMenuItem
