@@ -7,9 +7,6 @@ export type MediaType = "image" | "video";
 export type StorageFolder = {
   name: string;
   path: string;
-  itemCount: number;
-  truncated: boolean;
-  previewItems: { path: string; type: MediaType }[];
 };
 
 export type StorageFile = {

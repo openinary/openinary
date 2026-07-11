@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import {
   invalidateStorage,
@@ -29,6 +30,7 @@ import {
   useStorageLevel,
 } from "@/hooks/use-storage-tree";
 import { useHideThumbnails } from "@/hooks/use-hide-thumbnails";
+import { useFolderSummaries } from "@/hooks/use-folder-summaries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +75,70 @@ type MediaFile = {
   size?: number;
   mtime?: string;
 };
+
+export type MoveTargetNode = {
+  name: string;
+  path: string;
+  children: MoveTargetNode[];
+};
+
+/**
+ * "Move to" destinations rendered as nested submenus mirroring the folder
+ * hierarchy. Only the levels the user actually opens get mounted, instead of
+ * one flat list of every folder path in the bucket.
+ */
+function MoveTargetMenuItems({
+  nodes,
+  currentDir,
+  onSelect,
+}: {
+  nodes: MoveTargetNode[];
+  currentDir: string;
+  onSelect: (path: string) => void;
+}) {
+  return (
+    <>
+      {nodes.map((node) =>
+        node.children.length === 0 ? (
+          node.path === currentDir ? null : (
+            <ContextMenuItem
+              key={node.path}
+              onClick={() => onSelect(node.path)}
+            >
+              <Folder className="h-4 w-4" />
+              {node.name}
+            </ContextMenuItem>
+          )
+        ) : (
+          <ContextMenuSub key={node.path}>
+            <ContextMenuSubTrigger>
+              <Folder className="h-4 w-4" />
+              {node.name}
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent
+              className="w-48 max-h-[400px] overflow-y-auto"
+            >
+              {node.path !== currentDir && (
+                <>
+                  <ContextMenuItem onClick={() => onSelect(node.path)}>
+                    <Folder className="h-4 w-4" />
+                    Move here
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                </>
+              )}
+              <MoveTargetMenuItems
+                nodes={node.children}
+                currentDir={currentDir}
+                onSelect={onSelect}
+              />
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        ),
+      )}
+    </>
+  );
+}
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -164,6 +230,7 @@ interface MediaGridProps {
   onUploadClick?: () => void;
   columns?: number;
   view?: "grid" | "list";
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function MediaGrid({
@@ -171,10 +238,16 @@ export function MediaGrid({
   sidebarOpen = false,
   columns = 6,
   view = "grid",
+  scrollContainerRef,
 }: MediaGridProps) {
   const [hideThumbnails] = useHideThumbnails();
   const queryClient = useQueryClient();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Context menu contents embed the full "Move to" folder list (potentially
+  // thousands of items). Creating those React elements for every visible row
+  // on every scroll-driven re-render blocks the main thread, so menu content
+  // is only rendered for the hovered row or the row whose menu is open.
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useQueryState("folder");
 
@@ -244,21 +317,141 @@ export function MediaGrid({
 
   // Current level, loaded lazily per folder (sorted server-side)
   const { data: level, isLoading, error } = useStorageLevel(currentDir);
-  const folders = level?.folders ?? [];
-  const files = level?.files ?? [];
+  const folders = useMemo(() => level?.folders ?? [], [level]);
+  const files = useMemo(() => level?.files ?? [], [level]);
 
-  // All folder paths for "Move to" submenus, excluding the current folder
+  // Folder paths for "Move to" submenus, as a tree so nested submenus can
+  // mirror the folder hierarchy instead of listing every path flat.
   const { data: allFolderPaths } = useStorageFolders();
-  const moveTargets = useMemo(() => {
+  const moveTree = useMemo(() => {
     if (!allFolderPaths) return [];
-    return allFolderPaths
-      .filter((path) => path !== currentDir)
-      .map((path) => ({ path, label: path }));
-  }, [allFolderPaths, currentDir]);
+    const root: MoveTargetNode[] = [];
+    const byPath = new Map<string, MoveTargetNode>();
+    for (const path of allFolderPaths) {
+      const parts = path.split("/");
+      let current = "";
+      let siblings = root;
+      for (const part of parts) {
+        current = current ? `${current}/${part}` : part;
+        let node = byPath.get(current);
+        if (!node) {
+          node = { name: part, path: current, children: [] };
+          byPath.set(current, node);
+          siblings.push(node);
+        }
+        siblings = node.children;
+      }
+    }
+    return root;
+  }, [allFolderPaths]);
+
+  const effectiveColumns = sidebarOpen ? Math.max(2, columns - 1) : columns;
 
   const gridStyle = {
-    gridTemplateColumns: `repeat(${sidebarOpen ? Math.max(2, columns - 1) : columns}, minmax(0, 1fr))`,
+    gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))`,
   };
+
+  // Grid view is windowed a row at a time (one CSS grid row per virtual
+  // item); list view is windowed one file at a time. Only one of the two is
+  // ever mounted (based on `view`), but both hooks must run unconditionally.
+  const fileRows = useMemo(() => {
+    const rows: MediaFile[][] = [];
+    for (let i = 0; i < files.length; i += effectiveColumns) {
+      rows.push(files.slice(i, i + effectiveColumns));
+    }
+    return rows;
+  }, [files, effectiveColumns]);
+
+  const gridWrapperRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: fileRows.length,
+    getScrollElement: () => scrollContainerRef?.current ?? null,
+    estimateSize: () => 220,
+    overscan: 3,
+    scrollMargin: gridWrapperRef.current?.offsetTop ?? 0,
+  });
+
+  const listWrapperRef = useRef<HTMLDivElement>(null);
+  const listVirtualizer = useVirtualizer({
+    count: files.length,
+    getScrollElement: () => scrollContainerRef?.current ?? null,
+    estimateSize: () => 49,
+    overscan: 8,
+    scrollMargin: listWrapperRef.current?.offsetTop ?? 0,
+  });
+
+  // The folders section (fixed 190x180 tiles in a flex-wrap) is windowed the
+  // same way, one flex row per virtual item. Tiles per row depends on the
+  // container width, tracked with a ResizeObserver (callback ref because the
+  // wrapper mounts after the loading skeleton returns early).
+  const [foldersEl, setFoldersEl] = useState<HTMLDivElement | null>(null);
+  const [foldersPerRow, setFoldersPerRow] = useState(4);
+  useEffect(() => {
+    if (!foldersEl) return;
+    const compute = () => {
+      // Tile 190px + 16px gap
+      setFoldersPerRow(
+        Math.max(1, Math.floor((foldersEl.clientWidth + 16) / 206)),
+      );
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(foldersEl);
+    return () => observer.disconnect();
+  }, [foldersEl]);
+
+  // First entry is the "New folder" tile/row (null sentinel)
+  const folderEntries = useMemo<((typeof folders)[number] | null)[]>(
+    () => [null, ...folders],
+    [folders],
+  );
+
+  const folderRows = useMemo(() => {
+    const rows: ((typeof folders)[number] | null)[][] = [];
+    for (let i = 0; i < folderEntries.length; i += foldersPerRow) {
+      rows.push(folderEntries.slice(i, i + foldersPerRow));
+    }
+    return rows;
+  }, [folderEntries, foldersPerRow]);
+
+  const folderVirtualizer = useVirtualizer({
+    count: folderRows.length,
+    getScrollElement: () => scrollContainerRef?.current ?? null,
+    estimateSize: () => 196,
+    overscan: 2,
+    scrollMargin: foldersEl?.offsetTop ?? 0,
+  });
+
+  // List view renders folders as one row each (like the file list), instead
+  // of the fixed-size tiles used in grid view - separate virtualizer since
+  // the row height and item count per "row" differ from the grid tiling.
+  const folderListWrapperRef = useRef<HTMLDivElement>(null);
+  const folderListVirtualizer = useVirtualizer({
+    count: folderEntries.length,
+    getScrollElement: () => scrollContainerRef?.current ?? null,
+    estimateSize: () => 49,
+    overscan: 8,
+    scrollMargin: folderListWrapperRef.current?.offsetTop ?? 0,
+  });
+
+  // Item count + preview thumbnails are fetched only for currently
+  // virtualized folder tiles/rows, not every subfolder in the level - see
+  // useFolderSummaries.
+  const visibleFolderPaths =
+    view === "grid"
+      ? folderVirtualizer
+          .getVirtualItems()
+          .flatMap((virtualRow) =>
+            (folderRows[virtualRow.index] ?? [])
+              .filter((entry): entry is (typeof folders)[number] => entry !== null)
+              .map((entry) => entry.path),
+          )
+      : folderListVirtualizer
+          .getVirtualItems()
+          .map((virtualRow) => folderEntries[virtualRow.index])
+          .filter((entry): entry is (typeof folders)[number] => entry !== null)
+          .map((entry) => entry.path);
+  const folderSummaries = useFolderSummaries(visibleFolderPaths);
 
   // Keep the floating bulk-action bar in sync with the current selection by
   // rendering it as a persistent toast (fixed id, infinite duration) so it
@@ -277,7 +470,8 @@ export function MediaGrid({
           onDownload={() => bulkActionsRef.current.onDownload()}
           onDelete={() => bulkActionsRef.current.onDelete()}
           onMove={(destination) => bulkActionsRef.current.onMove(destination)}
-          moveTargets={moveTargets}
+          moveTree={moveTree}
+          currentDir={currentDir}
           canMoveToRoot={pathSegments.length > 0}
         />
       ),
@@ -291,7 +485,7 @@ export function MediaGrid({
         },
       },
     );
-  }, [selection, moveTargets, pathSegments.length]);
+  }, [selection, moveTree, currentDir, pathSegments.length]);
 
   if (isLoading) {
     return (
@@ -811,12 +1005,6 @@ export function MediaGrid({
         </ContextMenuSubTrigger>
         <ContextMenuSubContent
           className="w-48 max-h-[400px] overflow-y-auto"
-          style={{
-            maskImage:
-              "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-            WebkitMaskImage:
-              "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-          }}
         >
           {pathSegments.length > 0 && (
             <ContextMenuItem onClick={() => handleBulkMove("")}>
@@ -824,18 +1012,14 @@ export function MediaGrid({
               Root
             </ContextMenuItem>
           )}
-          {moveTargets.length === 0 && pathSegments.length === 0 ? (
+          {moveTree.length === 0 && pathSegments.length === 0 ? (
             <ContextMenuItem disabled>No folders available</ContextMenuItem>
           ) : (
-            moveTargets.map((target) => (
-              <ContextMenuItem
-                key={target.path}
-                onClick={() => handleBulkMove(target.path)}
-              >
-                <Folder className="h-4 w-4" />
-                {target.label}
-              </ContextMenuItem>
-            ))
+            <MoveTargetMenuItems
+              nodes={moveTree}
+              currentDir={currentDir}
+              onSelect={handleBulkMove}
+            />
           )}
         </ContextMenuSubContent>
       </ContextMenuSub>
@@ -969,24 +1153,54 @@ export function MediaGrid({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-4">
-              <CreateFolderButtonWithDialog
-                uploadToFolder={folderPath || undefined}
-                trigger={
-                  <div className="group relative w-[190px] h-[180px] rounded-lg border border-dashed border-border cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center justify-center gap-2">
-                    <Plus
-                      className="h-6 w-6 text-muted-foreground"
-                      strokeWidth={1.5}
+            {view === "grid" && (
+            <div
+              ref={setFoldersEl}
+              style={{
+                height: folderVirtualizer.getTotalSize(),
+                position: "relative",
+              }}
+            >
+              {folderVirtualizer.getVirtualItems().map((virtualRow) => (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={folderVirtualizer.measureElement}
+                  className="absolute top-0 left-0 w-full pb-4"
+                  style={{
+                    transform: `translateY(${virtualRow.start - folderVirtualizer.options.scrollMargin}px)`,
+                  }}
+                >
+                  <div className="flex flex-wrap gap-4">
+              {folderRows[virtualRow.index].map((entry) => {
+                if (entry === null) {
+                  return (
+                    <CreateFolderButtonWithDialog
+                      key="__new-folder__"
+                      uploadToFolder={folderPath || undefined}
+                      trigger={
+                        <div className="group relative w-[190px] h-[180px] rounded-lg border border-dashed border-border cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center justify-center gap-2">
+                          <Plus
+                            className="h-6 w-6 text-muted-foreground"
+                            strokeWidth={1.5}
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            New folder
+                          </p>
+                        </div>
+                      }
                     />
-                    <p className="text-sm text-muted-foreground">New folder</p>
-                  </div>
+                  );
                 }
-              />
-              {folders.map((folder) => {
-                const itemCountLabel = folder.truncated
-                  ? `${folder.itemCount}+`
-                  : `${folder.itemCount}`;
-                const previewItems = hideThumbnails ? [] : folder.previewItems;
+                const folder = entry;
+                const summary = folderSummaries[folder.path];
+                const itemCountLabel = !summary
+                  ? "…"
+                  : summary.truncated
+                    ? `${summary.itemCount}+`
+                    : `${summary.itemCount}`;
+                const previewItems =
+                  hideThumbnails || !summary ? [] : summary.previewItems;
                 const renderPreview = (
                   item: { path: string; type: "image" | "video" },
                   size: "square" | "tall" | "large",
@@ -1007,7 +1221,12 @@ export function MediaGrid({
                     />
                   );
                 return (
-                  <ContextMenu key={folder.path}>
+                  <ContextMenu
+                    key={folder.path}
+                    onOpenChange={(open) =>
+                      setOpenMenuId(open ? folder.path : null)
+                    }
+                  >
                     <ContextMenuTrigger asChild>
                       <div
                         className={cn(
@@ -1101,7 +1320,7 @@ export function MediaGrid({
                             )}
                           >
                             {itemCountLabel}{" "}
-                            {folder.itemCount === 1 && !folder.truncated
+                            {summary && summary.itemCount === 1 && !summary.truncated
                               ? "item"
                               : "items"}
                           </p>
@@ -1109,7 +1328,9 @@ export function MediaGrid({
                       </div>
                     </ContextMenuTrigger>
                     {selectionMode ? (
-                      renderBulkContextMenuContent()
+                      openMenuId === folder.path ? (
+                        renderBulkContextMenuContent()
+                      ) : null
                     ) : (
                       <ContextMenuContent>
                         <ContextMenuItem
@@ -1158,11 +1379,280 @@ export function MediaGrid({
                   </ContextMenu>
                 );
               })}
+                  </div>
+                </div>
+              ))}
             </div>
+            )}
+
+            {view === "list" && (
+              <div
+                ref={folderListWrapperRef}
+                className="rounded-lg border border-border overflow-hidden"
+                style={{
+                  height: folderListVirtualizer.getTotalSize(),
+                  position: "relative",
+                }}
+              >
+                {folderListVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const entry = folderEntries[virtualRow.index];
+
+                  if (entry === null) {
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        data-index={virtualRow.index}
+                        ref={folderListVirtualizer.measureElement}
+                        className="absolute top-0 left-0 w-full"
+                        style={{
+                          transform: `translateY(${virtualRow.start - folderListVirtualizer.options.scrollMargin}px)`,
+                        }}
+                      >
+                        <CreateFolderButtonWithDialog
+                          uploadToFolder={folderPath || undefined}
+                          trigger={
+                            <div className="flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 text-muted-foreground">
+                              <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                                <Plus className="h-4 w-4" strokeWidth={1.5} />
+                              </div>
+                              <p className="min-w-0 flex-1 truncate text-sm">
+                                New folder
+                              </p>
+                            </div>
+                          }
+                        />
+                      </div>
+                    );
+                  }
+
+                  const folder = entry;
+                  const summary = folderSummaries[folder.path];
+                  const itemCountLabel = !summary
+                    ? "…"
+                    : summary.truncated
+                      ? `${summary.itemCount}+`
+                      : `${summary.itemCount}`;
+                  const isFolderHovered = hoveredId === folder.path;
+
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      data-index={virtualRow.index}
+                      ref={folderListVirtualizer.measureElement}
+                      className="absolute top-0 left-0 w-full"
+                      style={{
+                        transform: `translateY(${virtualRow.start - folderListVirtualizer.options.scrollMargin}px)`,
+                      }}
+                    >
+                      <ContextMenu
+                        onOpenChange={(open) => {
+                          setOpenMenuId(open ? folder.path : null);
+                          if (open) setHoveredId(folder.path);
+                        }}
+                      >
+                        <ContextMenuTrigger asChild>
+                          <div
+                            className={cn(
+                              "group flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50",
+                              isSelected(folder.path) && "bg-muted/40",
+                            )}
+                            onClick={() => handleFolderClick(folder.path)}
+                            onMouseEnter={() => setHoveredId(folder.path)}
+                            onMouseLeave={() => setHoveredId(null)}
+                          >
+                            <div
+                              className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded bg-muted/50 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSelection(folder.path, {
+                                  path: folder.path,
+                                  name: folder.name,
+                                  kind: "folder",
+                                });
+                              }}
+                            >
+                              <Folder
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                                strokeWidth={1.5}
+                              />
+                              <div
+                                className={cn(
+                                  "absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity",
+                                  selectionMode || isSelected(folder.path)
+                                    ? "opacity-100"
+                                    : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
+                                )}
+                              >
+                                <Checkbox
+                                  checked={isSelected(folder.path)}
+                                  onCheckedChange={() =>
+                                    toggleSelection(folder.path, {
+                                      path: folder.path,
+                                      name: folder.name,
+                                      kind: "folder",
+                                    })
+                                  }
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="size-4"
+                                />
+                              </div>
+                            </div>
+                            <p
+                              className="min-w-0 flex-1 truncate text-sm"
+                              title={folder.name}
+                            >
+                              {folder.name}
+                            </p>
+                            <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
+                              Folder
+                            </span>
+                            <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                              {itemCountLabel}{" "}
+                              {summary &&
+                              summary.itemCount === 1 &&
+                              !summary.truncated
+                                ? "item"
+                                : "items"}
+                            </span>
+                            <div className="flex w-28 shrink-0 items-center justify-end">
+                              {isFolderHovered ? (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    className="cursor-pointer text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const path = folder.path;
+                                      setTimeout(
+                                        () => setFolderUploadTarget(path),
+                                        0,
+                                      );
+                                    }}
+                                    aria-label="Upload to folder"
+                                  >
+                                    <Upload className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cursor-pointer text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadFolder(
+                                        folder.path,
+                                        folder.name,
+                                      );
+                                    }}
+                                    aria-label="Download folder"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cursor-pointer text-muted-foreground hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const path = folder.path;
+                                      setTimeout(
+                                        () => setDeleteFolderTarget(path),
+                                        0,
+                                      );
+                                    }}
+                                    aria-label="Delete folder"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </ContextMenuTrigger>
+                        {selectionMode ? (
+                          openMenuId === folder.path ? (
+                            renderBulkContextMenuContent()
+                          ) : null
+                        ) : (
+                          <ContextMenuContent>
+                            <ContextMenuItem
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                const path = folder.path;
+                                setTimeout(
+                                  () => setFolderUploadTarget(path),
+                                  0,
+                                );
+                              }}
+                            >
+                              <Upload className="h-4 w-4" />
+                              Upload to folder
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                const target = folder;
+                                setTimeout(
+                                  () => setRenameFolderTarget(target),
+                                  0,
+                                );
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Rename
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleDownloadFolder(folder.path, folder.name);
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                              Download folder
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                const path = folder.path;
+                                setTimeout(
+                                  () => setDeleteFolderTarget(path),
+                                  0,
+                                );
+                              }}
+                              variant="destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete folder
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        )}
+                      </ContextMenu>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {files.length > 0 && view === "grid" && (
-              <div className="grid gap-4" style={gridStyle}>
-                {files.map((media) => {
+              <div
+                ref={gridWrapperRef}
+                style={{
+                  height: rowVirtualizer.getTotalSize(),
+                  position: "relative",
+                }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = fileRows[virtualRow.index];
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      data-index={virtualRow.index}
+                      ref={rowVirtualizer.measureElement}
+                      className="absolute top-0 left-0 w-full pb-4"
+                      style={{
+                        transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                      }}
+                    >
+                      <div className="grid gap-4" style={gridStyle}>
+                        {row.map((media) => {
                   // For images: resize and optimize
                   // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
                   const thumbnailUrl =
@@ -1175,6 +1665,7 @@ export function MediaGrid({
                     <ContextMenu
                       key={media.id}
                       onOpenChange={(open) => {
+                        setOpenMenuId(open ? media.id : null);
                         if (open) setHoveredId(media.id);
                       }}
                     >
@@ -1252,7 +1743,7 @@ export function MediaGrid({
                           </div>
                         </div>
                       </ContextMenuTrigger>
-                      {selectionMode ? (
+                      {!isHovered && openMenuId !== media.id ? null : selectionMode ? (
                         renderBulkContextMenuContent()
                       ) : (
                         <ContextMenuContent className="w-64">
@@ -1281,12 +1772,6 @@ export function MediaGrid({
                             </ContextMenuSubTrigger>
                             <ContextMenuSubContent
                               className="w-48 max-h-[400px] overflow-y-auto"
-                              style={{
-                                maskImage:
-                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                                WebkitMaskImage:
-                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                              }}
                             >
                               {pathSegments.length > 0 && (
                                 <ContextMenuItem
@@ -1298,23 +1783,19 @@ export function MediaGrid({
                                   Root
                                 </ContextMenuItem>
                               )}
-                              {moveTargets.length === 0 &&
+                              {moveTree.length === 0 &&
                               pathSegments.length === 0 ? (
                                 <ContextMenuItem disabled>
                                   No folders available
                                 </ContextMenuItem>
                               ) : (
-                                moveTargets.map((target) => (
-                                  <ContextMenuItem
-                                    key={target.path}
-                                    onClick={() =>
-                                      handleMoveMedia(media.path, target.path)
-                                    }
-                                  >
-                                    <Folder className="h-4 w-4" />
-                                    {target.label}
-                                  </ContextMenuItem>
-                                ))
+                                <MoveTargetMenuItems
+                                  nodes={moveTree}
+                                  currentDir={currentDir}
+                                  onSelect={(path) =>
+                                    handleMoveMedia(media.path, path)
+                                  }
+                                />
                               )}
                             </ContextMenuSubContent>
                           </ContextMenuSub>
@@ -1343,13 +1824,25 @@ export function MediaGrid({
                       )}
                     </ContextMenu>
                   );
+                        })}
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
             )}
 
             {files.length > 0 && view === "list" && (
-              <div className="rounded-lg border border-border overflow-hidden">
-                {files.map((media) => {
+              <div
+                ref={listWrapperRef}
+                className="rounded-lg border border-border overflow-hidden"
+                style={{
+                  height: listVirtualizer.getTotalSize(),
+                  position: "relative",
+                }}
+              >
+                {listVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const media = files[virtualRow.index];
                   const isHovered = hoveredId === media.id;
                   // Reuse the exact same transformed URL as the grid view so the
                   // transform server's cache is shared instead of generating a
@@ -1360,16 +1853,25 @@ export function MediaGrid({
                       : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
 
                   return (
+                    <div
+                      key={virtualRow.key}
+                      data-index={virtualRow.index}
+                      ref={listVirtualizer.measureElement}
+                      className="absolute top-0 left-0 w-full"
+                      style={{
+                        transform: `translateY(${virtualRow.start - listVirtualizer.options.scrollMargin}px)`,
+                      }}
+                    >
                     <ContextMenu
-                      key={media.id}
                       onOpenChange={(open) => {
+                        setOpenMenuId(open ? media.id : null);
                         if (open) setHoveredId(media.id);
                       }}
                     >
                       <ContextMenuTrigger asChild>
                         <div
                           className={cn(
-                            "group flex items-center gap-4 px-3 py-2 border-b border-border last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50 [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
+                            "group flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50 [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
                             isSelected(media.id) && "bg-muted/40",
                           )}
                           onClick={() => onMediaSelect(media)}
@@ -1505,7 +2007,7 @@ export function MediaGrid({
                           </div>
                         </div>
                       </ContextMenuTrigger>
-                      {selectionMode ? (
+                      {!isHovered && openMenuId !== media.id ? null : selectionMode ? (
                         renderBulkContextMenuContent()
                       ) : (
                         <ContextMenuContent className="w-64">
@@ -1534,12 +2036,6 @@ export function MediaGrid({
                             </ContextMenuSubTrigger>
                             <ContextMenuSubContent
                               className="w-48 max-h-[400px] overflow-y-auto"
-                              style={{
-                                maskImage:
-                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                                WebkitMaskImage:
-                                  "linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)",
-                              }}
                             >
                               {pathSegments.length > 0 && (
                                 <ContextMenuItem
@@ -1551,23 +2047,19 @@ export function MediaGrid({
                                   Root
                                 </ContextMenuItem>
                               )}
-                              {moveTargets.length === 0 &&
+                              {moveTree.length === 0 &&
                               pathSegments.length === 0 ? (
                                 <ContextMenuItem disabled>
                                   No folders available
                                 </ContextMenuItem>
                               ) : (
-                                moveTargets.map((target) => (
-                                  <ContextMenuItem
-                                    key={target.path}
-                                    onClick={() =>
-                                      handleMoveMedia(media.path, target.path)
-                                    }
-                                  >
-                                    <Folder className="h-4 w-4" />
-                                    {target.label}
-                                  </ContextMenuItem>
-                                ))
+                                <MoveTargetMenuItems
+                                  nodes={moveTree}
+                                  currentDir={currentDir}
+                                  onSelect={(path) =>
+                                    handleMoveMedia(media.path, path)
+                                  }
+                                />
                               )}
                             </ContextMenuSubContent>
                           </ContextMenuSub>
@@ -1601,6 +2093,7 @@ export function MediaGrid({
                         </ContextMenuContent>
                       )}
                     </ContextMenu>
+                    </div>
                   );
                 })}
               </div>

@@ -61,6 +61,7 @@ function HomePageContent() {
   };
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
   const panelGroupRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [sidebarMaxSize, setSidebarMaxSize] = useState(50);
 
   // Sync sidebar open state with asset selection
@@ -135,12 +136,16 @@ function HomePageContent() {
                 view={view}
                 onViewChange={handleViewChange}
               />
-              <div className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto h-[calc(100vh-64px)] overflow-y-scoll">
+              <div
+                ref={scrollContainerRef}
+                className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto h-[calc(100vh-64px)] overflow-y-scoll"
+              >
                 <MediaGrid
                   onMediaSelect={handleMediaSelect}
                   sidebarOpen={assetSidebarOpen}
                   columns={columns}
                   view={view}
+                  scrollContainerRef={scrollContainerRef}
                 />
               </div>
             </ResizablePanel>

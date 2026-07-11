@@ -5,9 +5,67 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import type { MoveTargetNode } from "./media-grid";
+
+/**
+ * "Move to" destinations rendered as nested submenus mirroring the folder
+ * hierarchy, mirroring MoveTargetMenuItems in media-grid.tsx but built on
+ * DropdownMenu primitives (this bar uses a dropdown, not a context menu).
+ */
+function MoveTargetDropdownItems({
+  nodes,
+  currentDir,
+  onSelect,
+}: {
+  nodes: MoveTargetNode[];
+  currentDir: string;
+  onSelect: (path: string) => void;
+}) {
+  return (
+    <>
+      {nodes.map((node) =>
+        node.children.length === 0 ? (
+          node.path === currentDir ? null : (
+            <DropdownMenuItem key={node.path} onClick={() => onSelect(node.path)}>
+              <Folder className="h-4 w-4" />
+              {node.name}
+            </DropdownMenuItem>
+          )
+        ) : (
+          <DropdownMenuSub key={node.path}>
+            <DropdownMenuSubTrigger>
+              <Folder className="h-4 w-4" />
+              {node.name}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[400px] w-48 overflow-y-auto">
+              {node.path !== currentDir && (
+                <>
+                  <DropdownMenuItem onClick={() => onSelect(node.path)}>
+                    <Folder className="h-4 w-4" />
+                    Move here
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <MoveTargetDropdownItems
+                nodes={node.children}
+                currentDir={currentDir}
+                onSelect={onSelect}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ),
+      )}
+    </>
+  );
+}
 
 function BulkActionIconButton({
   onClick,
@@ -41,7 +99,8 @@ export function BulkActionBarContent({
   onDownload,
   onDelete,
   onMove,
-  moveTargets,
+  moveTree,
+  currentDir,
   canMoveToRoot,
 }: {
   count: number;
@@ -49,7 +108,8 @@ export function BulkActionBarContent({
   onDownload: () => void;
   onDelete: () => void;
   onMove: (destination: string) => void;
-  moveTargets: { path: string; label: string }[];
+  moveTree: MoveTargetNode[];
+  currentDir: string;
   canMoveToRoot: boolean;
 }) {
   return (
@@ -90,15 +150,14 @@ export function BulkActionBarContent({
               Root
             </DropdownMenuItem>
           )}
-          {moveTargets.length === 0 && !canMoveToRoot ? (
+          {moveTree.length === 0 && !canMoveToRoot ? (
             <DropdownMenuItem disabled>No folders available</DropdownMenuItem>
           ) : (
-            moveTargets.map((target) => (
-              <DropdownMenuItem key={target.path} onClick={() => onMove(target.path)}>
-                <Folder className="h-4 w-4" />
-                {target.label}
-              </DropdownMenuItem>
-            ))
+            <MoveTargetDropdownItems
+              nodes={moveTree}
+              currentDir={currentDir}
+              onSelect={onMove}
+            />
           )}
         </DropdownMenuContent>
       </DropdownMenu>
