@@ -153,17 +153,22 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
 
     success(`Openinary is running at http://localhost:${port}`);
   } else if (!dockerAvailable) {
-    warn(`Files created — run "cd ${projectDir} && openinary start" once Docker is installed.`);
+    warn(`Files created — start Docker, then run "cd ${projectDir} && openinary start".`);
   } else {
     hint(`Run "cd ${projectDir} && openinary start" when you're ready.`);
   }
 
-  const lines = [
-    `cd ${projectDir}`,
-    "openinary start     # start services",
-    "openinary stop      # stop services",
-    "openinary upgrade   # update to the latest version",
-  ];
+  const lines: string[] = [];
+  if (!dockerAvailable) {
+    lines.push("Start Docker, then:", "", `cd ${projectDir}`, "openinary start     # start services");
+  } else {
+    lines.push(
+      `cd ${projectDir}`,
+      "openinary start     # start services",
+      "openinary stop      # stop services",
+      "openinary upgrade   # update to the latest version"
+    );
+  }
   if (storage === "s3") {
     lines.push(`Edit .env with your bucket credentials, then run "openinary start" (or restart) to apply them.`);
   }
