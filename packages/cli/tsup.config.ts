@@ -8,7 +8,7 @@ export default defineConfig({
   format: ["esm"],
   target: "node20",
   platform: "node",
-  banner: { js: "#!/usr/bin/env node" },
+  banner: { js: "#!/usr/bin/env -S node --no-warnings" },
   splitting: false,
   clean: true,
   sourcemap: true,
