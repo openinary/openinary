@@ -1,0 +1,50 @@
+---
+title: "Download Folder as ZIP"
+description: "Download every file under a folder as a single ZIP archive"
+---
+
+## Endpoint
+
+```
+GET /download-folder/{path}
+```
+
+**Auth:** Public (rate limited)
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the folder relative to the storage root.
+
+  `photos` · `videos/2024`
+</ParamField>
+
+## Response
+
+Returns a ZIP archive containing every file under the folder (recursively), with each entry's path preserved relative to the folder.
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/zip` |
+| `Content-Disposition` | `attachment; filename="{folderName}.zip"` |
+| `Content-Length` | Archive size in bytes |
+| `Cache-Control` | `private, no-store` |
+
+**Status codes:** `200` success · `400` missing or invalid path · `404` folder not found or empty · `500` error
+
+## Example
+
+```bash
+curl -O -J http://localhost:3000/download-folder/photos
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Download Multiple Items" icon="file-zipper" href="/api-reference/files/download-zip">
+    Bundle a mixed selection of files and folders into one ZIP.
+  </Card>
+  <Card title="Download Original File" icon="download" href="/api-reference/files/download">
+    Download a single file.
+  </Card>
+</CardGroup>

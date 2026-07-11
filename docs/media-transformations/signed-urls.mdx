@@ -31,6 +31,10 @@ The signature is computed over:
 
 Add `API_SECRET` to your environment. It must be at least 16 characters long.
 
+<Note>
+If you scaffolded or upgraded your project with the [Openinary CLI](/quickstart), a 64-character `API_SECRET` is already generated for you in `.env` — you can skip straight to step 2.
+</Note>
+
 ```bash
 # Generate a strong secret
 openssl rand -hex 32
@@ -200,5 +204,9 @@ For the endpoint URL format and error responses, see the [Authenticated Transfor
 
 <Card title="Server Configuration" icon="gear" href="/configuration/server">
   How to set `API_SECRET` and other server options.
+</Card>
+
+<Card title="Sign Upload" icon="upload" href="/api-reference/files/upload-sign">
+  A separate use of `API_SECRET`: mint short-lived signatures for direct client-side uploads, rather than signing transformation URLs.
 </Card>
 </CardGroup>

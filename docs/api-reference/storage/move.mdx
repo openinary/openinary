@@ -1,0 +1,71 @@
+---
+title: "Move File or Folder"
+description: "Move a file or folder into a different parent folder"
+---
+
+## Endpoint
+
+```
+POST /storage/{path}/move
+```
+
+**Auth:** API Key required
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the file or folder relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+
+  `photo.jpg` · `photos/portrait.jpg` · `photos`
+</ParamField>
+
+## Body parameters
+
+<ParamField body="destination" type="string">
+  Path to the destination folder, relative to the storage root. Omit or leave empty to move to the root.
+
+  `archive` · `photos/2024`
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "path": "archive/portrait.jpg"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if the move succeeded.
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  The new full path of the file or folder.
+</ResponseField>
+
+**Status codes:** `200` success · `400` already in that folder · `404` not found · `500` error
+
+<Note>
+  There is no bulk/batch move endpoint. To move multiple items, call this endpoint once per file or folder.
+</Note>
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/storage/photos/portrait.jpg/move \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"destination": "archive"}'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Copy File" icon="copy" href="/api-reference/storage/copy">
+    Duplicate a file into a different folder.
+  </Card>
+  <Card title="List Folders" icon="folder-tree" href="/api-reference/storage/folders">
+    Get every folder path, useful for building a "Move to" picker.
+  </Card>
+</CardGroup>

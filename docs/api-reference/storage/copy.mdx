@@ -1,0 +1,71 @@
+---
+title: "Copy File"
+description: "Duplicate a file, optionally into a different folder"
+---
+
+## Endpoint
+
+```
+POST /storage/{path}/copy
+```
+
+**Auth:** API Key required
+
+<Note>
+  Folders cannot be copied, only files. To copy a folder, copy its files individually.
+</Note>
+
+## Path parameters
+
+<ParamField path="path" type="string" required>
+  Path to the file relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+
+  `photo.jpg` · `photos/portrait.jpg`
+</ParamField>
+
+## Body parameters
+
+<ParamField body="destination" type="string">
+  Path to the destination folder, relative to the storage root. Omit or leave empty to copy into the same folder as the source.
+
+  `archive` · `photos/2024`
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "path": "photos/portrait copy.jpg"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if the copy succeeded.
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  The path of the new copy. If a file already exists at the target name, a unique name is generated automatically (e.g. `portrait copy.jpg`, `portrait copy (1).jpg`).
+</ResponseField>
+
+**Status codes:** `200` success · `404` not found · `500` error
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/storage/photos/portrait.jpg/copy \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"destination": "archive"}'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Move File or Folder" icon="folder-tree" href="/api-reference/storage/move">
+    Move instead of duplicating.
+  </Card>
+  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
+    Browse all files and folders.
+  </Card>
+</CardGroup>

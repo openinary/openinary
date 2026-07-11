@@ -277,6 +277,8 @@ Uniform 16 px radius with white corners — safe to serve as JPEG on a white pag
 | [`so`](#so) | start offset | Start time in seconds |
 | [`eo`](#eo) | end offset | End time in seconds (trim) |
 | [`f`](#f-video) | format | Output format |
+| [`t`](#t-video) | thumbnail | Extract a single frame as an image instead of transcoding video |
+| [`tt`](#tt-video) | thumbnail time | Time (seconds) to extract the thumbnail frame from |
 
 ### Parameter reference
 
@@ -295,13 +297,29 @@ Uniform 16 px radius with white corners — safe to serve as JPEG on a white pag
 </ParamField>
 
 <a id="c-video"></a>
-<ParamField path="c" type="string">
-  Resize/crop strategy.
+<ParamField path="c" type="string" default="fill">
+  Resize/crop strategy. Requires `w`/`h`.
 
   | Value | Behavior |
   |-------|----------|
-  | `fill` | Scale and crop to fill the target dimensions |
-  | `crop` | Resize and crop to exact dimensions |
+  | `fill` / `crop` | Scale and crop to fill the target dimensions, no stretching |
+  | `fit` | Fit within the dimensions, preserving aspect ratio |
+  | `scale` | Resize to exact dimensions, may stretch |
+  | `pad` | Fit within the dimensions and pad with background |
+</ParamField>
+
+<a id="t-video"></a>
+<ParamField path="t" type="boolean" default="false">
+  Extracts a single frame as an image thumbnail instead of transcoding the video. When enabled, the output is an image format (`jpg`, `png`, `webp`, etc. — set via `f`) rather than a video.
+
+  `t_true`
+</ParamField>
+
+<a id="tt-video"></a>
+<ParamField path="tt" type="number" default="0">
+  Time in seconds to extract the thumbnail frame from. Only applies when `t` is enabled.
+
+  `tt_5.5` · alias: `thumbnail_time`
 </ParamField>
 
 <a id="q-video"></a>

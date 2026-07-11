@@ -1,0 +1,71 @@
+---
+title: "Download Multiple Items as ZIP"
+description: "Bundle a mixed selection of files and folders into a single ZIP archive"
+---
+
+## Endpoint
+
+```
+POST /download-zip
+```
+
+**Auth:** API Key required
+
+## Body parameters
+
+<ParamField body="items" type="object[]">
+  Files and/or folders to include. Preferred over `paths` when you already know each item's kind, since it skips a lookup per item and lets everything download in parallel.
+
+  <Expandable title="Item object">
+    <ParamField body="path" type="string" required>
+      Path relative to the storage root.
+    </ParamField>
+    <ParamField body="kind" type="string">
+      `"file"` or `"folder"`. If omitted, the server checks whether the path is a folder.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="paths" type="string[]">
+  Shorthand alternative to `items` — a plain list of paths. The server determines whether each one is a file or folder.
+
+  Ignored if `items` is also provided.
+</ParamField>
+
+<Note>
+  Provide either `items` or `paths`, non-empty, with at most 200 entries total. Missing files are skipped rather than failing the whole request.
+</Note>
+
+## Response
+
+Returns a ZIP archive named `download.zip`. Each entry keeps its full relative path (including folder prefixes), so files with the same name in different folders don't collide inside the archive.
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/zip` |
+| `Content-Disposition` | `attachment; filename="download.zip"` |
+| `Content-Length` | Archive size in bytes |
+| `Cache-Control` | `private, no-store` |
+
+**Status codes:** `200` success · `400` invalid body or too many items (max 200) · `404` no files found for the given paths · `500` error
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/download-zip \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"items": [{"path": "photos/portrait.jpg", "kind": "file"}, {"path": "videos", "kind": "folder"}]}' \
+  -o download.zip
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Download Folder as ZIP" icon="folder-tree" href="/api-reference/files/download-folder">
+    Download a single folder without listing its files individually.
+  </Card>
+  <Card title="Download Original File" icon="download" href="/api-reference/files/download">
+    Download a single file.
+  </Card>
+</CardGroup>

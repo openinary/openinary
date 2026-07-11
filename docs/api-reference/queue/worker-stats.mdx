@@ -1,0 +1,57 @@
+---
+title: "Worker Statistics"
+description: "Retrieve the current state of the background video processing worker"
+---
+
+## Endpoint
+
+```
+GET /queue/worker/stats
+```
+
+**Auth:** API Key required
+
+## Response
+
+```json
+{
+  "maxConcurrent": 2,
+  "pollInterval": 1000,
+  "isRunning": true,
+  "processingCount": 1
+}
+```
+
+<ResponseField name="maxConcurrent" type="number">
+  Maximum number of jobs the worker processes at once.
+</ResponseField>
+
+<ResponseField name="pollInterval" type="number">
+  How often, in milliseconds, the worker polls for new jobs.
+</ResponseField>
+
+<ResponseField name="isRunning" type="boolean">
+  Whether the worker's polling loop is currently active.
+</ResponseField>
+
+<ResponseField name="processingCount" type="number">
+  Number of jobs currently being processed.
+</ResponseField>
+
+## Example
+
+```bash
+curl http://localhost:3000/queue/worker/stats \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Queue Statistics" icon="chart-simple" href="/api-reference/queue/stats">
+    Job counts per status.
+  </Card>
+  <Card title="List Jobs" icon="list" href="/api-reference/queue/jobs">
+    View individual job details with filtering.
+  </Card>
+</CardGroup>

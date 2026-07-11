@@ -1,0 +1,76 @@
+---
+title: "Sign Upload"
+description: "Mint a short-lived signature so a browser can upload directly to POST /upload without exposing your API key"
+---
+
+<Note>
+  Minting a signature itself requires an API key — only a trusted backend should call this endpoint. The resulting signature is what you hand to the untrusted client (e.g. a browser).
+</Note>
+
+## Endpoint
+
+```
+POST /upload/sign
+```
+
+**Auth:** API Key required
+
+## Body parameters
+
+<ParamField body="folder" type="string">
+  Destination folder the signature will be scoped to. Must match the `folder` field sent with the eventual `POST /upload` request.
+
+  Defaults to the root folder if omitted.
+</ParamField>
+
+<ParamField body="expiresIn" type="number">
+  Lifetime of the signature in seconds. Clamped between `1` and a server-configured maximum.
+
+  Defaults to a server-configured value if omitted.
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "signature": "a1b2c3d4e5f6...",
+  "expires": 1735689600,
+  "folder": "photos"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if a signature was generated.
+</ResponseField>
+
+<ResponseField name="signature" type="string">
+  The presigned signature to pass alongside the upload.
+</ResponseField>
+
+<ResponseField name="expires" type="number">
+  Unix timestamp (seconds) after which the signature is no longer valid.
+</ResponseField>
+
+<ResponseField name="folder" type="string">
+  The folder the signature is scoped to.
+</ResponseField>
+
+**Status codes:** `200` success · `500` `API_SECRET` not configured on the server
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/upload/sign \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"folder": "photos", "expiresIn": 300}'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Upload Files" icon="upload" href="/api-reference/files/upload">
+    Use the resulting signature to upload without an API key.
+  </Card>
+</CardGroup>

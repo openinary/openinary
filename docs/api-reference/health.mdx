@@ -89,6 +89,18 @@ Detailed diagnostic — checks the SQLite database connection, file permissions,
   Optional warning (e.g. unusual permissions).
 </ResponseField>
 
+<ResponseField name="database.security_warning" type="string">
+  Optional warning when the database file's permissions are less restrictive than `600`.
+</ResponseField>
+
+<ResponseField name="database.file_error" type="string">
+  Optional error message if the database file's permissions or size couldn't be read.
+</ResponseField>
+
+<ResponseField name="database.table_error" type="string">
+  Optional error message if table record counts couldn't be retrieved.
+</ResponseField>
+
 **Status codes:** `200` healthy · `503` database connection failed
 
 ### Example

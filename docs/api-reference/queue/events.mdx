@@ -107,8 +107,10 @@ Periodic keep-alive event to prevent connection timeouts.
 
 ```
 event: heartbeat
-data: {"timestamp": "2024-03-15T10:30:00.000Z"}
+data: {"timestamp": 1710498600000}
 ```
+
+`timestamp` is a Unix epoch time in milliseconds (`Date.now()`), not an ISO string.
 
 ## Usage example
 

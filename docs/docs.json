@@ -107,7 +107,10 @@
             "icon": "file",
             "pages": [
               "api-reference/files/upload",
+              "api-reference/files/upload-sign",
               "api-reference/files/download",
+              "api-reference/files/download-folder",
+              "api-reference/files/download-zip",
               "api-reference/files/create-folder"
             ]
           },
@@ -116,7 +119,11 @@
             "icon": "database",
             "pages": [
               "api-reference/storage/list",
+              "api-reference/storage/folders",
               "api-reference/storage/metadata",
+              "api-reference/storage/rename",
+              "api-reference/storage/move",
+              "api-reference/storage/copy",
               "api-reference/storage/delete"
             ]
           },
@@ -133,6 +140,7 @@
             "pages": [
               "api-reference/video/status",
               "api-reference/queue/stats",
+              "api-reference/queue/worker-stats",
               "api-reference/queue/jobs",
               "api-reference/queue/events"
             ]
@@ -158,7 +166,7 @@
       },
       {
         "tab": "Changelog",
-        "href": "/changelog"
+        "pages": ["changelog"]
       }
     ]
   },
