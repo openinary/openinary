@@ -10,8 +10,27 @@ import {
   type FolderSummary,
   type LevelFile,
 } from "../storage-level";
+import {
+  adjustBucketStats,
+  type AggregateStats,
+  type BucketStats,
+  type StatsBackend,
+} from "./stats-tracker";
 
-export class CloudStorage {
+// Lives at the bucket root, outside public/ and cache/, so it never shows up
+// in media listings or cache stats
+const STATS_OBJECT_KEY = ".openinary/stats.json";
+
+function isAggregateStats(value: unknown): value is AggregateStats {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as AggregateStats).size === "number" &&
+    typeof (value as AggregateStats).fileCount === "number"
+  );
+}
+
+export class CloudStorage implements StatsBackend {
   private s3Client: S3ClientWrapper;
   private cache: StorageCache;
 
@@ -161,6 +180,21 @@ export class CloudStorage {
     const keys = objects.map((obj) => obj.key);
     const deleted = await this.s3Client.deleteObjects(keys);
 
+    // Folder markers are excluded from stats, so only count real files
+    let deletedSize = 0;
+    let deletedFiles = 0;
+    for (const obj of objects) {
+      if (obj.key.endsWith("/")) continue;
+      deletedSize += obj.size ?? 0;
+      deletedFiles += 1;
+    }
+    if (deletedFiles > 0) {
+      adjustBucketStats(this, "storage", {
+        size: -deletedSize,
+        fileCount: -deletedFiles,
+      });
+    }
+
     // Invalidate in-memory cache for all deleted keys
     this.cache.delete(`original:${normalized}`);
 
@@ -303,6 +337,8 @@ export class CloudStorage {
     const storageKey = `public/${filePath}`;
     await this.s3Client.uploadObject(storageKey, buffer, contentType);
 
+    adjustBucketStats(this, "storage", { size: buffer.length, fileCount: 1 });
+
     // Mark the file as existing in the cache
     this.cache.set(`original:${filePath}`, {
       exists: true,
@@ -332,6 +368,8 @@ export class CloudStorage {
     };
 
     await this.s3Client.uploadObject(key, buffer, contentType, metadata);
+
+    adjustBucketStats(this, "cache", { size: buffer.length, fileCount: 1 });
 
     // Mark the file as existing in the cache
     this.cache.set(`exists:${key}`, {
@@ -368,7 +406,17 @@ export class CloudStorage {
   async deleteOriginal(originalPath: string): Promise<void> {
     // Add public/ prefix for storage
     const storageKey = `public/${originalPath}`;
+    // HEAD first: the deleted object's size is needed for stats tracking,
+    // and a delete on a missing key succeeds silently
+    const metadata = await this.s3Client.getObjectMetadata(storageKey);
     await this.s3Client.deleteObject(storageKey);
+
+    if (metadata) {
+      adjustBucketStats(this, "storage", {
+        size: -metadata.size,
+        fileCount: -1,
+      });
+    }
 
     // Invalidate cache
     this.cache.delete(`original:${originalPath}`);
@@ -381,6 +429,14 @@ export class CloudStorage {
     const sourceKey = `public/${sourcePath}`;
     const destKey = `public/${destPath}`;
     await this.s3Client.copyObject(sourceKey, destKey);
+
+    const metadata = await this.s3Client.getObjectMetadata(destKey);
+    if (metadata) {
+      adjustBucketStats(this, "storage", {
+        size: metadata.size,
+        fileCount: 1,
+      });
+    }
 
     // Mark the new file as existing in the cache
     this.cache.set(`original:${destPath}`, {
@@ -458,6 +514,7 @@ export class CloudStorage {
       const cacheObjects = await this.s3Client.listObjects("cache/");
 
       const keysToDelete: string[] = [];
+      let sizeToDelete = 0;
 
       // Check each object's metadata to see if it belongs to this original path
       for (const obj of cacheObjects) {
@@ -468,6 +525,7 @@ export class CloudStorage {
             encodeURIComponent(originalPath)
           ) {
             keysToDelete.push(obj.key);
+            sizeToDelete += obj.size ?? 0;
           }
         } catch (error) {
           // If we can't get metadata, skip this object
@@ -489,6 +547,11 @@ export class CloudStorage {
       // Delete all identified objects
       const deletedCount = await this.s3Client.deleteObjects(keysToDelete);
 
+      adjustBucketStats(this, "cache", {
+        size: -sizeToDelete,
+        fileCount: -keysToDelete.length,
+      });
+
       logger.info(
         { originalPath, deletedCount, totalFound: keysToDelete.length },
         "Deleted cached transformations from cloud storage",
@@ -505,12 +568,74 @@ export class CloudStorage {
   }
 
   /**
-   * Gets aggregate stats for cached transformations stored in cloud storage
+   * Loads the persisted aggregate stats object, or null when it doesn't
+   * exist yet or is unreadable (triggering a recomputation)
    */
-  async getCacheStats(): Promise<{ size: number; fileCount: number }> {
-    const cacheObjects = await this.s3Client.listObjects("cache/");
-    const size = cacheObjects.reduce((sum, obj) => sum + (obj.size ?? 0), 0);
-    return { size, fileCount: cacheObjects.length };
+  async loadPersistedStats(): Promise<BucketStats | null> {
+    if (!(await this.s3Client.objectExists(STATS_OBJECT_KEY))) {
+      return null;
+    }
+
+    try {
+      const buffer = await this.s3Client.downloadObject(STATS_OBJECT_KEY);
+      const parsed = JSON.parse(buffer.toString("utf-8"));
+      if (
+        isAggregateStats(parsed?.storage) &&
+        isAggregateStats(parsed?.cache) &&
+        typeof parsed.updatedAt === "string"
+      ) {
+        return parsed as BucketStats;
+      }
+      logger.warn("Persisted bucket stats have an unexpected shape, recomputing");
+      return null;
+    } catch (error) {
+      logger.warn(
+        { error: serializeError(error) },
+        "Failed to load persisted bucket stats, recomputing",
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Persists the aggregate stats object to the bucket
+   */
+  async persistStats(stats: BucketStats): Promise<void> {
+    await this.s3Client.uploadObject(
+      STATS_OBJECT_KEY,
+      Buffer.from(JSON.stringify(stats)),
+      "application/json",
+    );
+  }
+
+  /**
+   * Recomputes aggregate stats from full bucket listings. O(n) in object
+   * count - only used to seed the tracker and for explicit reconciliation,
+   * never on the /storage/stats read path.
+   */
+  async computeBucketStats(): Promise<{
+    storage: AggregateStats;
+    cache: AggregateStats;
+  }> {
+    const [publicObjects, cacheObjects] = await Promise.all([
+      this.listAllParallel("public/"),
+      this.s3Client.listObjects("cache/"),
+    ]);
+
+    const storage: AggregateStats = { size: 0, fileCount: 0 };
+    for (const obj of publicObjects) {
+      if (obj.key.endsWith("/")) continue; // folder markers
+      storage.size += obj.size ?? 0;
+      storage.fileCount += 1;
+    }
+
+    const cache: AggregateStats = { size: 0, fileCount: 0 };
+    for (const obj of cacheObjects) {
+      cache.size += obj.size ?? 0;
+      cache.fileCount += 1;
+    }
+
+    return { storage, cache };
   }
 
   /**
@@ -522,6 +647,13 @@ export class CloudStorage {
       cacheObjects.length === 0
         ? 0
         : await this.s3Client.deleteObjects(cacheObjects.map((obj) => obj.key));
+
+    if (cacheObjects.length > 0) {
+      adjustBucketStats(this, "cache", {
+        size: -cacheObjects.reduce((sum, obj) => sum + (obj.size ?? 0), 0),
+        fileCount: -cacheObjects.length,
+      });
+    }
 
     this.cache.clear();
 

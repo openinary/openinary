@@ -24,9 +24,6 @@ export type LevelFile = {
 export type LevelFolder = {
   name: string;
   path: string;
-  itemCount: number;
-  truncated: boolean;
-  previewItems: FolderPreviewItem[];
 };
 
 export type FolderSummary = {

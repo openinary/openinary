@@ -6,11 +6,12 @@ import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
 import { getUniqueFilePath } from "../utils/get-unique-file-path";
 import { deleteCachedFiles, getCacheSize, clearAllCache } from "../utils/cache";
+import { sumTreeSize, type StorageNode } from "../utils/storage-tree";
 import {
-  buildTreeFromKeys,
-  sumTreeSize,
-  type StorageNode,
-} from "../utils/storage-tree";
+  getBucketStats,
+  recalculateBucketStats,
+  type BucketStats,
+} from "../utils/storage/stats-tracker";
 import {
   FOLDER_PREVIEW_LIMIT,
   FOLDER_SUMMARY_MAX_KEYS,
@@ -138,11 +139,7 @@ function listLocalLevel(folderPath: string): {
     const relPath = folderPath ? `${folderPath}/${entry.name}` : entry.name;
 
     if (entry.isDirectory()) {
-      folders.push({
-        name: entry.name,
-        path: relPath,
-        ...localFolderSummary(path.join(dirAbs, entry.name), relPath),
-      });
+      folders.push({ name: entry.name, path: relPath });
     } else if (entry.isFile()) {
       const stats = fs.statSync(path.join(dirAbs, entry.name));
       files.push({
@@ -163,8 +160,11 @@ function listLocalLevel(folderPath: string): {
 /**
  * List one directory level
  * GET /storage?path=<folder> (empty or missing path = root)
- * Returns the level's files plus each subfolder with a bounded summary
- * (direct child count capped at FOLDER_SUMMARY_MAX_KEYS + preview items)
+ * Returns the level's files plus each subfolder's name/path only - no
+ * per-folder summary (item count, preview thumbnails), which the client
+ * fetches separately via GET /storage/folder-summaries for the folders it
+ * actually renders. Keeps this endpoint's latency independent of how many
+ * subfolders a level has.
  */
 storageRoute.get("/", async (c) => {
   const levelPath = normalizeLevelPath(c.req.query("path") ?? "");
@@ -182,20 +182,10 @@ storageRoute.get("/", async (c) => {
     }
 
     const { folderNames, files } = await storageClient.listLevel(levelPath);
-
-    const folders: LevelFolder[] = [];
-    const batchSize = 16;
-    for (let i = 0; i < folderNames.length; i += batchSize) {
-      const batch = folderNames.slice(i, i + batchSize);
-      const summaries = await Promise.all(
-        batch.map(async (name) => {
-          const childPath = levelPath ? `${levelPath}/${name}` : name;
-          const summary = await storageClient.getFolderSummary(childPath);
-          return { name, path: childPath, ...summary };
-        }),
-      );
-      folders.push(...summaries);
-    }
+    const folders: LevelFolder[] = folderNames.map((name) => ({
+      name,
+      path: levelPath ? `${levelPath}/${name}` : name,
+    }));
 
     return c.json({ path: levelPath, folders, files });
   } catch (error) {
@@ -212,40 +202,117 @@ storageRoute.get("/", async (c) => {
   }
 });
 
+const FOLDER_SUMMARIES_MAX_PATHS = 200;
+
+/**
+ * Bounded per-folder summaries (item count, truncation flag, preview
+ * thumbnails) for an explicit set of folder paths.
+ * GET /storage/folder-summaries?paths=<comma-separated folder paths>
+ * Meant to be called only for folders the client is actually rendering
+ * (e.g. the currently virtualized rows), so a level with many subfolders
+ * doesn't pay for every summary up front - see GET /storage/.
+ * Note: This route must be registered before GET "/*"
+ */
+storageRoute.get("/folder-summaries", async (c) => {
+  const raw = c.req.query("paths") ?? "";
+  const requested = raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (requested.length === 0) {
+    return c.json({ summaries: {} });
+  }
+  if (requested.length > FOLDER_SUMMARIES_MAX_PATHS) {
+    return c.json(
+      {
+        error: "Bad request",
+        message: `Too many paths (max ${FOLDER_SUMMARIES_MAX_PATHS})`,
+      },
+      400,
+    );
+  }
+
+  const paths: string[] = [];
+  for (const p of requested) {
+    const normalized = normalizeLevelPath(p);
+    if (normalized === null) {
+      return c.json({ error: "Bad request", message: "Invalid path" }, 400);
+    }
+    paths.push(normalized);
+  }
+
+  try {
+    const summaries: Record<string, FolderSummary> = {};
+    const batchSize = 16;
+    for (let i = 0; i < paths.length; i += batchSize) {
+      const batch = paths.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map(async (folderPath) => {
+          if (storageClient) {
+            return [folderPath, await storageClient.getFolderSummary(folderPath)] as const;
+          }
+          const dirAbs = path.join(".", "public", folderPath);
+          return [folderPath, localFolderSummary(dirAbs, folderPath)] as const;
+        }),
+      );
+      for (const [folderPath, summary] of results) {
+        summaries[folderPath] = summary;
+      }
+    }
+
+    return c.json({ summaries });
+  } catch (error) {
+    logger.error(
+      { error: serializeError(error), paths },
+      "Failed to get folder summaries",
+    );
+    return c.json({ error: "Failed to get folder summaries" }, 500);
+  }
+});
+
+/**
+ * Builds the stats response body from tracked cloud aggregates (O(1) read,
+ * no bucket listing) or a local filesystem walk when running without cloud
+ * storage. Local disk cache is always live-computed (cheap readdir).
+ */
+async function buildStatsResponse(cloudStats: BucketStats | null) {
+  const localCache = await getCacheSize();
+
+  if (cloudStats) {
+    return {
+      storage: cloudStats.storage,
+      cache: {
+        size: localCache.size + cloudStats.cache.size,
+        fileCount: localCache.fileCount + cloudStats.cache.fileCount,
+      },
+      updatedAt: cloudStats.updatedAt,
+    };
+  }
+
+  const root = buildLocalTree(path.join(".", "public"));
+  const { size, fileCount } = sumTreeSize(root);
+  return {
+    storage: { size, fileCount },
+    cache: localCache,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 /**
  * Get aggregate storage and cache stats
  * GET /storage/stats
+ * Cloud stats come from incrementally-tracked counters persisted in the
+ * bucket - no full listing on the read path (see stats-tracker.ts). The
+ * first-ever call seeds them with one full recomputation.
  * Note: This route must be registered before GET "/*"
  */
 storageRoute.get("/stats", async (c) => {
   try {
-    let root: StorageNode;
-
-    if (storageClient) {
-      const publicObjects = await getPublicObjects(storageClient);
-      root = buildTreeFromKeys(publicObjects);
-    } else {
-      const publicDir = path.join(".", "public");
-      root = buildLocalTree(publicDir);
-    }
-
-    const { size: storageSize, fileCount } = sumTreeSize(root);
-
-    const localCache = await getCacheSize();
-    const cloudCache = storageClient
-      ? await storageClient.getCacheStats()
-      : { size: 0, fileCount: 0 };
-
-    return c.json({
-      storage: {
-        size: storageSize,
-        fileCount,
-      },
-      cache: {
-        size: localCache.size + cloudCache.size,
-        fileCount: localCache.fileCount + cloudCache.fileCount,
-      },
-    });
+    const cloudStats = storageClient
+      ? await getBucketStats(storageClient)
+      : null;
+    return c.json(await buildStatsResponse(cloudStats));
   } catch (error) {
     logger.error(
       { error: serializeError(error) },
@@ -254,6 +321,32 @@ storageRoute.get("/stats", async (c) => {
     return c.json(
       {
         error: "Failed to get storage stats",
+      },
+      500,
+    );
+  }
+});
+
+/**
+ * Recompute aggregate stats from full bucket listings, reconciling any
+ * drift in the incremental counters (external bucket changes, lost flush)
+ * POST /storage/stats/recalculate
+ * Note: This route must be registered before POST "/*"
+ */
+storageRoute.post("/stats/recalculate", async (c) => {
+  try {
+    const cloudStats = storageClient
+      ? await recalculateBucketStats(storageClient)
+      : null;
+    return c.json(await buildStatsResponse(cloudStats));
+  } catch (error) {
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to recalculate storage stats",
+    );
+    return c.json(
+      {
+        error: "Failed to recalculate storage stats",
       },
       500,
     );
