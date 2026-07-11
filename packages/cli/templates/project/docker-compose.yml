@@ -18,6 +18,7 @@ services:
       - MODE=api
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - API_SECRET=${API_SECRET:-}
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       - VIDEO_MAX_CONCURRENT=${VIDEO_MAX_CONCURRENT:-}
       - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}
@@ -54,10 +55,11 @@ services:
     environment:
       - NODE_ENV=production
       - MODE=fullstack
-      - NEXT_PUBLIC_API_BASE_URL=/api
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-/api}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - BETTER_AUTH_INTERNAL_URL=${BETTER_AUTH_INTERNAL_URL:-http://127.0.0.1:3001}
+      - API_SECRET=${API_SECRET:-}
       - IMAGE_TAG=${IMAGE_TAG:-latest}
       - VIDEO_MAX_CONCURRENT=${VIDEO_MAX_CONCURRENT:-}
       - VIDEO_JOB_RETRY_MAX=${VIDEO_JOB_RETRY_MAX:-3}

@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import fs from "fs-extra";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { generateAuthSecret } from "./env.js";
+import { generateApiSecret, generateAuthSecret } from "./env.js";
 import { scaffoldFromEmbeddedTemplate } from "./template.js";
 
 let tmpDir: string;
@@ -23,6 +23,7 @@ describe("scaffoldFromEmbeddedTemplate", () => {
       port: 3000,
       authSecret: generateAuthSecret(),
       authUrl: "http://localhost:3000",
+      apiSecret: generateApiSecret(),
       imageTag: "v0.1.3",
     });
 
@@ -38,12 +39,29 @@ describe("scaffoldFromEmbeddedTemplate", () => {
       port: 3000,
       authSecret: secret,
       authUrl: "http://localhost:3000",
+      apiSecret: generateApiSecret(),
       imageTag: "v0.1.3",
     });
 
     const env = await fs.readFile(path.join(tmpDir, ".env"), "utf8");
     const match = env.match(/^BETTER_AUTH_SECRET=(.+)$/m);
     expect(match?.[1]?.length).toBeGreaterThanOrEqual(32);
+  });
+
+  it("writes an API_SECRET of 64 characters", async () => {
+    await scaffoldFromEmbeddedTemplate(tmpDir, {
+      projectName: "my-project",
+      mode: "full",
+      port: 3000,
+      authSecret: generateAuthSecret(),
+      authUrl: "http://localhost:3000",
+      apiSecret: generateApiSecret(),
+      imageTag: "v0.1.3",
+    });
+
+    const env = await fs.readFile(path.join(tmpDir, ".env"), "utf8");
+    const match = env.match(/^API_SECRET=(.+)$/m);
+    expect(match?.[1]?.length).toBe(64);
   });
 
   it("substitutes the image tag, port, and auth url placeholders", async () => {
@@ -53,6 +71,7 @@ describe("scaffoldFromEmbeddedTemplate", () => {
       port: 4000,
       authSecret: "x".repeat(32),
       authUrl: "http://localhost:4000",
+      apiSecret: "y".repeat(64),
       imageTag: "v0.9.0",
     });
 
@@ -74,6 +93,7 @@ describe("scaffoldFromEmbeddedTemplate", () => {
       port: 3000,
       authSecret: "x".repeat(32),
       authUrl: "http://localhost:3000",
+      apiSecret: "y".repeat(64),
       imageTag: "v0.1.3",
     });
 
@@ -88,6 +108,7 @@ describe("scaffoldFromEmbeddedTemplate", () => {
       port: 3000,
       authSecret: "x".repeat(32),
       authUrl: "http://localhost:3000",
+      apiSecret: "y".repeat(64),
       imageTag: "v0.1.3",
       storage: {
         bucketName: "my-bucket",

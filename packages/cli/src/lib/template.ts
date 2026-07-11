@@ -9,14 +9,7 @@ export function resolveTemplatesDir(): string {
   return path.join(getPackageRoot(import.meta.url), "templates");
 }
 
-export interface StorageVars {
-  bucketName: string;
-  region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  endpoint: string;
-  publicUrl: string;
-}
+export type StorageChoice = "local" | "s3";
 
 export interface ScaffoldOptions {
   projectName: string;
@@ -24,12 +17,13 @@ export interface ScaffoldOptions {
   port: number;
   authSecret: string;
   authUrl: string;
+  apiSecret: string;
   imageTag: string;
-  storage?: StorageVars;
+  storage?: StorageChoice;
 }
 
-function renderStorageBlock(storage?: StorageVars): string {
-  if (!storage) {
+function renderStorageBlock(storage?: StorageChoice): string {
+  if (storage !== "s3") {
     return [
       "# STORAGE_BUCKET_NAME=your-bucket",
       "# STORAGE_REGION=auto",
@@ -41,12 +35,12 @@ function renderStorageBlock(storage?: StorageVars): string {
   }
 
   return [
-    `STORAGE_BUCKET_NAME=${storage.bucketName}`,
-    `STORAGE_REGION=${storage.region}`,
-    `STORAGE_ACCESS_KEY_ID=${storage.accessKeyId}`,
-    `STORAGE_SECRET_ACCESS_KEY=${storage.secretAccessKey}`,
-    `STORAGE_ENDPOINT=${storage.endpoint}`,
-    `STORAGE_PUBLIC_URL=${storage.publicUrl}`,
+    "STORAGE_BUCKET_NAME=your-bucket",
+    "STORAGE_REGION=auto",
+    "STORAGE_ACCESS_KEY_ID=your-access-key-id",
+    "STORAGE_SECRET_ACCESS_KEY=your-secret-access-key",
+    "STORAGE_ENDPOINT=https://your-account.r2.cloudflarestorage.com",
+    "STORAGE_PUBLIC_URL=https://your-bucket.example.com",
   ].join("\n");
 }
 
@@ -75,6 +69,7 @@ export async function scaffoldFromEmbeddedTemplate(
     IMAGE_TAG: opts.imageTag,
     AUTH_SECRET: opts.authSecret,
     AUTH_URL: opts.authUrl,
+    API_SECRET: opts.apiSecret,
     PORT: String(opts.port),
     STORAGE_VARS: renderStorageBlock(opts.storage),
   });

@@ -4,8 +4,8 @@ import fs from "fs-extra";
 import { compose, findApiKeyInLogs, composeLogs, preflight, waitForHealthy } from "../lib/docker.js";
 import type { ProjectMode } from "../lib/project.js";
 import { writeProjectConfig } from "../lib/project.js";
-import { generateAuthSecret } from "../lib/env.js";
-import { scaffoldFromEmbeddedTemplate, scaffoldFromRemoteTemplate, type StorageVars } from "../lib/template.js";
+import { generateApiSecret, generateAuthSecret } from "../lib/env.js";
+import { scaffoldFromEmbeddedTemplate, scaffoldFromRemoteTemplate, type StorageChoice } from "../lib/template.js";
 import { getLatestRelease } from "../lib/versions.js";
 import { DEFAULT_PORT } from "../utils/constants.js";
 import { CLIError } from "../utils/errors.js";
@@ -30,26 +30,17 @@ export interface CreateOptions {
   cwd?: string;
 }
 
-async function promptStorage(): Promise<StorageVars | undefined> {
-  const choice = await selectPrompt({
+async function promptStorage(): Promise<StorageChoice | undefined> {
+  const choice = await selectPrompt<StorageChoice>({
     message: "Object storage",
     options: [
       { value: "local", label: "Local disk", hint: "recommended for getting started" },
-      { value: "s3", label: "S3 / R2", hint: "bring your own bucket" },
+      { value: "s3", label: "Use my own bucket", hint: "S3 / R2" },
     ],
     initialValue: "local",
   });
 
-  if (choice === "local") return undefined;
-
-  const bucketName = await textPrompt({ message: "Bucket name" });
-  const region = await textPrompt({ message: "Region", defaultValue: "auto" });
-  const accessKeyId = await textPrompt({ message: "Access key ID" });
-  const secretAccessKey = await textPrompt({ message: "Secret access key" });
-  const endpoint = await textPrompt({ message: "Endpoint URL" });
-  const publicUrl = await textPrompt({ message: "Public URL" });
-
-  return { bucketName, region, accessKeyId, secretAccessKey, endpoint, publicUrl };
+  return choice === "local" ? undefined : choice;
 }
 
 async function ensureTargetDir(targetDir: string): Promise<void> {
@@ -85,9 +76,9 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
         initialValue: "full",
       });
 
-  const storage = mode === "api" || isNonInteractive() ? undefined : await promptStorage();
+  const storage = isNonInteractive() ? undefined : await promptStorage();
 
-  const port = options.port ?? Number(await textPrompt({ message: "Port", defaultValue: String(DEFAULT_PORT) }));
+  const port = options.port ?? DEFAULT_PORT;
 
   const shouldStart =
     options.start ?? (await confirmPrompt({ message: "Start now with Docker?", initialValue: true }));
@@ -118,6 +109,7 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
         port,
         authSecret: generateAuthSecret(),
         authUrl: `http://localhost:${port}`,
+        apiSecret: generateApiSecret(),
         imageTag: release.version,
         storage,
       });
@@ -131,6 +123,10 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
       createdAt: new Date().toISOString(),
     });
   });
+
+  if (storage === "s3") {
+    warn(`Placeholder S3/R2 credentials were written to ${projectDir}/.env — edit them with your bucket details before starting.`);
+  }
 
   if (shouldStart && dockerAvailable) {
     await withSpinner(`Downloading Openinary ${release.version}`, () =>
@@ -168,6 +164,9 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
     "openinary stop      # stop services",
     "openinary upgrade   # update to the latest version",
   ];
+  if (storage === "s3") {
+    lines.push(`Edit .env with your bucket credentials, then run "openinary start" (or restart) to apply them.`);
+  }
   if (mode === "full") {
     lines.push(`Visit http://localhost:${port}/setup to create your admin account.`);
   }

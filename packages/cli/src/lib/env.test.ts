@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendMissingVars,
   diffMissingKeys,
+  generateApiSecret,
   generateAuthSecret,
   getActiveKeys,
   getVar,
@@ -92,5 +93,17 @@ describe("generateAuthSecret", () => {
 
   it("produces different secrets on each call", () => {
     expect(generateAuthSecret()).not.toBe(generateAuthSecret());
+  });
+});
+
+describe("generateApiSecret", () => {
+  it("produces a 64-character hex secret", () => {
+    const secret = generateApiSecret();
+    expect(secret.length).toBe(64);
+    expect(secret).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("produces different secrets on each call", () => {
+    expect(generateApiSecret()).not.toBe(generateApiSecret());
   });
 });

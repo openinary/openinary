@@ -6,6 +6,7 @@ import { fetchChangelog, renderChangelog, sectionsBetween } from "../lib/changel
 import {
   appendMissingVars,
   diffMissingKeys,
+  generateApiSecret,
   generateAuthSecret,
   parseEnv,
   serializeEnv,
@@ -57,6 +58,9 @@ async function syncEnvVars(project: Project, targetTag: string): Promise<void> {
   for (const key of missingKeys) {
     if (key === "BETTER_AUTH_SECRET") {
       updated = upsertVar(updated, key, generateAuthSecret());
+    }
+    if (key === "API_SECRET") {
+      updated = upsertVar(updated, key, generateApiSecret());
     }
   }
 

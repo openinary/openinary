@@ -90,3 +90,8 @@ export function appendMissingVars(current: EnvLine[], template: EnvLine[], keys:
 export function generateAuthSecret(): string {
   return crypto.randomBytes(32).toString("base64");
 }
+
+/** 64 hex characters, matching the length required by API_SECRET (HMAC signing/verification). */
+export function generateApiSecret(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
