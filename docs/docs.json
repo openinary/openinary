@@ -74,6 +74,13 @@
               "guides/dokploy-deployment",
               "guides/railway-deployment"
             ]
+          },
+          {
+            "group": "Components",
+            "icon": "puzzle-piece",
+            "pages": [
+              "guides/file-uploader"
+            ]
           }
         ]
       },
