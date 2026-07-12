@@ -20,13 +20,15 @@ POST /upload/sign
 <ParamField body="folder" type="string">
   Destination folder the signature will be scoped to. Must match the `folder` field sent with the eventual `POST /upload` request.
 
-  Defaults to the root folder if omitted.
+Defaults to the root folder if omitted.
+
 </ParamField>
 
 <ParamField body="expiresIn" type="number">
   Lifetime of the signature in seconds. Clamped between `1` and a server-configured maximum.
 
-  Defaults to a server-configured value if omitted.
+Defaults to a server-configured value if omitted.
+
 </ParamField>
 
 ## Response

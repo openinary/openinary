@@ -19,7 +19,8 @@ curl -X POST "http://localhost:3000/upload" \
 ```
 
 <Note>
-Even without a `transformations` field, Openinary automatically queues a default thumbnail for every video upload.
+  Even without a `transformations` field, Openinary automatically queues a
+  default thumbnail for every video upload.
 </Note>
 
 ## TypeScript examples
@@ -49,7 +50,8 @@ const res = await fetch("http://localhost:3000/upload", {
   body: form,
 });
 
-if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+if (!res.ok)
+  throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
 const data = await res.json();
 console.log(data);
@@ -81,7 +83,8 @@ const res = await fetch("http://localhost:3000/upload", {
   body: form,
 });
 
-if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+if (!res.ok)
+  throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
 const data = await res.json();
 console.log(data);
@@ -112,7 +115,8 @@ const res = await fetch("http://localhost:3000/upload", {
   body: form,
 });
 
-if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+if (!res.ok)
+  throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
 const data = await res.json();
 console.log(data);
@@ -135,16 +139,33 @@ console.log(data);
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Upload API reference" icon="code" href="/api-reference/files/upload">
+  <Card
+    title="Upload API reference"
+    icon="code"
+    href="/api-reference/files/upload"
+  >
     Full endpoint reference: all fields, validation, and response schema.
   </Card>
-  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  <Card
+    title="Image Transformations"
+    icon="image"
+    href="/media-transformations/image-transformations"
+  >
     Full parameter reference for resizing, cropping, and format conversion.
   </Card>
-  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+  <Card
+    title="Video Transformations"
+    icon="video"
+    href="/media-transformations/video-transformations"
+  >
     Resize, trim, and extract thumbnails from video files.
   </Card>
-  <Card title="File Uploader Component" icon="upload" href="/guides/file-uploader">
-    Drop a ready-to-use React uploader into your app with a single shadcn/ui command.
+  <Card
+    title="File Uploader Component"
+    icon="upload"
+    href="/guides/file-uploader"
+  >
+    Drop a ready-to-use React uploader into your app with a single shadcn/ui
+    command.
   </Card>
 </CardGroup>

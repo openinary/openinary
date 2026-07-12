@@ -42,7 +42,8 @@ Returns the storage tree as a nested array. Each node is either a folder (with `
 ```
 
 <ResponseField name="id" type="string">
-  Unique identifier — full path relative to storage root. Use this as the `{path}` parameter in other storage endpoints.
+  Unique identifier, full path relative to storage root. Use this as the `{path}
+  ` parameter in other storage endpoints.
 </ResponseField>
 
 <ResponseField name="name" type="string">
@@ -63,13 +64,25 @@ curl http://localhost:3000/storage \
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="File Metadata" icon="circle-info" href="/api-reference/storage/metadata">
+  <Card
+    title="File Metadata"
+    icon="circle-info"
+    href="/api-reference/storage/metadata"
+  >
     Get size and timestamps for a specific file.
   </Card>
-  <Card title="Move File or Folder" icon="folder-tree" href="/api-reference/storage/move">
+  <Card
+    title="Move File or Folder"
+    icon="folder-tree"
+    href="/api-reference/storage/move"
+  >
     Move a file or folder into a different parent folder.
   </Card>
-  <Card title="Rename File or Folder" icon="pen" href="/api-reference/storage/rename">
+  <Card
+    title="Rename File or Folder"
+    icon="pen"
+    href="/api-reference/storage/rename"
+  >
     Rename a file or folder in place.
   </Card>
   <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">

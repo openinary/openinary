@@ -22,6 +22,7 @@ Signed URLs use **HMAC-SHA256** with a shared secret (`API_SECRET`) to produce a
 ```
 
 The signature is computed over:
+
 - `{transformations}/{file-path}` when a transformation string is present
 - `{file-path}` alone when no transformation is applied
 
@@ -47,7 +48,8 @@ API_SECRET=your-generated-secret-here
 ```
 
 <Warning>
-Keep `API_SECRET` private. Anyone who obtains it can generate valid signatures for any file and transformation.
+  Keep `API_SECRET` private. Anyone who obtains it can generate valid signatures
+  for any file and transformation.
 </Warning>
 
 ### 2. Generate signatures in your backend
@@ -65,7 +67,7 @@ const SIGNATURE_LENGTH = 16;
 function generateSignature(
   transformations: string,
   filePath: string,
-  secret: string
+  secret: string,
 ): string {
   const stringToSign = transformations
     ? `${transformations}/${filePath}`
@@ -82,7 +84,7 @@ function buildSignedUrl(
   baseUrl: string,
   transformations: string,
   filePath: string,
-  secret: string
+  secret: string,
 ): string {
   const signature = generateSignature(transformations, filePath, secret);
   const parts = [baseUrl, "authenticated", `s--${signature}`];
@@ -96,7 +98,7 @@ const url = buildSignedUrl(
   "https://media.example.com",
   "w_800,h_600,c_fill,f_webp",
   "uploads/photo.jpg",
-  process.env.API_SECRET!
+  process.env.API_SECRET!,
 );
 
 console.log(url);
@@ -183,11 +185,15 @@ For the endpoint URL format and error responses, see the [Authenticated Transfor
 </Accordion>
 
 <Accordion title="Timing-safe comparison prevents timing attacks">
-  The server uses `crypto.timingSafeEqual` to compare signatures. This prevents attackers from deducing valid signatures by measuring response time differences.
+  The server uses `crypto.timingSafeEqual` to compare signatures. This prevents
+  attackers from deducing valid signatures by measuring response time
+  differences.
 </Accordion>
 
 <Accordion title="The signature does not expire">
-  Signed URLs do not have a built-in expiry. If you need time-limited URLs, append an expiry timestamp to the file path or transformation string and enforce it in a reverse proxy or middleware layer.
+  Signed URLs do not have a built-in expiry. If you need time-limited URLs,
+  append an expiry timestamp to the file path or transformation string and
+  enforce it in a reverse proxy or middleware layer.
 </Accordion>
 
 <Accordion title="Rotate API_SECRET if compromised">

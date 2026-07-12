@@ -10,15 +10,11 @@ description: "Install Openinary with one command, create an admin account, and m
 
 ## Install
 
-Install the `openinary` CLI globally, then scaffold a project. It generates your
+Scaffold a project with a single command, no install required. It generates your
 configuration and starts the docker image for you.
 
 ```bash
-npm i -g create-openinary
-```
-
-```bash
-openinary create
+npx create-openinary
 ```
 
 Follow the prompts to choose full stack vs. API-only and, optionally, S3-compatible
@@ -31,26 +27,28 @@ the containers.
   **http://localhost:3000**.
 </Check>
 
-<Accordion title="Prefer not to install globally?">
+To get the full `openinary` command suite (start, stop, upgrade, …), install the
+CLI globally:
 
-`pnpm create openinary` and `npx create-openinary` both scaffold a project
-without a global install. Manage that project afterwards with the same prefix,
-e.g. `npx create-openinary start` — no global install required.
-
-</Accordion>
+```bash
+npm i -g create-openinary
+```
 
 ## CLI reference
 
-The `openinary` command manages the project you just created:
+With the global install, the `openinary` command manages the project you just created:
 
-| Command | Description |
-|---------|-------------|
-| `openinary create` | Scaffold a new Openinary project |
-| `openinary start` | Start Openinary services |
-| `openinary stop` | Stop services (data preserved) |
-| `openinary restart` | Restart services |
-| `openinary upgrade` | Update to the latest compatible version, syncing env vars and showing the changelog |
-| `openinary reset` | Delete local data (database, uploads, cache) and recreate the instance — destructive, requires confirmation |
+| Command   | Description                                                                                                |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| `create`  | Scaffold a new Openinary project                                                                           |
+| `start`   | Start Openinary services                                                                                   |
+| `stop`    | Stop services (data preserved)                                                                             |
+| `restart` | Restart services                                                                                           |
+| `upgrade` | Update to the latest compatible version, syncing env vars and showing the changelog                        |
+| `reset`   | Delete local data (database, uploads, cache) and recreate the instance, destructive, requires confirmation |
+
+Every command also works without the global install, e.g. `npx create-openinary start`
+or `pnpm create openinary start`.
 
 ## Initial setup (full stack)
 
@@ -183,7 +181,7 @@ For better durability, use [S3-compatible storage](/configuration/storage) inste
   <Card title="Storage" icon="cloud" href="/configuration/storage">
     Connect AWS S3, Cloudflare R2, or any S3-compatible provider.
   </Card>
-  <Card title="Security" icon="lock" href="/security">
-    API key management, rate limiting, and best practices.
+  <Card title="File Uploader" icon="upload" href="/guides/file-uploader">
+    Build a drag-and-drop file uploader with direct-to-storage uploads.
   </Card>
 </CardGroup>

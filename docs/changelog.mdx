@@ -18,13 +18,13 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Anonymous usage telemetry** — Openinary now collects anonymous, non-identifying usage data to help us understand how the project is used and prioritize improvements.
 
-  ## Improvements
+## Improvements
 
   **Faster folder browsing** — The dashboard now loads folder contents on demand instead of fetching your entire storage tree at once, making navigation much faster on large libraries.
 
   **Media grid and bulk actions** — The media grid got a round of polish, including support for selecting and acting on multiple files at once.
 
-  ## Bug fixes
+## Bug fixes
 
   - **`.DS_Store` files ignored on upload** — Folder uploads from macOS no longer fail or clutter your storage because of stray `.DS_Store` files.
   - **Video worker concurrency** — Video processing now correctly detects available memory in containerized environments, avoiding overloaded workers on small instances.
@@ -37,7 +37,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Round corners transformation** — You can now round the corners of any image using the `r` parameter, including full circles and ovals. See the [transform API reference](/api-reference/media/transform#r).
 
-  ## Improvements
+## Improvements
 
   **Parallel video processing** — Video jobs are now processed in parallel up to your configured concurrency limit, speeding up queues with multiple pending videos.
 
@@ -45,7 +45,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Open source help links** — In-app help links now point to GitHub instead of commercial resources.
 
-  ## Bug fixes
+## Bug fixes
 
   - **API key Bearer auth bypass** — Fixed an authentication issue where API key validation could be bypassed via the Bearer header.
   - **Crop and resize combined** — Fixed aspect-ratio cropping being ignored when combined with a resize parameter.
@@ -84,13 +84,13 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Public rate limiting** — Public transformation and download routes are now rate-limited per IP. Configure the window and max requests with `PUBLIC_RATE_LIMIT_MAX` and `PUBLIC_RATE_LIMIT_WINDOW_MS`. See [server configuration](/configuration/server#public-rate-limit-max).
 
-  ## Improvements
+## Improvements
 
   **Folder thumbnails** — Folders in the media grid now display thumbnail previews of their contents.
 
   **Configurable S3/R2 connection settings** — You can now set socket limits, request timeouts, and connection timeouts for S3-compatible storage backends via environment variables. See [storage configuration](/configuration/storage).
 
-  ## Bug fixes
+## Bug fixes
 
   - **Transparency preserved with quality parameter** — Applying a `q` (quality) parameter no longer strips the alpha channel from PNG, WebP, or AVIF images.
   - **Folder names with underscores** — Folder names containing underscores are no longer misidentified as transformation segments in the URL path.
@@ -103,11 +103,11 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Configurable upload file size limit** — Set the `MAX_FILE_SIZE_MB` environment variable to allow larger uploads on self-hosted instances. See [server configuration](/configuration/server#max-file-size-mb).
 
-  ## Improvements
+## Improvements
 
   **Folder thumbnails** — Folders in the media grid now show thumbnail previews of their contents.
 
-  ## Bug fixes
+## Bug fixes
 
   - **Transparency preserved with quality parameter** — Applying a `q` (quality) parameter no longer strips the alpha channel from PNG, WebP, or AVIF images.
   - **Folder names with underscores** — Folder names containing underscores are no longer misidentified as transformation segments in the URL path.
@@ -122,7 +122,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Folder management in the web UI** — Create and delete folders directly from the dashboard, including empty folders on S3 and R2 storage backends.
 
-  ## Bug fixes
+## Bug fixes
 
   - **Image transformation race condition** — Fixed a concurrency issue that could cause intermittent failures when multiple transformations were requested simultaneously.
 </Update>
@@ -138,7 +138,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Multi-architecture Docker images** — Docker images now support both AMD64 and ARM64, so Openinary runs on Raspberry Pi, Apple Silicon, and AWS Graviton without extra steps.
 
-  ## Bug fixes
+## Bug fixes
 
   - **Docker build reliability** — Fixed a missing OpenSSL dependency and a SQLite race condition during table initialization.
   - **API key auth compatibility** — Fixed the `apiKey` table schema for compatibility with newer Better Auth versions.
@@ -160,13 +160,13 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
   **Version endpoint** — A new public `/api/version` endpoint and UI components let you check the running Openinary version.
 
-  ## Improvements
+## Improvements
 
   **Stricter session validation** — Sessions are now revalidated against the database on every request, so deleted users lose access immediately.
 
   **Async auth initialization** — Authentication now initializes asynchronously, improving startup performance.
 
-  ## Bug fixes
+## Bug fixes
 
   - **Loading screen after login** — Fixed a stuck loading screen caused by stale sessions for deleted users.
   - **Setup page 500 error** — Fixed a crash on `/setup` when an admin account already existed.
@@ -175,5 +175,6 @@ description: "New features, improvements, and fixes shipped in Openinary"
 <Update label="December 20, 2025" description="Initial release" tags={["Feature"]}>
   ## Openinary is live
 
-  The first beta release of Openinary: a media transformation API for images and videos, with a web dashboard, API key management, S3-compatible and local storage support, automatic video transcoding via FFmpeg, and Docker support for easy self-hosting.
+The first beta release of Openinary: a media transformation API for images and videos, with a web dashboard, API key management, S3-compatible and local storage support, automatic video transcoding via FFmpeg, and Docker support for easy self-hosting.
+
 </Update>

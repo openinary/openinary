@@ -5,11 +5,11 @@ description: "Set up a local Openinary development environment with Node.js 20, 
 
 ## Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Node.js | ≥ 20.0.0 | `node --version` to check |
-| pnpm | ≥ 9.0.0 | `npm install -g pnpm` to install |
-| FFmpeg | any recent | Required for video processing |
+| Tool    | Version    | Notes                            |
+| ------- | ---------- | -------------------------------- |
+| Node.js | ≥ 20.0.0   | `node --version` to check        |
+| pnpm    | ≥ 9.0.0    | `npm install -g pnpm` to install |
+| FFmpeg  | any recent | Required for video processing    |
 
 <Tabs>
 <Tab title="macOS">
@@ -59,9 +59,9 @@ pnpm dev
 
 This starts both services in parallel:
 
-| Service | URL |
-|---------|-----|
-| API | http://localhost:3000 |
+| Service       | URL                   |
+| ------------- | --------------------- |
+| API           | http://localhost:3000 |
 | Web dashboard | http://localhost:3001 |
 
 To run them independently:
@@ -94,7 +94,11 @@ By default, uploaded files are stored in `apps/api/public/`. To use cloud storag
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  <Card
+    title="Image Transformations"
+    icon="image"
+    href="/media-transformations/image-transformations"
+  >
     Start transforming images with URL parameters.
   </Card>
   <Card title="Project Structure" icon="folder" href="/project-structure">

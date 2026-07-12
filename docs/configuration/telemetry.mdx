@@ -13,10 +13,10 @@ Openinary is self-hosted and the entire codebase is public, so there is no way t
 
 Two events, both with a fixed, whitelisted set of properties. No file names, media content, URLs, user data, or IP addresses are ever included.
 
-| Event | When | Properties |
-|-------|------|------------|
+| Event              | When                                    | Properties                                                                                |
+| ------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `instance_started` | Once, on first ever boot of an instance | `version`, `deployment_mode`, `storage_backend`, `os_platform`, `os_arch`, `node_version` |
-| `daily_heartbeat` | Once every ~24h while the process runs | `version`, `deployment_mode`, `storage_backend`, `video_jobs_bucket` |
+| `daily_heartbeat`  | Once every ~24h while the process runs  | `version`, `deployment_mode`, `storage_backend`, `video_jobs_bucket`                      |
 
 Counts are never sent as raw numbers — they're bucketed into ranges (`0`, `1-10`, `11-100`, `101-1000`, `1000+`).
 

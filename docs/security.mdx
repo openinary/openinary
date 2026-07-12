@@ -11,13 +11,13 @@ All auth data is stored in a single SQLite file at `/data/auth.db` (configurable
 
 On startup, `scripts/secure-db.sh` automatically sets the file permissions to `600` (owner read/write only).
 
-| Table | Contents |
-|-------|----------|
-| `user` | Accounts — passwords bcrypt-hashed |
-| `session` | Web sessions |
-| `apiKey` | API keys — hashed before storage |
-| `account` | OAuth providers |
-| `verification` | Email/phone verification tokens |
+| Table          | Contents                          |
+| -------------- | --------------------------------- |
+| `user`         | Accounts, passwords bcrypt-hashed |
+| `session`      | Web sessions                      |
+| `apiKey`       | API keys, hashed before storage   |
+| `account`      | OAuth providers                   |
+| `verification` | Email/phone verification tokens   |
 
 ## API keys
 
@@ -82,9 +82,7 @@ Go to `/api-keys` in the dashboard and disable or delete the key immediately.
 </Step>
 
 <Step title="Review logs">
-```bash
-docker logs openinary_api | grep "api_key.success"
-```
+  ```bash docker logs openinary_api | grep "api_key.success" ```
 </Step>
 
 <Step title="Issue a replacement">
