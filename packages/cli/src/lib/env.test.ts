@@ -45,7 +45,7 @@ describe("upsertVar", () => {
     const lines = parseEnv(SAMPLE);
     const updated = upsertVar(lines, "IMAGE_TAG", "v0.2.0");
     expect(getVar(updated, "IMAGE_TAG")).toBe("v0.2.0");
-    // still the same number of lines — replaced, not appended
+    // still the same number of lines, replaced, not appended
     expect(updated.length).toBe(lines.length);
   });
 

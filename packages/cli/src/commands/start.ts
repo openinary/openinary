@@ -53,7 +53,7 @@ export async function runStart(options: StartOptions): Promise<void> {
   }
 
   if (options.attach) {
-    hint("Starting in the foreground — press Ctrl+C to stop.");
+    hint("Starting in the foreground, press Ctrl+C to stop.");
     await compose(project.dir, ["--profile", mode, "up"], { stream: true });
     return;
   }

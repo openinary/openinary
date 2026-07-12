@@ -139,7 +139,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow API requests with Bearer token through — API key validation happens in the Hono backend
+  // Allow API requests with Bearer token through, API key validation happens in the Hono backend
   const authHeader = request.headers.get("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const response = NextResponse.next();

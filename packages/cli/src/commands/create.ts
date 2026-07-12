@@ -55,7 +55,7 @@ async function ensureTargetDir(targetDir: string): Promise<void> {
     initialValue: false,
   });
   if (!overwrite) {
-    throw new CLIError("Aborted — target directory is not empty.");
+    throw new CLIError("Aborted, target directory is not empty.");
   }
 }
 

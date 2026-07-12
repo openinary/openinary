@@ -17,7 +17,7 @@ interface MoveToItemProps {
  * to look inside it, "Move here" to pick the level you're browsing). Each
  * level is fetched lazily via the same per-folder listing the main grid
  * uses, instead of eagerly loading every folder path in the bucket up front
- * — which used to make this picker slow (or empty, if it hadn't resolved
+ *, which used to make this picker slow (or empty, if it hadn't resolved
  * yet) on large buckets, and its old nested-hover-submenu tree structure
  * would silently close itself when the pointer moved between deeply nested
  * levels.

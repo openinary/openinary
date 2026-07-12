@@ -28,14 +28,14 @@ export async function runReset(options: ResetOptions): Promise<void> {
   if (!options.force) {
     if (isNonInteractive()) {
       throw new CLIError("Cannot confirm reset in non-interactive mode.", {
-        hint: "Pass --force to skip confirmation (dangerous — use in CI only).",
+        hint: "Pass --force to skip confirmation (dangerous, use in CI only).",
       });
     }
     const typed = await textPrompt({
       message: `Type the project name (${project.config.name}) to confirm`,
     });
     if (typed !== project.config.name) {
-      cancelAndExit("Names didn't match — nothing was deleted.");
+      cancelAndExit("Names didn't match, nothing was deleted.");
     }
   } else {
     warn("--force passed, skipping confirmation.");

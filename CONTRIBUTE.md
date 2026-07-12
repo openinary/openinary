@@ -58,8 +58,8 @@ PRs will be reviewed by maintainers and merged once they meet quality standards 
 The `openinary upgrade` command (in `packages/cli`) fetches `docker.env.example`
 from the target release tag and diffs it against a project's local `.env` to
 detect newly introduced variables. If you add or rename an environment
-variable, please keep changes to this file **additive** — avoid renaming or
-removing existing keys — so upgrades across versions stay reliable.
+variable, please keep changes to this file **additive**, avoid renaming or
+removing existing keys, so upgrades across versions stay reliable.
 
 ---
 

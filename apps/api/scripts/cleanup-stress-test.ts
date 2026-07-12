@@ -10,7 +10,7 @@ import "dotenv/config";
 import { createStorageClient } from "../src/utils/storage/factory";
 
 // Passed to CloudStorage#deleteFolder, which itself scopes deletion to
-// public/<ROOT_FOLDER>/ — never taken from argv so this can't be pointed
+// public/<ROOT_FOLDER>/, never taken from argv so this can't be pointed
 // at an unrelated part of the bucket.
 const ROOT_FOLDER = "stress-test-50k";
 

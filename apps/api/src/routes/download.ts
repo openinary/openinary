@@ -10,7 +10,7 @@ const storage = createStorageClient();
 /**
  * GET /download/:path
  * Serves the original stored file as an attachment (no transformation applied).
- * Public route — consistent with /t/* which is also public.
+ * Public route, consistent with /t/* which is also public.
  */
 download.get("/*", async (c) => {
   const requestPath = c.req.path;

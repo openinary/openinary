@@ -7,7 +7,7 @@ import * as React from "react";
  *
  * Uploads each file to `${baseUrl}/upload` with its own XMLHttpRequest so that
  * progress, retry and abort are tracked per file. Authentication uses a
- * short-lived presigned signature returned by `sign()` — sent as form fields
+ * short-lived presigned signature returned by `sign()`, sent as form fields
  * alongside the file, the same way `POST /upload/sign` on the Openinary API
  * expects it. The browser never holds an API key.
  */
@@ -197,7 +197,7 @@ function uploadViaXhr({
     };
 
     xhr.onerror = () =>
-      reject(new Error("Network error — check the API URL and CORS settings"));
+      reject(new Error("Network error, check the API URL and CORS settings"));
     xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
 
     xhr.send(form);

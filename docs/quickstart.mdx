@@ -52,7 +52,7 @@ or `pnpm create openinary start`.
 
 ## Initial setup (full stack)
 
-1. Open **http://localhost:3000** — you'll be redirected to `/setup`.
+1. Open **http://localhost:3000**, you'll be redirected to `/setup`.
 2. Create your admin account.
 3. Click your profile in the bottom-left of the dashboard → **API Keys** → create your first key.
 
@@ -60,8 +60,8 @@ or `pnpm create openinary start`.
 
 The container ships with two files for testing, available at `/app/apps/api/public/`:
 
-- `example-loan.jpg` — for image transformation tests
-- `example-rahime-gul.mp4` — for video transformation tests
+- `example-loan.jpg`, for image transformation tests
+- `example-rahime-gul.mp4`, for video transformation tests
 
 Try a transformation immediately:
 
@@ -113,7 +113,7 @@ docker run --platform linux/amd64 -d -p 3000:3000 \
 
 <Tab title="API only">
 
-Headless mode — no web dashboard. An API key is auto-generated on first run.
+Headless mode, no web dashboard. An API key is auto-generated on first run.
 
 ```bash
 docker pull openinary/openinary-api:latest
@@ -149,7 +149,7 @@ Prefer running from source? See [Local Development](/local-development).
 </AccordionGroup>
 
 <Warning>
-**Volume persistence** — in production, always mount all three volumes to durable storage. Losing a volume means losing that data.
+**Volume persistence**, in production, always mount all three volumes to durable storage. Losing a volume means losing that data.
 
 | Volume             | Path in container      | Contains                      |
 | ------------------ | ---------------------- | ----------------------------- |

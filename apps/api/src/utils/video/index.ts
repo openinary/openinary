@@ -59,7 +59,7 @@ async function convertWithSharp(
  * - Thumbnail extraction (single frame as image)
  * - Format conversion (mp4, mov, webm, jpg, png, webp, avif, …)
  * - Auto-downscales to 720p max (unless explicit resize specified)
- * - Default compression quality of 60/100 (CRF 31) — optimised for 8K
+ * - Default compression quality of 60/100 (CRF 31), optimised for 8K
  * - Ultra-fast encoding preset with baseline profile for minimal CPU usage
  * - Audio copied without re-encoding
  * - 5-minute timeout protection (accommodates 8K videos)
@@ -67,7 +67,7 @@ async function convertWithSharp(
  * Thumbnail pipeline detail:
  *   1. ffmpeg seeks to tt_N and extracts one JPEG frame (universal support).
  *   2. If the requested format needs sharp (webp, avif, png, gif), the JPEG
- *      buffer is post-processed by sharp — this avoids relying on optional
+ *      buffer is post-processed by sharp, this avoids relying on optional
  *      ffmpeg build flags such as libwebp.
  */
 export const transformVideo = async (
@@ -86,7 +86,7 @@ export const transformVideo = async (
     params.format
   );
 
-  // For thumbnails, always let ffmpeg output JPEG — it is universally supported
+  // For thumbnails, always let ffmpeg output JPEG, it is universally supported
   // regardless of ffmpeg build flags (no libwebp required).
   // We post-process with sharp afterwards if the requested format differs.
   const ffmpegFormat = isThumbnail ? 'jpg' : format;

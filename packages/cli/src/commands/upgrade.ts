@@ -44,7 +44,7 @@ async function syncEnvVars(project: Project, targetTag: string): Promise<void> {
   const currentContent = (await fs.pathExists(envPath)) ? await fs.readFile(envPath, "utf8") : "";
   const templateRaw = await fetchEnvTemplateAtTag(targetTag);
   if (templateRaw === null) {
-    hint("Could not fetch the latest env template — skipping env var sync.");
+    hint("Could not fetch the latest env template, skipping env var sync.");
     return;
   }
 
@@ -77,7 +77,7 @@ export async function runUpgrade(options: UpgradeOptions): Promise<void> {
     : await withSpinner("Checking for updates", () => getLatestRelease());
 
   if (latest.fromFallback) {
-    throw new CLIError("Could not reach GitHub — no changes were made.", {
+    throw new CLIError("Could not reach GitHub, no changes were made.", {
       hint: "Check your network connection and try again.",
     });
   }

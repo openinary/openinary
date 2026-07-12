@@ -8,7 +8,7 @@ export interface LatestRelease {
 /**
  * Resolves the latest published Openinary release tag (e.g. "v0.1.11").
  * Falls back to FALLBACK_VERSION ("latest") when GitHub is unreachable, so
- * scaffolding still works offline — callers should warn when `fromFallback`.
+ * scaffolding still works offline, callers should warn when `fromFallback`.
  */
 export async function getLatestRelease(): Promise<LatestRelease> {
   try {

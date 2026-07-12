@@ -63,18 +63,18 @@ openssl rand -base64 32
 
 <a id="next-public-api-base-url"></a>
 <ParamField path="NEXT_PUBLIC_API_BASE_URL" type="string" default="http://localhost:3000">
-  Public base URL the browser uses to reach the API. Like `BETTER_AUTH_URL`, this defaults to your instance's single public URL — set it once and both point at the same place.
+  Public base URL the browser uses to reach the API. Like `BETTER_AUTH_URL`, this defaults to your instance's single public URL, set it once and both point at the same place.
 
 `http://localhost:3000` · `https://media.example.com`
 
   <Note>
-  In the bundled `full` Docker Compose profile (API + web + nginx behind one port), this is baked in as `/api` at build time since nginx already proxies the API under that path — you don't need to set it yourself. Set it explicitly when the API is reachable at a different origin, e.g. an `api` profile deployment or an external frontend embedding the [File Uploader](/guides/file-uploader).
+  In the bundled `full` Docker Compose profile (API + web + nginx behind one port), this is baked in as `/api` at build time since nginx already proxies the API under that path, you don't need to set it yourself. Set it explicitly when the API is reachable at a different origin, e.g. an `api` profile deployment or an external frontend embedding the [File Uploader](/guides/file-uploader).
   </Note>
 </ParamField>
 
 <a id="cors-origin"></a>
 <ParamField path="CORS_ORIGIN" type="string">
-  Allowed origin when Openinary is called from a separate frontend. Only set this in production — by default `localhost:3001` (Next.js dev) is allowed automatically.
+  Allowed origin when Openinary is called from a separate frontend. Only set this in production, by default `localhost:3001` (Next.js dev) is allowed automatically.
 
 `https://yourapp.com`
 
@@ -113,7 +113,7 @@ openssl rand -hex 32
 `50` (default) · `500` · `2048`
 
   <Note>
-  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment — no image rebuild required.
+  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment, no image rebuild required.
   </Note>
 </ParamField>
 

@@ -122,7 +122,7 @@
 }
 
 /* Sonner toasts default to `left: 0` inside a fixed-width container and rely
-   on that container being centered — fine for full-width toasts, but our
+   on that container being centered, fine for full-width toasts, but our
    pill toasts shrink-to-fit (`w-fit`), so a narrower/wider toast (e.g. a
    promise toast swapping "Uploading..." for "Uploaded 7 file(s)") ends up
    offset instead of staying centered. Center each toast itself instead. */

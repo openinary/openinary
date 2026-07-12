@@ -27,7 +27,7 @@ function auditLog(event: string, data: Record<string, any>) {
 
 /**
  * Verifies API key OR session cookie and attaches user/apiKey info to context.
- * Does not write a response on failure — callers decide how to handle that
+ * Does not write a response on failure, callers decide how to handle that
  * (reject outright, or fall back to another auth mechanism).
  * @returns true if the request is authenticated
  */

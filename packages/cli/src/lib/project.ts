@@ -101,7 +101,7 @@ export async function requireProject(cwd: string): Promise<Project> {
   const candidate = await detectAdoptable(resolvedCwd);
   if (candidate) {
     const shouldAdopt = await confirmPrompt({
-      message: `Found an existing Openinary setup in ${resolvedCwd} — adopt it as a managed project?`,
+      message: `Found an existing Openinary setup in ${resolvedCwd}, adopt it as a managed project?`,
       initialValue: true,
     });
     if (shouldAdopt) {

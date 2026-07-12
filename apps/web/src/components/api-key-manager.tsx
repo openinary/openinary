@@ -208,7 +208,7 @@ export function ApiKeyManager() {
             <X size={14} />
           </button>
           <p className="mb-2 text-xs text-muted-foreground">
-            Copy this key now — it won&apos;t be shown again.
+            Copy this key now, it won&apos;t be shown again.
           </p>
           <CopyInput value={createdKey} />
         </div>

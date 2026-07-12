@@ -12,7 +12,7 @@ import { NextResponse } from "next/server";
  *
  * NOTE: this demo endpoint is intentionally unauthenticated beyond the
  * forwarded session. In a real app, protect it with your own auth and derive
- * `folder` from the authenticated user on the server — never trust a folder
+ * `folder` from the authenticated user on the server, never trust a folder
  * sent by the browser.
  */
 export async function POST(request: Request) {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   // In the combined "fullstack" Docker image, NEXT_PUBLIC_API_BASE_URL is a
   // relative path ("/api", see docker/full.Dockerfile) meant for same-origin
   // BROWSER calls proxied by nginx. For a server-side call, resolve it
-  // against nginx's own loopback address instead — nginx, the API, and this
+  // against nginx's own loopback address instead, nginx, the API, and this
   // Next.js process all run in the same container (spawned together by
   // supervisord). Self-calling the public HTTPS hostname from inside the
   // container doesn't reliably round-trip through the platform's edge TLS

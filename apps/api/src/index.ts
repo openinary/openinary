@@ -82,7 +82,7 @@ app.use("/t", publicRateLimit);
 app.use("/t/*", publicRateLimit);
 app.route("/t", transform);
 
-// Original file download route (public — consistent with /t/)
+// Original file download route (public, consistent with /t/)
 app.use("/download", publicRateLimit);
 app.use("/download/*", publicRateLimit);
 app.route("/download", download);
@@ -106,7 +106,7 @@ app.route("/queue/events", queueEvents);
 // Protected routes - require API key authentication
 // Apply middleware before routing
 // POST /upload accepts either a real API key/session, or a short-lived
-// presigned signature minted by POST /upload/sign — so it gets its own
+// presigned signature minted by POST /upload/sign, so it gets its own
 // auth handling (see presignedOrApiKeyAuth) plus public rate limiting,
 // while the other /upload/* subroutes stay strictly API-key protected.
 app.use("/upload", publicRateLimit);
@@ -120,7 +120,7 @@ app.use("/storage/*", compress());
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
 
-// Bulk ZIP download route (protected — accepts an arbitrary list of paths)
+// Bulk ZIP download route (protected, accepts an arbitrary list of paths)
 app.use("/download-zip", apiKeyAuth);
 app.use("/download-zip/*", apiKeyAuth);
 app.route("/download-zip", downloadZip);

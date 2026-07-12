@@ -36,14 +36,14 @@ pnpm --filter registry type-check    # type-check the source (uses local stubs)
 pnpm --filter registry registry:build # rebuild ../../r from registry.json
 ```
 
-- `src/file-uploader/` — the component (`file-uploader.tsx`) and upload engine
+- `src/file-uploader/`, the component (`file-uploader.tsx`) and upload engine
   hook (`use-file-upload.ts`). Imports use consumer aliases (`@/components/ui/*`,
   `@/lib/utils`) that the shadcn CLI rewrites on install.
-- `src/upload-token/upload-token.ts` — thin client for `POST /upload/sign`
-  (`apps/api/src/routes/upload.ts`). It does not compute any signature itself —
-  Openinary does, via `apps/api/src/utils/upload-signature.ts` — so there is
+- `src/upload-token/upload-token.ts`, thin client for `POST /upload/sign`
+  (`apps/api/src/routes/upload.ts`). It does not compute any signature itself,
+  Openinary does, via `apps/api/src/utils/upload-signature.ts`, so there is
   nothing to keep byte-compatible here.
-- `src/stubs/` — type-check-only stand-ins for the consumer's shadcn components;
+- `src/stubs/`, type-check-only stand-ins for the consumer's shadcn components;
   **not** part of the registry output.
 
-After changing any source file, rebuild and commit `/r` — CI fails if it is stale.
+After changing any source file, rebuild and commit `/r`, CI fails if it is stale.

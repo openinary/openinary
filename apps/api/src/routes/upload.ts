@@ -406,7 +406,7 @@ upload.post("/sign", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    // No JSON body provided — fall back to defaults (root folder)
+    // No JSON body provided, fall back to defaults (root folder)
   }
 
   const folder = typeof body.folder === "string" ? body.folder : "";

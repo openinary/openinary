@@ -7,7 +7,7 @@
       "name": "file-uploader",
       "type": "registry:block",
       "title": "Openinary File Uploader",
-      "description": "Secure drag-and-drop file uploader for self-hosted Openinary instances. Uploads with a short-lived presigned signature from POST /upload/sign — no API key in the browser.",
+      "description": "Secure drag-and-drop file uploader for self-hosted Openinary instances. Uploads with a short-lived presigned signature from POST /upload/sign, no API key in the browser.",
       "author": "Openinary",
       "dependencies": ["lucide-react"],
       "registryDependencies": ["button", "progress"],

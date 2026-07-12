@@ -7,7 +7,7 @@ import logger from "./logger";
  *
  * What this sends and why: see /docs/TELEMETRY.md.
  * - No PII, no file names, no media content, no IPs are collected here.
- * - Every property is bucketed/enumerated — never a raw count or free-text value.
+ * - Every property is bucketed/enumerated, never a raw count or free-text value.
  * - Disable entirely with OPENINARY_TELEMETRY=false.
  *
  * Events are NOT sent directly to PostHog. They go through a small proxy

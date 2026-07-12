@@ -31,7 +31,7 @@ These variables are read by `docker-compose.yml` to set resource constraints on 
 `4G` (default) · `8G` (video-heavy) · `2G` (minimal)
 
   <Warning>
-  If the container exceeds this limit it will be OOM-killed. Video processing is memory-intensive — allocate at least 2 GB, 4 GB recommended.
+  If the container exceeds this limit it will be OOM-killed. Video processing is memory-intensive, allocate at least 2 GB, 4 GB recommended.
   </Warning>
 </ParamField>
 
@@ -85,7 +85,7 @@ DOCKER_CPU_RESERVATION=0.25
 DOCKER_MEMORY_RESERVATION=512M
 ```
 
-Image-only deployments only — video processing will fail with less than 2 GB.
+Image-only deployments only, video processing will fail with less than 2 GB.
 
 </Tab>
 </Tabs>

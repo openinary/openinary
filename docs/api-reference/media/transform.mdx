@@ -93,7 +93,7 @@ GET /t/{transformations}/{path}
 
 <a id="a"></a>
 <ParamField path="a" type="string | number">
-  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format — orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0–360) for a fixed angle.
+  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format, orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0–360) for a fixed angle.
 
 `a_auto` · `a_90` · `a_180`
 
@@ -259,7 +259,7 @@ Square crop then circular mask. Use `f_png` or `f_webp` to preserve the alpha ch
 GET /t/w_600,h_400,c_fill,r_16,b_rgb:ffffff/photo.jpg
 ```
 
-Uniform 16 px radius with white corners — safe to serve as JPEG on a white page.
+Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
 
 </Accordion>
 </AccordionGroup>
@@ -327,7 +327,7 @@ Uniform 16 px radius with white corners — safe to serve as JPEG on a white pag
 
 <a id="t-video"></a>
 <ParamField path="t" type="boolean" default="false">
-  Extracts a single frame as an image thumbnail instead of transcoding the video. When enabled, the output is an image format (`jpg`, `png`, `webp`, etc. — set via `f`) rather than a video.
+  Extracts a single frame as an image thumbnail instead of transcoding the video. When enabled, the output is an image format (`jpg`, `png`, `webp`, etc., set via `f`) rather than a video.
 
 `t_true`
 
@@ -343,7 +343,7 @@ Uniform 16 px radius with white corners — safe to serve as JPEG on a white pag
 
 <a id="q-video"></a>
 <ParamField path="q" type="integer" default="75">
-  Video quality via <Tooltip tip="Constant Rate Factor — lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100.
+  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100.
 
 | `q` value | CRF | Notes                         |
 | --------- | --- | ----------------------------- |
@@ -461,7 +461,7 @@ GET /t/w_1920,h_1080,q_95/presentation.mp4
 
 **Input:** MP4 (H.264/H.265), MOV, WebM (VP8/VP9)
 
-**Output:** MP4 (H.264) — standardized for maximum device and browser compatibility
+**Output:** MP4 (H.264), standardized for maximum device and browser compatibility
 
 ---
 

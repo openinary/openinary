@@ -3,13 +3,13 @@ title: "Upload & Cache Warming"
 description: "Upload images and videos via the API and pre-generate transformed variants so the first public request is served instantly from cache."
 ---
 
-`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately — so the first user request is served from cache instead of triggering on-demand processing.
+`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately, so the first user request is served from cache instead of triggering on-demand processing.
 
-For the full endpoint reference — all parameters, form fields, and response schema — see the [Upload Files API reference](/api-reference/files/upload).
+For the full endpoint reference, all parameters, form fields, and response schema, see the [Upload Files API reference](/api-reference/files/upload).
 
 ## Upload video with queued transformations
 
-Video transformations run in a background queue — they don't block the upload response.
+Video transformations run in a background queue, they don't block the upload response.
 
 ```bash
 curl -X POST "http://localhost:3000/upload" \
@@ -128,11 +128,11 @@ console.log(data);
 ## Limits
 
 - Max **20 transformations** per upload request.
-- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb) — useful for large video uploads in self-hosted setups.
+- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb), useful for large video uploads in self-hosted setups.
 
 ## Tips
 
-- Prewarm only the variants you actually serve — don't prewarm speculatively.
+- Prewarm only the variants you actually serve, don't prewarm speculatively.
 - Use consistent transformation strings across your frontend and backend to maximize cache hits.
 - For video, monitor the queue via `GET /queue/stats` during high-volume ingestion.
 

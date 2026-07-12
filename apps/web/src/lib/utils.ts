@@ -13,7 +13,7 @@ export function isMac(): boolean {
  * Resolve a possibly-relative media/transform URL to an absolute URL.
  *
  * In same-origin deployments (Docker/nginx) the transform base URL is empty,
- * so URLs like "/t/blank.png" are origin-relative — fine for the browser to
+ * so URLs like "/t/blank.png" are origin-relative, fine for the browser to
  * load, but useless when copied or shared. `new URL` leaves already-absolute
  * URLs untouched and resolves relative ones against the current origin.
  */

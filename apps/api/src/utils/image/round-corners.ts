@@ -82,7 +82,7 @@ function buildMaskSvg(width: number, height: number, radiusSpec: string): string
 /**
  * Apply rounded corners to a Sharp image using an SVG alpha mask.
  *
- * Without a background: corners become transparent — use a format that
+ * Without a background: corners become transparent, use a format that
  * preserves alpha (PNG, WebP, AVIF). JPEG will bake transparency onto black.
  *
  * With a background color: corners are filled with that color instead of

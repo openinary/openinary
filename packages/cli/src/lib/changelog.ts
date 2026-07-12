@@ -54,5 +54,5 @@ export function renderChangelog(sections: ChangelogSection[], maxLines = 30): st
   const allLines = joined.split("\n");
   if (allLines.length <= maxLines) return joined;
 
-  return `${allLines.slice(0, maxLines).join("\n")}\n… (truncated — full changelog: https://github.com/${REPO}/blob/main/CHANGELOG.md)`;
+  return `${allLines.slice(0, maxLines).join("\n")}\n… (truncated, full changelog: https://github.com/${REPO}/blob/main/CHANGELOG.md)`;
 }
