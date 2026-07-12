@@ -1,9 +1,20 @@
 import path from "node:path";
 import { Command } from "commander";
 import fs from "fs-extra";
-import { compose, composeLogs, findApiKeyInLogs, isHealthy, preflight, waitForHealthy } from "../lib/docker.js";
+import {
+  compose,
+  composeLogs,
+  findApiKeyInLogs,
+  isHealthy,
+  preflight,
+  waitForHealthy,
+} from "../lib/docker.js";
 import { getVar, parseEnv, serializeEnv, upsertVar } from "../lib/env.js";
-import { requireProject, type Project, type ProjectMode } from "../lib/project.js";
+import {
+  requireProject,
+  type Project,
+  type ProjectMode,
+} from "../lib/project.js";
 import { DEFAULT_PORT } from "../utils/constants.js";
 import { CLIError } from "../utils/errors.js";
 import { fail, hint, pc, success, withSpinner } from "../utils/logger.js";
@@ -17,9 +28,14 @@ export interface StartOptions {
   cwd?: string;
 }
 
-async function resolvePort(project: Project, overridePort?: number): Promise<number> {
+async function resolvePort(
+  project: Project,
+  overridePort?: number,
+): Promise<number> {
   const envPath = path.join(project.dir, ".env");
-  const content = (await fs.pathExists(envPath)) ? await fs.readFile(envPath, "utf8") : "";
+  const content = (await fs.pathExists(envPath))
+    ? await fs.readFile(envPath, "utf8")
+    : "";
   const lines = parseEnv(content);
 
   if (overridePort === undefined) {
@@ -49,7 +65,9 @@ export async function runStart(options: StartOptions): Promise<void> {
   }
 
   if (options.pull) {
-    await withSpinner("Pulling latest images", () => compose(project.dir, ["--profile", mode, "pull"]));
+    await withSpinner("Pulling latest images", () =>
+      compose(project.dir, ["--profile", mode, "pull"]),
+    );
   }
 
   if (options.attach) {
@@ -58,10 +76,14 @@ export async function runStart(options: StartOptions): Promise<void> {
     return;
   }
 
-  await withSpinner("Starting services", () => compose(project.dir, ["--profile", mode, "up", "-d"]));
+  await withSpinner("Starting services", () =>
+    compose(project.dir, ["--profile", mode, "up", "-d"]),
+  );
 
   try {
-    await withSpinner("Waiting for services to become healthy", () => waitForHealthy(port));
+    await withSpinner("Waiting for services to become healthy", () =>
+      waitForHealthy(port),
+    );
   } catch (err) {
     const logs = await composeLogs(project.dir, { tail: 50 });
     if (logs) noteBlock(logs, "docker compose logs --tail 50");

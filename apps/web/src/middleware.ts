@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Public routes that don't require authentication
-const publicPaths = ["/login", "/setup", "/api/auth", "/api/check-setup", "/api/version"];
+const publicPaths = [
+  "/login",
+  "/setup",
+  "/api/auth",
+  "/api/check-setup",
+  "/api/version",
+];
 
 function isPublicPath(pathname: string): boolean {
   return publicPaths.some((path) => pathname.startsWith(path));
@@ -18,16 +24,16 @@ function isValidSessionTokenFormat(token: string): boolean {
   if (!token || token.length < 10 || token.length > 500) {
     return false;
   }
-  
+
   // More permissive pattern - allow base64 and base64url characters
   // This includes: A-Z, a-z, 0-9, -, _, =, ., ~, /, and + (base64 standard)
   const validTokenPattern = /^[A-Za-z0-9\-_=./~+]+$/;
   const isValid = validTokenPattern.test(token);
-  
+
   if (!isValid) {
     return false;
   }
-  
+
   return isValid;
 }
 
@@ -36,7 +42,7 @@ function isValidSessionTokenFormat(token: string): boolean {
  * Uses lightweight validation - full validation happens in API routes
  * This prevents middleware loops while maintaining security
  */
-async function isAuthenticated(request: NextRequest): Promise<boolean> {  
+async function isAuthenticated(request: NextRequest): Promise<boolean> {
   // Get the session cookie
   // Better Auth adds __Secure- prefix when using HTTPS (detected via trustHost)
   // Try both the secure and non-secure cookie names for compatibility
@@ -44,23 +50,23 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
   if (!sessionCookie) {
     sessionCookie = request.cookies.get("better-auth.session_token");
   }
-  
+
   if (!sessionCookie?.value) {
     return false;
   }
-  
+
   // Security: Validate token format before allowing access
   // This prevents obviously invalid tokens from passing through
   if (!isValidSessionTokenFormat(sessionCookie.value)) {
     return false;
   }
-  
+
   // Note: Full session validation happens in API routes via Better Auth
   // The middleware only performs basic format validation to avoid:
   // 1. Infinite loops from middleware calling middleware
   // 2. Performance issues from HTTP calls in middleware
   // 3. Edge Runtime limitations with database access
-  
+
   // If cookie format is valid, allow through - Better Auth will validate in API routes
   // This is a trade-off: we rely on Better Auth's validation in protected API routes
   return true;
@@ -84,13 +90,17 @@ function getAllowedOrigin(): string {
  * This runs at request time, reading env vars from the deployed container
  */
 function addCorsHeaders(
-  response: NextResponse, 
-  allowedOrigin: string, 
+  response: NextResponse,
+  allowedOrigin: string,
   requestOrigin?: string | null,
-  pathname?: string
+  pathname?: string,
 ): NextResponse {
   // Log CORS mismatches in production for debugging
-  if (process.env.NODE_ENV === "production" && requestOrigin && requestOrigin !== allowedOrigin) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    requestOrigin &&
+    requestOrigin !== allowedOrigin
+  ) {
     console.warn("[Middleware CORS] Origin mismatch", {
       requestOrigin,
       allowedOrigin,
@@ -98,13 +108,16 @@ function addCorsHeaders(
       betterAuthUrl: process.env.BETTER_AUTH_URL,
     });
   }
-  
+
   response.headers.set("Access-Control-Allow-Credentials", "true");
   response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
-  response.headers.set("Access-Control-Allow-Methods", "GET,DELETE,PATCH,POST,PUT,OPTIONS");
+  response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET,DELETE,PATCH,POST,PUT,OPTIONS",
+  );
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization",
   );
   return response;
 }
@@ -117,7 +130,12 @@ export async function middleware(request: NextRequest) {
   // Handle CORS preflight requests for API routes
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const preflightResponse = NextResponse.json({}, { status: 200 });
-    return addCorsHeaders(preflightResponse, allowedOrigin, requestOrigin, pathname);
+    return addCorsHeaders(
+      preflightResponse,
+      allowedOrigin,
+      requestOrigin,
+      pathname,
+    );
   }
 
   // Allow access to public paths
@@ -176,4 +194,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
-

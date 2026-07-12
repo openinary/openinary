@@ -34,7 +34,7 @@ function bucketCount(n: number): CountBucket {
 
 function ensureTelemetryTable() {
   db.exec(
-    `CREATE TABLE IF NOT EXISTS _telemetry_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`
+    `CREATE TABLE IF NOT EXISTS _telemetry_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
   );
 }
 
@@ -47,7 +47,7 @@ function getConfig(key: string): string | undefined {
 
 function setConfig(key: string, value: string) {
   db.prepare(
-    "INSERT INTO _telemetry_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    "INSERT INTO _telemetry_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
   ).run(key, value);
 }
 
@@ -182,14 +182,20 @@ export function initTelemetry() {
   // Send a heartbeat if the last one is missing or older than the interval,
   // then keep sending on a jittered daily interval for as long as the process runs.
   const lastHeartbeatAt = Number(getConfig("last_heartbeat_at") || 0);
-  const dueIn = Math.max(0, HEARTBEAT_INTERVAL_MS - (Date.now() - lastHeartbeatAt));
+  const dueIn = Math.max(
+    0,
+    HEARTBEAT_INTERVAL_MS - (Date.now() - lastHeartbeatAt),
+  );
   const jitter = Math.floor(Math.random() * HEARTBEAT_JITTER_MS);
 
   setTimeout(() => {
     sendHeartbeat(instanceId);
-    setInterval(() => {
-      sendHeartbeat(instanceId);
-    }, HEARTBEAT_INTERVAL_MS + Math.floor(Math.random() * HEARTBEAT_JITTER_MS)).unref();
+    setInterval(
+      () => {
+        sendHeartbeat(instanceId);
+      },
+      HEARTBEAT_INTERVAL_MS + Math.floor(Math.random() * HEARTBEAT_JITTER_MS),
+    ).unref();
   }, dueIn + jitter).unref();
 
   logger.info({ instanceId }, "Telemetry initialized");

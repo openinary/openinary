@@ -76,7 +76,10 @@ download.get("/*", async (c) => {
     const contentType = contentTypeMap[ext] ?? "application/octet-stream";
 
     c.header("Content-Type", contentType);
-    c.header("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+    c.header(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(filename)}"`,
+    );
     c.header("Content-Length", buffer.length.toString());
     c.header("Cache-Control", "private, no-store");
     return c.body(new Uint8Array(buffer));

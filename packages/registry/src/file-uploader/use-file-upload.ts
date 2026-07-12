@@ -309,8 +309,15 @@ export function useFileUpload(options: UseFileUploadOptions) {
   }, []);
 
   const uploadOne = React.useCallback(
-    async (fileState: FileUploadState, signed: SignedUpload): Promise<UploadedFile | null> => {
-      updateFile(fileState.id, { status: "uploading", progress: 0, error: undefined });
+    async (
+      fileState: FileUploadState,
+      signed: SignedUpload,
+    ): Promise<UploadedFile | null> => {
+      updateFile(fileState.id, {
+        status: "uploading",
+        progress: 0,
+        error: undefined,
+      });
       try {
         const result = await uploadViaXhr({
           file: fileState,
@@ -345,7 +352,10 @@ export function useFileUpload(options: UseFileUploadOptions) {
   );
 
   const runQueue = React.useCallback(
-    async (queue: FileUploadState[], signed: SignedUpload): Promise<UploadedFile[]> => {
+    async (
+      queue: FileUploadState[],
+      signed: SignedUpload,
+    ): Promise<UploadedFile[]> => {
       const limit = Math.max(1, concurrency);
       const results: UploadedFile[] = [];
       let cursor = 0;

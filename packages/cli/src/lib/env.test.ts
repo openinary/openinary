@@ -70,7 +70,9 @@ MAX_FILE_SIZE_MB=50
   });
 
   it("returns nothing missing once all template keys are present", () => {
-    const current = parseEnv("IMAGE_TAG=v0.1.0\nBETTER_AUTH_SECRET=abc\nMAX_FILE_SIZE_MB=50\n");
+    const current = parseEnv(
+      "IMAGE_TAG=v0.1.0\nBETTER_AUTH_SECRET=abc\nMAX_FILE_SIZE_MB=50\n",
+    );
     expect(diffMissingKeys(current, template)).toEqual([]);
   });
 

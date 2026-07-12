@@ -5,10 +5,10 @@ JSON in [`/r`](../../r) is published to `https://openinary.dev/r/{name}.json`.
 
 ## Items
 
-| Item                       | Type            | Installs to                        |
-| -------------------------- | --------------- | ---------------------------------- |
-| `@openinary/file-uploader` | registry:block  | `components/openinary/` + hook      |
-| `@openinary/upload-token`  | registry:lib    | `lib/upload-token.ts` (server)      |
+| Item                       | Type           | Installs to                    |
+| -------------------------- | -------------- | ------------------------------ |
+| `@openinary/file-uploader` | registry:block | `components/openinary/` + hook |
+| `@openinary/upload-token`  | registry:lib   | `lib/upload-token.ts` (server) |
 
 ## Consumer usage
 

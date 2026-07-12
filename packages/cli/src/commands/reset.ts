@@ -3,7 +3,12 @@ import { compose, preflight, waitForHealthy } from "../lib/docker.js";
 import { getProjectPort, requireProject } from "../lib/project.js";
 import { CLIError } from "../utils/errors.js";
 import { fail, hint, pc, success, warn, withSpinner } from "../utils/logger.js";
-import { cancelAndExit, isNonInteractive, note, textPrompt } from "../utils/prompts.js";
+import {
+  cancelAndExit,
+  isNonInteractive,
+  note,
+  textPrompt,
+} from "../utils/prompts.js";
 
 export interface ResetOptions {
   force?: boolean;
@@ -22,7 +27,7 @@ export async function runReset(options: ResetOptions): Promise<void> {
       "",
       "Everything will then be recreated from scratch.",
     ].join("\n"),
-    pc.red("Danger zone")
+    pc.red("Danger zone"),
   );
 
   if (!options.force) {
@@ -43,14 +48,16 @@ export async function runReset(options: ResetOptions): Promise<void> {
 
   await withSpinner("Checking Docker", () => preflight());
   await withSpinner("Deleting data", () =>
-    compose(project.dir, ["--profile", project.config.mode, "down", "-v"])
+    compose(project.dir, ["--profile", project.config.mode, "down", "-v"]),
   );
   await withSpinner("Recreating services", () =>
-    compose(project.dir, ["--profile", project.config.mode, "up", "-d"])
+    compose(project.dir, ["--profile", project.config.mode, "up", "-d"]),
   );
 
   const port = await getProjectPort(project);
-  await withSpinner("Waiting for services to become healthy", () => waitForHealthy(port));
+  await withSpinner("Waiting for services to become healthy", () =>
+    waitForHealthy(port),
+  );
 
   success("Fresh instance ready");
   hint(`Visit http://localhost:${port}/setup to recreate your admin account.`);
@@ -59,7 +66,10 @@ export async function runReset(options: ResetOptions): Promise<void> {
 export function buildResetCommand(): Command {
   return new Command("reset")
     .description("Delete all local data and recreate the instance from scratch")
-    .option("--force", "Skip the confirmation prompt (dangerous — use in CI only)")
+    .option(
+      "--force",
+      "Skip the confirmation prompt (dangerous, use in CI only)",
+    )
     .action(async (opts, command) => {
       const globals = command.optsWithGlobals();
       try {

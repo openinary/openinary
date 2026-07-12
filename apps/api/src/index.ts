@@ -24,7 +24,10 @@ import { validateApiSecret } from "./utils/signature";
 try {
   validateApiSecret(process.env.API_SECRET);
 } catch (error) {
-  logger.error({ error: serializeError(error) }, "API_SECRET validation failed at startup");
+  logger.error(
+    { error: serializeError(error) },
+    "API_SECRET validation failed at startup",
+  );
   // For now, we only log the error to allow the app to start
   // The authenticated route will return 500 errors if API_SECRET is missing
   // In production, you may want to throw the error to prevent startup
@@ -58,14 +61,16 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
     credentials: true, // Important: allow cookies
     exposeHeaders: ["Set-Cookie"],
-  })
+  }),
 );
 
 // Public routes (no authentication required)
 // Rate limiting is applied to these routes only (protected routes have their own rate limiting via better-auth)
 
 // Root endpoint
-app.get("/", publicRateLimit, (c) => c.text("Openinary API Server is running."));
+app.get("/", publicRateLimit, (c) =>
+  c.text("Openinary API Server is running."),
+);
 
 // Health check routes
 app.use("/health", publicRateLimit);

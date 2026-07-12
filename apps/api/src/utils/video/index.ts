@@ -1,28 +1,32 @@
-import { mkdtemp } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { randomUUID } from 'crypto';
-import type { VideoTransformParams } from 'shared';
-import { determineOutputFormat, IMAGE_FORMATS, normalizeFormat } from './format';
-import { applyThumbnailExtraction } from './thumbnail';
-import { applyTrimming } from './trim';
-import { applyAutoDownscale } from './auto-downscale';
-import { applyResize } from './resize';
-import { applyQuality } from './quality';
-import { VideoCommandBuilder } from './command-builder';
-import type { VideoContext } from './types';
+import { mkdtemp } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
+import { randomUUID } from "crypto";
+import type { VideoTransformParams } from "shared";
+import {
+  determineOutputFormat,
+  IMAGE_FORMATS,
+  normalizeFormat,
+} from "./format";
+import { applyThumbnailExtraction } from "./thumbnail";
+import { applyTrimming } from "./trim";
+import { applyAutoDownscale } from "./auto-downscale";
+import { applyResize } from "./resize";
+import { applyQuality } from "./quality";
+import { VideoCommandBuilder } from "./command-builder";
+import type { VideoContext } from "./types";
 
 // Re-export types for backward compatibility
-export * from './types';
-export * from './param-registry';
-export * from './video-info';
+export * from "./types";
+export * from "./param-registry";
+export * from "./video-info";
 
 /**
  * Image formats that ffmpeg cannot encode natively in all builds.
  * For these we extract a JPEG frame via ffmpeg, then convert with sharp.
  * This decouples thumbnail quality from ffmpeg's build flags (e.g. libwebp).
  */
-const SHARP_CONVERTED_FORMATS = new Set(['webp', 'avif', 'png', 'gif']);
+const SHARP_CONVERTED_FORMATS = new Set(["webp", "avif", "png", "gif"]);
 
 /**
  * Convert an image buffer to the target format using sharp.
@@ -31,19 +35,19 @@ const SHARP_CONVERTED_FORMATS = new Set(['webp', 'avif', 'png', 'gif']);
 async function convertWithSharp(
   buffer: Buffer,
   targetFormat: string,
-  quality?: number
+  quality?: number,
 ): Promise<Buffer> {
-  const sharp = (await import('sharp')).default;
+  const sharp = (await import("sharp")).default;
   const q = quality !== undefined ? Math.round(quality) : 80;
 
   switch (targetFormat) {
-    case 'webp':
+    case "webp":
       return sharp(buffer).webp({ quality: q }).toBuffer();
-    case 'avif':
+    case "avif":
       return sharp(buffer).avif({ quality: q }).toBuffer();
-    case 'png':
+    case "png":
       return sharp(buffer).png().toBuffer();
-    case 'gif':
+    case "gif":
       // sharp doesn't encode animated GIF well; best effort single frame
       return sharp(buffer).gif().toBuffer();
     default:
@@ -72,24 +76,24 @@ async function convertWithSharp(
  */
 export const transformVideo = async (
   inputPath: string,
-  params: VideoTransformParams
+  params: VideoTransformParams,
 ): Promise<Buffer> => {
   // Create temporary directory for output
-  const tmpDir = await mkdtemp(join(tmpdir(), 'video-'));
+  const tmpDir = await mkdtemp(join(tmpdir(), "video-"));
 
   // Get source file extension
-  const sourceExt = inputPath.split('.').pop()?.toLowerCase();
+  const sourceExt = inputPath.split(".").pop()?.toLowerCase();
 
   // Determine output format and flags
   const { format, isImageOutput, isThumbnail } = determineOutputFormat(
     sourceExt,
-    params.format
+    params.format,
   );
 
   // For thumbnails, always let ffmpeg output JPEG, it is universally supported
   // regardless of ffmpeg build flags (no libwebp required).
   // We post-process with sharp afterwards if the requested format differs.
-  const ffmpegFormat = isThumbnail ? 'jpg' : format;
+  const ffmpegFormat = isThumbnail ? "jpg" : format;
   const needsSharpConversion =
     isThumbnail &&
     IMAGE_FORMATS.has(normalizeFormat(format)) &&
@@ -118,7 +122,7 @@ export const transformVideo = async (
       applyTrimming,
       applyAutoDownscale,
       applyResize,
-      applyQuality
+      applyQuality,
     )
     .execute();
 
@@ -126,11 +130,15 @@ export const transformVideo = async (
   if (needsSharpConversion) {
     const qualityValue =
       params.quality !== undefined
-        ? typeof params.quality === 'string'
+        ? typeof params.quality === "string"
           ? parseInt(params.quality, 10)
           : params.quality
         : 80;
-    buffer = await convertWithSharp(buffer, normalizeFormat(format), qualityValue);
+    buffer = await convertWithSharp(
+      buffer,
+      normalizeFormat(format),
+      qualityValue,
+    );
   }
 
   return buffer;

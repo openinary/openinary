@@ -79,6 +79,7 @@ To keep Openinary sustainable while staying Open Source, we use an "Open Core" m
 ### Why does Openinary have this?
 
 This CLA allows us to:
+
 - Build a professional managed service without legal friction
 - Fund development and maintenance
 - Keep the core free and open for the community

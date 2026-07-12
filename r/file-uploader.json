@@ -3,14 +3,9 @@
   "name": "file-uploader",
   "title": "Openinary File Uploader",
   "author": "Openinary",
-  "description": "Secure drag-and-drop file uploader for self-hosted Openinary instances. Uploads with a short-lived presigned signature from POST /upload/sign — no API key in the browser.",
-  "dependencies": [
-    "lucide-react"
-  ],
-  "registryDependencies": [
-    "button",
-    "progress"
-  ],
+  "description": "Secure drag-and-drop file uploader for self-hosted Openinary instances. Uploads with a short-lived presigned signature from POST /upload/sign, no API key in the browser.",
+  "dependencies": ["lucide-react"],
+  "registryDependencies": ["button", "progress"],
   "files": [
     {
       "path": "src/file-uploader/file-uploader.tsx",
@@ -29,9 +24,6 @@
     "NEXT_PUBLIC_OPENINARY_URL": "http://localhost:3000"
   },
   "docs": "Set NEXT_PUBLIC_OPENINARY_URL to your Openinary API URL, then create a signing endpoint with @openinary/upload-token. Full guide: https://openinary.dev/docs/guides/file-uploader",
-  "categories": [
-    "media",
-    "upload"
-  ],
+  "categories": ["media", "upload"],
   "type": "registry:block"
 }

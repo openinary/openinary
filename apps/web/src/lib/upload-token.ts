@@ -55,7 +55,9 @@ export async function signUpload(
   }
 
   if (!res.ok || !body?.success) {
-    throw new Error(body?.error ?? `Failed to sign upload (HTTP ${res.status})`);
+    throw new Error(
+      body?.error ?? `Failed to sign upload (HTTP ${res.status})`,
+    );
   }
 
   return {

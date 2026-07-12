@@ -38,8 +38,7 @@ export function MoveToNavigator({
   const parentPath = browsePath.includes("/")
     ? browsePath.slice(0, browsePath.lastIndexOf("/"))
     : "";
-  const currentLabel =
-    browsePath === "" ? "Root" : browsePath.split("/").pop();
+  const currentLabel = browsePath === "" ? "Root" : browsePath.split("/").pop();
 
   return (
     <>

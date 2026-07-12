@@ -1,11 +1,21 @@
 import path from "node:path";
 import { Command } from "commander";
 import fs from "fs-extra";
-import { compose, findApiKeyInLogs, composeLogs, preflight, waitForHealthy } from "../lib/docker.js";
+import {
+  compose,
+  findApiKeyInLogs,
+  composeLogs,
+  preflight,
+  waitForHealthy,
+} from "../lib/docker.js";
 import type { ProjectMode } from "../lib/project.js";
 import { writeProjectConfig } from "../lib/project.js";
 import { generateApiSecret, generateAuthSecret } from "../lib/env.js";
-import { scaffoldFromEmbeddedTemplate, scaffoldFromRemoteTemplate, type StorageChoice } from "../lib/template.js";
+import {
+  scaffoldFromEmbeddedTemplate,
+  scaffoldFromRemoteTemplate,
+  type StorageChoice,
+} from "../lib/template.js";
 import { getLatestRelease } from "../lib/versions.js";
 import { showBanner } from "../utils/banner.js";
 import { DEFAULT_PORT } from "../utils/constants.js";
@@ -35,7 +45,11 @@ async function promptStorage(): Promise<StorageChoice | undefined> {
   const choice = await selectPrompt<StorageChoice>({
     message: "Object storage",
     options: [
-      { value: "local", label: "Local disk", hint: "recommended for getting started" },
+      {
+        value: "local",
+        label: "Local disk",
+        hint: "recommended for getting started",
+      },
       { value: "s3", label: "Use my own bucket", hint: "S3 / R2" },
     ],
     initialValue: "local",
@@ -59,11 +73,19 @@ async function ensureTargetDir(targetDir: string): Promise<void> {
   }
 }
 
-export async function runCreate(dirArg: string | undefined, options: CreateOptions): Promise<void> {
+export async function runCreate(
+  dirArg: string | undefined,
+  options: CreateOptions,
+): Promise<void> {
   showBanner(getCliVersion(import.meta.url));
   introMessage(pc.bold("create-openinary"));
 
-  const projectDir = dirArg ?? (await textPrompt({ message: "Project directory", defaultValue: "openinary" }));
+  const projectDir =
+    dirArg ??
+    (await textPrompt({
+      message: "Project directory",
+      defaultValue: "openinary",
+    }));
   const targetDir = path.resolve(options.cwd ?? process.cwd(), projectDir);
   await ensureTargetDir(targetDir);
 
@@ -83,7 +105,11 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
   const port = options.port ?? DEFAULT_PORT;
 
   const shouldStart =
-    options.start ?? (await confirmPrompt({ message: "Start now with Docker?", initialValue: true }));
+    options.start ??
+    (await confirmPrompt({
+      message: "Start now with Docker?",
+      initialValue: true,
+    }));
 
   let dockerAvailable = true;
   try {
@@ -96,9 +122,13 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
     }
   }
 
-  const release = await withSpinner("Resolving Openinary version", () => getLatestRelease());
+  const release = await withSpinner("Resolving Openinary version", () =>
+    getLatestRelease(),
+  );
   if (release.fromFallback) {
-    warn("Could not reach GitHub — pinning to the \"latest\" Docker tag instead of a specific version.");
+    warn(
+      'Could not reach GitHub, pinning to the "latest" Docker tag instead of a specific version.',
+    );
   }
 
   await withSpinner("Writing project files", async () => {
@@ -127,17 +157,23 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
   });
 
   if (storage === "s3") {
-    warn(`Placeholder S3/R2 credentials were written to ${projectDir}/.env — edit them with your bucket details before starting.`);
+    warn(
+      `Placeholder S3/R2 credentials were written to ${projectDir}/.env, edit them with your bucket details before starting.`,
+    );
   }
 
   if (shouldStart && dockerAvailable) {
     await withSpinner(`Downloading Openinary ${release.version}`, () =>
-      compose(targetDir, ["--profile", mode, "pull"])
+      compose(targetDir, ["--profile", mode, "pull"]),
     );
-    await withSpinner("Starting services", () => compose(targetDir, ["--profile", mode, "up", "-d"]));
+    await withSpinner("Starting services", () =>
+      compose(targetDir, ["--profile", mode, "up", "-d"]),
+    );
 
     try {
-      await withSpinner("Waiting for services to become healthy", () => waitForHealthy(port));
+      await withSpinner("Waiting for services to become healthy", () =>
+        waitForHealthy(port),
+      );
     } catch (err) {
       const logs = await composeLogs(targetDir, { tail: 50 });
       fail(err instanceof Error ? err.message : String(err));
@@ -150,36 +186,53 @@ export async function runCreate(dirArg: string | undefined, options: CreateOptio
     if (mode === "api") {
       const logs = await composeLogs(targetDir, { tail: 100 });
       const apiKey = findApiKeyInLogs(logs);
-      if (apiKey) note(`API Key: ${pc.bold(apiKey)}\n\nSave this now — it will not be shown again.`, "Initial API key");
+      if (apiKey)
+        note(
+          `API Key: ${pc.bold(apiKey)}\n\nSave this now, it will not be shown again.`,
+          "Initial API key",
+        );
     }
 
     success(`Openinary is running at http://localhost:${port}`);
   } else if (!dockerAvailable) {
-    warn(`Files created — start Docker, then run "cd ${projectDir} && openinary start".`);
+    warn(
+      `Files created, start Docker, then run "cd ${projectDir} && openinary start".`,
+    );
   } else {
     hint(`Run "cd ${projectDir} && openinary start" when you're ready.`);
   }
 
   const lines: string[] = [];
   if (!dockerAvailable) {
-    lines.push("Start Docker, then:", "", `cd ${projectDir}`, "openinary start     # start services");
+    lines.push(
+      "Start Docker, then:",
+      "",
+      `cd ${projectDir}`,
+      "openinary start     # start services",
+    );
   } else {
     lines.push(
       `cd ${projectDir}`,
       "openinary start     # start services",
       "openinary stop      # stop services",
-      "openinary upgrade   # update to the latest version"
+      "openinary upgrade   # update to the latest version",
     );
   }
   if (storage === "s3") {
-    lines.push(`Edit .env with your bucket credentials, then run "openinary start" (or restart) to apply them.`);
+    lines.push(
+      `Edit .env with your bucket credentials, then run "openinary start" (or restart) to apply them.`,
+    );
   }
   if (mode === "full") {
-    lines.push(`Visit http://localhost:${port}/setup to create your admin account.`);
+    lines.push(
+      `Visit http://localhost:${port}/setup to create your admin account.`,
+    );
   }
   note(lines.join("\n"), "Next steps");
 
-  outroMessage("Tip: install the CLI globally with \"npm i -g create-openinary\" to get the \"openinary\" command.");
+  outroMessage(
+    'Tip: install the CLI globally with "npm i -g create-openinary" to get the "openinary" command.',
+  );
 }
 
 export function buildCreateCommand(): Command {
@@ -189,7 +242,10 @@ export function buildCreateCommand(): Command {
     .option("--api-only", "Scaffold API-only mode (no web dashboard)")
     .option("--port <port>", "Host port", (v) => Number(v))
     .option("--no-start", "Don't start Docker after scaffolding")
-    .option("--template <source>", "Fetch a template via giget instead of the built-in one")
+    .option(
+      "--template <source>",
+      "Fetch a template via giget instead of the built-in one",
+    )
     .action(async (dir: string | undefined, opts, command) => {
       const globals = command.optsWithGlobals();
       try {

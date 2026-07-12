@@ -26,7 +26,10 @@ export { pc };
  * Runs `fn` behind an ora spinner, printing a ✔/✖ line on completion.
  * Falls back to plain log lines when stdout isn't a TTY (CI logs).
  */
-export async function withSpinner<T>(text: string, fn: () => Promise<T>): Promise<T> {
+export async function withSpinner<T>(
+  text: string,
+  fn: () => Promise<T>,
+): Promise<T> {
   if (!process.stdout.isTTY) {
     console.log(`${pc.cyan("›")} ${text}`);
     try {

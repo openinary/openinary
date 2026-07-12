@@ -135,5 +135,7 @@
 /* Radix Slider positions the thumb via inline left/transform styles on a
    wrapper span we can't reach with className, so animate it here instead. */
 span:has(> [data-slot="slider-thumb"]) {
-  transition: left 150ms ease-out, right 150ms ease-out;
+  transition:
+    left 150ms ease-out,
+    right 150ms ease-out;
 }

@@ -31,7 +31,9 @@ function auditLog(event: string, data: Record<string, any>) {
  * (reject outright, or fall back to another auth mechanism).
  * @returns true if the request is authenticated
  */
-export async function authenticateRequest(c: Context<AuthVariables>): Promise<boolean> {
+export async function authenticateRequest(
+  c: Context<AuthVariables>,
+): Promise<boolean> {
   const authHeader = c.req.header("Authorization");
   const cookieHeader = c.req.header("Cookie");
 
@@ -72,7 +74,10 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
             apiKeyName: result.key.name,
             path: c.req.path,
             method: c.req.method,
-            ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+            ip:
+              c.req.header("x-forwarded-for") ||
+              c.req.header("x-real-ip") ||
+              "unknown",
           });
 
           return true;
@@ -83,7 +88,10 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
             tokenPrefix: token.substring(0, 8) + "...",
             path: c.req.path,
             method: c.req.method,
-            ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+            ip:
+              c.req.header("x-forwarded-for") ||
+              c.req.header("x-real-ip") ||
+              "unknown",
           });
         }
       } catch (error) {
@@ -92,7 +100,10 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
           error: error instanceof Error ? error.message : "unknown",
           path: c.req.path,
           method: c.req.method,
-          ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+          ip:
+            c.req.header("x-forwarded-for") ||
+            c.req.header("x-real-ip") ||
+            "unknown",
         });
       }
     }
@@ -113,8 +124,10 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
         // SECURITY FIX: Verify that the user actually exists in the database
         // Better Auth may return session data from signed cookies without DB validation
         const { db } = await import("shared/auth");
-        const userExists = db.prepare("SELECT id FROM user WHERE id = ?").get(sessionResult.user.id);
-        
+        const userExists = db
+          .prepare("SELECT id FROM user WHERE id = ?")
+          .get(sessionResult.user.id);
+
         if (!userExists) {
           // User was deleted from database - reject the session
           auditLog("auth.session.rejected", {
@@ -122,9 +135,12 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
             userId: sessionResult.user.id,
             path: c.req.path,
             method: c.req.method,
-            ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+            ip:
+              c.req.header("x-forwarded-for") ||
+              c.req.header("x-real-ip") ||
+              "unknown",
           });
-          
+
           // Continue to authentication failure below
         } else {
           // Valid session found AND user exists in DB
@@ -142,7 +158,10 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
             userEmail: sessionResult.user.email,
             path: c.req.path,
             method: c.req.method,
-            ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+            ip:
+              c.req.header("x-forwarded-for") ||
+              c.req.header("x-real-ip") ||
+              "unknown",
           });
 
           return true;
@@ -150,7 +169,10 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
       }
     }
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Session verification error");
+    logger.error(
+      { error: serializeError(error) },
+      "Session verification error",
+    );
   }
 
   // Neither API key nor session is valid
@@ -159,7 +181,8 @@ export async function authenticateRequest(c: Context<AuthVariables>): Promise<bo
     reason: "no_valid_credentials",
     path: c.req.path,
     method: c.req.method,
-    ip: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+    ip:
+      c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
     hasAuthHeader: !!authHeader,
     hasCookie: !!cookieHeader,
   });
@@ -183,8 +206,9 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
   return c.json(
     {
       error: "Authentication required",
-      message: "Please provide a valid API key (Authorization: Bearer <key>) or valid session cookie",
+      message:
+        "Please provide a valid API key (Authorization: Bearer <key>) or valid session cookie",
     },
-    401
+    401,
   );
 }

@@ -16,9 +16,6 @@
     "OPENINARY_API_KEY": ""
   },
   "docs": "Call signUpload(baseUrl, process.env.OPENINARY_API_KEY, { folder, expiresIn }) from a protected backend route. Never expose your API key to the browser.",
-  "categories": [
-    "media",
-    "upload"
-  ],
+  "categories": ["media", "upload"],
   "type": "registry:lib"
 }

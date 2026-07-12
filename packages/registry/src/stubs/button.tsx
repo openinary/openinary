@@ -3,7 +3,13 @@
 import * as React from "react";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "ghost" | "outline" | "secondary" | "destructive" | "link";
+  variant?:
+    | "default"
+    | "ghost"
+    | "outline"
+    | "secondary"
+    | "destructive"
+    | "link";
   size?: "default" | "sm" | "lg" | "icon";
 }
 

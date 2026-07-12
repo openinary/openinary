@@ -3,9 +3,12 @@ import { compareVersions } from "./versions.js";
 
 export async function fetchChangelog(tag: string): Promise<string | null> {
   try {
-    const res = await fetch(`https://raw.githubusercontent.com/${REPO}/${tag}/CHANGELOG.md`, {
-      signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS),
-    });
+    const res = await fetch(
+      `https://raw.githubusercontent.com/${REPO}/${tag}/CHANGELOG.md`,
+      {
+        signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS),
+      },
+    );
     if (!res.ok) return null;
     return await res.text();
   } catch {
@@ -28,21 +31,34 @@ export function parseChangelogSections(content: string): ChangelogSection[] {
     const match = matches[i];
     const start = (match.index ?? 0) + match[0].length;
     const end = matches[i + 1]?.index ?? content.length;
-    sections.push({ version: match[1], body: content.slice(start, end).trim() });
+    sections.push({
+      version: match[1],
+      body: content.slice(start, end).trim(),
+    });
   }
 
   return sections;
 }
 
 /** Sections for versions strictly greater than `from` and up to and including `to`. */
-export function sectionsBetween(content: string, from: string, to: string): ChangelogSection[] {
+export function sectionsBetween(
+  content: string,
+  from: string,
+  to: string,
+): ChangelogSection[] {
   return parseChangelogSections(content).filter((section) => {
     if (!/^\d/.test(section.version)) return false; // skip "Unreleased" etc.
-    return compareVersions(section.version, from) > 0 && compareVersions(section.version, to) <= 0;
+    return (
+      compareVersions(section.version, from) > 0 &&
+      compareVersions(section.version, to) <= 0
+    );
   });
 }
 
-export function renderChangelog(sections: ChangelogSection[], maxLines = 30): string {
+export function renderChangelog(
+  sections: ChangelogSection[],
+  maxLines = 30,
+): string {
   if (sections.length === 0) return "No changes found.";
 
   const lines: string[] = [];
