@@ -5,10 +5,14 @@ import { buildResetCommand } from "./commands/reset.js";
 import { buildStartCommand } from "./commands/start.js";
 import { buildStopCommand } from "./commands/stop.js";
 import { buildUpgradeCommand } from "./commands/upgrade.js";
+import { renderBanner } from "./utils/banner.js";
 import { CLIError } from "./utils/errors.js";
 import { fail, hint } from "./utils/logger.js";
 import { getCliVersion } from "./utils/pkg.js";
 import { setYesMode } from "./utils/prompts.js";
+import { suppressJsonModuleWarning } from "./utils/warnings.js";
+
+suppressJsonModuleWarning();
 
 const program = new Command();
 
@@ -27,6 +31,7 @@ program
   .hook("preAction", (thisCommand) => {
     setYesMode(Boolean(thisCommand.opts().yes));
   })
+  .addHelpText("before", () => renderBanner(getCliVersion(import.meta.url)))
   .action(async (dir: string | undefined, opts) => {
     try {
       await runCreate(dir, { ...opts, cwd: opts.cwd, yes: opts.yes });

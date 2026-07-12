@@ -1,4 +1,3 @@
-import ora from "ora";
 import pc from "picocolors";
 
 export function success(message: string): void {
@@ -40,6 +39,10 @@ export async function withSpinner<T>(text: string, fn: () => Promise<T>): Promis
     }
   }
 
+  // Loaded lazily: ora imports a JSON module, which Node flags with an
+  // ExperimentalWarning during the initial module graph load — deferring the
+  // import lets the entry point's warning filter take effect first.
+  const { default: ora } = await import("ora");
   const spinner = ora(text).start();
   try {
     const result = await fn();

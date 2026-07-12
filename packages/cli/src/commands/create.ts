@@ -7,6 +7,7 @@ import { writeProjectConfig } from "../lib/project.js";
 import { generateApiSecret, generateAuthSecret } from "../lib/env.js";
 import { scaffoldFromEmbeddedTemplate, scaffoldFromRemoteTemplate, type StorageChoice } from "../lib/template.js";
 import { getLatestRelease } from "../lib/versions.js";
+import { showBanner } from "../utils/banner.js";
 import { DEFAULT_PORT } from "../utils/constants.js";
 import { CLIError } from "../utils/errors.js";
 import { fail, hint, pc, success, warn, withSpinner } from "../utils/logger.js";
@@ -59,6 +60,7 @@ async function ensureTargetDir(targetDir: string): Promise<void> {
 }
 
 export async function runCreate(dirArg: string | undefined, options: CreateOptions): Promise<void> {
+  showBanner(getCliVersion(import.meta.url));
   introMessage(pc.bold("create-openinary"));
 
   const projectDir = dirArg ?? (await textPrompt({ message: "Project directory", defaultValue: "openinary" }));
