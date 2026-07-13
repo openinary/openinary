@@ -31,7 +31,7 @@ import {
 type StorageClient = NonNullable<RouteDeps["storage"]>;
 
 export function createStorageRoute(deps: RouteDeps) {
-  const { storage: storageClient } = deps;
+  const { storage: storageClient, queue } = deps;
   const storageRoute = new Hono();
 
   /**
@@ -571,7 +571,11 @@ export function createStorageRoute(deps: RouteDeps) {
 
     try {
       // Use the complete asset deletion function
-      const result = await deleteAssetCompletely(filePath, storageClient);
+      const result = await deleteAssetCompletely(
+        filePath,
+        storageClient,
+        queue.getStore(),
+      );
 
       if (result.success || result.originalFileDeleted) {
         invalidateListingCache();

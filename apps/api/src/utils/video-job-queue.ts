@@ -3,15 +3,11 @@ import { parseParams } from "./parser";
 import { CloudStorage } from "./storage/index";
 import logger from "./logger";
 import { VideoWorker } from "./video/video-worker";
-import {
-  createJob,
-  getJobByFileAndParams,
-  getJobById,
-  getJobStats,
-  cleanupOldJobs,
-  type VideoJob as DBVideoJob,
-  type JobStatus,
-} from "./video/queue-db";
+import type {
+  VideoJob as DBVideoJob,
+  JobStatus,
+  VideoJobStore,
+} from "./video/queue-store";
 import { JOB_CLEANUP_HOURS, TRANSFORMATION_PRIORITY } from "./video/config";
 
 // Re-export types for backward compatibility
@@ -49,12 +45,14 @@ function convertDBJob(dbJob: DBVideoJob): VideoJob {
 export class VideoJobQueue extends EventEmitter {
   private worker: VideoWorker;
   private storage: CloudStorage | null = null;
+  private store: VideoJobStore;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor() {
+  constructor(store: VideoJobStore) {
     super();
-    // Worker will be initialized when storage is set
-    this.worker = new VideoWorker(null);
+    this.store = store;
+    // Worker will be re-created with real storage once initialize() runs
+    this.worker = new VideoWorker(null, store);
 
     // Forward worker events
     this.worker.on("job:created", (job) =>
@@ -79,7 +77,7 @@ export class VideoJobQueue extends EventEmitter {
    */
   initialize(storage: CloudStorage | null): void {
     this.storage = storage;
-    this.worker = new VideoWorker(storage);
+    this.worker = new VideoWorker(storage, this.store);
 
     // Forward worker events
     this.worker.on("job:created", (job) =>
@@ -122,10 +120,10 @@ export class VideoJobQueue extends EventEmitter {
     priority: number = TRANSFORMATION_PRIORITY,
   ): Promise<string> {
     // Create job in database
-    const jobId = createJob(filePath, params, cachePath, priority);
+    const jobId = this.store.createJob(filePath, params, cachePath, priority);
 
     // Emit created event
-    const job = getJobById(jobId);
+    const job = this.store.getJobById(jobId);
     if (job) {
       this.emit("job:created", convertDBJob(job));
     }
@@ -137,7 +135,7 @@ export class VideoJobQueue extends EventEmitter {
    * Get job status
    */
   getJob(jobId: string): VideoJob | null {
-    const dbJob = getJobById(jobId);
+    const dbJob = this.store.getJobById(jobId);
     return dbJob ? convertDBJob(dbJob) : null;
   }
 
@@ -148,7 +146,7 @@ export class VideoJobQueue extends EventEmitter {
     filePath: string,
     params: ReturnType<typeof parseParams>,
   ): VideoJob | null {
-    const dbJob = getJobByFileAndParams(filePath, params);
+    const dbJob = this.store.getJobByFileAndParams(filePath, params);
     return dbJob ? convertDBJob(dbJob) : null;
   }
 
@@ -156,14 +154,22 @@ export class VideoJobQueue extends EventEmitter {
    * Clean up old completed/error jobs
    */
   cleanup(): void {
-    cleanupOldJobs(JOB_CLEANUP_HOURS);
+    this.store.cleanupOldJobs(JOB_CLEANUP_HOURS);
   }
 
   /**
    * Get queue stats
    */
   getStats() {
-    return getJobStats();
+    return this.store.getJobStats();
+  }
+
+  /**
+   * Get the underlying job store (for admin/CRUD operations not exposed
+   * directly by this queue facade, e.g. listing or cancelling jobs).
+   */
+  getStore(): VideoJobStore {
+    return this.store;
   }
 
   /**

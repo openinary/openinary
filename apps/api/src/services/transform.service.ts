@@ -1,11 +1,10 @@
-import { Context } from 'hono';
-import { getCachePath, existsInCache, deleteCachedFiles } from '../utils/cache';
-import { parseParams, isTransformSegment } from '../utils/parser';
-import { CloudStorage } from '../utils/storage/index';
-import { Compression } from '../utils/image/compression';
-import logger, { serializeError } from '../utils/logger';
-import type { VideoJobQueue } from '../utils/video-job-queue';
-import { updateJobStatus } from '../utils/video/queue-db';
+import { Context } from "hono";
+import { getCachePath, existsInCache, deleteCachedFiles } from "../utils/cache";
+import { parseParams, isTransformSegment } from "../utils/parser";
+import { CloudStorage } from "../utils/storage/index";
+import { Compression } from "../utils/image/compression";
+import logger, { serializeError } from "../utils/logger";
+import type { VideoJobQueue } from "../utils/video-job-queue";
 import {
   checkCloudCache,
   checkLocalCache,
@@ -16,8 +15,8 @@ import {
   saveToCaches,
   cleanupTempFile,
   performPeriodicCacheCleanup,
-} from '../routes/transform-helpers';
-import { TRANSFORMATION_PRIORITY } from '../utils/video/config';
+} from "../routes/transform-helpers";
+import { TRANSFORMATION_PRIORITY } from "../utils/video/config";
 
 // Types for the service
 export interface TransformRequest {
@@ -63,15 +62,15 @@ export class TransformService {
 
     try {
       // Parse path and parameters
-      const segments = path.split('/').slice(2); // Remove '/t' prefix
+      const segments = path.split("/").slice(2); // Remove '/t' prefix
       const params = parseParams(path);
 
       // Determine file path segments
       const hasTransform = this.hasTransformSegment(segments);
       const fileSegments = hasTransform ? segments.slice(1) : segments;
-      const filePath = fileSegments.join('/');
+      const filePath = fileSegments.join("/");
       const localPath = `./public/${filePath}`;
-      const ext = filePath.split('.').pop()?.toLowerCase();
+      const ext = filePath.split(".").pop()?.toLowerCase();
 
       // Get effective parameters with format optimization
       const { effectiveParams, cachePath } =
@@ -79,18 +78,18 @@ export class TransformService {
           path,
           params,
           userAgent,
-          acceptHeader
+          acceptHeader,
         );
 
       // Verify original file exists
       const fileCheck = await verifyFileExists(
         this.storage,
         filePath,
-        localPath
+        localPath,
       );
       if (!fileCheck.exists) {
         await this.handleFileNotFound(filePath);
-        throw new Error(fileCheck.error || 'File not found');
+        throw new Error(fileCheck.error || "File not found");
       }
 
       // Check caches
@@ -98,7 +97,7 @@ export class TransformService {
         this.storage,
         filePath,
         effectiveParams,
-        cachePath
+        cachePath,
       );
 
       if (cacheResult.cloudCacheBuffer) {
@@ -106,7 +105,7 @@ export class TransformService {
           cacheResult.cloudCacheBuffer,
           effectiveParams,
           ext,
-          'cloud'
+          "cloud",
         );
       }
 
@@ -115,7 +114,7 @@ export class TransformService {
           cacheResult.localCacheBuffer,
           effectiveParams,
           ext,
-          'local'
+          "local",
         );
       }
 
@@ -127,7 +126,7 @@ export class TransformService {
         effectiveParams,
         cachePath,
         userAgent,
-        acceptHeader
+        acceptHeader,
       );
     } catch (error) {
       return this.handleTransformationError(error, request);
@@ -148,9 +147,9 @@ export class TransformService {
     path: string,
     params: any,
     userAgent?: string,
-    acceptHeader?: string
+    acceptHeader?: string,
   ): Promise<{ effectiveParams: any; cachePath: string }> {
-    const ext = path.split('.').pop()?.toLowerCase();
+    const ext = path.split(".").pop()?.toLowerCase();
     let effectiveParams = { ...params };
     let cachePath = getCachePath(path);
 
@@ -159,14 +158,14 @@ export class TransformService {
       const optimalFormat = this.compression.determineOptimalFormatForCache(
         userAgent,
         acceptHeader,
-        ext
+        ext,
       );
       effectiveParams = { ...params, format: optimalFormat };
 
       // Update cache path to include the optimal format
       const pathWithFormat = path.replace(
         /\/t\/(.*)$/,
-        `/t/format:${optimalFormat}/$1`
+        `/t/format:${optimalFormat}/$1`,
       );
       cachePath = getCachePath(pathWithFormat);
     }
@@ -181,7 +180,7 @@ export class TransformService {
     storage: any,
     filePath: string,
     effectiveParams: any,
-    cachePath: string
+    cachePath: string,
   ): Promise<CacheCheckResult> {
     const result: CacheCheckResult = {
       effectiveParams,
@@ -192,7 +191,7 @@ export class TransformService {
     const cloudCacheBuffer = await checkCloudCache(
       storage,
       filePath,
-      effectiveParams
+      effectiveParams,
     );
     if (cloudCacheBuffer) {
       result.cloudCacheBuffer = cloudCacheBuffer;
@@ -215,22 +214,22 @@ export class TransformService {
     buffer: Buffer,
     effectiveParams: any,
     ext: string | undefined,
-    _cacheType: 'cloud' | 'local'
+    _cacheType: "cloud" | "local",
   ): TransformResult {
     const headers: Record<string, string> = {
-      'Cache-Control': 'public, max-age=31536000, must-revalidate',
+      "Cache-Control": "public, max-age=31536000, must-revalidate",
       ETag: `"${JSON.stringify(effectiveParams)}"`,
-      'Content-Length': buffer.length.toString(),
+      "Content-Length": buffer.length.toString(),
     };
 
     // For videos, add video-specific headers
     if (ext?.match(/mp4|mov|webm/)) {
-      headers['X-Video-Status'] = 'ready';
+      headers["X-Video-Status"] = "ready";
     }
 
     return {
       buffer,
-      contentType: '', // Will be determined by the route handler
+      contentType: "", // Will be determined by the route handler
       headers,
       isProcessing: false,
     };
@@ -246,20 +245,20 @@ export class TransformService {
     effectiveParams: any,
     cachePath: string,
     userAgent?: string,
-    acceptHeader?: string
+    acceptHeader?: string,
   ): Promise<TransformResult> {
     // Video transformations (non-thumbnail) are processed by the background
     // job queue, which downloads its own source copy. Skip prepareSourceFile
     // entirely: downloading the full original here would only delay the
     // response and waste memory/bandwidth.
     const isThumbnailRequest =
-      effectiveParams.thumbnail === 'true' || effectiveParams.thumbnail === '1';
+      effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
     if (ext?.match(/mp4|mov|webm/) && !isThumbnailRequest) {
       return await this.handleVideoJobQueue(
         filePath,
         localPath,
         effectiveParams,
-        cachePath
+        cachePath,
       );
     }
 
@@ -267,7 +266,7 @@ export class TransformService {
     const sourcePath = await prepareSourceFile(
       this.storage,
       filePath,
-      localPath
+      localPath,
     );
     const isTempFile = !!this.storage;
 
@@ -282,7 +281,7 @@ export class TransformService {
           sourcePath,
           effectiveParams,
           userAgent,
-          acceptHeader
+          acceptHeader,
         );
         buffer = result.buffer;
         contentType = result.contentType;
@@ -296,12 +295,12 @@ export class TransformService {
           buffer: result.buffer,
           contentType: result.contentType,
           headers: {
-            'Content-Length': result.buffer.length.toString(),
-            'Cache-Control': 'public, max-age=31536000, must-revalidate',
+            "Content-Length": result.buffer.length.toString(),
+            "Cache-Control": "public, max-age=31536000, must-revalidate",
           },
         };
       } else {
-        throw new Error('Unsupported file type');
+        throw new Error("Unsupported file type");
       }
 
       // Save to caches
@@ -312,7 +311,7 @@ export class TransformService {
           effectiveParams,
           cachePath,
           buffer,
-          contentType
+          contentType,
         );
       }
 
@@ -324,24 +323,24 @@ export class TransformService {
       // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
       // accented characters (e.g. a combining accent has a code point > 255)
       const headers: Record<string, string> = {
-        'Content-Length': buffer.length.toString(),
-        'Cache-Control': 'public, max-age=31536000, must-revalidate',
+        "Content-Length": buffer.length.toString(),
+        "Cache-Control": "public, max-age=31536000, must-revalidate",
         ETag: `"${encodeURIComponent(filePath)}-${JSON.stringify(effectiveParams)}"`,
       };
 
       // Add optimization headers if available
       if (optimizationResult) {
-        headers['X-Original-Size'] = optimizationResult.originalSize.toString();
-        headers['X-Optimized-Size'] =
+        headers["X-Original-Size"] = optimizationResult.originalSize.toString();
+        headers["X-Optimized-Size"] =
           optimizationResult.optimizedSize.toString();
-        headers['X-Compression-Ratio'] =
+        headers["X-Compression-Ratio"] =
           optimizationResult.compressionRatio.toFixed(2);
-        headers['X-Savings-Percent'] = optimizationResult.savings.toFixed(1);
+        headers["X-Savings-Percent"] = optimizationResult.savings.toFixed(1);
       }
 
       // For videos, indicate this is the optimized version
       if (ext?.match(/mp4|mov|webm/)) {
-        headers['X-Video-Status'] = 'ready';
+        headers["X-Video-Status"] = "ready";
       }
 
       return {
@@ -365,7 +364,7 @@ export class TransformService {
     sourcePath: string,
     effectiveParams: any,
     userAgent?: string,
-    acceptHeader?: string
+    acceptHeader?: string,
   ): Promise<{
     buffer: Buffer;
     contentType: string;
@@ -376,7 +375,7 @@ export class TransformService {
       effectiveParams,
       userAgent,
       acceptHeader,
-      this.compression
+      this.compression,
     );
   }
 
@@ -387,7 +386,7 @@ export class TransformService {
     filePath: string,
     localPath: string,
     params: any,
-    cachePath: string
+    cachePath: string,
   ): Promise<TransformResult> {
     // Check if already being processed
     let existingJob = this.queue.getJobByPath(filePath, params);
@@ -396,11 +395,11 @@ export class TransformService {
     if (existingJob) {
       logger.debug(
         { jobId: existingJob.id, status: existingJob.status },
-        'Video job exists'
+        "Video job exists",
       );
 
       // If completed, verify cache actually exists before serving
-      if (existingJob.status === 'completed' && cachePath) {
+      if (existingJob.status === "completed" && cachePath) {
         const localCacheExists = await existsInCache(cachePath);
         const cloudCacheExists = this.storage
           ? await this.storage.exists(filePath, params)
@@ -412,11 +411,11 @@ export class TransformService {
           if (cachedBuffer) {
             return {
               buffer: cachedBuffer,
-              contentType: `video/${filePath.split('.').pop()}`,
+              contentType: `video/${filePath.split(".").pop()}`,
               headers: {
-                'X-Video-Status': 'ready',
-                'Content-Length': cachedBuffer.length.toString(),
-                'Cache-Control': 'public, max-age=31536000, must-revalidate',
+                "X-Video-Status": "ready",
+                "Content-Length": cachedBuffer.length.toString(),
+                "Cache-Control": "public, max-age=31536000, must-revalidate",
               },
             };
           }
@@ -424,16 +423,16 @@ export class TransformService {
           // Job is marked as completed but cache doesn't exist
           logger.warn(
             { jobId: existingJob.id, filePath, cachePath },
-            'Job marked as completed but cache missing - resetting to pending'
+            "Job marked as completed but cache missing - resetting to pending",
           );
           try {
-            updateJobStatus(existingJob.id, 'pending', 0);
+            this.queue.getStore().updateJobStatus(existingJob.id, "pending", 0);
             shouldRequeue = true;
-            existingJob = { ...existingJob, status: 'pending' as const };
+            existingJob = { ...existingJob, status: "pending" as const };
           } catch (error) {
             logger.error(
               { error: serializeError(error), jobId: existingJob.id },
-              'Failed to reset job status'
+              "Failed to reset job status",
             );
             shouldRequeue = true;
           }
@@ -444,8 +443,8 @@ export class TransformService {
     // Add to background processing queue
     if (
       !existingJob ||
-      existingJob.status === 'error' ||
-      existingJob.status === 'pending' ||
+      existingJob.status === "error" ||
+      existingJob.status === "pending" ||
       shouldRequeue
     ) {
       this.queue
@@ -455,10 +454,13 @@ export class TransformService {
           cachePath,
           localPath,
           this.storage,
-          TRANSFORMATION_PRIORITY
+          TRANSFORMATION_PRIORITY,
         )
         .catch((error) => {
-          logger.error({ error: serializeError(error), filePath }, 'Failed to add video job');
+          logger.error(
+            { error: serializeError(error), filePath },
+            "Failed to add video job",
+          );
         });
     }
 
@@ -469,11 +471,11 @@ export class TransformService {
     // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
     // accented characters (e.g. a combining accent has a code point > 255)
     const processingHeaders: Record<string, string> = {
-      'X-Video-Status': 'processing',
-      'X-Original-Video': 'true',
-      'Cache-Control': 'public, max-age=0, must-revalidate',
+      "X-Video-Status": "processing",
+      "X-Original-Video": "true",
+      "Cache-Control": "public, max-age=0, must-revalidate",
       ETag: `"${encodeURIComponent(filePath)}-processing-${Date.now()}"`,
-      Vary: 'Accept',
+      Vary: "Accept",
     };
 
     try {
@@ -481,34 +483,37 @@ export class TransformService {
         const { stream, contentLength } =
           await this.storage.downloadOriginalStream(filePath);
         if (contentLength) {
-          processingHeaders['Content-Length'] = contentLength.toString();
+          processingHeaders["Content-Length"] = contentLength.toString();
         }
 
         return {
           stream,
-          contentType: `video/${filePath.split('.').pop()}`,
+          contentType: `video/${filePath.split(".").pop()}`,
           headers: processingHeaders,
           isProcessing: true,
         };
       }
 
-      const { createReadStream } = await import('fs');
-      const { stat } = await import('fs/promises');
+      const { createReadStream } = await import("fs");
+      const { stat } = await import("fs/promises");
       const stats = await stat(localPath);
-      processingHeaders['Content-Length'] = stats.size.toString();
-      const { Readable } = await import('stream');
+      processingHeaders["Content-Length"] = stats.size.toString();
+      const { Readable } = await import("stream");
 
       return {
         stream: Readable.toWeb(
-          createReadStream(localPath)
+          createReadStream(localPath),
         ) as ReadableStream<Uint8Array>,
-        contentType: `video/${filePath.split('.').pop()}`,
+        contentType: `video/${filePath.split(".").pop()}`,
         headers: processingHeaders,
         isProcessing: true,
       };
     } catch (error) {
-      logger.error({ error: serializeError(error), filePath }, 'Failed to serve original video');
-      throw new Error('Failed to load video');
+      logger.error(
+        { error: serializeError(error), filePath },
+        "Failed to serve original video",
+      );
+      throw new Error("Failed to load video");
     }
   }
 
@@ -519,7 +524,10 @@ export class TransformService {
     try {
       await deleteCachedFiles(filePath);
     } catch (error) {
-      logger.warn({ error: serializeError(error), filePath }, 'Failed to delete cached files');
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Failed to delete cached files",
+      );
     }
   }
 
@@ -528,7 +536,7 @@ export class TransformService {
    */
   private async handleTransformationError(
     error: any,
-    request: TransformRequest
+    request: TransformRequest,
   ): Promise<TransformResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
@@ -536,25 +544,25 @@ export class TransformService {
         error: serializeError(error),
         path: request.path,
       },
-      'Processing error'
+      "Processing error",
     );
 
     // Check if this is a "file not found" error from cloud storage
     const isNotFoundError =
-      errorMessage.includes('NoSuchKey') ||
-      errorMessage.includes('NotFound') ||
-      errorMessage.includes('404') ||
-      errorMessage.includes('does not exist') ||
-      errorMessage.includes('not found');
+      errorMessage.includes("NoSuchKey") ||
+      errorMessage.includes("NotFound") ||
+      errorMessage.includes("404") ||
+      errorMessage.includes("does not exist") ||
+      errorMessage.includes("not found");
 
     if (isNotFoundError && this.storage) {
       // Invalidate cache since the file doesn't exist
-      const pathSegments = request.path.split('/').slice(2);
+      const pathSegments = request.path.split("/").slice(2);
       const hasTransform =
         pathSegments.length > 0 && isTransformSegment(pathSegments[0]);
       const filePath = hasTransform
-        ? pathSegments.slice(1).join('/')
-        : pathSegments.join('/');
+        ? pathSegments.slice(1).join("/")
+        : pathSegments.join("/");
 
       this.storage.invalidateAllCacheEntries(filePath);
 
@@ -564,7 +572,7 @@ export class TransformService {
       } catch (cleanupError) {
         logger.warn(
           { error: serializeError(cleanupError), filePath },
-          'Failed to cleanup cache after not found error'
+          "Failed to cleanup cache after not found error",
         );
       }
     }
@@ -572,13 +580,12 @@ export class TransformService {
     // Return error result (route handler will convert to appropriate HTTP response)
     return {
       buffer: Buffer.from(`Processing failed: ${errorMessage}`),
-      contentType: 'text/plain',
+      contentType: "text/plain",
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-        Pragma: 'no-cache',
-        Expires: '0',
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
       },
     };
   }
 }
-

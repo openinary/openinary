@@ -3,7 +3,7 @@ import path from "path";
 import logger, { serializeError } from "./logger";
 import { CloudStorage } from "./storage/cloud-storage";
 import { deleteCachedFiles } from "./cache";
-import { deleteJobsByFilePath } from "./video/queue-db";
+import type { VideoJobStore } from "./video/queue-store";
 
 export interface DeleteAssetResult {
   success: boolean;
@@ -21,6 +21,7 @@ export interface DeleteAssetResult {
 export async function deleteAssetCompletely(
   filePath: string,
   storage: CloudStorage | null,
+  jobStore: VideoJobStore,
 ): Promise<DeleteAssetResult> {
   const result: DeleteAssetResult = {
     success: false,
@@ -64,7 +65,7 @@ export async function deleteAssetCompletely(
 
     // Step 2: Delete all video jobs associated with this file
     try {
-      result.jobsDeleted = deleteJobsByFilePath(filePath);
+      result.jobsDeleted = jobStore.deleteJobsByFilePath(filePath);
       logger.debug(
         { filePath, count: result.jobsDeleted },
         "Deleted video jobs",
@@ -136,7 +137,7 @@ export async function deleteAssetCompletely(
 
           for (const content of folderContents) {
             const contentPath = path.join(localPath, content.name);
-            await deleteAssetCompletely(contentPath, storage);
+            await deleteAssetCompletely(contentPath, storage, jobStore);
           }
         }
 

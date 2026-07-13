@@ -3,14 +3,7 @@ import { transformVideo } from "./index";
 import { saveToCache } from "../cache";
 import type { CloudStorage } from "../storage/index";
 import logger, { serializeError } from "../logger";
-import {
-  getNextPendingJob,
-  updateJobStatus,
-  countProcessingJobs,
-  retryFailedJob,
-  resetOrphanedProcessingJobs,
-  type VideoJob,
-} from "./queue-db";
+import type { VideoJob, VideoJobStore } from "./queue-store";
 import { MAX_CONCURRENT_JOBS, WORKER_POLL_INTERVAL_MS } from "./config";
 import { contentTypeForFormat, determineOutputFormat } from "./format";
 
@@ -30,11 +23,13 @@ export class VideoWorker extends EventEmitter {
   private maxConcurrent: number;
   private pollInterval: number;
   private storage: CloudStorage | null;
+  private store: VideoJobStore;
   private isAcquiring: boolean = false;
 
-  constructor(storage: CloudStorage | null) {
+  constructor(storage: CloudStorage | null, store: VideoJobStore) {
     super();
     this.storage = storage;
+    this.store = store;
     this.maxConcurrent = MAX_CONCURRENT_JOBS;
     this.pollInterval = WORKER_POLL_INTERVAL_MS;
   }
@@ -53,26 +48,35 @@ export class VideoWorker extends EventEmitter {
         maxConcurrent: this.maxConcurrent,
         pollInterval: this.pollInterval,
       },
-      "Starting video worker"
+      "Starting video worker",
     );
 
     // Reset any orphaned "processing" jobs from previous crashes/restarts
     // These are jobs marked as "processing" but not actually being processed
-    const resetCount = resetOrphanedProcessingJobs();
+    const resetCount = this.store.resetOrphanedProcessingJobs();
     if (resetCount > 0) {
-      logger.info({ resetCount }, "Reset orphaned processing jobs on worker start");
+      logger.info(
+        { resetCount },
+        "Reset orphaned processing jobs on worker start",
+      );
     }
 
     // Start polling for jobs
     this.intervalId = setInterval(() => {
       this.fillAvailableSlots().catch((error) => {
-        logger.error({ error: serializeError(error) }, "Error in worker polling loop");
+        logger.error(
+          { error: serializeError(error) },
+          "Error in worker polling loop",
+        );
       });
     }, this.pollInterval);
 
     // Also process immediately on start
     this.fillAvailableSlots().catch((error) => {
-      logger.error({ error: serializeError(error) }, "Error in initial job processing");
+      logger.error(
+        { error: serializeError(error) },
+        "Error in initial job processing",
+      );
     });
   }
 
@@ -108,17 +112,17 @@ export class VideoWorker extends EventEmitter {
       this.isAcquiring = true;
 
       while (true) {
-        const processingCount = countProcessingJobs();
+        const processingCount = this.store.countProcessingJobs();
         if (processingCount >= this.maxConcurrent) {
           logger.debug(
             { processingCount, maxConcurrent: this.maxConcurrent },
-            "Max concurrent jobs reached, waiting..."
+            "Max concurrent jobs reached, waiting...",
           );
           break;
         }
 
         // Get next pending job (atomically marks it as processing)
-        const job = getNextPendingJob();
+        const job = this.store.getNextPendingJob();
         if (!job) {
           break; // No more pending jobs
         }
@@ -131,14 +135,14 @@ export class VideoWorker extends EventEmitter {
             processingCount: processingCount + 1,
             maxConcurrent: this.maxConcurrent,
           },
-          "Dispatching video job"
+          "Dispatching video job",
         );
 
         // Fire and forget; errors are handled inside processJob
         this.processJob(job).catch((error) => {
           logger.error(
             { error: serializeError(error), jobId: job.id },
-            "Unhandled error in job processing"
+            "Unhandled error in job processing",
           );
         });
       }
@@ -162,18 +166,18 @@ export class VideoWorker extends EventEmitter {
       let sourcePath = `./public/${job.file_path}`;
       if (this.storage) {
         try {
-          const fs = await import('fs/promises');
-          const path = await import('path');
+          const fs = await import("fs/promises");
+          const path = await import("path");
 
           // Download to temp directory
           const buffer = await this.storage.downloadOriginal(job.file_path);
-          const tempDir = './temp';
+          const tempDir = "./temp";
           sourcePath = path.join(tempDir, path.basename(job.file_path));
           await fs.writeFile(sourcePath, buffer);
         } catch (error) {
           logger.error(
             { error: serializeError(error), filePath: job.file_path },
-            "Failed to download source file from cloud storage"
+            "Failed to download source file from cloud storage",
           );
           throw error;
         }
@@ -194,22 +198,30 @@ export class VideoWorker extends EventEmitter {
       }
 
       // Mark as completed
-      updateJobStatus(job.id, "completed", 100);
+      this.store.updateJobStatus(job.id, "completed", 100);
 
       logger.info(
         { jobId: job.id, filePath: job.file_path },
-        "Video job completed successfully"
+        "Video job completed successfully",
       );
 
       // Emit completion event
-      this.emit("job:completed", { ...job, status: "completed", progress: 100 });
+      this.emit("job:completed", {
+        ...job,
+        status: "completed",
+        progress: 100,
+      });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
       logger.error(
-        { error: serializeError(error), jobId: job.id, filePath: job.file_path },
-        "Video job processing failed"
+        {
+          error: serializeError(error),
+          jobId: job.id,
+          filePath: job.file_path,
+        },
+        "Video job processing failed",
       );
 
       // Check if we should retry
@@ -220,16 +232,20 @@ export class VideoWorker extends EventEmitter {
             retryCount: job.retry_count + 1,
             maxRetries: job.max_retries,
           },
-          "Scheduling job for retry"
+          "Scheduling job for retry",
         );
 
         // IMPORTANT: Mark as error first, then retry will reset it to pending
-        updateJobStatus(job.id, "error", job.progress, errorMessage);
-        retryFailedJob(job.id);
+        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        this.store.retryFailedJob(job.id);
       } else {
         // Mark as error if max retries reached
-        updateJobStatus(job.id, "error", job.progress, errorMessage);
-        this.emit("job:error", { ...job, status: "error", error: errorMessage }, error as Error);
+        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        this.emit(
+          "job:error",
+          { ...job, status: "error", error: errorMessage },
+          error as Error,
+        );
       }
     }
   }
@@ -242,8 +258,7 @@ export class VideoWorker extends EventEmitter {
       maxConcurrent: this.maxConcurrent,
       pollInterval: this.pollInterval,
       isRunning: !!this.intervalId,
-      processingCount: countProcessingJobs(),
+      processingCount: this.store.countProcessingJobs(),
     };
   }
 }
-

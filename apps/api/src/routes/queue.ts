@@ -1,18 +1,11 @@
 import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
-import {
-  getRecentJobs,
-  getJobStats,
-  getJobsByStatus,
-  retryFailedJob,
-  cancelJob,
-  deleteJob,
-  type JobStatus,
-} from "../utils/video/queue-db";
+import type { JobStatus } from "../utils/video/queue-store";
 import logger, { serializeError } from "../utils/logger";
 
 export function createQueueRoute(deps: RouteDeps) {
   const { queue: videoJobQueue } = deps;
+  const store = videoJobQueue.getStore();
   const queue = new Hono();
 
   /**
@@ -20,7 +13,7 @@ export function createQueueRoute(deps: RouteDeps) {
    */
   queue.get("/stats", (c) => {
     try {
-      const stats = getJobStats();
+      const stats = store.getJobStats();
       return c.json(stats);
     } catch (error) {
       logger.error(
@@ -46,9 +39,9 @@ export function createQueueRoute(deps: RouteDeps) {
 
       let jobs;
       if (status) {
-        jobs = getJobsByStatus(status, limit);
+        jobs = store.getJobsByStatus(status, limit);
       } else {
-        jobs = getRecentJobs(limit, offset);
+        jobs = store.getRecentJobs(limit, offset);
       }
 
       return c.json({
@@ -74,7 +67,7 @@ export function createQueueRoute(deps: RouteDeps) {
         return c.json({ error: "Job ID is required" }, 400);
       }
 
-      const success = retryFailedJob(jobId);
+      const success = store.retryFailedJob(jobId);
 
       if (!success) {
         return c.json({ error: "Failed to retry job" }, 400);
@@ -99,7 +92,7 @@ export function createQueueRoute(deps: RouteDeps) {
         return c.json({ error: "Job ID is required" }, 400);
       }
 
-      const success = cancelJob(jobId);
+      const success = store.cancelJob(jobId);
 
       if (!success) {
         return c.json({ error: "Failed to cancel job" }, 400);
@@ -124,7 +117,7 @@ export function createQueueRoute(deps: RouteDeps) {
         return c.json({ error: "Job ID is required" }, 400);
       }
 
-      const success = deleteJob(jobId);
+      const success = store.deleteJob(jobId);
 
       if (!success) {
         return c.json({ error: "Failed to delete job" }, 400);
