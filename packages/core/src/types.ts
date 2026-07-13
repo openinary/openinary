@@ -1,0 +1,96 @@
+export type CropMode = "fill" | "fit" | "scale" | "crop" | "pad";
+export type GravityMode =
+  | "center"
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "face"
+  | "auto";
+export type ImageFormat = "avif" | "webp" | "jpeg" | "jpg" | "png";
+export type VideoFormat = "mp4" | "mov" | "webm";
+
+export interface BackgroundColor {
+  r: number;
+  g: number;
+  b: number;
+  alpha: number;
+}
+
+export interface TransformParams {
+  aspect?: string;
+  resize?: string;
+  width?: string;
+  height?: string;
+  crop?: CropMode;
+  gravity?: GravityMode;
+  rotate?: string | number;
+  background?: string;
+  quality?: string | number;
+  format?: ImageFormat;
+  radius?: string; // e.g. "150", "20:80", "20:0:40:60", "max"
+}
+
+export interface VideoTransformParams {
+  format?: VideoFormat | ImageFormat;
+  startOffset?: number;
+  endOffset?: number;
+  resize?: string;
+  width?: string | number;
+  height?: string | number;
+  crop?: CropMode;
+  gravity?: GravityMode;
+  quality?: number;
+  thumbnail?: boolean;
+  thumbnailTime?: number;
+}
+
+export interface StorageConfig {
+  provider?: string; // Optional, for backward compatibility only
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketName: string;
+  endpoint?: string; // Required for non-AWS providers (R2, Minio, etc.)
+  publicUrl?: string; // Public URL of the bucket
+}
+
+/** HTTP client tuning for the storage backend. All fields optional; timeouts of 0/undefined mean "disabled". */
+export interface StorageClientOptions {
+  maxSockets?: number;
+  connectionTimeout?: number;
+  requestTimeout?: number;
+  socketTimeout?: number;
+}
+
+export interface CacheEntry {
+  exists: boolean;
+  timestamp: number;
+  etag?: string;
+}
+
+export interface CacheStats {
+  requests: Map<
+    string,
+    { count: number; lastAccess: number; totalSize: number }
+  >;
+  totalCacheSize: number;
+  maxCacheSize: number;
+}
+
+export interface ImageAnalysis {
+  hasText: boolean;
+  hasSharpEdges: boolean;
+  isPhotographic: boolean;
+  dominantColors: number;
+  complexity: number;
+}
+
+export interface OptimizationResult {
+  buffer: Buffer;
+  format: string;
+  originalSize: number;
+  optimizedSize: number;
+  savings: number;
+  compressionRatio: number;
+}

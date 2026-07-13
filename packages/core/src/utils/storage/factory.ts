@@ -1,4 +1,4 @@
-import { StorageConfig, StorageClientOptions } from 'shared';
+import { StorageConfig, StorageClientOptions } from './types';
 import { CloudStorage } from './cloud-storage';
 import logger from '../logger';
 

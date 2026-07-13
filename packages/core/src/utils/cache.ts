@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { existsSync } from 'fs';
-import { CacheStats } from 'shared';
+import { CacheStats } from '../types';
 import logger, { serializeError } from './logger';
 
 // Cache directory

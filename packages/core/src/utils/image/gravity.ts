@@ -1,4 +1,4 @@
-import { GravityMode } from 'shared';
+import { GravityMode } from './types';
 
 /**
  * Map gravity to Sharp position values

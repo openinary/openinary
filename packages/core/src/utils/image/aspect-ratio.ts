@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { GravityMode } from 'shared';
+import { GravityMode } from './types';
 import { getSharpPosition } from './gravity';
 
 /**

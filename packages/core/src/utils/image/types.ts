@@ -1,4 +1,4 @@
-// Re-export types from shared package
+// Re-export types from the package's own types module
 export type {
   CropMode,
   GravityMode,
@@ -7,4 +7,4 @@ export type {
   TransformParams,
   ImageAnalysis,
   OptimizationResult
-} from 'shared';
+} from '../../types';

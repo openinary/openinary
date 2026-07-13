@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { readFile } from 'fs/promises';
 import Psd from '@webtoon/psd';
-import { TransformParams } from 'shared';
+import { TransformParams } from './types';
 import { applyAspectRatio } from './aspect-ratio';
 import { applyResize } from './resize';
 import { applyRotation } from './rotation';

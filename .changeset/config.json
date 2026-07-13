@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["api", "web", "registry", "create-openinary"]
+  "ignore": ["api", "web", "shared", "registry", "create-openinary"]
 }

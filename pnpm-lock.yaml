@@ -323,9 +323,6 @@ importers:
       pino-pretty:
         specifier: ^13.1.2
         version: 13.1.2
-      shared:
-        specifier: workspace:*
-        version: link:../shared
       sharp:
         specifier: ^0.33.0
         version: 0.33.5

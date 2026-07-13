@@ -2,7 +2,7 @@ import { mkdtemp } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
-import type { VideoTransformParams } from "shared";
+import type { VideoTransformParams } from "../../types";
 import {
   determineOutputFormat,
   IMAGE_FORMATS,

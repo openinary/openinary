@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { CropMode, GravityMode, ImageFormat } from 'shared';
+import { CropMode, GravityMode, ImageFormat } from './types';
 import { applyAspectRatio } from './aspect-ratio';
 import { applyRotation } from './rotation';
 import { applyQuality } from './quality';

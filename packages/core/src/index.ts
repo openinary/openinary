@@ -31,7 +31,7 @@ export {
   type StorageConfig,
   type CacheEntry,
 } from "./utils/storage/index";
-export type { StorageClientOptions } from "shared";
+export type { StorageClientOptions } from "./types";
 export { invalidateListingCache } from "./utils/storage/listing-cache";
 
 // Routes (Hono sub-apps, each takes a RouteDeps and returns a mountable app)

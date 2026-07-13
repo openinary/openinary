@@ -1,4 +1,4 @@
-import { CacheEntry } from 'shared';
+import { CacheEntry } from './types';
 
 export class StorageCache {
   private existsCache = new Map<string, CacheEntry>();

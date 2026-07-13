@@ -1,5 +1,5 @@
 import type { FfmpegCommand } from 'fluent-ffmpeg';
-import type { VideoTransformParams } from 'shared';
+import type { VideoTransformParams } from '../../types';
 
 /**
  * Context object containing all information needed for video transformation
