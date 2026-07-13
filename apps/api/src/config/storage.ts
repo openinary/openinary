@@ -1,5 +1,5 @@
 import { StorageConfig, StorageClientOptions } from "shared";
-import { createStorageClient } from "../utils/storage/index";
+import { createStorageClient } from "@openinary/core";
 
 /**
  * Single place where the self-hosted app reads STORAGE_* environment

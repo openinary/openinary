@@ -6,7 +6,7 @@ import { auth } from "shared/auth";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import logger, { serializeError } from "./utils/logger";
+import { logger, serializeError } from "@openinary/core";
 import { videoJobQueue } from "./config/queue";
 import { initTelemetry } from "./utils/telemetry";
 

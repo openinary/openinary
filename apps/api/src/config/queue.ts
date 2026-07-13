@@ -1,6 +1,5 @@
 import { db } from "shared";
-import { VideoJobQueue } from "../utils/video-job-queue";
-import { SqliteVideoJobStore } from "../utils/video/sqlite-video-job-store";
+import { VideoJobQueue, SqliteVideoJobStore } from "@openinary/core";
 
 /**
  * Single shared queue instance for this process. Consumers (routes,

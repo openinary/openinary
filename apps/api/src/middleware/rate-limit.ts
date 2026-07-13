@@ -1,5 +1,5 @@
 import { Context, Next } from "hono";
-import logger, { serializeError } from "../utils/logger";
+import { logger, serializeError } from "@openinary/core";
 
 /**
  * Rate limit entry stored in memory

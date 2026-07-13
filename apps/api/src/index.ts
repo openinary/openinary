@@ -1,26 +1,29 @@
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
-import { createTransformRoute } from "./routes/transform";
-import { createAuthenticatedRoute } from "./routes/authenticated";
+import {
+  createTransformRoute,
+  createAuthenticatedRoute,
+  createStorageRoute,
+  createDownloadRoute,
+  createDownloadFolderRoute,
+  createDownloadZipRoute,
+  createVideoStatusRoute,
+  createQueueEventsRoute,
+  createQueueRoute,
+  createInvalidateRoute,
+  validateApiSecret,
+  logger,
+  serializeError,
+  type RouteDeps,
+} from "@openinary/core";
 import { createUploadRoute } from "./routes/upload";
-import { createStorageRoute } from "./routes/storage";
-import { createDownloadRoute } from "./routes/download";
-import { createDownloadFolderRoute } from "./routes/download-folder";
-import { createDownloadZipRoute } from "./routes/download-zip";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
-import { createVideoStatusRoute } from "./routes/video-status";
-import logger, { serializeError } from "./utils/logger";
-import { createQueueEventsRoute } from "./routes/queue-events";
-import { createQueueRoute } from "./routes/queue";
-import { createInvalidateRoute } from "./routes/invalidate";
 import { apiKeyAuth } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
-import { validateApiSecret } from "./utils/signature";
 import { getSharedStorage } from "./config/storage";
 import { videoJobQueue } from "./config/queue";
-import type { RouteDeps } from "./config/deps";
 
 // Validate API_SECRET at startup if authenticated routes are enabled
 // This ensures the application fails fast if the secret is not configured properly

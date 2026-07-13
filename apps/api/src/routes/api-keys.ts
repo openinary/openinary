@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { auth } from "shared/auth";
 import { apiKeyAuth, AuthVariables } from "../middleware/auth";
-import logger, { serializeError } from "../utils/logger";
+import { logger, serializeError } from "@openinary/core";
 
 const apiKeys = new Hono<AuthVariables>();
 

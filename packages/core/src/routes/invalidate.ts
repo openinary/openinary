@@ -1,15 +1,11 @@
 import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
 import { deleteCachedFiles } from "../utils/cache";
-import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import logger, { serializeError } from "../utils/logger";
 
 export function createInvalidateRoute(deps: RouteDeps) {
   const { storage } = deps;
-  const invalidateRoute = new Hono<AuthVariables>();
-
-  // Apply authentication middleware to all routes
-  invalidateRoute.use("/*", apiKeyAuth);
+  const invalidateRoute = new Hono();
 
   /**
    * Invalidate all caches for a specific image

@@ -1,6 +1,6 @@
 import os from "os";
 import { db } from "shared/auth";
-import logger from "./logger";
+import { logger } from "@openinary/core";
 
 /**
  * Anonymous usage telemetry.
