@@ -32,7 +32,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 - **Video worker concurrency**, Video processing now correctly detects available memory in containerized environments, avoiding overloaded workers on small instances.
 - **Video jobs no longer block the API**, Video processing on small containers no longer starves HTTP requests, keeping transformations responsive during heavy video load.
 - **Lower memory usage after jobs**, Memory is now released more reliably after image and video processing, reducing RSS growth over time.
-  </Update>
+</Update>
 
 <Update label="June 27, 2026" description="Weekly update" tags={["Feature", "Fix", "Improvement"]}>
   ## New features
@@ -53,13 +53,13 @@ description: "New features, improvements, and fixes shipped in Openinary"
 - **Crop and resize combined**, Fixed aspect-ratio cropping being ignored when combined with a resize parameter.
 - **Video content type**, Thumbnails and non-MP4 video outputs now report the correct content type.
 - **File extension casing**, Extensions are now lowercased before format matching, fixing edge cases with mixed-case file names.
-  </Update>
+</Update>
 
 <Update label="April 27, 2026" description="Weekly update" tags={["Fix"]}>
   ## Bug fixes
 
 - **Uppercase file extensions**, Files with uppercase extensions (such as `.JPG` or `.PNG`) are now correctly recognized and processed instead of being rejected as unsupported. See the [transform API reference](/api-reference/media/transform) for supported formats.
-  </Update>
+</Update>
 
 <Update label="April 20, 2026" description="April update" tags={["Feature", "Fix"]}>
   ## New features
@@ -98,7 +98,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 - **Folder names with underscores**, Folder names containing underscores are no longer misidentified as transformation segments in the URL path.
 - **Image transformation race condition**, Fixed a concurrency issue that could cause intermittent failures when multiple transformations were requested simultaneously.
 - **Empty folder handling on S3/R2**, Creating and displaying empty folders now works correctly with S3 and R2 storage backends.
-  </Update>
+</Update>
 
 <Update label="April 12, 2026" description="Weekly update" tags={["Feature", "Fix"]}>
   ## New features
@@ -113,7 +113,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
 - **Transparency preserved with quality parameter**, Applying a `q` (quality) parameter no longer strips the alpha channel from PNG, WebP, or AVIF images.
 - **Folder names with underscores**, Folder names containing underscores are no longer misidentified as transformation segments in the URL path.
-  </Update>
+</Update>
 
 <Update label="April 7, 2026" description="Weekly update" tags={["Feature", "Fix"]}>
   ## New features
@@ -127,7 +127,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 ## Bug fixes
 
 - **Image transformation race condition**, Fixed a concurrency issue that could cause intermittent failures when multiple transformations were requested simultaneously.
-  </Update>
+</Update>
 
 <Update label="March 7, 2026" description="Weekly update" tags={["Feature", "Fix"]}>
   ## New features
@@ -145,7 +145,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 - **Docker build reliability**, Fixed a missing OpenSSL dependency and a SQLite race condition during table initialization.
 - **API key auth compatibility**, Fixed the `apiKey` table schema for compatibility with newer Better Auth versions.
 - **Environment template**, Corrected `STORAGE_*` variable names in `env.template`.
-  </Update>
+</Update>
 
 <Update label="December 27, 2025" description="Weekly update" tags={["Feature"]}>
   ## New features
@@ -173,7 +173,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
 - **Loading screen after login**, Fixed a stuck loading screen caused by stale sessions for deleted users.
 - **Setup page 500 error**, Fixed a crash on `/setup` when an admin account already existed.
-  </Update>
+</Update>
 
 <Update label="December 20, 2025" description="Initial release" tags={["Feature"]}>
   ## Openinary is live
