@@ -1,10 +1,10 @@
 import { Context } from 'hono';
 import { getCachePath, existsInCache, deleteCachedFiles } from '../utils/cache';
 import { parseParams, isTransformSegment } from '../utils/parser';
-import { createStorageClient } from '../utils/storage/index';
+import { CloudStorage } from '../utils/storage/index';
 import { Compression } from '../utils/image/compression';
 import logger, { serializeError } from '../utils/logger';
-import { videoJobQueue } from '../utils/video-job-queue';
+import type { VideoJobQueue } from '../utils/video-job-queue';
 import { updateJobStatus } from '../utils/video/queue-db';
 import {
   checkCloudCache,
@@ -45,11 +45,13 @@ export interface CacheCheckResult {
 }
 
 export class TransformService {
-  private storage: any;
+  private storage: CloudStorage | null;
   private compression: Compression;
+  private queue: VideoJobQueue;
 
-  constructor() {
-    this.storage = createStorageClient();
+  constructor(storage: CloudStorage | null, queue: VideoJobQueue) {
+    this.storage = storage;
+    this.queue = queue;
     this.compression = new Compression();
   }
 
@@ -388,7 +390,7 @@ export class TransformService {
     cachePath: string
   ): Promise<TransformResult> {
     // Check if already being processed
-    let existingJob = videoJobQueue.getJobByPath(filePath, params);
+    let existingJob = this.queue.getJobByPath(filePath, params);
     let shouldRequeue = false;
 
     if (existingJob) {
@@ -446,7 +448,7 @@ export class TransformService {
       existingJob.status === 'pending' ||
       shouldRequeue
     ) {
-      videoJobQueue
+      this.queue
         .addJob(
           filePath,
           params,

@@ -10,29 +10,21 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import https from "https";
-import { StorageConfig } from "shared";
+import { StorageConfig, StorageClientOptions } from "shared";
 
 export class S3ClientWrapper {
   private s3Client: S3Client;
   private config: StorageConfig;
 
-  constructor(config: StorageConfig) {
+  constructor(config: StorageConfig, clientOptions: StorageClientOptions = {}) {
     this.config = config;
 
-    // Configure HTTP handler with socket settings from environment variables
-    const maxSockets = parseInt(process.env.STORAGE_MAX_SOCKETS || "50", 10);
-    const connectionTimeout = parseInt(
-      process.env.STORAGE_CONNECTION_TIMEOUT || "0",
-      10,
-    );
-    const requestTimeout = parseInt(
-      process.env.STORAGE_REQUEST_TIMEOUT || "0",
-      10,
-    );
-    const socketTimeout = parseInt(
-      process.env.STORAGE_SOCKET_TIMEOUT || "0",
-      10,
-    );
+    // Configure HTTP handler with socket settings (caller resolves these,
+    // e.g. from environment variables in self-hosted mode)
+    const maxSockets = clientOptions.maxSockets ?? 50;
+    const connectionTimeout = clientOptions.connectionTimeout ?? 0;
+    const requestTimeout = clientOptions.requestTimeout ?? 0;
+    const socketTimeout = clientOptions.socketTimeout ?? 0;
 
     const clientConfig = {
       region: config.region,

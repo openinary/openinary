@@ -1,26 +1,22 @@
-import { StorageConfig } from 'shared';
+import { StorageConfig, StorageClientOptions } from 'shared';
 import { CloudStorage } from './cloud-storage';
 import logger from '../logger';
 
 /**
- * Consolidated factory function
+ * Pure factory: builds a storage client from an explicit config, with no
+ * knowledge of where that config came from (env vars, a database row, a
+ * per-tenant resolver, ...). Callers own resolving the config.
  */
-export function createStorageClient(): CloudStorage | null {
-  const config: StorageConfig = {
-    region: process.env.STORAGE_REGION || 'auto',
-    accessKeyId: process.env.STORAGE_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY || '',
-    bucketName: process.env.STORAGE_BUCKET_NAME || '',
-    endpoint: process.env.STORAGE_ENDPOINT,
-    publicUrl: process.env.STORAGE_PUBLIC_URL,
-  };
-
+export function createStorageClient(
+  config: StorageConfig,
+  clientOptions?: StorageClientOptions,
+): CloudStorage | null {
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
     logger.warn('Storage configuration incomplete. Cloud storage disabled.');
     return null;
   }
 
-  return new CloudStorage(config);
+  return new CloudStorage(config, clientOptions);
 }
 
 // Alias for compatibility

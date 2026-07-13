@@ -1,4 +1,4 @@
-import { StorageConfig } from "shared";
+import { StorageConfig, StorageClientOptions } from "shared";
 import { StorageCache } from "./cache";
 import { KeyGenerator } from "./key-generator";
 import { S3ClientWrapper } from "./s3-client";
@@ -34,8 +34,8 @@ export class CloudStorage implements StatsBackend {
   private s3Client: S3ClientWrapper;
   private cache: StorageCache;
 
-  constructor(config: StorageConfig) {
-    this.s3Client = new S3ClientWrapper(config);
+  constructor(config: StorageConfig, clientOptions?: StorageClientOptions) {
+    this.s3Client = new S3ClientWrapper(config, clientOptions);
     this.cache = new StorageCache();
   }
 

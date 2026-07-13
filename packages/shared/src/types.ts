@@ -55,6 +55,14 @@ export interface StorageConfig {
   publicUrl?: string; // Public URL of the bucket
 }
 
+/** HTTP client tuning for the storage backend. All fields optional; timeouts of 0/undefined mean "disabled". */
+export interface StorageClientOptions {
+  maxSockets?: number;
+  connectionTimeout?: number;
+  requestTimeout?: number;
+  socketTimeout?: number;
+}
+
 export interface CacheEntry {
   exists: boolean;
   timestamp: number;

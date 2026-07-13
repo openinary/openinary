@@ -1,8 +1,8 @@
-import { EventEmitter } from 'events';
-import { parseParams } from './parser';
-import { CloudStorage } from './storage/index';
-import logger from './logger';
-import { VideoWorker } from './video/video-worker';
+import { EventEmitter } from "events";
+import { parseParams } from "./parser";
+import { CloudStorage } from "./storage/index";
+import logger from "./logger";
+import { VideoWorker } from "./video/video-worker";
 import {
   createJob,
   getJobByFileAndParams,
@@ -11,8 +11,8 @@ import {
   cleanupOldJobs,
   type VideoJob as DBVideoJob,
   type JobStatus,
-} from './video/queue-db';
-import { JOB_CLEANUP_HOURS, TRANSFORMATION_PRIORITY } from './video/config';
+} from "./video/queue-db";
+import { JOB_CLEANUP_HOURS, TRANSFORMATION_PRIORITY } from "./video/config";
 
 // Re-export types for backward compatibility
 export type { JobStatus };
@@ -46,21 +46,32 @@ function convertDBJob(dbJob: DBVideoJob): VideoJob {
   };
 }
 
-class VideoJobQueue extends EventEmitter {
+export class VideoJobQueue extends EventEmitter {
   private worker: VideoWorker;
   private storage: CloudStorage | null = null;
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     super();
     // Worker will be initialized when storage is set
     this.worker = new VideoWorker(null);
-    
+
     // Forward worker events
-    this.worker.on('job:created', (job) => this.emit('job:created', convertDBJob(job)));
-    this.worker.on('job:started', (job) => this.emit('job:started', convertDBJob(job)));
-    this.worker.on('job:progress', (job, progress) => this.emit('job:progress', convertDBJob(job), progress));
-    this.worker.on('job:completed', (job) => this.emit('job:completed', convertDBJob(job)));
-    this.worker.on('job:error', (job, error) => this.emit('job:error', convertDBJob(job), error));
+    this.worker.on("job:created", (job) =>
+      this.emit("job:created", convertDBJob(job)),
+    );
+    this.worker.on("job:started", (job) =>
+      this.emit("job:started", convertDBJob(job)),
+    );
+    this.worker.on("job:progress", (job, progress) =>
+      this.emit("job:progress", convertDBJob(job), progress),
+    );
+    this.worker.on("job:completed", (job) =>
+      this.emit("job:completed", convertDBJob(job)),
+    );
+    this.worker.on("job:error", (job, error) =>
+      this.emit("job:error", convertDBJob(job), error),
+    );
   }
 
   /**
@@ -69,18 +80,34 @@ class VideoJobQueue extends EventEmitter {
   initialize(storage: CloudStorage | null): void {
     this.storage = storage;
     this.worker = new VideoWorker(storage);
-    
+
     // Forward worker events
-    this.worker.on('job:created', (job) => this.emit('job:created', convertDBJob(job)));
-    this.worker.on('job:started', (job) => this.emit('job:started', convertDBJob(job)));
-    this.worker.on('job:progress', (job, progress) => this.emit('job:progress', convertDBJob(job), progress));
-    this.worker.on('job:completed', (job) => this.emit('job:completed', convertDBJob(job)));
-    this.worker.on('job:error', (job, error) => this.emit('job:error', convertDBJob(job), error));
-    
+    this.worker.on("job:created", (job) =>
+      this.emit("job:created", convertDBJob(job)),
+    );
+    this.worker.on("job:started", (job) =>
+      this.emit("job:started", convertDBJob(job)),
+    );
+    this.worker.on("job:progress", (job, progress) =>
+      this.emit("job:progress", convertDBJob(job), progress),
+    );
+    this.worker.on("job:completed", (job) =>
+      this.emit("job:completed", convertDBJob(job)),
+    );
+    this.worker.on("job:error", (job, error) =>
+      this.emit("job:error", convertDBJob(job), error),
+    );
+
     // Start the worker
     this.worker.start();
-    
-    logger.info('Video job queue initialized with background worker');
+
+    // Periodic cleanup (every 10 minutes). Started here rather than at
+    // module load so it never runs against a not-yet-initialized worker.
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    }
+
+    logger.info("Video job queue initialized with background worker");
   }
 
   /**
@@ -92,17 +119,17 @@ class VideoJobQueue extends EventEmitter {
     cachePath: string,
     sourcePath: string,
     storage: CloudStorage | null,
-    priority: number = TRANSFORMATION_PRIORITY
+    priority: number = TRANSFORMATION_PRIORITY,
   ): Promise<string> {
     // Create job in database
     const jobId = createJob(filePath, params, cachePath, priority);
-    
+
     // Emit created event
     const job = getJobById(jobId);
     if (job) {
-      this.emit('job:created', convertDBJob(job));
+      this.emit("job:created", convertDBJob(job));
     }
-    
+
     return jobId;
   }
 
@@ -117,7 +144,10 @@ class VideoJobQueue extends EventEmitter {
   /**
    * Get job by file path and params
    */
-  getJobByPath(filePath: string, params: ReturnType<typeof parseParams>): VideoJob | null {
+  getJobByPath(
+    filePath: string,
+    params: ReturnType<typeof parseParams>,
+  ): VideoJob | null {
     const dbJob = getJobByFileAndParams(filePath, params);
     return dbJob ? convertDBJob(dbJob) : null;
   }
@@ -148,14 +178,9 @@ class VideoJobQueue extends EventEmitter {
    */
   stop(): void {
     this.worker.stop();
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
   }
 }
-
-// Singleton instance
-export const videoJobQueue = new VideoJobQueue();
-
-// Periodic cleanup (every 10 minutes)
-setInterval(() => {
-  videoJobQueue.cleanup();
-}, 10 * 60 * 1000);
-

@@ -1,23 +1,26 @@
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
-import transform from "./routes/transform";
-import authenticated from "./routes/authenticated";
-import upload from "./routes/upload";
-import storageRoute from "./routes/storage";
-import download from "./routes/download";
-import downloadFolder from "./routes/download-folder";
-import downloadZip from "./routes/download-zip";
+import { createTransformRoute } from "./routes/transform";
+import { createAuthenticatedRoute } from "./routes/authenticated";
+import { createUploadRoute } from "./routes/upload";
+import { createStorageRoute } from "./routes/storage";
+import { createDownloadRoute } from "./routes/download";
+import { createDownloadFolderRoute } from "./routes/download-folder";
+import { createDownloadZipRoute } from "./routes/download-zip";
 import apiKeys from "./routes/api-keys";
 import health from "./routes/health";
-import videoStatus from "./routes/video-status";
+import { createVideoStatusRoute } from "./routes/video-status";
 import logger, { serializeError } from "./utils/logger";
-import queueEvents from "./routes/queue-events";
-import queue from "./routes/queue";
-import invalidateRoute from "./routes/invalidate";
+import { createQueueEventsRoute } from "./routes/queue-events";
+import { createQueueRoute } from "./routes/queue";
+import { createInvalidateRoute } from "./routes/invalidate";
 import { apiKeyAuth } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
 import { validateApiSecret } from "./utils/signature";
+import { getSharedStorage } from "./config/storage";
+import { videoJobQueue } from "./config/queue";
+import type { RouteDeps } from "./config/deps";
 
 // Validate API_SECRET at startup if authenticated routes are enabled
 // This ensures the application fails fast if the secret is not configured properly
@@ -32,6 +35,26 @@ try {
   // The authenticated route will return 500 errors if API_SECRET is missing
   // In production, you may want to throw the error to prevent startup
 }
+
+// Single set of dependencies shared by every route in this process. A
+// future multi-tenant mount would build one RouteDeps per tenant instead of
+// calling these factories once at module scope.
+const deps: RouteDeps = {
+  storage: getSharedStorage(),
+  queue: videoJobQueue,
+};
+
+const transform = createTransformRoute(deps);
+const authenticated = createAuthenticatedRoute(deps);
+const upload = createUploadRoute(deps);
+const storageRoute = createStorageRoute(deps);
+const download = createDownloadRoute(deps);
+const downloadFolder = createDownloadFolderRoute(deps);
+const downloadZip = createDownloadZipRoute(deps);
+const videoStatus = createVideoStatusRoute(deps);
+const queueEvents = createQueueEventsRoute(deps);
+const queue = createQueueRoute(deps);
+const invalidateRoute = createInvalidateRoute(deps);
 
 const app = new Hono();
 
