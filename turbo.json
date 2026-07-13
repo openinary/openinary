@@ -17,10 +17,12 @@
       "inputs": ["src/**", "*.js", "*.ts", "*.tsx"]
     },
     "type-check": {
+      "dependsOn": ["^build"],
       "outputs": [],
       "inputs": ["src/**", "tsconfig.json"]
     },
     "test": {
+      "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
       "inputs": ["src/**", "test/**", "*.config.js"]
     },
