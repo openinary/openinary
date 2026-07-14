@@ -1,13 +1,13 @@
-import sharp from 'sharp';
-import { readFile } from 'fs/promises';
-import Psd from '@webtoon/psd';
-import { TransformParams } from 'shared';
-import { applyAspectRatio } from './aspect-ratio';
-import { applyResize } from './resize';
-import { applyRotation } from './rotation';
-import { applyQuality } from './quality';
-import { applyResizeComposite } from './param-registry';
-import { applyRoundCorners } from './round-corners';
+import sharp from "sharp";
+import { readFile } from "fs/promises";
+import Psd from "@webtoon/psd";
+import { ImageTransformParams } from "shared";
+import { applyAspectRatio } from "./aspect-ratio";
+import { applyRotation } from "./rotation";
+import { applyQuality } from "./quality";
+import { applyResizeComposite } from "./param-registry";
+import { applyRoundCorners } from "./round-corners";
+import { applyOverlayImage } from "./overlay";
 
 /**
  * Decode a PSD file into a Sharp instance via raw RGBA pixel data.
@@ -18,7 +18,7 @@ async function decodePsd(inputPath: string): Promise<sharp.Sharp> {
   const fileBuffer = await readFile(inputPath);
   const arrayBuffer = fileBuffer.buffer.slice(
     fileBuffer.byteOffset,
-    fileBuffer.byteOffset + fileBuffer.byteLength
+    fileBuffer.byteOffset + fileBuffer.byteLength,
   ) as ArrayBuffer;
   const psd = Psd.parse(arrayBuffer);
   const pixelData = await psd.composite();
@@ -28,31 +28,19 @@ async function decodePsd(inputPath: string): Promise<sharp.Sharp> {
 }
 
 // Re-export types for backward compatibility
-export * from './types';
-export * from './param-registry';
+export * from "./types";
+export * from "./param-registry";
 
 /**
  * Transform an image with the specified parameters
  */
-export const transformImage = async (inputPath: string, params: TransformParams): Promise<Buffer> => {
-  let image = inputPath.toLowerCase().endsWith('.psd')
+export const transformImage = async (
+  inputPath: string,
+  params: ImageTransformParams,
+): Promise<Buffer> => {
+  let image = inputPath.toLowerCase().endsWith(".psd")
     ? await decodePsd(inputPath)
     : sharp(inputPath);
-
-  // Convert TransformParams to a record for easier access
-  const paramsRecord: Record<string, string> = {
-    ...(params.rotate && { rotate: String(params.rotate) }),
-    ...(params.aspect && { aspect: params.aspect }),
-    ...(params.width && { width: params.width }),
-    ...(params.height && { height: params.height }),
-    ...(params.resize && { resize: params.resize }),
-    ...(params.crop && { crop: params.crop }),
-    ...(params.gravity && { gravity: params.gravity }),
-    ...(params.background && { background: params.background }),
-    ...(params.quality && { quality: String(params.quality) }),
-    ...(params.format && { format: params.format }),
-    ...(params.radius && { radius: params.radius }),
-  };
 
   // 1. Apply rotation (if specified)
   if (params.rotate) {
@@ -71,10 +59,15 @@ export const transformImage = async (inputPath: string, params: TransformParams)
 
   // 3. Apply resize (if width or height specified)
   if (params.resize || params.width || params.height) {
-    image = await applyResizeComposite(image, '', paramsRecord);
+    image = await applyResizeComposite(image, "", params);
   }
 
-  // 4. Apply rounded corners (if specified)
+  // 4. Apply overlay image (if specified)
+  if (params.overlayPath) {
+    image = await applyOverlayImage(image, params);
+  }
+
+  // 5. Apply rounded corners (if specified)
   if (params.radius) {
     image = await applyRoundCorners(image, params.radius, params.background);
     // applyRoundCorners always returns a pipeline backed by a PNG buffer
@@ -82,7 +75,7 @@ export const transformImage = async (inputPath: string, params: TransformParams)
     // correctly preserve transparency or the filled background color.
   }
 
-  // 5. Apply quality (if specified)
+  // 6. Apply quality (if specified)
   if (params.quality) {
     image = applyQuality(image, params.quality);
   }

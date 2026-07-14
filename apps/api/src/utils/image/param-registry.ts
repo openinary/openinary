@@ -1,19 +1,26 @@
-import sharp from 'sharp';
-import { CropMode, GravityMode, ImageFormat } from 'shared';
-import { applyAspectRatio } from './aspect-ratio';
-import { applyRotation } from './rotation';
-import { applyQuality } from './quality';
-import { applyResize } from './resize';
-import { applyRoundCorners } from './round-corners';
+import sharp from "sharp";
+import {
+  CropMode,
+  FullGravityMode,
+  GravityMode,
+  ImageFormat,
+  ImageResizeTransformParams,
+  OverlayAnchor,
+} from "shared";
+import { applyAspectRatio } from "./aspect-ratio";
+import { applyRotation } from "./rotation";
+import { applyQuality } from "./quality";
+import { applyResize } from "./resize";
+import { applyRoundCorners } from "./round-corners";
 
 /**
  * Parameter processor function type
  * Takes a Sharp instance and parameter value, returns modified Sharp instance or Promise<Sharp>
  */
-export type ParamProcessor = (
+export type ParamProcessor<T> = (
   image: sharp.Sharp,
   value: string,
-  allParams: Record<string, string>
+  allParams: T,
 ) => sharp.Sharp | Promise<sharp.Sharp>;
 
 /**
@@ -35,7 +42,7 @@ export interface ParamDefinition {
   /** Parameter aliases (alternative names) */
   aliases?: string[];
   /** The function that processes this parameter */
-  processor?: ParamProcessor;
+  processor?: ParamProcessor<Record<string, string>>;
   /** Whether this parameter requires other parameters to work */
   dependencies?: string[];
   /** Processing order priority (lower = earlier) */
@@ -48,35 +55,38 @@ export interface ParamDefinition {
  */
 export const IMAGE_PARAMS: readonly ParamDefinition[] = [
   {
-    param: 'a',
-    name: 'Rotation Angle',
-    description: 'Rotates the image by the specified angle in degrees, or use "auto" to auto-rotate based on EXIF orientation data.',
-    example: 'a_90',
-    validValues: ['auto', '90', '180', '270', 'any numeric angle'],
+    param: "a",
+    name: "Rotation Angle",
+    description:
+      'Rotates the image by the specified angle in degrees, or use "auto" to auto-rotate based on EXIF orientation data.',
+    example: "a_90",
+    validValues: ["auto", "90", "180", "270", "any numeric angle"],
     processor: async (image, value, allParams) => {
       return applyRotation(image, value, allParams.background);
     },
     priority: 1, // Rotation should happen first
   },
   {
-    param: 'ar',
-    name: 'Aspect Ratio',
-    description: 'Crops the image to a specific aspect ratio (e.g., 16:9, 4:3, 1:1). The image is cropped to match the target ratio while maintaining as much content as possible.',
-    example: 'ar_16:9',
-    validValues: ['16:9', '4:3', '1:1', '21:9', 'any ratio in W:H format'],
+    param: "ar",
+    name: "Aspect Ratio",
+    description:
+      "Crops the image to a specific aspect ratio (e.g., 16:9, 4:3, 1:1). The image is cropped to match the target ratio while maintaining as much content as possible.",
+    example: "ar_16:9",
+    validValues: ["16:9", "4:3", "1:1", "21:9", "any ratio in W:H format"],
     processor: async (image, value, allParams) => {
-      const gravity = (allParams.gravity || 'center') as GravityMode;
+      const gravity = (allParams.gravity || "center") as GravityMode;
       return await applyAspectRatio(image, value, gravity);
     },
-    dependencies: ['g'],
+    dependencies: ["g"],
     priority: 2, // Aspect ratio before resize
   },
   {
-    param: 'w',
-    name: 'Width',
-    description: 'Sets the width of the image in pixels. Can be used independently or with height.',
-    example: 'w_300',
-    validValues: ['any positive integer'],
+    param: "w",
+    name: "Width",
+    description:
+      "Sets the width of the image in pixels. Can be used independently or with height.",
+    example: "w_300",
+    validValues: ["any positive integer"],
     processor: async (image, value, allParams) => {
       // Width is processed together with height in the resize step
       return image;
@@ -84,11 +94,12 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     priority: 3, // Resize operations
   },
   {
-    param: 'h',
-    name: 'Height',
-    description: 'Sets the height of the image in pixels. Can be used independently or with width.',
-    example: 'h_200',
-    validValues: ['any positive integer'],
+    param: "h",
+    name: "Height",
+    description:
+      "Sets the height of the image in pixels. Can be used independently or with width.",
+    example: "h_200",
+    validValues: ["any positive integer"],
     processor: async (image, value, allParams) => {
       // Height is processed together with width in the resize step
       return image;
@@ -96,14 +107,15 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     priority: 3, // Resize operations
   },
   {
-    param: 'c',
-    name: 'Crop Mode',
-    description: 'Defines how the image should be resized and cropped. Options: fill (cover entire area with cropping), fit (fit within dimensions maintaining aspect ratio), scale (exact dimensions ignoring aspect ratio), crop (resize and crop to exact dimensions), pad (fit within dimensions and pad with background color).',
-    example: 'c_fill',
-    defaultValue: 'fill',
-    validValues: ['fill', 'fit', 'scale', 'crop', 'pad'],
-    aliases: ['lfill', 'fill_pad', 'limit', 'mfit', 'thumb', 'lpad'],
-    dependencies: ['w', 'h'],
+    param: "c",
+    name: "Crop Mode",
+    description:
+      "Defines how the image should be resized and cropped. Options: fill (cover entire area with cropping), fit (fit within dimensions maintaining aspect ratio), scale (exact dimensions ignoring aspect ratio), crop (resize and crop to exact dimensions), pad (fit within dimensions and pad with background color).",
+    example: "c_fill",
+    defaultValue: "fill",
+    validValues: ["fill", "fit", "scale", "crop", "pad"],
+    aliases: ["lfill", "fill_pad", "limit", "mfit", "thumb", "lpad"],
+    dependencies: ["w", "h"],
     processor: async (image, value, allParams) => {
       // Crop mode is applied together with width/height in applyResize
       return image;
@@ -111,13 +123,14 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     priority: 3, // Resize operations
   },
   {
-    param: 'g',
-    name: 'Gravity',
-    description: 'Defines the focal point when cropping. Options: center/c (center), north/n (top), south/s (bottom), east/e (right), west/w (left), face/faces (face detection), auto (entropy-based).',
-    example: 'g_center',
-    defaultValue: 'center',
-    validValues: ['center', 'north', 'south', 'east', 'west', 'face', 'auto'],
-    aliases: ['c', 'n', 's', 'e', 'w', 'faces', 'face_center'],
+    param: "g",
+    name: "Gravity",
+    description:
+      "Defines the focal point when cropping. Options: center/c (center), north/n (top), south/s (bottom), east/e (right), west/w (left), face/faces (face detection), auto (entropy-based).",
+    example: "g_center",
+    defaultValue: "center",
+    validValues: ["center", "north", "south", "east", "west", "face", "auto"],
+    aliases: ["c", "n", "s", "e", "w", "faces", "face_center"],
     processor: async (image, value, allParams) => {
       // Gravity is used by other operations (aspect ratio, resize)
       return image;
@@ -125,33 +138,36 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     priority: 0, // Config parameter, not a direct operation
   },
   {
-    param: 'r',
-    name: 'Round Corners',
-    description: 'Rounds the corners of the image. Pass a single integer for uniform radius, 1–4 colon-separated integers for per-corner radii (CSS border-radius semantics, clockwise from top-left when 4 values are given), or `max` for a circle/oval.',
-    example: 'r_150',
-    validValues: ['<integer>', 'v1:v2', 'v1:v2:v3', 'v1:v2:v3:v4', 'max'],
+    param: "r",
+    name: "Round Corners",
+    description:
+      "Rounds the corners of the image. Pass a single integer for uniform radius, 1–4 colon-separated integers for per-corner radii (CSS border-radius semantics, clockwise from top-left when 4 values are given), or `max` for a circle/oval.",
+    example: "r_150",
+    validValues: ["<integer>", "v1:v2", "v1:v2:v3", "v1:v2:v3:v4", "max"],
     processor: async (image, value) => applyRoundCorners(image, value),
     priority: 3.5,
   },
   {
-    param: 'q',
-    name: 'Quality',
-    description: 'Sets the quality of the output image (1-100). Lower values create smaller files with reduced quality. Works primarily with lossy formats like JPEG, WebP, and AVIF.',
-    example: 'q_80',
+    param: "q",
+    name: "Quality",
+    description:
+      "Sets the quality of the output image (1-100). Lower values create smaller files with reduced quality. Works primarily with lossy formats like JPEG, WebP, and AVIF.",
+    example: "q_80",
     defaultValue: 80,
-    validValues: ['1-100', 'auto'],
+    validValues: ["1-100", "auto"],
     processor: async (image, value, allParams) => {
       return applyQuality(image, value);
     },
     priority: 4, // Quality after transformations
   },
   {
-    param: 'f',
-    name: 'Format',
-    description: 'Specifies the output format. Options: avif, webp, jpeg, jpg, png. If not specified, the system automatically selects the optimal format based on browser support and file size comparison.',
-    example: 'f_webp',
-    defaultValue: 'avif',
-    validValues: ['avif', 'webp', 'jpeg', 'jpg', 'png'],
+    param: "f",
+    name: "Format",
+    description:
+      "Specifies the output format. Options: avif, webp, jpeg, jpg, png. If not specified, the system automatically selects the optimal format based on browser support and file size comparison.",
+    example: "f_webp",
+    defaultValue: "avif",
+    validValues: ["avif", "webp", "jpeg", "jpg", "png"],
     processor: async (image, value, allParams) => {
       // Format is handled by the Compression class
       return image;
@@ -159,13 +175,14 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     priority: 5, // Format conversion last
   },
   {
-    param: 'b',
-    name: 'Background',
-    description: 'Sets the background color for padding (when using crop mode "pad") or rotation. Options: transparent, white, black, hex colors (with or without #), or rgb:RRGGBB format.',
-    example: 'b_transparent',
-    defaultValue: '#ffffff',
-    validValues: ['transparent', 'white', 'black', 'hex colors', 'rgb:RRGGBB'],
-    aliases: ['bg'],
+    param: "b",
+    name: "Background",
+    description:
+      'Sets the background color for padding (when using crop mode "pad") or rotation. Options: transparent, white, black, hex colors (with or without #), or rgb:RRGGBB format.',
+    example: "b_transparent",
+    defaultValue: "#ffffff",
+    validValues: ["transparent", "white", "black", "hex colors", "rgb:RRGGBB"],
+    aliases: ["bg"],
     processor: async (image, value, allParams) => {
       // Background is used by other operations (rotation, pad)
       return image;
@@ -173,14 +190,121 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     priority: 0, // Config parameter, not a direct operation
   },
   {
-    param: 'bg',
-    name: 'Background (Alias)',
-    description: 'Alternative parameter name for background color. Identical functionality to "b" parameter.',
-    example: 'bg_rgb:FF5733',
-    defaultValue: '#ffffff',
-    validValues: ['transparent', 'white', 'black', 'hex colors', 'rgb:RRGGBB'],
+    param: "bg",
+    name: "Background (Alias)",
+    description:
+      'Alternative parameter name for background color. Identical functionality to "b" parameter.',
+    example: "bg_rgb:FF5733",
+    defaultValue: "#ffffff",
+    validValues: ["transparent", "white", "black", "hex colors", "rgb:RRGGBB"],
     processor: async (image, value, allParams) => {
       // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "l",
+    name: "Overlay Layer image path",
+    description:
+      'Specifies the path of the image that should be overlayed on top of the main one. IMPORTANT: all "/" in the path have to be replaced with ":"!',
+    example: "l_summer:sunset.png",
+    defaultValue: "",
+    validValues: ["<every existing file path>"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lo",
+    name: "Overlay Layer opacity",
+    description:
+      "Specifies the opacity of the overlay layer. Options: all integer values between 0 and 100.",
+    example: "lo_35",
+    defaultValue: 50,
+    validValues: ["<integers 0-100>"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lt",
+    name: "Overlay Layer Tiled",
+    description:
+      "Specifies that the overlay should ne repeated in a grid. Options: 'true' or a positive integer",
+    example: "lt_true",
+    validValues: ["true", "<positive integer>"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lx",
+    name: "Overlay Layer X offset",
+    description:
+      "Sets the offset in pixels from the top when not tiled. Has to be set together with ly!",
+    example: "lx_50",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "ly",
+    name: "Overlay Layer Y offset",
+    description:
+      "Sets the offset in pixels from the left when not tiled. Has to be set together with lx!",
+    example: "ly_50",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lw",
+    name: "Overlay Layer image width",
+    description:
+      "Sets the overlay image height of in pixels. Can be used independently or with width.",
+    example: "w_300",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lh",
+    name: "Overlay Layer image height",
+    description:
+      "Sets the overlay image height of in pixels. Can be used independently or with width.",
+    example: "h_200",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lg",
+    name: "Overlay image Gravity",
+    description: "Defined the position of the overlay image.",
+    example: "lg_center",
+    defaultValue: "center",
+    validValues: Object.values(FullGravityMode),
+    processor: async (image, value, allParams) => {
+      // Gravity is used by other operations (aspect ratio, resize)
       return image;
     },
     priority: 0, // Config parameter, not a direct operation
@@ -191,27 +315,32 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
  * Helper function to apply resize with all related parameters
  * This is a composite operation that uses w, h, c, g, and b parameters
  */
-export const applyResizeComposite: ParamProcessor = (image, _value, allParams) => {
-  if (!allParams.width && !allParams.height && !allParams.resize) {
+export const applyResizeComposite: ParamProcessor<
+  ImageResizeTransformParams
+> = (image, _value, allParams) => {
+  if (!allParams.width && !allParams.height) {
     return image;
   }
-  
+
   return applyResize(
     image,
-    allParams.resize,
-    (allParams.crop || 'fill') as CropMode,
-    (allParams.gravity || 'center') as GravityMode,
+    (allParams.crop || "fill") as CropMode,
+    (allParams.gravity || "center") as GravityMode,
     allParams.background,
     allParams.width,
-    allParams.height
+    allParams.height,
   );
 };
 
 /**
  * Get parameter definition by param key
  */
-export const getParamDefinition = (param: string): ParamDefinition | undefined => {
-  return IMAGE_PARAMS.find(p => p.param === param || p.aliases?.includes(param));
+export const getParamDefinition = (
+  param: string,
+): ParamDefinition | undefined => {
+  return IMAGE_PARAMS.find(
+    (p) => p.param === param || p.aliases?.includes(param),
+  );
 };
 
 /**
@@ -235,13 +364,13 @@ export const getParamDefault = (param: string): string | number | undefined => {
 export const isValidParamValue = (param: string, value: string): boolean => {
   const def = getParamDefinition(param);
   if (!def) return false;
-  
+
   // If no validValues specified, assume any value is valid
   if (!def.validValues || def.validValues.length === 0) return true;
-  
+
   // Check if value matches any valid value or pattern
-  return def.validValues.some(valid => {
-    if (valid.includes('any')) return true; // Pattern like "any positive integer"
+  return def.validValues.some((valid) => {
+    if (valid.includes("any")) return true; // Pattern like "any positive integer"
     return value === valid || value.startsWith(valid);
   });
 };
@@ -249,5 +378,5 @@ export const isValidParamValue = (param: string, value: string): boolean => {
 /**
  * Export types for external use
  */
-export type ImageParamKey = typeof IMAGE_PARAMS[number]['param'];
+export type ImageParamKey = (typeof IMAGE_PARAMS)[number]["param"];
 export type ParamRegistry = typeof IMAGE_PARAMS;

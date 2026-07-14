@@ -1,7 +1,7 @@
 import { Context } from "hono";
 import { existsSync } from "fs";
 import { CloudStorage } from "../utils/storage/index";
-import { parseParams } from "../utils/parser";
+import { CombindedTransformParams, parseParams } from "../utils/parser";
 import { transformImage } from "../utils/image/index";
 import { transformVideo } from "../utils/video/index";
 import { Compression } from "../utils/image/compression";
@@ -12,6 +12,7 @@ import {
   readFromCache,
   SmartCache,
 } from "../utils/cache";
+import { ImageTransformParams } from "shared";
 
 /**
  * Sets the Content-Type header based on file extension or content-type string
@@ -19,12 +20,15 @@ import {
  */
 export function setContentTypeHeader(
   c: Context,
-  extensionOrContentType: string | undefined
+  extensionOrContentType: string | undefined,
 ): void {
   if (!extensionOrContentType) return;
 
   // If it's already a content-type (starts with "image/" or "video/"), use it directly
-  if (extensionOrContentType.startsWith("image/") || extensionOrContentType.startsWith("video/")) {
+  if (
+    extensionOrContentType.startsWith("image/") ||
+    extensionOrContentType.startsWith("video/")
+  ) {
     c.header("Content-Type", extensionOrContentType);
     return;
   }
@@ -57,14 +61,14 @@ export function setContentTypeHeader(
 export async function determineContentType(
   params: ReturnType<typeof parseParams>,
   buffer: Buffer | null,
-  originalExtension: string | undefined
+  originalExtension: string | undefined,
 ): Promise<string> {
   // 1. Check if format is explicitly specified in params
   if (params.format) {
     const format = params.format.toLowerCase();
     // Normalize jpg to jpeg
     const normalizedFormat = format === "jpg" ? "jpeg" : format;
-    
+
     const formatMap: Record<string, string> = {
       jpeg: "image/jpeg",
       png: "image/png",
@@ -72,7 +76,7 @@ export async function determineContentType(
       avif: "image/avif",
       gif: "image/gif",
     };
-    
+
     const contentType = formatMap[normalizedFormat];
     if (contentType) {
       return contentType;
@@ -81,8 +85,9 @@ export async function determineContentType(
 
   // 2. Try to detect from buffer using sharp (if available and buffer is provided)
   // Skip Sharp detection for video files (Sharp only handles images)
-  const isVideoFile = originalExtension && /mp4|mov|webm/i.test(originalExtension);
-  
+  const isVideoFile =
+    originalExtension && /mp4|mov|webm/i.test(originalExtension);
+
   if (buffer && !isVideoFile) {
     try {
       const sharp = await import("sharp");
@@ -106,12 +111,16 @@ export async function determineContentType(
     } catch (error) {
       // If sharp detection fails, fall through to extension-based detection
       // This is expected for non-image files (e.g., videos, corrupted images, etc.)
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("unsupported image format")) {
         // This is normal for video files or other non-image formats - skip logging
         // as it's expected behavior when Sharp tries to process non-image buffers
       } else {
-        logger.debug({ error: serializeError(error), originalExtension }, "Failed to detect format from buffer");
+        logger.debug(
+          { error: serializeError(error), originalExtension },
+          "Failed to detect format from buffer",
+        );
       }
     }
   }
@@ -143,7 +152,7 @@ export async function determineContentType(
 export async function checkCloudCache(
   storage: CloudStorage | null,
   filePath: string,
-  params: ReturnType<typeof parseParams>
+  params: ReturnType<typeof parseParams>,
 ): Promise<Buffer | null> {
   if (!storage) return null;
 
@@ -153,7 +162,10 @@ export async function checkCloudCache(
       return await storage.download(filePath, params);
     }
   } catch (error) {
-    logger.warn({ error: serializeError(error), filePath }, "Cloud cache error, falling back to local cache");
+    logger.warn(
+      { error: serializeError(error), filePath },
+      "Cloud cache error, falling back to local cache",
+    );
   }
 
   return null;
@@ -163,7 +175,7 @@ export async function checkCloudCache(
  * Checks local cache and returns buffer if found
  */
 export async function checkLocalCache(
-  cachePath: string
+  cachePath: string,
 ): Promise<Buffer | null> {
   if (await existsInCache(cachePath)) {
     logger.debug({ cachePath }, "Serving from local cache");
@@ -179,7 +191,7 @@ export async function checkLocalCache(
 export async function verifyFileExists(
   storage: CloudStorage | null,
   filePath: string,
-  localPath: string
+  localPath: string,
 ): Promise<{ exists: boolean; isCloud: boolean; error?: string }> {
   if (storage) {
     try {
@@ -193,7 +205,10 @@ export async function verifyFileExists(
       }
       return { exists: true, isCloud: true };
     } catch (error) {
-      logger.warn({ error: serializeError(error), filePath }, "Error checking cloud storage for original file");
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Error checking cloud storage for original file",
+      );
       return {
         exists: false,
         isCloud: true,
@@ -219,7 +234,7 @@ export async function verifyFileExists(
 export async function prepareSourceFile(
   storage: CloudStorage | null,
   filePath: string,
-  localPath: string
+  localPath: string,
 ): Promise<string> {
   if (storage) {
     logger.debug({ filePath }, "Processing from cloud file");
@@ -247,13 +262,16 @@ export async function prepareSourceFile(
  */
 export async function processImage(
   originalPath: string,
-  params: ReturnType<typeof parseParams>,
+  params: CombindedTransformParams,
   userAgent: string | undefined,
   acceptHeader: string | undefined,
-  compression: Compression
+  compression: Compression,
 ): Promise<{ buffer: Buffer; contentType: string; optimizationResult?: any }> {
   // Basic processing with existing parameters
-  const basicBuffer = await transformImage(originalPath, params);
+  const basicBuffer = await transformImage(
+    originalPath,
+    params as ImageTransformParams,
+  );
 
   // Temporary save for advanced optimization
   const { writeFile, unlink } = await import("fs/promises");
@@ -264,9 +282,9 @@ export async function processImage(
     // Advanced optimization
     const optimizationResult = await compression.optimizeForDelivery(
       tempOptimPath,
-      params,
+      params as ImageTransformParams,
       userAgent,
-      acceptHeader
+      acceptHeader,
     );
 
     const contentType = `image/${optimizationResult.format}`;
@@ -280,7 +298,10 @@ export async function processImage(
       optimizationResult,
     };
   } catch (error) {
-    logger.warn({ error: serializeError(error), originalPath }, "Advanced compression failed, using basic");
+    logger.warn(
+      { error: serializeError(error), originalPath },
+      "Advanced compression failed, using basic",
+    );
 
     // Determine content type from extension
     const ext = originalPath.split(".").pop()?.toLowerCase();
@@ -313,41 +334,52 @@ export async function processImage(
  */
 export async function processVideo(
   originalPath: string,
-  params: ReturnType<typeof parseParams>
+  params: ReturnType<typeof parseParams>,
 ): Promise<{ buffer: Buffer; contentType: string }> {
   // Check file size before processing to prevent server crashes
   const fs = await import("fs");
   const stats = fs.statSync(originalPath);
   const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB (increased for 8K videos)
-  
+
   if (stats.size > MAX_VIDEO_SIZE) {
     const fileSizeMB = (stats.size / 1024 / 1024).toFixed(1);
-    throw new Error(`Video file too large: ${fileSizeMB} MB (maximum allowed: 200 MB)`);
+    throw new Error(
+      `Video file too large: ${fileSizeMB} MB (maximum allowed: 200 MB)`,
+    );
   }
-  
+
   // Get video information for better diagnostics
   try {
-    const { getVideoInfo, getResolutionLabel } = await import("../utils/video/video-info.js");
+    const { getVideoInfo, getResolutionLabel } =
+      await import("../utils/video/video-info.js");
     const videoInfo = await getVideoInfo(originalPath);
     const resLabel = getResolutionLabel(videoInfo);
-    
-    logger.info({ 
-      resolution: `${videoInfo.width}x${videoInfo.height}`,
-      label: resLabel,
-      duration: videoInfo.duration.toFixed(1),
-      size: (stats.size / 1024 / 1024).toFixed(1) + ' MB',
-      codec: videoInfo.codec
-    }, "Processing video");
-    
+
+    logger.info(
+      {
+        resolution: `${videoInfo.width}x${videoInfo.height}`,
+        label: resLabel,
+        duration: videoInfo.duration.toFixed(1),
+        size: (stats.size / 1024 / 1024).toFixed(1) + " MB",
+        codec: videoInfo.codec,
+      },
+      "Processing video",
+    );
+
     // Warn about large resolutions
     if (videoInfo.width >= 3000) {
-      logger.warn({ resolution: resLabel }, 
-        "Processing large resolution video - this may take several minutes and use significant memory");
+      logger.warn(
+        { resolution: resLabel },
+        "Processing large resolution video - this may take several minutes and use significant memory",
+      );
     }
   } catch (error) {
-    logger.warn({ error: serializeError(error) }, "Failed to get video info, proceeding with processing");
+    logger.warn(
+      { error: serializeError(error) },
+      "Failed to get video info, proceeding with processing",
+    );
   }
-  
+
   const buffer = await transformVideo(originalPath, params);
   const ext = originalPath.split(".").pop()?.toLowerCase();
 
@@ -356,7 +388,8 @@ export async function processVideo(
 
   // If an image format is explicitly requested, treat output as an image (thumbnail)
   if (requestedFormat && imageFormats.has(requestedFormat)) {
-    const normalizedFormat = requestedFormat === "jpg" ? "jpeg" : requestedFormat;
+    const normalizedFormat =
+      requestedFormat === "jpg" ? "jpeg" : requestedFormat;
 
     const imageTypeMap: Record<string, string> = {
       jpeg: "image/jpeg",
@@ -388,10 +421,10 @@ export async function processVideo(
 export async function saveToCaches(
   storage: CloudStorage | null,
   filePath: string,
-  params: ReturnType<typeof parseParams>,
+  params: CombindedTransformParams,
   cachePath: string,
   buffer: Buffer,
-  contentType: string
+  contentType: string,
 ): Promise<void> {
   const fileSize = buffer.length;
   await SmartCache.trackRequest(filePath, fileSize);
@@ -418,11 +451,17 @@ export async function saveToCaches(
             logger.debug({ filePath }, "Removed from local cache");
           }
         } catch (error) {
-          logger.warn({ error: serializeError(error), filePath }, "Failed to cleanup local cache");
+          logger.warn(
+            { error: serializeError(error), filePath },
+            "Failed to cleanup local cache",
+          );
         }
       }
     } catch (error) {
-      logger.warn({ error: serializeError(error), filePath }, "Failed to upload to cloud cache");
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Failed to upload to cloud cache",
+      );
     }
   }
 }
@@ -437,7 +476,10 @@ export async function cleanupTempFile(filePath: string): Promise<void> {
       fs.unlinkSync(filePath);
     }
   } catch (error) {
-    logger.warn({ error: serializeError(error), filePath }, "Failed to cleanup temp file");
+    logger.warn(
+      { error: serializeError(error), filePath },
+      "Failed to cleanup temp file",
+    );
   }
 }
 
@@ -453,4 +495,3 @@ export async function performPeriodicCacheCleanup(): Promise<void> {
     }
   }
 }
-
