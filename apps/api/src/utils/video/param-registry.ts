@@ -4,6 +4,7 @@ import { applyResize } from "./resize";
 import { applyQuality } from "./quality";
 import { applyTrimming } from "./trim";
 import { applyThumbnailExtraction } from "./thumbnail";
+import { FullGravityMode } from "shared";
 
 /**
  * Parameter processor function type for video transformations
@@ -209,6 +210,126 @@ export const VIDEO_PARAMS: readonly VideoParamDefinition[] = [
       return command;
     },
     priority: 5, // Format conversion last
+  },
+  {
+    param: "l",
+    name: "Overlay Layer image path",
+    description:
+      'Specifies the path of the image that should be overlayed on top of the main one. IMPORTANT: all "/" in the path have to be replaced with ":"!',
+    example: "l_summer:sunset.png",
+    defaultValue: "",
+    validValues: ["<every existing file path>"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lo",
+    name: "Overlay Layer opacity",
+    description:
+      "Specifies the opacity of the overlay layer. Options: all integer values between 0 and 100.",
+    example: "lo_35",
+    defaultValue: 50,
+    validValues: ["<integers 0-100>"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lt",
+    name: "Overlay Layer Tiled",
+    description:
+      "Specifies that the overlay should ne repeated in a grid. Options: 'true' or a positive integer",
+    example: "lt_true",
+    validValues: ["true", "<positive integer>"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lx",
+    name: "Overlay Layer X offset",
+    description:
+      "Sets the offset in pixels from the top when not tiled. Has to be set together with ly!",
+    example: "lx_50",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "ly",
+    name: "Overlay Layer Y offset",
+    description:
+      "Sets the offset in pixels from the left when not tiled. Has to be set together with lx!",
+    example: "ly_50",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lw",
+    name: "Overlay Layer image width",
+    description:
+      "Sets the overlay image height of in pixels. Can be used independently or with width.",
+    example: "w_300",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lh",
+    name: "Overlay Layer image height",
+    description:
+      "Sets the overlay image height of in pixels. Can be used independently or with width.",
+    example: "h_200",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "lg",
+    name: "Overlay image Gravity",
+    description:
+      "Defined the position of the overlay image. Has no effect when tiled.",
+    example: "lg_center",
+    defaultValue: "center",
+    validValues: Object.values(FullGravityMode).map((v) => v.toLowerCase()),
+    processor: async (image, value, allParams) => {
+      // Gravity is used by other operations (aspect ratio, resize)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "ls",
+    name: "Overlay Tile Spacing",
+    description:
+      "Sets the spacing between overlay tiles. Has to be set together with lt_true!",
+    example: "ls_30",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
   },
 ] as const;
 

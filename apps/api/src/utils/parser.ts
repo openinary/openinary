@@ -52,6 +52,7 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<TransformKey, RegExp>> = {
   lw: /^\d+$|^auto$/,
   lh: /^\d+$|^auto$/,
   lg: new RegExp(`^(${Object.values(FullGravityMode).join("|")})$`, "i"),
+  ls: /^\d+$/,
 };
 
 const isValidTransformPair = (part: string): boolean => {
@@ -101,7 +102,8 @@ type TransformKey =
   | "ly" // overlay top offset
   | "lw" // overlay width
   | "lh" // overlay height
-  | "lg"; // overlay gravity
+  | "lg" // overlay gravity
+  | "ls"; // overlay tile spacing
 
 /**
  * Parse a single transformation segment into our
@@ -270,6 +272,15 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         } catch (e) {
           throw new Error(
             "Parsing overlay width failed. Make sure it is an integer or 'auto'.",
+          );
+        }
+        break;
+      case "ls":
+        try {
+          params.overlayTileSpacing = parseInt(value);
+        } catch (e) {
+          throw new Error(
+            "Parsing overlay tile spacing failed. Make sure it is an integer.",
           );
         }
         break;

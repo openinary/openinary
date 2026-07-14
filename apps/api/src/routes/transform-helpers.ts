@@ -13,6 +13,7 @@ import {
   SmartCache,
 } from "../utils/cache";
 import { ImageTransformParams } from "shared";
+import fs from "fs/promises";
 
 /**
  * Sets the Content-Type header based on file extension or content-type string
@@ -471,11 +472,10 @@ export async function saveToCaches(
  */
 export async function cleanupTempFile(filePath: string): Promise<void> {
   try {
-    const fs = await import("fs");
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    await fs.unlink(filePath);
   } catch (error) {
+    if (error.code !== "ENOENT") return; // If file is not found
+
     logger.warn(
       { error: serializeError(error), filePath },
       "Failed to cleanup temp file",

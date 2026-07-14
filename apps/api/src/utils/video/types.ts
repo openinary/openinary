@@ -31,4 +31,5 @@ type TransformFunctionResponse = {
   command?: FfmpegCommand;
   complexFilters?: FilterSpecification[];
   outputVideoStream?: string;
+  cleanupFunc?: () => void | (() => Promise<void>);
 };

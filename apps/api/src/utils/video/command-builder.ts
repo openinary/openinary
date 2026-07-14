@@ -13,11 +13,13 @@ export class VideoCommandBuilder {
   private complexFilter: FilterSpecification[];
   private outputVideoStream: string;
   private context: VideoContext;
+  private cleanupFunctions: (() => void | (() => Promise<void>))[];
 
   constructor(context: VideoContext) {
     this.context = context;
     this.complexFilter = [];
     this.outputVideoStream = "0:v";
+    this.cleanupFunctions = [];
     // niceness lowers ffmpeg's scheduling priority so encoding never starves
     // the HTTP event loop; threads are capped to the container's effective
     // CPUs (leaving one for serving) instead of a hardcoded value
@@ -49,11 +51,13 @@ export class VideoCommandBuilder {
 
       if (!response) continue;
 
-      const { command, complexFilters, outputVideoStream } = response;
+      const { command, complexFilters, outputVideoStream, cleanupFunc } =
+        response;
 
       if (command) this.command = command;
       if (complexFilters) this.complexFilter.push(...complexFilters);
       if (outputVideoStream) this.outputVideoStream = outputVideoStream;
+      if (cleanupFunc) this.cleanupFunctions.push(cleanupFunc);
     }
     return this;
   }
@@ -105,13 +109,26 @@ export class VideoCommandBuilder {
             resolve(buffer);
           } catch (error) {
             reject(error);
+          } finally {
+            try {
+              this.cleanup();
+            } catch (error) {
+              reject(error);
+            }
           }
         })
         .on("error", (error) => {
           clearTimeout(timeoutId);
+          this.cleanup();
           reject(new Error(`Video processing failed: ${error.message}`));
         })
         .run();
     });
+  }
+
+  async cleanup(): Promise<void> {
+    for (const func of this.cleanupFunctions) {
+      await func();
+    }
   }
 }

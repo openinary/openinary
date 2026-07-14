@@ -302,9 +302,22 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     description: "Defined the position of the overlay image.",
     example: "lg_center",
     defaultValue: "center",
-    validValues: Object.values(FullGravityMode),
+    validValues: Object.values(FullGravityMode).map((v) => v.toLowerCase()),
     processor: async (image, value, allParams) => {
       // Gravity is used by other operations (aspect ratio, resize)
+      return image;
+    },
+    priority: 0, // Config parameter, not a direct operation
+  },
+  {
+    param: "ls",
+    name: "Overlay Tile Spacing",
+    description:
+      "Sets the spacing between overlay tiles. Has to be set together with lt_true!",
+    example: "ls_30",
+    validValues: ["any positive integer"],
+    processor: async (image, value, allParams) => {
+      // Background is used by other operations (rotation, pad)
       return image;
     },
     priority: 0, // Config parameter, not a direct operation

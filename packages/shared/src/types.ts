@@ -45,6 +45,7 @@ export interface OverlayTransformParams {
   overlayXOffset?: number;
   overlayYOffset?: number;
   overlayTiled?: boolean;
+  overlayTileSpacing?: number;
 }
 
 export interface ImageTransformParams

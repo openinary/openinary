@@ -5,6 +5,8 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import logger from "utils/logger";
 import { TransformFunction } from "./types";
+import path from "path";
+import { cleanupTempFile } from "routes/transform-helpers";
 
 /**
  * Apply resize transformation to a video
@@ -24,6 +26,7 @@ export const applyOverlay: TransformFunction = async (
     overlayWidth,
     overlayOpacity,
     overlayTiled,
+    overlayTileSpacing,
     overlayXOffset,
     overlayYOffset,
   } = context.params;
@@ -36,40 +39,64 @@ export const applyOverlay: TransformFunction = async (
   const ffprobe = promisify(Ffmpeg.ffprobe);
 
   try {
-    const overlayImage = sharp(overlayPath);
-    const overlayMetaData = await overlayImage.metadata();
-
     const videoMetaData = await ffprobe(context.inputPath);
     const video = videoMetaData?.streams?.find(
       (stream) => stream.codec_type === "video",
     );
 
-    const watermarkWidth = overlayWidth || overlayMetaData.width;
-    const watermarkHeight = overlayHeight || overlayMetaData.height;
-
-    if (
-      overlayTiled &&
-      watermarkHeight &&
-      watermarkWidth &&
-      (width || video.width) &&
-      (height || video.height)
-    ) {
-      const cols = Math.ceil((width || video.width) / watermarkWidth);
-      const rows = Math.ceil((height || video.height) / watermarkHeight);
-
-      const tiled = createTiledWatermarkFilters({
-        videoWidth: width || video.width,
-        videoHeight: height || video.height,
-        watermarkWidth,
-        watermarkHeight,
-        previousOutputStream: outputVideoStream,
-        opacity: overlayOpacity ? overlayOpacity / 100 : 0.5,
+    if (overlayTiled && (width || video.width) && (height || video.height)) {
+      const tiledWatermarkBuffer = await createTiledWatermark({
+        watermarkFile: overlayPath,
+        canvasWidth: width || video.width,
+        canvasHeight: height || video.height,
+        tileWidth: overlayWidth,
+        tileHeight: overlayHeight,
+        spacing: overlayTileSpacing,
+        x: overlayXOffset,
+        y: overlayYOffset,
       });
 
+      const basepath = context.outputPath.replace(
+        path.basename(context.outputPath),
+        "",
+      );
+      const tempTiledWatermarkPath = path.join(
+        basepath,
+        `watermark-${crypto.randomUUID()}.png`,
+      );
+
+      try {
+        await fs.writeFile(tempTiledWatermarkPath, tiledWatermarkBuffer);
+      } catch {
+        throw new Error("Saving temporary tiled watermark file failed.");
+      }
+
       return {
-        command: command.input(overlayPath),
-        complexFilters: tiled.filters,
-        outputVideoStream: tiled.output,
+        command: command.input(tempTiledWatermarkPath),
+        complexFilters: [
+          {
+            filter: "format",
+            options: "rgba",
+            inputs: "1:v",
+            outputs: "wm_rgba",
+          },
+          {
+            filter: "colorchannelmixer",
+            options: `aa=${overlayOpacity ? overlayOpacity / 100 : 0.5}`,
+            inputs: "wm_rgba",
+            outputs: "wm_alpha",
+          },
+          {
+            filter: "overlay",
+            options: `0:0`,
+            inputs: [outputVideoStream, "wm_alpha"],
+            outputs: "wm_marked",
+          },
+        ],
+        outputVideoStream: "wm_marked",
+        cleanupFunc: async () => {
+          await cleanupTempFile(tempTiledWatermarkPath);
+        },
       };
     }
 
@@ -128,12 +155,6 @@ function overlayPosition(
       };
 
     case "northeast":
-      const filters = [];
-
-      // Prepare the watermark
-      filters.push(
-        `[1:v]scale=${watermarkWidth}:${watermarkHeight},format=rgba,colorchannelmixer=aa=${opacity}[wm]`,
-      );
       return {
         x: `main_w-overlay_w-${left}`,
         y: `${top}`,
@@ -142,12 +163,6 @@ function overlayPosition(
     case "west":
       return {
         x: `${left}`,
-        y: `(main_h-overlay_h)/2+${top}`,
-      };
-
-    case "center":
-      return {
-        x: `(main_w-overlay_w)/2+${left}`,
         y: `(main_h-overlay_h)/2+${top}`,
       };
 
@@ -171,91 +186,93 @@ function overlayPosition(
 
     case "southeast":
     default:
+    case "center":
       return {
-        x: `main_w-overlay_w-${left}`,
-        y: `main_h-overlay_h-${top}`,
+        x: `(main_w-overlay_w)/2+${left}`,
+        y: `(main_h-overlay_h)/2+${top}`,
       };
   }
 }
 
-function createTiledWatermarkFilters({
-  videoWidth,
-  videoHeight,
-  watermarkWidth,
-  watermarkHeight,
-  previousOutputStream,
-  spacingX = 0,
-  spacingY = 0,
-  offsetX = 0,
-  offsetY = 0,
-  opacity = 0.3,
-  stagger = false,
+async function createTiledWatermark({
+  watermarkFile,
+  canvasWidth,
+  canvasHeight,
+  tileWidth,
+  tileHeight,
+  spacing = 0,
+  x = 0,
+  y = 0,
 }: {
-  videoWidth: number;
-  videoHeight: number;
-  watermarkWidth: number;
-  watermarkHeight: number;
-  previousOutputStream: string;
-  spacingX?: number;
-  spacingY?: number;
-  offsetX?: number;
-  offsetY?: number;
-  opacity?: number;
-  stagger?: boolean;
-}): { filters: FilterSpecification[]; output: string } {
-  const filters: FilterSpecification[] = [];
+  watermarkFile: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  tileWidth?: number;
+  tileHeight?: number;
+  spacing?: number;
+  x?: number;
+  y?: number;
+}): Promise<Buffer<ArrayBufferLike>> {
+  const watermark = await sharp(watermarkFile);
 
-  // Prepare watermark once
-  filters.push(
-    {
-      filter: "scale",
-      options: `${watermarkWidth}:${watermarkHeight}`,
-      inputs: "1:v",
-      outputs: "wm_scaled",
-    },
-    {
-      filter: "format",
-      options: "rgba",
-      inputs: "wm_scaled",
-      outputs: "wm_rgba",
-    },
-    {
-      filter: "colorchannelmixer",
-      options: `aa=${opacity}`,
-      inputs: "wm_rgba",
-      outputs: "wm",
-    },
-  );
+  const metadata = await watermark.metadata();
 
-  const stepX = watermarkWidth + spacingX;
-  const stepY = watermarkHeight + spacingY;
+  if (!metadata || !metadata.height || !metadata.width)
+    throw new Error("Processing tiled watermark failed.");
 
-  let currentVideo = previousOutputStream;
-  let overlayIndex = 0;
+  const watermarkWidth =
+    tileWidth ||
+    (tileHeight
+      ? Math.floor((tileHeight / metadata.height) * metadata.width)
+      : metadata.width);
+  const watermarkHeight =
+    tileHeight ||
+    (tileWidth
+      ? Math.floor((tileWidth / metadata.width) * metadata.height)
+      : metadata.height);
 
-  for (let y = offsetY; y < videoHeight; y += stepY) {
-    const rowOffset =
-      stagger && ((y - offsetY) / stepY) % 2 === 1 ? stepX / 2 : 0;
+  console.log(tileWidth, watermarkWidth);
+  console.log(tileHeight, watermarkHeight);
 
-    for (let x = offsetX + rowOffset; x < videoWidth; x += stepX) {
-      const nextVideo = `video_${overlayIndex++}`;
+  const watermarkResized = await watermark
+    .resize({
+      width: watermarkWidth,
+      height: watermarkHeight,
+      fit: tileWidth && tileHeight ? "fill" : "inside",
+    })
+    .ensureAlpha()
+    .modulate({
+      brightness: 1,
+    })
+    .png()
+    .toBuffer();
 
-      filters.push({
-        filter: "overlay",
-        inputs: [currentVideo, "wm"],
-        options: {
-          x: Math.round(x),
-          y: Math.round(y),
-        },
-        outputs: nextVideo,
+  const composites = [];
+
+  for (let top = y; top < canvasHeight; top += watermarkHeight + spacing) {
+    for (let left = x; left < canvasWidth; left += watermarkWidth + spacing) {
+      composites.push({
+        input: watermarkResized,
+        left,
+        top,
       });
-
-      currentVideo = nextVideo;
     }
   }
 
-  return {
-    filters,
-    output: currentVideo,
-  };
+  return await sharp({
+    create: {
+      width: canvasWidth,
+      height: canvasHeight,
+      channels: 4,
+      background: {
+        r: 0,
+        g: 0,
+        b: 0,
+        alpha: 0,
+      },
+    },
+  })
+    .composite(composites)
+    .png()
+    .toBuffer();
 }
