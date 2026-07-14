@@ -133,7 +133,6 @@ export const applyOverlay: TransformFunction = async (
       outputVideoStream: "wm_marked",
     };
   } catch (e) {
-    console.log("overlay failed");
     logger.error(e);
     throw new Error("Adding overlay failed.");
   }
@@ -230,9 +229,6 @@ async function createTiledWatermark({
     (tileWidth
       ? Math.floor((tileWidth / metadata.width) * metadata.height)
       : metadata.height);
-
-  console.log(tileWidth, watermarkWidth);
-  console.log(tileHeight, watermarkHeight);
 
   const watermarkResized = await watermark
     .resize({

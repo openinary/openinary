@@ -325,6 +325,7 @@ export const VIDEO_PARAMS: readonly VideoParamDefinition[] = [
       "Sets the spacing between overlay tiles. Has to be set together with lt_true!",
     example: "ls_30",
     validValues: ["any positive integer"],
+    defaultValue: "0",
     processor: async (image, value, allParams) => {
       // Background is used by other operations (rotation, pad)
       return image;

@@ -17,25 +17,49 @@ export const applyOverlayImage = async (
 ): Promise<sharp.Sharp> => {
   if (!params.overlayPath) return image;
 
+  console.log(params);
+
   try {
     const overlayImage = sharp(params.overlayPath);
     const baseImageMetaData = await image.metadata();
     const overlayImageMetaData = await overlayImage.metadata();
 
+    const width = Math.min(
+      params.width || baseImageMetaData.width || 0,
+      params.overlayWidth || overlayImageMetaData.width || 0,
+    );
+    const height = Math.min(
+      params.height || baseImageMetaData.height || 0,
+      params.overlayHeight || overlayImageMetaData.height || 0,
+    );
+
     const overlayResizedBuffer = await overlayImage
       .resize({
-        width: Math.min(
-          params.width || baseImageMetaData.width || 0,
-          params.overlayWidth || overlayImageMetaData.width || 0,
-        ),
-        height: Math.min(
-          params.height || baseImageMetaData.height || 0,
-          params.overlayHeight || overlayImageMetaData.height || 0,
-        ),
+        width,
+        height,
       })
-      .ensureAlpha(
-        params.overlayOpacity != null ? params.overlayOpacity / 100 : 0.5,
-      )
+      .ensureAlpha()
+      .composite([
+        {
+          input: {
+            create: {
+              width,
+              height,
+              channels: 4,
+              background: {
+                r: 255,
+                g: 255,
+                b: 255,
+                alpha:
+                  params.overlayOpacity != null
+                    ? params.overlayOpacity / 100
+                    : 0.5,
+              },
+            },
+          },
+          blend: "dest-in",
+        },
+      ])
       .png()
       .toBuffer();
 

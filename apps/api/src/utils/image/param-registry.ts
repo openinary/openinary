@@ -248,7 +248,7 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     param: "lx",
     name: "Overlay Layer X offset",
     description:
-      "Sets the offset in pixels from the top when not tiled. Has to be set together with ly!",
+      "Sets the offset in pixels from the top when not tiled. Has to be set together with ly! Only works when not tiled!",
     example: "lx_50",
     validValues: ["any positive integer"],
     processor: async (image, value, allParams) => {
@@ -261,7 +261,7 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     param: "ly",
     name: "Overlay Layer Y offset",
     description:
-      "Sets the offset in pixels from the left when not tiled. Has to be set together with lx!",
+      "Sets the offset in pixels from the left when not tiled. Has to be set together with lx! Only works when not tiled!",
     example: "ly_50",
     validValues: ["any positive integer"],
     processor: async (image, value, allParams) => {
@@ -305,19 +305,6 @@ export const IMAGE_PARAMS: readonly ParamDefinition[] = [
     validValues: Object.values(FullGravityMode).map((v) => v.toLowerCase()),
     processor: async (image, value, allParams) => {
       // Gravity is used by other operations (aspect ratio, resize)
-      return image;
-    },
-    priority: 0, // Config parameter, not a direct operation
-  },
-  {
-    param: "ls",
-    name: "Overlay Tile Spacing",
-    description:
-      "Sets the spacing between overlay tiles. Has to be set together with lt_true!",
-    example: "ls_30",
-    validValues: ["any positive integer"],
-    processor: async (image, value, allParams) => {
-      // Background is used by other operations (rotation, pad)
       return image;
     },
     priority: 0, // Config parameter, not a direct operation
