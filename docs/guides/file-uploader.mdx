@@ -1,6 +1,6 @@
 ---
 title: "File Uploader Component"
-description: "Drop a secure, ready-to-use file uploader into any React app with a single shadcn/ui command. Uploads go straight to your Openinary instance using short-lived presigned signatures — no API key in the browser."
+description: "Drop a secure, ready-to-use file uploader into any React app with a single shadcn/ui command. Uploads go straight to your Openinary instance using short-lived presigned signatures, no API key in the browser."
 ---
 
 The **Openinary File Uploader** is a shadcn/ui-compatible React component that lets your users upload media directly to your self-hosted Openinary instance. It ships with drag & drop, per-file progress, previews, retry, cancel, and client-side validation.
@@ -13,14 +13,14 @@ pnpm dlx shadcn@latest add @openinary/file-uploader
 
 ## Security model
 
-The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload#presigned-uploads) — the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
+The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload#presigned-uploads), the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
 
 <Steps>
   <Step title="Your backend requests a signature">
     A protected endpoint on your server calls `POST /upload/sign` with your **Openinary API key**, scoping the request to a `folder` and an expiry window.
   </Step>
   <Step title="The browser gets the signature">
-    The component calls your `sign()` function right before uploading. It returns `{ signature, expires, folder }` — opaque values that expire in minutes.
+    The component calls your `sign()` function right before uploading. It returns `{ signature, expires, folder }`, opaque values that expire in minutes.
   </Step>
   <Step title="Openinary verifies the signature">
     `POST /upload` checks the signature against the submitted `folder` and `expires` before accepting the file. A tampered or expired signature is rejected.
@@ -28,7 +28,7 @@ The component never holds an API key. Instead it uses **presigned upload signatu
 </Steps>
 
 <Warning>
-  Your Openinary **API key** never leaves your backend — only your server should
+  Your Openinary **API key** never leaves your backend, only your server should
   call `POST /upload/sign`. The endpoint you create for the component must be
   protected by your own auth and rate limiting; derive `folder` from the
   authenticated user, not from the client.
@@ -37,7 +37,7 @@ The component never holds an API key. Instead it uses **presigned upload signatu
 ## Prerequisites
 
 - A running Openinary instance (see [Quickstart](/quickstart)).
-- `API_SECRET` set on the instance (**64 characters** — `openssl rand -hex 32`) — used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+- `API_SECRET` set on the instance (**64 characters**, `openssl rand -hex 32`), used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
 - An **API key** for your backend to call `POST /upload/sign` with (see [API Keys](/api-reference/api-keys/create)).
 - `CORS_ORIGIN` set to include the origin(s) of the app embedding the uploader. Multiple origins are comma-separated:
   ```bash
@@ -74,16 +74,16 @@ The component never holds an API key. Instead it uses **presigned upload signatu
     pnpm dlx shadcn@latest add @openinary/upload-token
     ```
 
-    This installs `lib/upload-token.ts`, a thin client for `POST /upload/sign` — it makes one `fetch` call and doesn't compute anything cryptographic itself; Openinary does that.
+    This installs `lib/upload-token.ts`, a thin client for `POST /upload/sign`, it makes one `fetch` call and doesn't compute anything cryptographic itself; Openinary does that.
 
   </Step>
   <Step title="Set your environment variables">
     ```bash .env.local
-    # Public — the browser calls this Openinary API directly for the upload
+    # Public, the browser calls this Openinary API directly for the upload
     # /api is required in full stack mode (nginx only exposes the API under /api); drop it for API-only deployments
     NEXT_PUBLIC_OPENINARY_URL=https://your-domain.com/api
 
-    # Secret — server only, an Openinary API key, never exposed to the browser
+    # Secret, server only, an Openinary API key, never exposed to the browser
     OPENINARY_API_KEY=your-openinary-api-key
     ```
 
@@ -163,7 +163,7 @@ The component needs a `sign()` function that returns a presigned signature. Back
 </Tabs>
 
 <Note>
-  Keep `expiresIn` short — **60–300 seconds** is plenty (the server clamps it to
+  Keep `expiresIn` short, **60–300 seconds** is plenty (the server clamps it to
   at most 3600). It only needs to live long enough to start the upload.
 </Note>
 
@@ -255,7 +255,7 @@ The component needs a `sign()` function that returns a presigned signature. Back
 </ParamField>
 
 <ParamField path="maxFiles" type="number">
-  Client-side cap on the number of files. This is a UI convenience only — `POST
+  Client-side cap on the number of files. This is a UI convenience only, `POST
   /upload/sign` does not encode a file-count limit, so it isn't enforced
   server-side.
 </ParamField>
@@ -292,7 +292,7 @@ The component needs a `sign()` function that returns a presigned signature. Back
 
 ## Styling & theming
 
-The component is built entirely with shadcn's design tokens (`border`, `muted`, `primary`, `destructive`, `ring`…), so it automatically matches your theme and dark mode. Because the source is copied into your project, you own it — edit `components/openinary/file-uploader.tsx` freely. Use `className` for one-off overrides.
+The component is built entirely with shadcn's design tokens (`border`, `muted`, `primary`, `destructive`, `ring`…), so it automatically matches your theme and dark mode. Because the source is copied into your project, you own it, edit `components/openinary/file-uploader.tsx` freely. Use `className` for one-off overrides.
 
 ## Server response
 
@@ -339,7 +339,7 @@ On success, `onSuccess` receives the files stored by the API:
     for clock skew between your server and the API.
   </Accordion>
   <Accordion title="401 'Authentication required' on POST /upload">
-    The signature didn't verify — usually because the `folder` used to sign it
+    The signature didn't verify, usually because the `folder` used to sign it
     doesn't exactly match the folder submitted with the upload, the signature
     was tampered with, or the `API_SECRET` used by the Openinary instance
     changed since the signature was minted. The component always uses the folder
@@ -348,14 +348,14 @@ On success, `onSuccess` receives the files stored by the API:
     component.
   </Accordion>
   <Accordion title="401/403 calling POST /upload/sign itself">
-    That endpoint requires a real Openinary API key or session — check
+    That endpoint requires a real Openinary API key or session, check
     `OPENINARY_API_KEY` on your backend, not the browser. It should never be
     called directly from client code.
   </Accordion>
   <Accordion title="signUpload throws 'Failed to sign upload (HTTP 404)', or the response is a redirect to /login">
     `NEXT_PUBLIC_OPENINARY_URL` is pointing at a full-stack instance's bare
     domain. In full stack mode the API only lives under `/api` (nginx routes
-    everything else to the web dashboard), so append `/api` to the URL — see the
+    everything else to the web dashboard), so append `/api` to the URL, see the
     note in [Set your environment variables](#installation). API-only
     deployments don't need the suffix.
   </Accordion>
@@ -368,4 +368,5 @@ On success, `onSuccess` receives the files stored by the API:
 
 ## How it compares to Uploadcare
 
-Like Uploadcare's File Uploader, this component uses a backend-signed, short-lived credential so the browser never holds a secret. The difference: uploads go to **your** self-hosted Openinary instance and storage — no third-party service, no per-file pricing.
+Like Uploadcare's File Uploader, this component uses a backend-signed, short-lived credential so the browser never holds a secret. The difference: uploads go to **your** self-hosted Openinary instance and storage, no third-party service, no per-file pricing.
+

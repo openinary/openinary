@@ -58,8 +58,8 @@ PRs will be reviewed by maintainers and merged once they meet quality standards 
 The `openinary upgrade` command (in `packages/cli`) fetches `docker.env.example`
 from the target release tag and diffs it against a project's local `.env` to
 detect newly introduced variables. If you add or rename an environment
-variable, please keep changes to this file **additive** — avoid renaming or
-removing existing keys — so upgrades across versions stay reliable.
+variable, please keep changes to this file **additive**, avoid renaming or
+removing existing keys, so upgrades across versions stay reliable.
 
 ---
 
@@ -79,6 +79,7 @@ To keep Openinary sustainable while staying Open Source, we use an "Open Core" m
 ### Why does Openinary have this?
 
 This CLA allows us to:
+
 - Build a professional managed service without legal friction
 - Fund development and maintenance
 - Keep the core free and open for the community

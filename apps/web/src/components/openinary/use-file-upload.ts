@@ -7,7 +7,7 @@ import * as React from "react";
  *
  * Uploads each file to `${baseUrl}/upload` with its own XMLHttpRequest so that
  * progress, retry and abort are tracked per file. Authentication uses a
- * short-lived presigned signature returned by `sign()` — sent as form fields
+ * short-lived presigned signature returned by `sign()`, sent as form fields
  * alongside the file, the same way `POST /upload/sign` on the Openinary API
  * expects it. The browser never holds an API key.
  */
@@ -197,7 +197,7 @@ function uploadViaXhr({
     };
 
     xhr.onerror = () =>
-      reject(new Error("Network error — check the API URL and CORS settings"));
+      reject(new Error("Network error, check the API URL and CORS settings"));
     xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
 
     xhr.send(form);
@@ -309,8 +309,15 @@ export function useFileUpload(options: UseFileUploadOptions) {
   }, []);
 
   const uploadOne = React.useCallback(
-    async (fileState: FileUploadState, signed: SignedUpload): Promise<UploadedFile | null> => {
-      updateFile(fileState.id, { status: "uploading", progress: 0, error: undefined });
+    async (
+      fileState: FileUploadState,
+      signed: SignedUpload,
+    ): Promise<UploadedFile | null> => {
+      updateFile(fileState.id, {
+        status: "uploading",
+        progress: 0,
+        error: undefined,
+      });
       try {
         const result = await uploadViaXhr({
           file: fileState,
@@ -345,7 +352,10 @@ export function useFileUpload(options: UseFileUploadOptions) {
   );
 
   const runQueue = React.useCallback(
-    async (queue: FileUploadState[], signed: SignedUpload): Promise<UploadedFile[]> => {
+    async (
+      queue: FileUploadState[],
+      signed: SignedUpload,
+    ): Promise<UploadedFile[]> => {
       const limit = Math.max(1, concurrency);
       const results: UploadedFile[] = [];
       let cursor = 0;

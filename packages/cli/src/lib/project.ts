@@ -24,7 +24,9 @@ export function projectConfigPath(dir: string): string {
   return path.join(dir, PROJECT_CONFIG_FILE);
 }
 
-export async function loadProjectConfig(dir: string): Promise<ProjectConfig | null> {
+export async function loadProjectConfig(
+  dir: string,
+): Promise<ProjectConfig | null> {
   const configPath = projectConfigPath(dir);
   if (!(await fs.pathExists(configPath))) return null;
   try {
@@ -36,7 +38,10 @@ export async function loadProjectConfig(dir: string): Promise<ProjectConfig | nu
   }
 }
 
-export async function writeProjectConfig(dir: string, config: ProjectConfig): Promise<void> {
+export async function writeProjectConfig(
+  dir: string,
+  config: ProjectConfig,
+): Promise<void> {
   await fs.writeJson(projectConfigPath(dir), config, { spaces: 2 });
 }
 
@@ -68,7 +73,8 @@ async function detectAdoptable(dir: string): Promise<ProjectConfig | null> {
   const composePath = path.join(dir, "docker-compose.yml");
   const envPath = path.join(dir, ".env");
 
-  if (!(await fs.pathExists(composePath)) || !(await fs.pathExists(envPath))) return null;
+  if (!(await fs.pathExists(composePath)) || !(await fs.pathExists(envPath)))
+    return null;
   if (await fs.pathExists(path.join(dir, "pnpm-workspace.yaml"))) return null;
   if (await fs.pathExists(path.join(dir, "turbo.json"))) return null;
 
@@ -101,7 +107,7 @@ export async function requireProject(cwd: string): Promise<Project> {
   const candidate = await detectAdoptable(resolvedCwd);
   if (candidate) {
     const shouldAdopt = await confirmPrompt({
-      message: `Found an existing Openinary setup in ${resolvedCwd} — adopt it as a managed project?`,
+      message: `Found an existing Openinary setup in ${resolvedCwd}, adopt it as a managed project?`,
       initialValue: true,
     });
     if (shouldAdopt) {

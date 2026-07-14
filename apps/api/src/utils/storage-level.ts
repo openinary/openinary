@@ -47,7 +47,7 @@ export function getMediaType(name: string): MediaType | null {
 /**
  * Normalizes a user-provided folder path.
  * Returns "" for the root, null when the path is invalid (empty segments,
- * "." or ".." — critical to prevent traversal in the local-FS fallback).
+ * "." or "..", critical to prevent traversal in the local-FS fallback).
  */
 export function normalizeLevelPath(raw: string): string | null {
   const trimmed = raw.replace(/^\/+|\/+$/g, "");

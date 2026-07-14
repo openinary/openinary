@@ -3,13 +3,13 @@ title: "Upload & Cache Warming"
 description: "Upload images and videos via the API and pre-generate transformed variants so the first public request is served instantly from cache."
 ---
 
-`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately — so the first user request is served from cache instead of triggering on-demand processing.
+`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately, so the first user request is served from cache instead of triggering on-demand processing.
 
-For the full endpoint reference — all parameters, form fields, and response schema — see the [Upload Files API reference](/api-reference/files/upload).
+For the full endpoint reference, all parameters, form fields, and response schema, see the [Upload Files API reference](/api-reference/files/upload).
 
 ## Upload video with queued transformations
 
-Video transformations run in a background queue — they don't block the upload response.
+Video transformations run in a background queue, they don't block the upload response.
 
 ```bash
 curl -X POST "http://localhost:3000/upload" \
@@ -19,7 +19,8 @@ curl -X POST "http://localhost:3000/upload" \
 ```
 
 <Note>
-Even without a `transformations` field, Openinary automatically queues a default thumbnail for every video upload.
+  Even without a `transformations` field, Openinary automatically queues a
+  default thumbnail for every video upload.
 </Note>
 
 ## TypeScript examples
@@ -49,7 +50,8 @@ const res = await fetch("http://localhost:3000/upload", {
   body: form,
 });
 
-if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+if (!res.ok)
+  throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
 const data = await res.json();
 console.log(data);
@@ -81,7 +83,8 @@ const res = await fetch("http://localhost:3000/upload", {
   body: form,
 });
 
-if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+if (!res.ok)
+  throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
 const data = await res.json();
 console.log(data);
@@ -112,7 +115,8 @@ const res = await fetch("http://localhost:3000/upload", {
   body: form,
 });
 
-if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+if (!res.ok)
+  throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
 
 const data = await res.json();
 console.log(data);
@@ -124,27 +128,45 @@ console.log(data);
 ## Limits
 
 - Max **20 transformations** per upload request.
-- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb) — useful for large video uploads in self-hosted setups.
+- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb), useful for large video uploads in self-hosted setups.
 
 ## Tips
 
-- Prewarm only the variants you actually serve — don't prewarm speculatively.
+- Prewarm only the variants you actually serve, don't prewarm speculatively.
 - Use consistent transformation strings across your frontend and backend to maximize cache hits.
 - For video, monitor the queue via `GET /queue/stats` during high-volume ingestion.
 
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Upload API reference" icon="code" href="/api-reference/files/upload">
+  <Card
+    title="Upload API reference"
+    icon="code"
+    href="/api-reference/files/upload"
+  >
     Full endpoint reference: all fields, validation, and response schema.
   </Card>
-  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  <Card
+    title="Image Transformations"
+    icon="image"
+    href="/media-transformations/image-transformations"
+  >
     Full parameter reference for resizing, cropping, and format conversion.
   </Card>
-  <Card title="Video Transformations" icon="video" href="/media-transformations/video-transformations">
+  <Card
+    title="Video Transformations"
+    icon="video"
+    href="/media-transformations/video-transformations"
+  >
     Resize, trim, and extract thumbnails from video files.
   </Card>
-  <Card title="File Uploader Component" icon="upload" href="/guides/file-uploader">
-    Drop a ready-to-use React uploader into your app with a single shadcn/ui command.
+  <Card
+    title="File Uploader Component"
+    icon="upload"
+    href="/guides/file-uploader"
+  >
+    Drop a ready-to-use React uploader into your app with a single shadcn/ui
+    command.
   </Card>
 </CardGroup>
+

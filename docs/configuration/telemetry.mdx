@@ -3,7 +3,7 @@ title: "Telemetry"
 description: "What anonymous usage data Openinary collects, and how to disable it"
 ---
 
-Openinary sends a small amount of anonymous, aggregated usage data to help prioritize development. This page lists **exactly** what is sent — nothing more.
+Openinary sends a small amount of anonymous, aggregated usage data to help prioritize development. This page lists **exactly** what is sent, nothing more.
 
 ## Why
 
@@ -13,12 +13,12 @@ Openinary is self-hosted and the entire codebase is public, so there is no way t
 
 Two events, both with a fixed, whitelisted set of properties. No file names, media content, URLs, user data, or IP addresses are ever included.
 
-| Event | When | Properties |
-|-------|------|------------|
+| Event              | When                                    | Properties                                                                                |
+| ------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `instance_started` | Once, on first ever boot of an instance | `version`, `deployment_mode`, `storage_backend`, `os_platform`, `os_arch`, `node_version` |
-| `daily_heartbeat` | Once every ~24h while the process runs | `version`, `deployment_mode`, `storage_backend`, `video_jobs_bucket` |
+| `daily_heartbeat`  | Once every ~24h while the process runs  | `version`, `deployment_mode`, `storage_backend`, `video_jobs_bucket`                      |
 
-Counts are never sent as raw numbers — they're bucketed into ranges (`0`, `1-10`, `11-100`, `101-1000`, `1000+`).
+Counts are never sent as raw numbers, they're bucketed into ranges (`0`, `1-10`, `11-100`, `101-1000`, `1000+`).
 
 Each instance has a random UUID (`instance_id`) generated on first boot and stored in the local database. It cannot be linked back to you or your data.
 
@@ -36,4 +36,5 @@ Events are sent to `telemetry.openinary.dev`, a small proxy maintained by the Op
 OPENINARY_TELEMETRY=false
 ```
 
-The code that generates and sends these events lives in [`apps/api/src/utils/telemetry.ts`](https://github.com/openinary/openinary/blob/main/apps/api/src/utils/telemetry.ts) — read it if you want to verify this page is accurate.
+The code that generates and sends these events lives in [`apps/api/src/utils/telemetry.ts`](https://github.com/openinary/openinary/blob/main/apps/api/src/utils/telemetry.ts), read it if you want to verify this page is accurate.
+

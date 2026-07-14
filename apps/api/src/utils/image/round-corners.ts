@@ -1,5 +1,5 @@
-import sharp from 'sharp';
-import { parseBackgroundColor } from './background';
+import sharp from "sharp";
+import { parseBackgroundColor } from "./background";
 
 /**
  * Expand a Cloudinary-style radius spec to [tl, tr, br, bl] corner values,
@@ -9,8 +9,11 @@ import { parseBackgroundColor } from './background';
  *   3 values → v1 = TL, v2 = TR+BL, v3 = BR
  *   4 values → TL, TR, BR, BL (clockwise from top-left)
  */
-function expandRadii(spec: string, maxRadius: number): [number, number, number, number] {
-  const parts = spec.split(':').map(Number);
+function expandRadii(
+  spec: string,
+  maxRadius: number,
+): [number, number, number, number] {
+  const parts = spec.split(":").map(Number);
   let tl: number, tr: number, br: number, bl: number;
 
   switch (parts.length) {
@@ -42,12 +45,16 @@ function expandRadii(spec: string, maxRadius: number): [number, number, number, 
  * Build an SVG mask with rounded corners sized to the given dimensions.
  * Uses an ellipse for r_max, and an arc-based path for explicit radii.
  */
-function buildMaskSvg(width: number, height: number, radiusSpec: string): string {
+function buildMaskSvg(
+  width: number,
+  height: number,
+  radiusSpec: string,
+): string {
   const w = width;
   const h = height;
   const maxRadius = Math.floor(Math.min(w, h) / 2);
 
-  if (radiusSpec === 'max') {
+  if (radiusSpec === "max") {
     const rx = w / 2;
     const ry = h / 2;
     return (
@@ -82,7 +89,7 @@ function buildMaskSvg(width: number, height: number, radiusSpec: string): string
 /**
  * Apply rounded corners to a Sharp image using an SVG alpha mask.
  *
- * Without a background: corners become transparent — use a format that
+ * Without a background: corners become transparent, use a format that
  * preserves alpha (PNG, WebP, AVIF). JPEG will bake transparency onto black.
  *
  * With a background color: corners are filled with that color instead of
@@ -91,7 +98,7 @@ function buildMaskSvg(width: number, height: number, radiusSpec: string): string
 export const applyRoundCorners = async (
   image: sharp.Sharp,
   radiusSpec: string,
-  background?: string
+  background?: string,
 ): Promise<sharp.Sharp> => {
   // Materialize any pending operations (e.g. resize) so we get the actual
   // output dimensions. image.metadata() only returns the *input* dimensions
@@ -107,14 +114,16 @@ export const applyRoundCorners = async (
   // the corners created by composite unfilled (they'd bake to black).
   const maskedBuffer = await sharp(data)
     .ensureAlpha()
-    .composite([{ input: Buffer.from(svg), blend: 'dest-in' }])
+    .composite([{ input: Buffer.from(svg), blend: "dest-in" }])
     .png()
     .toBuffer();
 
   // If a background color is specified, fill transparent corners in a new
   // pipeline where flatten sees the alpha produced by the composite above.
   if (background) {
-    return sharp(maskedBuffer).flatten({ background: parseBackgroundColor(background) });
+    return sharp(maskedBuffer).flatten({
+      background: parseBackgroundColor(background),
+    });
   }
 
   return sharp(maskedBuffer);

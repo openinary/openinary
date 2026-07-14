@@ -9,7 +9,7 @@ description: "Create an empty folder in storage"
 POST /upload/createfolder
 ```
 
-**Auth:** API Key required  
+**Auth:** API Key required
 **Content-Type:** `multipart/form-data`
 
 ## Form fields
@@ -17,12 +17,13 @@ POST /upload/createfolder
 <ParamField body="folder" type="string" required>
   Path of the folder to create. Nested paths are supported.
 
-  `photos` · `uploads/2024/january` · `products/thumbnails`
+`photos` · `uploads/2024/january` · `products/thumbnails`
+
 </ParamField>
 
 ## Response
 
-**`201`** — Folder created
+**`201`**, Folder created
 
 ```json
 {
@@ -31,9 +32,9 @@ POST /upload/createfolder
 }
 ```
 
-**`400`** — Invalid folder path
+**`400`**, Invalid folder path
 
-**`409`** — Folder already exists
+**`409`**, Folder already exists
 
 ```json
 {
@@ -57,7 +58,12 @@ curl -X POST http://localhost:3000/upload/createfolder \
   <Card title="Upload Files" icon="upload" href="/api-reference/files/upload">
     Upload files into a folder.
   </Card>
-  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
+  <Card
+    title="List Storage"
+    icon="folder-open"
+    href="/api-reference/storage/list"
+  >
     Browse the folder tree.
   </Card>
 </CardGroup>
+

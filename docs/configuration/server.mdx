@@ -5,19 +5,19 @@ description: "Environment variables for Openinary server mode, authentication se
 
 ## Parameters
 
-| Parameter | Description |
-|-----------|-------------|
-| [`MODE`](#mode) | Execution mode |
-| [`PORT`](#port) | API server port |
-| [`BETTER_AUTH_SECRET`](#better-auth-secret) | Authentication secret key |
-| [`BETTER_AUTH_URL`](#better-auth-url) | Base URL of the instance |
-| [`NEXT_PUBLIC_API_BASE_URL`](#next-public-api-base-url) | Public base URL of the API |
-| [`CORS_ORIGIN`](#cors-origin) | Allowed origin for external apps |
-| [`API_SECRET`](#api-secret) | Secret for signed URLs and authenticated uploads |
-| [`DB_PATH`](#db-path) | Custom SQLite database path |
-| [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max) | Max requests per window |
-| [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit window (ms) |
-| [`MAX_FILE_SIZE_MB`](#max-file-size-mb) | Maximum upload file size in MB |
+| Parameter                                                     | Description                                      |
+| ------------------------------------------------------------- | ------------------------------------------------ |
+| [`MODE`](#mode)                                               | Execution mode                                   |
+| [`PORT`](#port)                                               | API server port                                  |
+| [`BETTER_AUTH_SECRET`](#better-auth-secret)                   | Authentication secret key                        |
+| [`BETTER_AUTH_URL`](#better-auth-url)                         | Base URL of the instance                         |
+| [`NEXT_PUBLIC_API_BASE_URL`](#next-public-api-base-url)       | Public base URL of the API                       |
+| [`CORS_ORIGIN`](#cors-origin)                                 | Allowed origin for external apps                 |
+| [`API_SECRET`](#api-secret)                                   | Secret for signed URLs and authenticated uploads |
+| [`DB_PATH`](#db-path)                                         | Custom SQLite database path                      |
+| [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max)             | Max requests per window                          |
+| [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit window (ms)                           |
+| [`MAX_FILE_SIZE_MB`](#max-file-size-mb)                       | Maximum upload file size in MB                   |
 
 ## Parameter reference
 
@@ -25,26 +25,28 @@ description: "Environment variables for Openinary server mode, authentication se
 <ParamField path="MODE" type="string" default="fullstack">
   Execution mode.
 
-  | Value | Behavior |
-  |-------|----------|
-  | `fullstack` | API + web dashboard (default) |
-  | `api` | API only — auto-generates an API key on first startup, printed once to the container logs |
+| Value       | Behavior                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| `fullstack` | API + web dashboard (default)                                                            |
+| `api`       | API only, auto-generates an API key on first startup, printed once to the container logs |
+
 </ParamField>
 
 <a id="port"></a>
 <ParamField path="PORT" type="integer" default="3000">
   Port the API server listens on.
 
-  `3000` (default) · `8080`
+`3000` (default) · `8080`
+
 </ParamField>
 
 <a id="better-auth-secret"></a>
 <ParamField path="BETTER_AUTH_SECRET" type="string" required>
   Secret used by Better Auth to sign sessions and tokens. Must be at least 32 characters.
 
-  ```bash
-  openssl rand -base64 32
-  ```
+```bash
+openssl rand -base64 32
+```
 
   <Warning>
   Set this explicitly in production. Never commit it to version control.
@@ -55,25 +57,26 @@ description: "Environment variables for Openinary server mode, authentication se
 <ParamField path="BETTER_AUTH_URL" type="string" default="http://localhost:3000">
   Public base URL of your Openinary instance. Used for auth callbacks and CORS.
 
-  `http://localhost:3000` · `https://media.example.com`
+`http://localhost:3000` · `https://media.example.com`
+
 </ParamField>
 
 <a id="next-public-api-base-url"></a>
 <ParamField path="NEXT_PUBLIC_API_BASE_URL" type="string" default="http://localhost:3000">
-  Public base URL the browser uses to reach the API. Like `BETTER_AUTH_URL`, this defaults to your instance's single public URL — set it once and both point at the same place.
+  Public base URL the browser uses to reach the API. Like `BETTER_AUTH_URL`, this defaults to your instance's single public URL, set it once and both point at the same place.
 
-  `http://localhost:3000` · `https://media.example.com`
+`http://localhost:3000` · `https://media.example.com`
 
   <Note>
-  In the bundled `full` Docker Compose profile (API + web + nginx behind one port), this is baked in as `/api` at build time since nginx already proxies the API under that path — you don't need to set it yourself. Set it explicitly when the API is reachable at a different origin, e.g. an `api` profile deployment or an external frontend embedding the [File Uploader](/guides/file-uploader).
+  In the bundled `full` Docker Compose profile (API + web + nginx behind one port), this is baked in as `/api` at build time since nginx already proxies the API under that path, you don't need to set it yourself. Set it explicitly when the API is reachable at a different origin, e.g. an `api` profile deployment or an external frontend embedding the [File Uploader](/guides/file-uploader).
   </Note>
 </ParamField>
 
 <a id="cors-origin"></a>
 <ParamField path="CORS_ORIGIN" type="string">
-  Allowed origin when Openinary is called from a separate frontend. Only set this in production — by default `localhost:3001` (Next.js dev) is allowed automatically.
+  Allowed origin when Openinary is called from a separate frontend. Only set this in production, by default `localhost:3001` (Next.js dev) is allowed automatically.
 
-  `https://yourapp.com`
+`https://yourapp.com`
 
   <Warning>
   Avoid `*`. Set the exact origin of your frontend.
@@ -84,9 +87,9 @@ description: "Environment variables for Openinary server mode, authentication se
 <ParamField path="API_SECRET" type="string">
   Secret used to sign and verify [signed URLs](/media-transformations/signed-urls) and presigned, authenticated uploads (see the [File Uploader](/guides/file-uploader)). Required if you use the `/authenticated/*` route or presigned uploads. Must be 64 characters.
 
-  ```bash
-  openssl rand -hex 32
-  ```
+```bash
+openssl rand -hex 32
+```
 
   <Warning>
   Never expose this in client-side code.
@@ -97,7 +100,8 @@ description: "Environment variables for Openinary server mode, authentication se
 <ParamField path="DB_PATH" type="string" default="/data/auth.db">
   Custom path for the SQLite database. Only needed when mounting to a non-standard location.
 
-  `/data/auth.db` · `/mnt/volume/openinary.db`
+`/data/auth.db` · `/mnt/volume/openinary.db`
+
 </ParamField>
 
 ## Upload
@@ -106,10 +110,10 @@ description: "Environment variables for Openinary server mode, authentication se
 <ParamField path="MAX_FILE_SIZE_MB" type="integer" default="50">
   Maximum allowed file size for uploads, in megabytes.
 
-  `50` (default) · `500` · `2048`
+`50` (default) · `500` · `2048`
 
   <Note>
-  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment — no image rebuild required.
+  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment, no image rebuild required.
   </Note>
 </ParamField>
 
@@ -121,18 +125,20 @@ Rate limiting applies to all **public** routes (`/t/*`, `/download/*`, `/health`
 <ParamField path="PUBLIC_RATE_LIMIT_MAX" type="integer" default="100">
   Maximum requests per window.
 
-  `100` (default) · `200` (high traffic) · `50` (strict)
+`100` (default) · `200` (high traffic) · `50` (strict)
+
 </ParamField>
 
 <a id="public-rate-limit-window-ms"></a>
 <ParamField path="PUBLIC_RATE_LIMIT_WINDOW_MS" type="integer" default="60000">
   Window duration in milliseconds.
 
-  | Value | Duration |
-  |-------|----------|
-  | `60000` | 1 minute (default) |
-  | `300000` | 5 minutes |
-  | `3600000` | 1 hour |
+| Value     | Duration           |
+| --------- | ------------------ |
+| `60000`   | 1 minute (default) |
+| `300000`  | 5 minutes          |
+| `3600000` | 1 hour             |
+
 </ParamField>
 
 ## Related
@@ -141,7 +147,12 @@ Rate limiting applies to all **public** routes (`/t/*`, `/download/*`, `/health`
   <Card title="Storage" icon="cloud" href="/configuration/storage">
     Connect S3-compatible cloud storage.
   </Card>
-  <Card title="Signed URLs" icon="lock" href="/media-transformations/signed-urls">
+  <Card
+    title="Signed URLs"
+    icon="lock"
+    href="/media-transformations/signed-urls"
+  >
     Use `API_SECRET` to sign transformation URLs.
   </Card>
 </CardGroup>
+

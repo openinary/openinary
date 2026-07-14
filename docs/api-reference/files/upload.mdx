@@ -9,7 +9,7 @@ description: "Upload one or more media files, optionally pre-generating cached t
 POST /upload
 ```
 
-**Auth:** API Key, session, or a presigned signature from [Sign Upload](/api-reference/files/upload-sign)  
+**Auth:** API Key, session, or a presigned signature from [Sign Upload](/api-reference/files/upload-sign)
 **Content-Type:** `multipart/form-data`
 
 ## Form fields
@@ -17,9 +17,9 @@ POST /upload
 <ParamField body="files" type="file[]" required>
   One or more files to upload. Each file is validated for type and size.
 
-  **Allowed types:** JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM
+**Allowed types:** JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM
 
-  **Max size per file:** Configurable via `MAX_FILE_SIZE_MB` (default: 50 MB)
+**Max size per file:** Configurable via `MAX_FILE_SIZE_MB` (default: 50 MB)
 
   <Note>
     HEIC/HEIF files are transcoded to JPEG on upload. The returned `filename`, `path`, and `url` will have a `.jpg` extension instead of the original `.heic`/`.heif`.
@@ -29,32 +29,35 @@ POST /upload
 <ParamField body="folder" type="string">
   Destination folder path within storage. Nested folders are supported.
 
-  `photos` · `uploads/2024/january`
+`photos` · `uploads/2024/january`
 
-  If omitted, files are stored at the root.
+If omitted, files are stored at the root.
+
 </ParamField>
 
 <ParamField body="names" type="string[]">
   Custom filenames for each uploaded file, in the same order as `files`. If omitted, the original filename is used.
 
-  Must include the file extension.
+Must include the file extension.
+
 </ParamField>
 
 <ParamField body="transformations" type="string[]">
   Transformation segments to prewarm (pre-generate and cache) immediately after upload. Supports up to 20 variants.
 
-  `w_800,h_600,c_fill` · `w_400,f_webp,q_85`
+`w_800,h_600,c_fill` · `w_400,f_webp,q_85`
 
-  Pre-warming ensures the first user request is served from cache without any processing delay.
+Pre-warming ensures the first user request is served from cache without any processing delay.
+
 </ParamField>
 
 ## Response
 
-**`200`** — All files uploaded successfully
+**`200`**, All files uploaded successfully
 
-**`207`** — Partial success (some files failed)
+**`207`**, Partial success (some files failed)
 
-**`400`** — Validation error (invalid type, size exceeded, etc.)
+**`400`**, Validation error (invalid type, size exceeded, etc.)
 
 ```json
 {
@@ -162,16 +165,29 @@ curl -X POST http://localhost:3000/upload \
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Create Folder" icon="folder-plus" href="/api-reference/files/create-folder">
+  <Card
+    title="Create Folder"
+    icon="folder-plus"
+    href="/api-reference/files/create-folder"
+  >
     Create an empty folder in storage.
   </Card>
-  <Card title="Upload & Cache Warming" icon="bolt" href="/media-transformations/upload-and-prewarm">
+  <Card
+    title="Upload & Cache Warming"
+    icon="bolt"
+    href="/media-transformations/upload-and-prewarm"
+  >
     Prewarm strategy guide.
   </Card>
   <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
     Remove a file and its cached variants.
   </Card>
-  <Card title="Sign Upload" icon="signature" href="/api-reference/files/upload-sign">
+  <Card
+    title="Sign Upload"
+    icon="signature"
+    href="/api-reference/files/upload-sign"
+  >
     Let an untrusted client upload without your API key.
   </Card>
 </CardGroup>
+

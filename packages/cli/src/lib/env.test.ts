@@ -45,7 +45,7 @@ describe("upsertVar", () => {
     const lines = parseEnv(SAMPLE);
     const updated = upsertVar(lines, "IMAGE_TAG", "v0.2.0");
     expect(getVar(updated, "IMAGE_TAG")).toBe("v0.2.0");
-    // still the same number of lines — replaced, not appended
+    // still the same number of lines, replaced, not appended
     expect(updated.length).toBe(lines.length);
   });
 
@@ -70,7 +70,9 @@ MAX_FILE_SIZE_MB=50
   });
 
   it("returns nothing missing once all template keys are present", () => {
-    const current = parseEnv("IMAGE_TAG=v0.1.0\nBETTER_AUTH_SECRET=abc\nMAX_FILE_SIZE_MB=50\n");
+    const current = parseEnv(
+      "IMAGE_TAG=v0.1.0\nBETTER_AUTH_SECRET=abc\nMAX_FILE_SIZE_MB=50\n",
+    );
     expect(diffMissingKeys(current, template)).toEqual([]);
   });
 

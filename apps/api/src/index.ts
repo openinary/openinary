@@ -24,7 +24,10 @@ import { validateApiSecret } from "./utils/signature";
 try {
   validateApiSecret(process.env.API_SECRET);
 } catch (error) {
-  logger.error({ error: serializeError(error) }, "API_SECRET validation failed at startup");
+  logger.error(
+    { error: serializeError(error) },
+    "API_SECRET validation failed at startup",
+  );
   // For now, we only log the error to allow the app to start
   // The authenticated route will return 500 errors if API_SECRET is missing
   // In production, you may want to throw the error to prevent startup
@@ -58,14 +61,16 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
     credentials: true, // Important: allow cookies
     exposeHeaders: ["Set-Cookie"],
-  })
+  }),
 );
 
 // Public routes (no authentication required)
 // Rate limiting is applied to these routes only (protected routes have their own rate limiting via better-auth)
 
 // Root endpoint
-app.get("/", publicRateLimit, (c) => c.text("Openinary API Server is running."));
+app.get("/", publicRateLimit, (c) =>
+  c.text("Openinary API Server is running."),
+);
 
 // Health check routes
 app.use("/health", publicRateLimit);
@@ -82,7 +87,7 @@ app.use("/t", publicRateLimit);
 app.use("/t/*", publicRateLimit);
 app.route("/t", transform);
 
-// Original file download route (public — consistent with /t/)
+// Original file download route (public, consistent with /t/)
 app.use("/download", publicRateLimit);
 app.use("/download/*", publicRateLimit);
 app.route("/download", download);
@@ -106,7 +111,7 @@ app.route("/queue/events", queueEvents);
 // Protected routes - require API key authentication
 // Apply middleware before routing
 // POST /upload accepts either a real API key/session, or a short-lived
-// presigned signature minted by POST /upload/sign — so it gets its own
+// presigned signature minted by POST /upload/sign, so it gets its own
 // auth handling (see presignedOrApiKeyAuth) plus public rate limiting,
 // while the other /upload/* subroutes stay strictly API-key protected.
 app.use("/upload", publicRateLimit);
@@ -120,7 +125,7 @@ app.use("/storage/*", compress());
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
 
-// Bulk ZIP download route (protected — accepts an arbitrary list of paths)
+// Bulk ZIP download route (protected, accepts an arbitrary list of paths)
 app.use("/download-zip", apiKeyAuth);
 app.use("/download-zip/*", apiKeyAuth);
 app.route("/download-zip", downloadZip);

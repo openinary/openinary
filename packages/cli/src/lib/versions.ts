@@ -1,4 +1,8 @@
-import { FALLBACK_VERSION, GITHUB_API_TIMEOUT_MS, REPO } from "../utils/constants.js";
+import {
+  FALLBACK_VERSION,
+  GITHUB_API_TIMEOUT_MS,
+  REPO,
+} from "../utils/constants.js";
 
 export interface LatestRelease {
   version: string;
@@ -8,14 +12,17 @@ export interface LatestRelease {
 /**
  * Resolves the latest published Openinary release tag (e.g. "v0.1.11").
  * Falls back to FALLBACK_VERSION ("latest") when GitHub is unreachable, so
- * scaffolding still works offline — callers should warn when `fromFallback`.
+ * scaffolding still works offline, callers should warn when `fromFallback`.
  */
 export async function getLatestRelease(): Promise<LatestRelease> {
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-      signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS),
-      headers: { Accept: "application/vnd.github+json" },
-    });
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO}/releases/latest`,
+      {
+        signal: AbortSignal.timeout(GITHUB_API_TIMEOUT_MS),
+        headers: { Accept: "application/vnd.github+json" },
+      },
+    );
     if (!res.ok) throw new Error(`GitHub API responded ${res.status}`);
     const data = (await res.json()) as { tag_name?: string };
     if (!data.tag_name) throw new Error("No tag_name in latest release");

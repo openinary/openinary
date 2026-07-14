@@ -5,7 +5,7 @@
  * signature to the browser component.
  *
  * This is a thin client for `POST /upload/sign`. Openinary itself computes
- * the HMAC signature — your backend never needs to hold `API_SECRET`, only an
+ * the HMAC signature, your backend never needs to hold `API_SECRET`, only an
  * API key (the same kind used for any other authenticated Openinary request).
  *
  * SECURITY: never call this endpoint, or expose your API key, from the
@@ -55,7 +55,9 @@ export async function signUpload(
   }
 
   if (!res.ok || !body?.success) {
-    throw new Error(body?.error ?? `Failed to sign upload (HTTP ${res.status})`);
+    throw new Error(
+      body?.error ?? `Failed to sign upload (HTTP ${res.status})`,
+    );
   }
 
   return {

@@ -53,7 +53,7 @@ const apiKeyFormSchema = z.object({
       },
       {
         message: "Expiration must be between 1 and 3650 days",
-      }
+      },
     ),
 });
 
@@ -98,7 +98,7 @@ export function ApiKeyManager() {
       if (result.data) {
         const apiKeys = Array.isArray(result.data)
           ? result.data
-          : (result.data as { apiKeys?: unknown[] }).apiKeys ?? [];
+          : ((result.data as { apiKeys?: unknown[] }).apiKeys ?? []);
         setKeys(apiKeys as unknown as ApiKey[]);
       }
     } catch (err) {
@@ -128,12 +128,14 @@ export function ApiKeyManager() {
     };
 
     try {
-      const data = await toast.promise(createKey(), {
-        loading: `Creating "${values.name || "API Key"}"...`,
-        success: `Created "${values.name || "API Key"}"`,
-        error: (error) =>
-          error instanceof Error ? error.message : "Failed to create API key",
-      }).unwrap();
+      const data = await toast
+        .promise(createKey(), {
+          loading: `Creating "${values.name || "API Key"}"...`,
+          success: `Created "${values.name || "API Key"}"`,
+          error: (error) =>
+            error instanceof Error ? error.message : "Failed to create API key",
+        })
+        .unwrap();
 
       setCreatedKey(data.key);
       form.reset({
@@ -161,12 +163,14 @@ export function ApiKeyManager() {
     };
 
     try {
-      await toast.promise(del(), {
-        loading: `Deleting "${displayName}"...`,
-        success: `Deleted "${displayName}"`,
-        error: (error) =>
-          error instanceof Error ? error.message : "Failed to delete API key",
-      }).unwrap();
+      await toast
+        .promise(del(), {
+          loading: `Deleting "${displayName}"...`,
+          success: `Deleted "${displayName}"`,
+          error: (error) =>
+            error instanceof Error ? error.message : "Failed to delete API key",
+        })
+        .unwrap();
       await loadKeys();
     } catch (err) {
       logger.error("Error deleting API key", { error: err, keyId });
@@ -174,7 +178,10 @@ export function ApiKeyManager() {
     }
   };
 
-  const updateKey = async (keyId: string, updates: { name?: string; enabled?: boolean }) => {
+  const updateKey = async (
+    keyId: string,
+    updates: { name?: string; enabled?: boolean },
+  ) => {
     try {
       const result = await authClient.apiKey.update({
         keyId,
@@ -208,7 +215,7 @@ export function ApiKeyManager() {
             <X size={14} />
           </button>
           <p className="mb-2 text-xs text-muted-foreground">
-            Copy this key now — it won&apos;t be shown again.
+            Copy this key now, it won&apos;t be shown again.
           </p>
           <CopyInput value={createdKey} />
         </div>
@@ -294,84 +301,84 @@ export function ApiKeyManager() {
         ) : (
           <div className="overflow-hidden rounded-lg border">
             <TooltipProvider delayDuration={0}>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 px-3 text-xs">Name</TableHead>
-                  <TableHead className="h-8 px-3 text-xs">Prefix</TableHead>
-                  <TableHead className="h-8 px-3 text-xs">Status</TableHead>
-                  <TableHead className="h-8 px-3 text-xs">Created</TableHead>
-                  <TableHead className="h-8 w-16 px-3" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {keys.map((key) => (
-                  <TableRow key={key.id}>
-                    <TableCell className="px-3 py-2 font-medium">
-                      {key.name || "Unnamed Key"}
-                    </TableCell>
-                    <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                      {key.start ? `${key.start}…` : "—"}
-                    </TableCell>
-                    <TableCell className="px-3 py-2">
-                      <span
-                        className={cn(
-                          "text-xs",
-                          key.enabled
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {key.enabled ? "Active" : "Disabled"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-3 py-2 text-xs text-muted-foreground">
-                      {new Date(key.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="px-3 py-2">
-                      <div className="flex items-center justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() =>
-                                updateKey(key.id, { enabled: !key.enabled })
-                              }
-                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                              aria-label={
-                                key.enabled ? "Disable key" : "Enable key"
-                              }
-                            >
-                              {key.enabled ? (
-                                <Ban size={14} />
-                              ) : (
-                                <Power size={14} />
-                              )}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="px-2 py-1 text-xs">
-                            {key.enabled ? "Disable" : "Enable"}
-                          </TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => setKeyToDelete(key)}
-                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                              aria-label="Delete key"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="px-2 py-1 text-xs">
-                            Delete
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-8 px-3 text-xs">Name</TableHead>
+                    <TableHead className="h-8 px-3 text-xs">Prefix</TableHead>
+                    <TableHead className="h-8 px-3 text-xs">Status</TableHead>
+                    <TableHead className="h-8 px-3 text-xs">Created</TableHead>
+                    <TableHead className="h-8 w-16 px-3" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {keys.map((key) => (
+                    <TableRow key={key.id}>
+                      <TableCell className="px-3 py-2 font-medium">
+                        {key.name || "Unnamed Key"}
+                      </TableCell>
+                      <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                        {key.start ? `${key.start}…` : "—"}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        <span
+                          className={cn(
+                            "text-xs",
+                            key.enabled
+                              ? "text-foreground"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {key.enabled ? "Active" : "Disabled"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-xs text-muted-foreground">
+                        {new Date(key.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() =>
+                                  updateKey(key.id, { enabled: !key.enabled })
+                                }
+                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                aria-label={
+                                  key.enabled ? "Disable key" : "Enable key"
+                                }
+                              >
+                                {key.enabled ? (
+                                  <Ban size={14} />
+                                ) : (
+                                  <Power size={14} />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="px-2 py-1 text-xs">
+                              {key.enabled ? "Disable" : "Enable"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => setKeyToDelete(key)}
+                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                aria-label="Delete key"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="px-2 py-1 text-xs">
+                              Delete
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </TooltipProvider>
           </div>
         )}

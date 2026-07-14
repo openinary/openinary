@@ -1,6 +1,6 @@
 ---
 title: "Automatic Format Selection"
-description: "How Openinary automatically picks AVIF, WebP, or JPEG based on browser support — and how to override it with the f parameter."
+description: "How Openinary automatically picks AVIF, WebP, or JPEG based on browser support, and how to override it with the f parameter."
 ---
 
 When no output format is specified, Openinary automatically selects the smallest format the requesting browser supports.
@@ -13,25 +13,27 @@ When no output format is specified, Openinary automatically selects the smallest
 </Step>
 
 <Step title="Analyze content">
-  Evaluates whether the image is a photo, graphic, or contains transparency to pick the best codec.
+  Evaluates whether the image is a photo, graphic, or contains transparency to
+  pick the best codec.
 </Step>
 
 <Step title="Pick the smallest result">
   Encodes in candidate formats, compares sizes, and serves the winner.
 
-  **Priority:** AVIF → WebP → JPEG / PNG
+**Priority:** AVIF → WebP → JPEG / PNG
+
 </Step>
 </Steps>
 
 ## Typical size reductions
 
-| Original format | → AVIF | → WebP |
-|-----------------|--------|--------|
-| JPEG | 40–50% smaller | 25–35% smaller |
-| PNG | 50–70% smaller | 25–40% smaller |
+| Original format | → AVIF         | → WebP         |
+| --------------- | -------------- | -------------- |
+| JPEG            | 40–50% smaller | 25–35% smaller |
+| PNG             | 50–70% smaller | 25–40% smaller |
 
 <Note>
-Actual savings depend on image content and original compression level.
+  Actual savings depend on image content and original compression level.
 </Note>
 
 ## Manual format override
@@ -47,10 +49,19 @@ GET /t/f_jpeg,q_90/image.jpg
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Image Transformations" icon="image" href="/media-transformations/image-transformations">
+  <Card
+    title="Image Transformations"
+    icon="image"
+    href="/media-transformations/image-transformations"
+  >
     Full reference for resize, crop, rotate, and format parameters.
   </Card>
-  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
+  <Card
+    title="Upload & Cache Warming"
+    icon="upload"
+    href="/media-transformations/upload-and-prewarm"
+  >
     Pre-generate optimized variants at upload time.
   </Card>
 </CardGroup>
+

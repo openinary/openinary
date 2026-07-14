@@ -11,7 +11,7 @@ GET /health
 
 **Auth:** Public (rate limited)
 
-Quick liveness check — use this for load balancer health probes or uptime monitoring.
+Quick liveness check, use this for load balancer health probes or uptime monitoring.
 
 ### Response
 
@@ -41,7 +41,7 @@ GET /health/database
 
 **Auth:** API Key required
 
-Detailed diagnostic — checks the SQLite database connection, file permissions, and table record counts.
+Detailed diagnostic, checks the SQLite database connection, file permissions, and table record counts.
 
 ### Response
 
@@ -90,11 +90,13 @@ Detailed diagnostic — checks the SQLite database connection, file permissions,
 </ResponseField>
 
 <ResponseField name="database.security_warning" type="string">
-  Optional warning when the database file's permissions are less restrictive than `600`.
+  Optional warning when the database file's permissions are less restrictive
+  than `600`.
 </ResponseField>
 
 <ResponseField name="database.file_error" type="string">
-  Optional error message if the database file's permissions or size couldn't be read.
+  Optional error message if the database file's permissions or size couldn't be
+  read.
 </ResponseField>
 
 <ResponseField name="database.table_error" type="string">
@@ -109,3 +111,4 @@ Detailed diagnostic — checks the SQLite database connection, file permissions,
 curl http://localhost:3000/health/database \
   -H "Authorization: Bearer <api_key>"
 ```
+

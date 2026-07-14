@@ -16,14 +16,15 @@ DELETE /invalidate/{path}
 <ParamField path="path" type="string" required>
   Path to the file relative to the storage root.
 
-  `photo.jpg` · `photos/portrait.jpg`
+`photo.jpg` · `photos/portrait.jpg`
+
 </ParamField>
 
 ## What gets cleared
 
-- **Local cache** — transformation variants stored on disk
-- **Cloud cache** — transformation variants stored in S3-compatible storage (if configured)
-- **In-memory cache** — cached metadata entries for the file
+- **Local cache**, transformation variants stored on disk
+- **Cloud cache**, transformation variants stored in S3-compatible storage (if configured)
+- **In-memory cache**, cached metadata entries for the file
 
 The original file is not touched.
 
@@ -41,7 +42,8 @@ The original file is not touched.
 ```
 
 <ResponseField name="success" type="boolean">
-  `true` if invalidation completed without errors. May be `true` even when some steps had non-fatal errors (see `details.errors`).
+  `true` if invalidation completed without errors. May be `true` even when some
+  steps had non-fatal errors (see `details.errors`).
 </ResponseField>
 
 <ResponseField name="message" type="string">
@@ -57,7 +59,8 @@ The original file is not touched.
       Number of cached transformation variants removed from cloud storage.
     </ResponseField>
     <ResponseField name="errors" type="string[]">
-      Non-fatal errors encountered during cleanup. Only present when some steps failed.
+      Non-fatal errors encountered during cleanup. Only present when some steps
+      failed.
     </ResponseField>
   </Expandable>
 </ResponseField>
@@ -77,7 +80,12 @@ curl -X DELETE http://localhost:3000/invalidate/photos/portrait.jpg \
   <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
     Permanently remove a file and all its cached variants.
   </Card>
-  <Card title="Transform" icon="wand-magic-sparkles" href="/api-reference/media/transform">
-    Apply transformations — results are cached automatically.
+  <Card
+    title="Transform"
+    icon="wand-magic-sparkles"
+    href="/api-reference/media/transform"
+  >
+    Apply transformations, results are cached automatically.
   </Card>
 </CardGroup>
+

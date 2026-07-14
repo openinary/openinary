@@ -26,7 +26,10 @@ export { pc };
  * Runs `fn` behind an ora spinner, printing a ✔/✖ line on completion.
  * Falls back to plain log lines when stdout isn't a TTY (CI logs).
  */
-export async function withSpinner<T>(text: string, fn: () => Promise<T>): Promise<T> {
+export async function withSpinner<T>(
+  text: string,
+  fn: () => Promise<T>,
+): Promise<T> {
   if (!process.stdout.isTTY) {
     console.log(`${pc.cyan("›")} ${text}`);
     try {
@@ -40,7 +43,7 @@ export async function withSpinner<T>(text: string, fn: () => Promise<T>): Promis
   }
 
   // Loaded lazily: ora imports a JSON module, which Node flags with an
-  // ExperimentalWarning during the initial module graph load — deferring the
+  // ExperimentalWarning during the initial module graph load, deferring the
   // import lets the entry point's warning filter take effect first.
   const { default: ora } = await import("ora");
   const spinner = ora(text).start();
