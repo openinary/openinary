@@ -32,20 +32,24 @@
 
 ### Installation
 
-Make sure to have Docker 20.x+ installed and running.
+Make sure to have Docker 20.x+ and Node.js 20+ installed and running.
 
 ```bash
-docker run --platform linux/amd64 -d -p 3000:3000 \
-  -v openinary-cache:/app/apps/api/cache \
-  -v openinary-public:/app/apps/api/public \
-  -v openinary-db:/app/data \
-  openinary/openinary:latest
+npx create-openinary
+```
+
+Follow the prompts to choose full stack vs. API-only and, optionally, S3-compatible storage. It scaffolds a project, writes a `docker-compose.yml` and `.env`, and starts the containers. Once it finishes, your Openinary instance is running at http://localhost:3000.
+
+To get the full CLI suite (`start`, `stop`, `upgrade`, ...), install it globally:
+
+```bash
+npm i -g create-openinary
 ```
 
 ### Initial Setup
 
-1. Open http://localhost:3000
-2. Visit `/setup` to create admin account
+1. Open http://localhost:3000, you'll be redirected to `/setup`
+2. Create your admin account
 3. Click on your profile in the bottom left navigation, then go to 'API Keys' to generate your first API key
 
 ## Usage Examples
