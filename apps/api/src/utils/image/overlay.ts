@@ -17,8 +17,6 @@ export const applyOverlayImage = async (
 ): Promise<sharp.Sharp> => {
   if (!params.overlayPath) return image;
 
-  console.log(params);
-
   try {
     const overlayImage = sharp(params.overlayPath);
     const baseImageMetaData = await image.metadata();
