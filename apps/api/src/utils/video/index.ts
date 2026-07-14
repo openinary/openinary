@@ -18,11 +18,9 @@ import type { VideoContext } from "./types";
 import { applyOverlay } from "./overlay";
 import { cleanupTempFile, prepareSourceFile } from "routes/transform-helpers";
 import { createStorageClient } from "utils/storage";
-import { bodyLimit } from "hono/body-limit";
 
 // Re-export types for backward compatibility
 export * from "./types";
-export * from "./param-registry";
 export * from "./video-info";
 
 /**

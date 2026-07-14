@@ -1,7 +1,7 @@
 import { Context } from "hono";
 import { existsSync } from "fs";
 import { CloudStorage } from "../utils/storage/index";
-import { CombindedTransformParams, parseParams } from "../utils/parser";
+import { parseParams } from "../utils/parser";
 import { transformImage } from "../utils/image/index";
 import { transformVideo } from "../utils/video/index";
 import { Compression } from "../utils/image/compression";
@@ -12,7 +12,7 @@ import {
   readFromCache,
   SmartCache,
 } from "../utils/cache";
-import { ImageTransformParams } from "shared";
+import { CombindedTransformParams, ImageTransformParams } from "shared";
 import fs from "fs/promises";
 
 /**
@@ -474,7 +474,11 @@ export async function cleanupTempFile(filePath: string): Promise<void> {
   try {
     await fs.unlink(filePath);
   } catch (error) {
-    if (error.code !== "ENOENT") return; // If file is not found
+    if (
+      error instanceof Error &&
+      (error as NodeJS.ErrnoException).code !== "ENOENT"
+    )
+      return; // If file is not found
 
     logger.warn(
       { error: serializeError(error), filePath },

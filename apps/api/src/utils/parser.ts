@@ -127,7 +127,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "w":
         try {
           params.width = value === "auto" ? undefined : parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing width value failed. Make sure it is an integer or 'auto'.",
           );
@@ -135,16 +135,14 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         break;
       case "h":
         try {
-          ("fill");
           params.height = value === "auto" ? undefined : parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing height value failed. Make sure it is an integer or 'auto'.",
           );
         }
         break;
       case "c":
-        "fill";
         params.crop = mapCropMode(value);
         break;
       case "g":
@@ -154,7 +152,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         // Quality (e.g. q_80, q_auto)
         try {
           params.quality = value === "auto" ? "auto" : parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing rotation value failed. Make sure it is an integer or 'auto'.",
           );
@@ -168,7 +166,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         // Angle of rotation (e.g. a_90, a_auto)
         try {
           params.rotate = value === "auto" ? undefined : parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing rotation value failed. Make sure it is an integer or 'auto'.",
           );
@@ -186,7 +184,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         // Start offset (in seconds) for video/audio
         try {
           params.startOffset = parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing start offset failed. Make sure it is an integer.",
           );
@@ -196,7 +194,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         // End offset (in seconds) for video/audio
         try {
           params.endOffset = parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing end offset failed. Make sure it is an integer.",
           );
@@ -210,7 +208,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         // FIX H12: Parse thumbnail time parameter
         try {
           params.thumbnailTime = parseFloat(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing thumbnail time failed. Make sure it is a positiv float.",
           );
@@ -233,7 +231,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "lx":
         try {
           params.overlayXOffset = parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing overlay x offset failed. Make sure it is an integer.",
           );
@@ -242,7 +240,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "ly":
         try {
           params.overlayYOffset = parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing overlay y offset failed. Make sure it is an integer.",
           );
@@ -251,7 +249,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "lo":
         try {
           params.overlayOpacity = parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing overlay opacity failed. Make sure it is an integer between 0 and 100.",
           );
@@ -260,7 +258,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "lw":
         try {
           params.overlayWidth = value === "auto" ? undefined : parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing overlay width failed. Make sure it is an integer or 'auto'.",
           );
@@ -269,7 +267,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "lh":
         try {
           params.overlayHeight = value === "auto" ? undefined : parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing overlay width failed. Make sure it is an integer or 'auto'.",
           );
@@ -278,7 +276,7 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       case "ls":
         try {
           params.overlayTileSpacing = parseInt(value);
-        } catch (e) {
+        } catch {
           throw new Error(
             "Parsing overlay tile spacing failed. Make sure it is an integer.",
           );

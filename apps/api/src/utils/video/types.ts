@@ -22,14 +22,13 @@ export type TransformFunction = (
   outputVideoStream: string,
   context: VideoContext,
 ) =>
+  | void
   | TransformFunctionResponse
-  | Promise<TransformFunctionResponse>
-  | undefined
-  | Promise<undefined>;
+  | Promise<TransformFunctionResponse | void>;
 
 type TransformFunctionResponse = {
   command?: FfmpegCommand;
   complexFilters?: FilterSpecification[];
   outputVideoStream?: string;
-  cleanupFunc?: () => void | (() => Promise<void>);
+  cleanupFunc?: (() => void) | (() => Promise<void>);
 };

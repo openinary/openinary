@@ -170,10 +170,7 @@ storageRoute.get("/", async (c) => {
   const levelPath = normalizeLevelPath(c.req.query("path") ?? "");
 
   if (levelPath === null) {
-    return c.json(
-      { error: "Bad request", message: "Invalid path" },
-      400,
-    );
+    return c.json({ error: "Bad request", message: "Invalid path" }, 400);
   }
 
   try {
@@ -250,7 +247,10 @@ storageRoute.get("/folder-summaries", async (c) => {
       const results = await Promise.all(
         batch.map(async (folderPath) => {
           if (storageClient) {
-            return [folderPath, await storageClient.getFolderSummary(folderPath)] as const;
+            return [
+              folderPath,
+              await storageClient.getFolderSummary(folderPath),
+            ] as const;
           }
           const dirAbs = path.join(".", "public", folderPath);
           return [folderPath, localFolderSummary(dirAbs, folderPath)] as const;
@@ -465,7 +465,7 @@ storageRoute.get("/*", async (c) => {
 
   try {
     filePath = decodeURIComponent(filePath);
-  } catch (error) {
+  } catch {
     // If decoding fails, use the original path
   }
 
@@ -559,7 +559,7 @@ storageRoute.delete("/*", async (c) => {
 
   try {
     filePath = decodeURIComponent(filePath);
-  } catch (error) {
+  } catch {
     // If decoding fails, use the original path
   }
 
@@ -684,10 +684,7 @@ storageRoute.patch("/*", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json(
-      { error: "Bad request", message: "Invalid JSON body" },
-      400,
-    );
+    return c.json({ error: "Bad request", message: "Invalid JSON body" }, 400);
   }
 
   const newName = typeof body.name === "string" ? body.name.trim() : "";

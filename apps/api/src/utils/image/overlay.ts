@@ -1,11 +1,8 @@
-import fs from "fs/promises";
 import sharp from "sharp";
 import {
   ImageResizeTransformParams,
   OverlayTransformParams,
 } from "shared/types";
-import path from "path";
-import { CloudStorage, createStorageClient } from "utils/storage";
 import logger from "utils/logger";
 
 /**

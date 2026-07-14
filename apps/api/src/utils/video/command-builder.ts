@@ -2,7 +2,6 @@ import ffmpeg, { FfmpegCommand, FilterSpecification } from "fluent-ffmpeg";
 import { readFile, unlink, rmdir } from "fs/promises";
 import type { VideoContext, TransformFunction } from "./types";
 import { FFMPEG_THREADS, FFMPEG_NICENESS } from "./config";
-import Ffmpeg from "fluent-ffmpeg";
 
 /**
  * Builder class for constructing and executing ffmpeg commands
@@ -13,7 +12,7 @@ export class VideoCommandBuilder {
   private complexFilter: FilterSpecification[];
   private outputVideoStream: string;
   private context: VideoContext;
-  private cleanupFunctions: (() => void | (() => Promise<void>))[];
+  private cleanupFunctions: ((() => void) | (() => Promise<void>))[];
 
   constructor(context: VideoContext) {
     this.context = context;

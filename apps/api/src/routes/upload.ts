@@ -317,8 +317,7 @@ async function queueVideoTransformations(
     const sourcePath = storage
       ? `./temp/${path.basename(filePath)}`
       : path.join("./public", filePath);
-    const isThumbnailRequest =
-      params.thumbnail === "true" || params.thumbnail === "1";
+    const isThumbnailRequest = params.thumbnail;
     const priority = isThumbnailRequest
       ? THUMBNAIL_PRIORITY
       : TRANSFORMATION_PRIORITY;

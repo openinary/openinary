@@ -1,16 +1,16 @@
 import { FullGravityMode } from "shared";
 import sharp from "sharp";
-import Ffmpeg, { FilterSpecification } from "fluent-ffmpeg";
+import Ffmpeg from "fluent-ffmpeg";
 import { promisify } from "util";
 import fs from "fs/promises";
 import logger from "utils/logger";
-import { TransformFunction } from "./types";
+import type { TransformFunction } from "./types";
 import path from "path";
 import { cleanupTempFile } from "routes/transform-helpers";
 
 /**
- * Apply resize transformation to a video
- * Supports multiple crop modes: fill, crop, fit, scale, pad
+ * Apply overlay transformation to a video.
+ * Supports all overlay related arguments
  */
 export const applyOverlay: TransformFunction = async (
   command,
@@ -31,7 +31,6 @@ export const applyOverlay: TransformFunction = async (
     overlayYOffset,
   } = context.params;
 
-  // Skip if no valid dimensions
   if (!overlayPath) {
     return;
   }
@@ -39,9 +38,9 @@ export const applyOverlay: TransformFunction = async (
   const ffprobe = promisify(Ffmpeg.ffprobe);
 
   try {
-    const videoMetaData = await ffprobe(context.inputPath);
+    const videoMetaData: any = await ffprobe(context.inputPath);
     const video = videoMetaData?.streams?.find(
-      (stream) => stream.codec_type === "video",
+      (stream: any) => stream.codec_type === "video",
     );
 
     if (overlayTiled && (width || video.width) && (height || video.height)) {
