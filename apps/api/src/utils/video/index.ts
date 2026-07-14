@@ -1,5 +1,5 @@
 import { mkdtemp } from "fs/promises";
-import { join } from "path";
+import path, { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import type { VideoTransformParams } from "shared";
@@ -15,10 +15,12 @@ import { applyResize } from "./resize";
 import { applyQuality } from "./quality";
 import { VideoCommandBuilder } from "./command-builder";
 import type { VideoContext } from "./types";
+import { applyOverlay } from "./overlay";
+import { cleanupTempFile, prepareSourceFile } from "routes/transform-helpers";
+import { createStorageClient } from "utils/storage";
 
 // Re-export types for backward compatibility
 export * from "./types";
-export * from "./param-registry";
 export * from "./video-info";
 
 /**
@@ -112,34 +114,53 @@ export const transformVideo = async (
     isThumbnail,
   };
 
-  // Apply transformations pipeline and execute
-  // Order matters: thumbnail extraction or trimming first, auto-downscale, resize, then quality
-  const builder = new VideoCommandBuilder(context);
+  let isTempOverlay = false;
 
-  let buffer = await builder
-    .apply(
-      applyThumbnailExtraction,
-      applyTrimming,
-      applyAutoDownscale,
-      applyResize,
-      applyQuality,
-    )
-    .execute();
+  try {
+    if (context.params.overlayPath) {
+      const storage = createStorageClient();
+      context.params.overlayPath = await prepareSourceFile(
+        storage,
+        context.params.overlayPath,
+        path.join("./public", context.params.overlayPath),
+      );
+      isTempOverlay = !!storage;
+    }
 
-  // Post-process with sharp if needed (e.g. JPEG → WebP/AVIF/PNG)
-  if (needsSharpConversion) {
-    const qualityValue =
-      params.quality !== undefined
-        ? typeof params.quality === "string"
-          ? parseInt(params.quality, 10)
-          : params.quality
-        : 80;
-    buffer = await convertWithSharp(
-      buffer,
-      normalizeFormat(format),
-      qualityValue,
-    );
+    // Apply transformations pipeline and execute
+    // Order matters: thumbnail extraction or trimming first, auto-downscale, resize, then quality
+    const builder = new VideoCommandBuilder(context);
+
+    let buffer = await (
+      await builder.apply(
+        applyThumbnailExtraction,
+        applyTrimming,
+        applyAutoDownscale,
+        applyResize,
+        applyOverlay,
+        applyQuality,
+      )
+    ).execute();
+
+    // Post-process with sharp if needed (e.g. JPEG → WebP/AVIF/PNG)
+    if (needsSharpConversion) {
+      const qualityValue =
+        params.quality !== undefined
+          ? typeof params.quality === "string"
+            ? parseInt(params.quality, 10)
+            : params.quality
+          : 80;
+      buffer = await convertWithSharp(
+        buffer,
+        normalizeFormat(format),
+        qualityValue,
+      );
+    }
+
+    return buffer;
+  } catch (e) {
+    if (isTempOverlay) await cleanupTempFile(context.params.overlayPath!);
+
+    throw e;
   }
-
-  return buffer;
 };

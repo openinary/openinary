@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createStorageClient } from "../utils/storage/index";
-import { zipSync, strToU8 } from "fflate";
+import { zipSync } from "fflate";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
@@ -74,7 +74,9 @@ downloadFolder.get("/*", async (c) => {
         // Skip folder marker objects (empty keys or keys ending in /)
         if (!relPath || relPath.endsWith("/")) continue;
 
-        const buffer = await storage.downloadOriginal(`${folderPath}/${relPath}`);
+        const buffer = await storage.downloadOriginal(
+          `${folderPath}/${relPath}`,
+        );
         zipFiles[relPath] = new Uint8Array(buffer);
       }
     } else {
@@ -90,7 +92,9 @@ downloadFolder.get("/*", async (c) => {
       }
 
       for (const entry of entries) {
-        zipFiles[entry.arcPath] = new Uint8Array(fs.readFileSync(entry.fullPath));
+        zipFiles[entry.arcPath] = new Uint8Array(
+          fs.readFileSync(entry.fullPath),
+        );
       }
     }
 
@@ -109,7 +113,10 @@ downloadFolder.get("/*", async (c) => {
     c.header("Cache-Control", "private, no-store");
     return c.body(zipBuffer);
   } catch (error) {
-    logger.error({ error: serializeError(error), folderPath }, "Folder download failed");
+    logger.error(
+      { error: serializeError(error), folderPath },
+      "Folder download failed",
+    );
     return c.text("Internal server error", 500);
   }
 });

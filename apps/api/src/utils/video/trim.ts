@@ -1,4 +1,4 @@
-import type { TransformFunction } from './types';
+import type { TransformFunction } from "./types";
 
 /**
  * Apply temporal trimming transformation
@@ -6,11 +6,12 @@ import type { TransformFunction } from './types';
  */
 export const applyTrimming: TransformFunction = (
   command,
-  context
+  outputVideoStream,
+  context,
 ) => {
   // Skip trimming for thumbnail extraction
   if (context.isThumbnail) {
-    return command;
+    return;
   }
 
   const { startOffset, endOffset } = context.params;
@@ -40,5 +41,5 @@ export const applyTrimming: TransformFunction = (
     command = command.duration(durationSeconds);
   }
 
-  return command;
+  return { command };
 };
