@@ -19,7 +19,7 @@ import {
 } from "../routes/transform-helpers";
 import { TRANSFORMATION_PRIORITY } from "../utils/video/config";
 import path from "path";
-import { CombindedTransformParams } from "shared/types";
+import { CombindedTransformParams, VideoTransformParams } from "shared/types";
 
 // Types for the service
 export interface TransformRequest {
@@ -410,7 +410,7 @@ export class TransformService {
   private async handleVideoJobQueue(
     filePath: string,
     localPath: string,
-    params: any,
+    params: VideoTransformParams,
     cachePath: string,
   ): Promise<TransformResult> {
     // Check if already being processed
@@ -434,6 +434,7 @@ export class TransformService {
           // Cache exists, try to serve from local cache first
           const cachedBuffer = await checkLocalCache(cachePath);
           if (cachedBuffer) {
+            console.log("return cache");
             return {
               buffer: cachedBuffer,
               contentType: `video/${filePath.split(".").pop()}`,
@@ -488,6 +489,13 @@ export class TransformService {
           );
         });
     }
+
+    // don't stream the original video when the content rights should be preserved
+    // using a watermark
+    if (params.overlayPath)
+      throw new TransformationIncompleteError(
+        "Can't ship video with missing watermark",
+      );
 
     // Stream the original video immediately, without buffering it in memory:
     // originals can weigh hundreds of MB and buffering both delays the first
@@ -563,6 +571,26 @@ export class TransformService {
     error: any,
     request: TransformRequest,
   ): Promise<TransformResult> {
+    if (error instanceof TransformationIncompleteError) {
+      logger.error(
+        {
+          error: error.message,
+          path: request.path,
+        },
+        error.name,
+      );
+
+      return {
+        buffer: Buffer.from(`Processing is ongoing`),
+        contentType: "text/plain",
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      };
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
       {

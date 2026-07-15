@@ -1,9 +1,13 @@
-import { db } from "shared";
+import { db, VideoTransformParams } from "shared";
 import { randomUUID } from "crypto";
-import type { parseParams } from "../parser";
 import logger, { serializeError } from "../logger";
 
-export type JobStatus = "pending" | "processing" | "completed" | "error" | "cancelled";
+export type JobStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "error"
+  | "cancelled";
 
 export interface VideoJob {
   id: string;
@@ -35,17 +39,17 @@ export interface JobStats {
  * This fixes the bug where params with different key orders would not match
  */
 function normalizeParamsJson(params: any): string {
-  if (!params || typeof params !== 'object') {
+  if (!params || typeof params !== "object") {
     return JSON.stringify(params);
   }
-  
+
   const sortedKeys = Object.keys(params).sort();
   const normalized: any = {};
-  
+
   for (const key of sortedKeys) {
     normalized[key] = params[key];
   }
-  
+
   return JSON.stringify(normalized);
 }
 
@@ -54,9 +58,9 @@ function normalizeParamsJson(params: any): string {
  */
 export function createJob(
   filePath: string,
-  params: ReturnType<typeof parseParams>,
+  params: VideoTransformParams,
   cachePath: string,
-  priority: number = 2
+  priority: number = 2,
 ): string {
   const jobId = randomUUID();
   const paramsJson = normalizeParamsJson(params);
@@ -66,14 +70,14 @@ export function createJob(
     // Check if a job with the same file_path and params already exists
     const existingJob = db
       .prepare(
-        "SELECT id, status FROM video_jobs WHERE file_path = ? AND params_json = ? AND status IN ('pending', 'processing')"
+        "SELECT id, status FROM video_jobs WHERE file_path = ? AND params_json = ? AND status IN ('pending', 'processing')",
       )
       .get(filePath, paramsJson) as { id: string; status: string } | undefined;
 
     if (existingJob) {
       logger.debug(
         { existingJobId: existingJob.id, status: existingJob.status, filePath },
-        "Job already exists, returning existing job ID"
+        "Job already exists, returning existing job ID",
       );
       return existingJob.id;
     }
@@ -83,7 +87,7 @@ export function createJob(
       `INSERT INTO video_jobs (
         id, file_path, params_json, cache_path, status, priority, 
         progress, retry_count, max_retries, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       jobId,
       filePath,
@@ -94,13 +98,16 @@ export function createJob(
       0,
       0,
       3,
-      now
+      now,
     );
 
     logger.info({ jobId, filePath, priority }, "Created new video job");
     return jobId;
   } catch (error) {
-    logger.error({ error: serializeError(error), filePath }, "Failed to create job");
+    logger.error(
+      { error: serializeError(error), filePath },
+      "Failed to create job",
+    );
     throw error;
   }
 }
@@ -119,7 +126,7 @@ export function getNextPendingJob(): VideoJob | null {
           `SELECT * FROM video_jobs 
            WHERE status = 'pending' 
            ORDER BY priority ASC, created_at ASC 
-           LIMIT 1`
+           LIMIT 1`,
         )
         .get() as VideoJob | undefined;
 
@@ -130,7 +137,7 @@ export function getNextPendingJob(): VideoJob | null {
       // Mark it as processing
       const now = Date.now();
       db.prepare(
-        "UPDATE video_jobs SET status = 'processing', started_at = ? WHERE id = ?"
+        "UPDATE video_jobs SET status = 'processing', started_at = ? WHERE id = ?",
       ).run(now, job.id);
 
       // Return updated job
@@ -138,14 +145,20 @@ export function getNextPendingJob(): VideoJob | null {
     });
 
     const job = getAndUpdate();
-    
+
     if (job) {
-      logger.debug({ jobId: job.id, filePath: job.file_path }, "Retrieved next pending job");
+      logger.debug(
+        { jobId: job.id, filePath: job.file_path },
+        "Retrieved next pending job",
+      );
     }
-    
+
     return job;
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Failed to get next pending job");
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to get next pending job",
+    );
     return null;
   }
 }
@@ -157,7 +170,7 @@ export function updateJobStatus(
   jobId: string,
   status: JobStatus,
   progress?: number,
-  error?: string
+  error?: string,
 ): void {
   try {
     const updates: string[] = ["status = ?"];
@@ -173,7 +186,11 @@ export function updateJobStatus(
       values.push(error);
     }
 
-    if (status === "completed" || status === "error" || status === "cancelled") {
+    if (
+      status === "completed" ||
+      status === "error" ||
+      status === "cancelled"
+    ) {
       updates.push("completed_at = ?");
       values.push(Date.now());
     }
@@ -185,7 +202,10 @@ export function updateJobStatus(
 
     logger.debug({ jobId, status, progress }, "Updated job status");
   } catch (error) {
-    logger.error({ error: serializeError(error), jobId, status }, "Failed to update job status");
+    logger.error(
+      { error: serializeError(error), jobId, status },
+      "Failed to update job status",
+    );
     throw error;
   }
 }
@@ -195,19 +215,22 @@ export function updateJobStatus(
  */
 export function getJobByFileAndParams(
   filePath: string,
-  params: ReturnType<typeof parseParams>
+  params: VideoTransformParams,
 ): VideoJob | null {
   try {
     const paramsJson = normalizeParamsJson(params);
     const job = db
       .prepare(
-        "SELECT * FROM video_jobs WHERE file_path = ? AND params_json = ? ORDER BY created_at DESC LIMIT 1"
+        "SELECT * FROM video_jobs WHERE file_path = ? AND params_json = ? ORDER BY created_at DESC LIMIT 1",
       )
       .get(filePath, paramsJson) as VideoJob | undefined;
 
     return job || null;
   } catch (error) {
-    logger.error({ error: serializeError(error), filePath }, "Failed to get job by file and params");
+    logger.error(
+      { error: serializeError(error), filePath },
+      "Failed to get job by file and params",
+    );
     return null;
   }
 }
@@ -223,7 +246,10 @@ export function getJobById(jobId: string): VideoJob | null {
 
     return job || null;
   } catch (error) {
-    logger.error({ error: serializeError(error), jobId }, "Failed to get job by ID");
+    logger.error(
+      { error: serializeError(error), jobId },
+      "Failed to get job by ID",
+    );
     return null;
   }
 }
@@ -241,7 +267,7 @@ export function getJobStats(): JobStats {
           SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
           SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error
-         FROM video_jobs`
+         FROM video_jobs`,
       )
       .get() as JobStats;
 
@@ -261,17 +287,23 @@ export function getJobStats(): JobStats {
 /**
  * Get recent jobs with pagination
  */
-export function getRecentJobs(limit: number = 50, offset: number = 0): VideoJob[] {
+export function getRecentJobs(
+  limit: number = 50,
+  offset: number = 0,
+): VideoJob[] {
   try {
     const jobs = db
       .prepare(
-        "SELECT * FROM video_jobs ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        "SELECT * FROM video_jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
       )
       .all(limit, offset) as VideoJob[];
 
     return jobs;
   } catch (error) {
-    logger.error({ error: serializeError(error), limit, offset }, "Failed to get recent jobs");
+    logger.error(
+      { error: serializeError(error), limit, offset },
+      "Failed to get recent jobs",
+    );
     return [];
   }
 }
@@ -279,17 +311,23 @@ export function getRecentJobs(limit: number = 50, offset: number = 0): VideoJob[
 /**
  * Get jobs by status
  */
-export function getJobsByStatus(status: JobStatus, limit: number = 50): VideoJob[] {
+export function getJobsByStatus(
+  status: JobStatus,
+  limit: number = 50,
+): VideoJob[] {
   try {
     const jobs = db
       .prepare(
-        "SELECT * FROM video_jobs WHERE status = ? ORDER BY created_at DESC LIMIT ?"
+        "SELECT * FROM video_jobs WHERE status = ? ORDER BY created_at DESC LIMIT ?",
       )
       .all(status, limit) as VideoJob[];
 
     return jobs;
   } catch (error) {
-    logger.error({ error: serializeError(error), status, limit }, "Failed to get jobs by status");
+    logger.error(
+      { error: serializeError(error), status, limit },
+      "Failed to get jobs by status",
+    );
     return [];
   }
 }
@@ -300,12 +338,17 @@ export function getJobsByStatus(status: JobStatus, limit: number = 50): VideoJob
 export function countProcessingJobs(): number {
   try {
     const result = db
-      .prepare("SELECT COUNT(*) as count FROM video_jobs WHERE status = 'processing'")
+      .prepare(
+        "SELECT COUNT(*) as count FROM video_jobs WHERE status = 'processing'",
+      )
       .get() as { count: number };
 
     return result.count;
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Failed to count processing jobs");
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to count processing jobs",
+    );
     return 0;
   }
 }
@@ -316,22 +359,28 @@ export function countProcessingJobs(): number {
 export function cleanupOldJobs(olderThanHours: number = 24): number {
   try {
     const cutoffTime = Date.now() - olderThanHours * 60 * 60 * 1000;
-    
+
     const result = db
       .prepare(
         `DELETE FROM video_jobs 
          WHERE status IN ('completed', 'error', 'cancelled') 
-         AND completed_at < ?`
+         AND completed_at < ?`,
       )
       .run(cutoffTime);
 
     if (result.changes > 0) {
-      logger.info({ deletedCount: result.changes, olderThanHours }, "Cleaned up old jobs");
+      logger.info(
+        { deletedCount: result.changes, olderThanHours },
+        "Cleaned up old jobs",
+      );
     }
 
     return result.changes;
   } catch (error) {
-    logger.error({ error: serializeError(error), olderThanHours }, "Failed to cleanup old jobs");
+    logger.error(
+      { error: serializeError(error), olderThanHours },
+      "Failed to cleanup old jobs",
+    );
     return 0;
   }
 }
@@ -342,19 +391,25 @@ export function cleanupOldJobs(olderThanHours: number = 24): number {
 export function retryFailedJob(jobId: string): boolean {
   try {
     const job = getJobById(jobId);
-    
+
     if (!job) {
       logger.warn({ jobId }, "Cannot retry: job not found");
       return false;
     }
 
     if (job.status !== "error") {
-      logger.warn({ jobId, status: job.status }, "Cannot retry: job is not in error state");
+      logger.warn(
+        { jobId, status: job.status },
+        "Cannot retry: job is not in error state",
+      );
       return false;
     }
 
     if (job.retry_count >= job.max_retries) {
-      logger.warn({ jobId, retry_count: job.retry_count }, "Cannot retry: max retries reached");
+      logger.warn(
+        { jobId, retry_count: job.retry_count },
+        "Cannot retry: max retries reached",
+      );
       return false;
     }
 
@@ -366,13 +421,19 @@ export function retryFailedJob(jobId: string): boolean {
            error = NULL,
            started_at = NULL,
            completed_at = NULL
-       WHERE id = ?`
+       WHERE id = ?`,
     ).run(jobId);
 
-    logger.info({ jobId, retry_count: job.retry_count + 1 }, "Job scheduled for retry");
+    logger.info(
+      { jobId, retry_count: job.retry_count + 1 },
+      "Job scheduled for retry",
+    );
     return true;
   } catch (error) {
-    logger.error({ error: serializeError(error), jobId }, "Failed to retry job");
+    logger.error(
+      { error: serializeError(error), jobId },
+      "Failed to retry job",
+    );
     return false;
   }
 }
@@ -383,25 +444,31 @@ export function retryFailedJob(jobId: string): boolean {
 export function cancelJob(jobId: string): boolean {
   try {
     const job = getJobById(jobId);
-    
+
     if (!job) {
       logger.warn({ jobId }, "Cannot cancel: job not found");
       return false;
     }
 
     if (job.status !== "pending") {
-      logger.warn({ jobId, status: job.status }, "Cannot cancel: job is not pending");
+      logger.warn(
+        { jobId, status: job.status },
+        "Cannot cancel: job is not pending",
+      );
       return false;
     }
 
     db.prepare(
-      "UPDATE video_jobs SET status = 'cancelled', completed_at = ? WHERE id = ?"
+      "UPDATE video_jobs SET status = 'cancelled', completed_at = ? WHERE id = ?",
     ).run(Date.now(), jobId);
 
     logger.info({ jobId }, "Job cancelled");
     return true;
   } catch (error) {
-    logger.error({ error: serializeError(error), jobId }, "Failed to cancel job");
+    logger.error(
+      { error: serializeError(error), jobId },
+      "Failed to cancel job",
+    );
     return false;
   }
 }
@@ -412,16 +479,19 @@ export function cancelJob(jobId: string): boolean {
 export function deleteJob(jobId: string): boolean {
   try {
     const result = db.prepare("DELETE FROM video_jobs WHERE id = ?").run(jobId);
-    
+
     if (result.changes > 0) {
       logger.info({ jobId }, "Job deleted");
       return true;
     }
-    
+
     logger.warn({ jobId }, "Job not found for deletion");
     return false;
   } catch (error) {
-    logger.error({ error: serializeError(error), jobId }, "Failed to delete job");
+    logger.error(
+      { error: serializeError(error), jobId },
+      "Failed to delete job",
+    );
     return false;
   }
 }
@@ -437,17 +507,23 @@ export function resetOrphanedProcessingJobs(): number {
       .prepare(
         `UPDATE video_jobs 
          SET status = 'pending', started_at = NULL 
-         WHERE status = 'processing'`
+         WHERE status = 'processing'`,
       )
       .run();
 
     if (result.changes > 0) {
-      logger.warn({ resetCount: result.changes }, "Reset orphaned processing jobs to pending");
+      logger.warn(
+        { resetCount: result.changes },
+        "Reset orphaned processing jobs to pending",
+      );
     }
 
     return result.changes;
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Failed to reset orphaned processing jobs");
+    logger.error(
+      { error: serializeError(error) },
+      "Failed to reset orphaned processing jobs",
+    );
     return 0;
   }
 }
@@ -463,15 +539,20 @@ export function deleteJobsByFilePath(filePath: string): number {
       .run(filePath);
 
     if (result.changes > 0) {
-      logger.info({ filePath, deletedCount: result.changes }, "Deleted jobs for file path");
+      logger.info(
+        { filePath, deletedCount: result.changes },
+        "Deleted jobs for file path",
+      );
     } else {
       logger.debug({ filePath }, "No jobs found for file path");
     }
 
     return result.changes;
   } catch (error) {
-    logger.error({ error: serializeError(error), filePath }, "Failed to delete jobs by file path");
+    logger.error(
+      { error: serializeError(error), filePath },
+      "Failed to delete jobs by file path",
+    );
     return 0;
   }
 }
-
