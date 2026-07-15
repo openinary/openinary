@@ -39,8 +39,9 @@ RUN mkdir -p apps/api/cache apps/api/public /app/data && \
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
     sed -i 's/\r$//' /app/scripts/init-env-wrapper.sh || true
 
-# Build shared package first (API depends on it)
+# Build shared and core packages first (API depends on them)
 RUN pnpm --filter shared build
+RUN pnpm --filter @openinary/core build
 # Build API using workspace filter
 RUN pnpm --filter api build
 

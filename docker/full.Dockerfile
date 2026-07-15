@@ -18,8 +18,9 @@ COPY apps/api/ ./apps/api/
 RUN pnpm install --offline --filter shared... --filter api... --frozen-lockfile
 RUN mkdir -p apps/api/cache apps/api/public
 
-# Build shared package first (API depends on it)
+# Build shared and core packages first (API depends on them)
 RUN pnpm --filter shared build
+RUN pnpm --filter @openinary/core build
 RUN pnpm --filter api build
 
 # Prune devDependencies pour ne garder que les deps de production
