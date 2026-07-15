@@ -141,8 +141,9 @@ async function initializeAuth() {
       { userCount: users.count },
       `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
     );
-  } catch (error) {
-    logger.error({ error: serializeError(error) }, "Database setup failed.");
+  } catch (error: any) {
+    logger.error(error?.message || "Database setup failed.");
+    process.exit(0);
   }
 }
 
@@ -161,12 +162,7 @@ initTelemetry();
 
 // Initialize auth in background (non-blocking)
 // This allows the server to respond to healthchecks immediately
-initializeAuth().catch((error) => {
-  logger.error(
-    { error: serializeError(error) },
-    "Error during background auth initialization",
-  );
-});
+initializeAuth();
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
