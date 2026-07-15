@@ -56,69 +56,93 @@ async function initializeAuth() {
       count: number;
     };
 
-    // In fullstack mode, never create users automatically
-    if (mode === "fullstack") {
-      if (users.count === 0) {
-        logger.info(
-          "No users found. Please visit /setup to create your first admin account.",
-        );
-      } else {
-        logger.info(
-          { userCount: users.count },
-          "Database initialized (FULLSTACK mode)",
-        );
-      }
-      return;
-    }
-
-    // In API standalone mode, generate API key only (no exposed credentials)
-    if (users.count === 0) {
-      logger.info("Running in API STANDALONE mode");
-      logger.info("Generating initial API key...");
-
-      // Create a system user (required for API key association)
-      // This user is internal only - credentials are never exposed or used
-      const systemPassword = randomUUID() + randomUUID(); // Random, never shown
-      const signUpResult = await auth.api.signUpEmail({
-        body: {
-          email: "system@openinary.local",
-          password: systemPassword,
-          name: "System",
-        },
-      });
-
-      if (signUpResult) {
-        const userId = signUpResult.user.id;
-
-        // Create an API key for this user
-        const apiKeyResult = await auth.api.createApiKey({
-          body: {
-            name: "Initial API Key",
-            userId: userId,
-            expiresIn: 365 * 24 * 60 * 60, // 1 year in seconds
-          },
-        });
-
-        if (apiKeyResult && "key" in apiKeyResult) {
-          logger.info(
-            { apiKeyId: apiKeyResult.id },
-            "┌─────────────────────────────────────────────────────────────────┐\n│                  Initial API Key Generated                      │\n├─────────────────────────────────────────────────────────────────┤\n│                                                                 │\n│  API Key: " +
-              apiKeyResult.key +
-              "                                   │\n│                                                                 │\n│  Save this key now! It will not be shown again.                 │\n│                                                                 │\n└─────────────────────────────────────────────────────────────────┘",
-          );
-        }
-      }
-    } else {
-      logger.info(
+    if (users.count > 0)
+      return logger.info(
         { userCount: users.count },
-        "Database initialized (API STANDALONE mode)",
+        `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
+      );
+
+    const accName = process.env.OPENINARY_ADMIN_NAME?.trim();
+    const accEmail = process.env.OPENINARY_ADMIN_EMAIL?.trim();
+    const accPassword = process.env.OPENINARY_ADMIN_PASSWORD;
+    const generateApiKey =
+      process.env.OPENINARY_GENERATE_API_KEY?.trim() === "true";
+
+    if (mode === "fullstack" && !generateApiKey && !accEmail && !accPassword)
+      return logger.info(
+        "No users found. Please visit /setup to create your first admin account.",
+      );
+
+    if ((!accEmail && accPassword) || (accEmail && !accPassword))
+      throw new Error(
+        "You have to configure both admin email and password or none.",
+      );
+
+    if (mode === "fullstack" && generateApiKey && !accEmail)
+      throw new Error(
+        "In fullstack mode you have to also configure admin credentials for generating an API key on initialization.",
+      );
+
+    // Setup user and API key if configured
+    logger.info("Creating admin user...");
+
+    // Create a system user (because configured OR required for API key association)
+    const signUpResult = await auth.api.signUpEmail({
+      body: {
+        email: accEmail || "system@openinary.local",
+        password: accPassword || randomUUID() + randomUUID(),
+        name: accName || "Admin",
+      },
+    });
+
+    if (!signUpResult) throw new Error("Creating initial user failed.");
+
+    logger.info("Initial user created successfully!");
+
+    if (!generateApiKey)
+      return logger.info(
+        { userCount: users.count },
+        `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
+      );
+
+    // Create an API key for this user
+    const apiKeyResult = await auth.api.createApiKey({
+      body: {
+        name: "Initial API Key",
+        userId: signUpResult.user.id,
+        expiresIn: 365 * 24 * 60 * 60, // 1 year in seconds
+      },
+    });
+
+    if (!apiKeyResult || !("key" in apiKeyResult)) {
+      const deleteResult = db
+        .prepare(`DELETE FROM user WHERE id=${signUpResult.user.id}`)
+        .get() as {
+        rowsAffected: number;
+      };
+
+      if (deleteResult.rowsAffected === 0)
+        throw new Error(
+          "Initial API Key could not be generated. Deleting user for cleanup failed.",
+        );
+
+      throw new Error(
+        "Initial API Key could not be generated. User was removed again.",
       );
     }
-  } catch (error) {
-    logger.error(
-      { error: serializeError(error) },
-      "Error initializing authentication",
+
+    logger.info(
+      { apiKeyId: apiKeyResult.id },
+      "┌─────────────────────────────────────────────────────────────────┐\n│                  Initial API Key Generated                      │\n├─────────────────────────────────────────────────────────────────┤\n│                                                                 │\n│  API Key: " +
+        apiKeyResult.key +
+        "                                   │\n│                                                                 │\n│  Save this key now! It will not be shown again.                 │\n│                                                                 │\n└─────────────────────────────────────────────────────────────────┘",
     );
+    logger.info(
+      { userCount: users.count },
+      `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
+    );
+  } catch (error) {
+    logger.error({ error: serializeError(error) }, "Database setup failed.");
   }
 }
 
