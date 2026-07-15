@@ -1,5 +1,11 @@
 # @openinary/core
 
+## 1.1.1
+
+### Patch Changes
+
+- Fix `f_auto` producing an invalid `image/auto` Content-Type header, which caused browsers to download the image instead of rendering it inline. `optimizeForDelivery` was treating `params.format === "auto"` as an explicit format request instead of triggering format auto-detection; it now falls through to the existing format size-comparison logic and resolves to a real format (avif/webp/jpeg/png).
+
 ## 1.1.0
 
 ### Minor Changes

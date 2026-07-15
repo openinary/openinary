@@ -29,7 +29,8 @@ export class Compression {
     const metadata = await sharp(inputPath).metadata();
     
     // If format is explicitly specified, use it directly (no size comparison needed)
-    if (params.format) {
+    // "auto" is not an explicit format — it falls through to format size comparison below
+    if (params.format && params.format !== 'auto') {
       const explicitFormat = params.format === 'jpg' ? 'jpeg' : params.format;
       const userQuality = params.quality ? parseInt(String(params.quality)) : undefined;
       const optimalQuality = this.calculateOptimalQuality(

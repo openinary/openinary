@@ -7,7 +7,7 @@ export type GravityMode =
   | "west"
   | "face"
   | "auto";
-export type ImageFormat = "avif" | "webp" | "jpeg" | "jpg" | "png";
+export type ImageFormat = "avif" | "webp" | "jpeg" | "jpg" | "png" | "auto";
 export type VideoFormat = "mp4" | "mov" | "webm";
 
 export interface BackgroundColor {
