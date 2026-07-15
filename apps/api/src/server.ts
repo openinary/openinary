@@ -50,7 +50,7 @@ videoJobQueue.initialize(getSharedStorage());
 // Initialize authentication and generate API key if needed (only in standalone mode)
 async function initializeAuth() {
   try {
-    const mode = process.env.MODE || "fullstack";
+    const mode = process.env.MODE?.toLowerCase().trim() || "fullstack";
     const db = auth.options.database;
     const users = db.prepare("SELECT COUNT(*) as count FROM user").get() as {
       count: number;
@@ -99,10 +99,10 @@ async function initializeAuth() {
 
     logger.info("Initial user created successfully!");
 
-    if (!generateApiKey)
+    if (!generateApiKey && mode === "fullstack")
       return logger.info(
         { userCount: users.count },
-        `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
+        `Database initialized (FULLSTACK mode)`,
       );
 
     // Create an API key for this user
