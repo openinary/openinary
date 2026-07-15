@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { QueueStatsCards } from "@/components/queue/queue-stats-cards";
-import { QueueTable, type QueueJob } from "@/components/queue/queue-table";
+import { QueueStatsCards } from "@openinary/ui";
+import { QueueTable, type QueueTableJob as QueueJob } from "@openinary/ui";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
-import { useQueueEvents } from "@/hooks/use-queue-events";
+import { useQueueEvents } from "@openinary/ui";
 
 export default function QueuePage() {
   const [jobs, setJobs] = useState<QueueJob[]>([]);

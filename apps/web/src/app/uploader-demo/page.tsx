@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileUploader } from "@/components/openinary/file-uploader";
-import type { SignedUpload, UploadedFile } from "@/components/openinary/use-file-upload";
+import { FileUploader, type SignedUpload, type UploadedFile } from "@openinary/ui";
 
 /**
  * Local demo / dogfood page for the @openinary/file-uploader registry component.

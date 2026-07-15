@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import {
+  DeleteConfirmDialog,
   useClearCache,
   useRecalculateStorageStats,
   useStorageStats,
-} from "@/hooks/use-storage-stats";
+} from "@openinary/ui";
 import { cn } from "@/lib/utils";
 
 function formatBytes(bytes: number): string {

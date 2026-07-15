@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyInput } from "@/components/ui/copy-input";
+import { CopyInput } from "@openinary/ui";
 import { useMemo } from "react";
 
 export function Examples() {

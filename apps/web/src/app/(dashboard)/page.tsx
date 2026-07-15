@@ -12,7 +12,7 @@ import {
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/auth-client";
-import { Image as ImageIcon, Package, Video } from "lucide-react";
+import type { MediaFile } from "@openinary/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -21,13 +21,6 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 const SIDEBAR_MAX_WIDTH_PX = 500;
 const COLUMNS_STORAGE_KEY = "openinary:media-grid-columns";
 const VIEW_STORAGE_KEY = "openinary:media-grid-view";
-
-type MediaFile = {
-  id: string;
-  name: string;
-  path: string;
-  type: "image" | "video";
-};
 
 function getStoredColumns(): number {
   if (typeof window === "undefined") return 6;
@@ -100,25 +93,6 @@ function HomePageContent() {
     setAssetId(media.id);
   };
 
-  const assetSidebarItems = [
-    {
-      title: "Details",
-      url: "#",
-      icon: Package,
-      isActive: true,
-    },
-    {
-      title: "Preview",
-      url: "#",
-      icon: ImageIcon,
-    },
-    {
-      title: "Metadata",
-      url: "#",
-      icon: Video,
-    },
-  ];
-
   return (
     <>
       <AppSidebar onMediaSelect={handleMediaSelect} />
@@ -163,7 +137,8 @@ function HomePageContent() {
                   id="sidebar-panel"
                 >
                   <AssetDetailsSidebar
-                    items={assetSidebarItems}
+                    assetId={assetId}
+                    onAssetIdChange={setAssetId}
                     open={assetSidebarOpen}
                     onOpenChange={setAssetSidebarOpen}
                   />

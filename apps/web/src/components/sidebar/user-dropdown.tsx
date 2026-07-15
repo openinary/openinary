@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { useSidebar } from "@/components/ui/sidebar"
-import { UserAvatar } from "./user-avatar"
+import { UserAvatar } from "@openinary/ui"
 
 interface UserDropdownProps {
   userName: string

@@ -1,7 +1,8 @@
+"use client";
+
 import { LayoutGrid, List } from "lucide-react";
 import { useQueryState } from "nuqs";
-import ColumnCountSlider from "./column-count-slider";
-import DeleteFolderButton from "./delete-folder-button";
+import { ColumnCountSlider, DeleteFolderButton, UploadButtonWithDialog } from "@openinary/ui";
 import { Button } from "./ui/button";
 import {
   Breadcrumb,
@@ -13,7 +14,6 @@ import {
 } from "./ui/breadcrumb";
 import { Separator } from "./ui/separator";
 import { SidebarTrigger } from "./ui/sidebar";
-import UploadButtonWithDialog from "./upload-button-with-dialog";
 
 export default function HeaderBar({
   columns,

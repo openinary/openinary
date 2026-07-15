@@ -12,7 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { UserAvatar } from "./user-avatar"
+import { UserAvatar } from "@openinary/ui"
 import { UserDropdown } from "./user-dropdown"
 import { SettingsDialog } from "./settings-dialog"
 

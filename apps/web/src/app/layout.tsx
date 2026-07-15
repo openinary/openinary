@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { OpeninaryProvider } from "@openinary/ui";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -41,8 +42,13 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <NuqsAdapter>{children}</NuqsAdapter>
-            <Toaster />
+            <OpeninaryProvider
+              apiBaseUrl={process.env.NEXT_PUBLIC_API_BASE_URL || ""}
+              transformBaseUrl={process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL}
+            >
+              <NuqsAdapter>{children}</NuqsAdapter>
+              <Toaster />
+            </OpeninaryProvider>
           </ThemeProvider>
         </QueryProvider>
       </body>

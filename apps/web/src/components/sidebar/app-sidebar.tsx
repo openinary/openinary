@@ -14,13 +14,7 @@ import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavUser } from "@/components/sidebar/nav-user";
 import { VersionDisplay } from "@/components/sidebar/version-display";
-
-type MediaFile = {
-  id: string;
-  name: string;
-  path: string;
-  type: "image" | "video";
-};
+import type { MediaFile } from "@openinary/ui";
 import {
   Sidebar,
   SidebarContent,

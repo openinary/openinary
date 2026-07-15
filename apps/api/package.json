@@ -20,7 +20,7 @@
     "heic-convert": "^2.1.0",
     "hono": "^4.12.30",
     "shared": "workspace:*",
-    "zod": "^4.1.12"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

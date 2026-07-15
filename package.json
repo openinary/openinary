@@ -29,7 +29,7 @@
     "cli": "pnpm --filter create-openinary",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build --filter=@openinary/core && changeset publish"
+    "release": "turbo run build --filter=@openinary/core --filter=@openinary/ui && changeset publish"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",

@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useHideThumbnails } from "@/hooks/use-hide-thumbnails";
+import { useHideThumbnails } from "@openinary/ui";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: Sun },
