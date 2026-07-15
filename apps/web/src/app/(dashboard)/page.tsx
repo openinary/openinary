@@ -2,7 +2,6 @@
 
 import { AssetDetailsSidebar } from "@/components/details-sidebar";
 import HeaderBar from "@/components/headerbar";
-import { MediaGrid } from "@/components/media-grid";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import {
   ResizableHandle,
@@ -12,7 +11,7 @@ import {
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/auth-client";
-import type { MediaFile } from "@openinary/ui";
+import { MediaGrid, type MediaFile } from "@openinary/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -39,6 +38,7 @@ function HomePageContent() {
     "asset",
     parseAsString.withOptions({ clearOnDefault: true }),
   );
+  const [folderPath, setFolderPath] = useQueryState("folder");
   const [assetSidebarOpen, setAssetSidebarOpen] = useState(false);
   const [columns, setColumns] = useState(getStoredColumns);
   const [view, setView] = useState<"grid" | "list">(getStoredView);
@@ -120,6 +120,8 @@ function HomePageContent() {
                   columns={columns}
                   view={view}
                   scrollContainerRef={scrollContainerRef}
+                  folderPath={folderPath}
+                  onFolderPathChange={setFolderPath}
                 />
               </div>
             </ResizablePanel>

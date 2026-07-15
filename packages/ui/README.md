@@ -85,14 +85,22 @@ package's components render identically to your own.
 
 ## What's included
 
-Media browser building blocks (dialogs, rename, upload, folder management,
-asset details sidebar with transform-URL previews), the video processing
-queue UI, the presigned-upload `FileUploader`, and the data hooks that back
-all of it (`useStorageLevel`, `useQueueEvents`, `useVideoStatus`, …). All data
-hooks read their API base URL from `OpeninaryProvider` context — nothing
-reads `process.env` directly.
+The full media browser — `MediaGrid` (virtualized grid/list views, folder
+navigation, context menus, bulk selection, drag-free move/copy/rename/delete)
+plus its building blocks (dialogs, rename, upload, folder management, asset
+details sidebar with transform-URL previews), the video processing queue UI,
+the presigned-upload `FileUploader`, and the data hooks that back all of it
+(`useStorageLevel`, `useQueueEvents`, `useVideoStatus`, …). All data hooks
+read their API base URL from `OpeninaryProvider` context — nothing reads
+`process.env` directly.
+
+`MediaGrid` doesn't own folder navigation state — pass `folderPath` and
+`onFolderPathChange` (or omit both to stay pinned to the root folder). This
+keeps the package router-agnostic; wire it to your own URL state (nuqs,
+React Router, etc.) the same way you already do for `AssetDetailsSidebar`'s
+`assetId`/`onAssetIdChange`.
 
 **Not included**, by design — these are coupled to Openinary's self-hosted,
 single-admin auth model and don't generalize to other apps' auth:
-authentication UI (login/API-key management), the main media grid (still
-being incrementally extracted), and anything importing `better-auth`.
+authentication UI (login/API-key management) and anything importing
+`better-auth`.

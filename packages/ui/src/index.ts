@@ -62,6 +62,9 @@ export { useVideoStatus, type VideoStatus } from "./hooks/use-video-status";
 export { usePreloadMedia, preloadMedia } from "./hooks/use-preload-media";
 export { useHideThumbnails } from "./hooks/use-hide-thumbnails";
 
+// Media grid
+export { MediaGrid, type MediaGridProps } from "./media-grid";
+
 // File uploader (presigned direct upload)
 export { FileUploader, type FileUploaderProps } from "./file-uploader/file-uploader";
 export {

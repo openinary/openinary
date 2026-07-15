@@ -20,12 +20,11 @@ import {
   FolderPlus,
   X,
 } from "lucide-react";
-import { useQueryState } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { Skeleton } from "./ui/skeleton";
+import { Button } from "./ui/button";
 import {
   Empty,
   EmptyHeader,
@@ -33,7 +32,7 @@ import {
   EmptyTitle,
   EmptyDescription,
   EmptyContent,
-} from "@/components/ui/empty";
+} from "./ui/empty";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -44,29 +43,28 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "./ui/context-menu";
+import { Checkbox } from "./ui/checkbox";
+import { cn, isMac, toAbsoluteUrl } from "./lib/utils";
+import { useOpeninary } from "./provider/openinary-provider";
+import { VideoThumbnail } from "./components/video-thumbnail";
+import { DefaultDialog } from "./components/default-dialog";
+import { RenameSection } from "./components/rename-section";
+import { DeleteConfirmDialog } from "./components/delete-confirm-dialog";
 import {
-  cn,
-  isMac,
-  toAbsoluteUrl,
-  VideoThumbnail,
-  DefaultDialog,
-  RenameSection,
-  DeleteConfirmDialog,
   invalidateStorage,
   useStorageLevel,
-  useHideThumbnails,
-  useFolderSummaries,
-  preloadMedia,
-  MoveToNavigator,
-  UploadButtonWithDialog,
-  CreateFolderButtonWithDialog,
-  UploadSection,
-  CreateFolderSection,
-  BulkActionBarContent,
-  type MediaFile,
-} from "@openinary/ui";
+} from "./hooks/use-storage-tree";
+import { useHideThumbnails } from "./hooks/use-hide-thumbnails";
+import { useFolderSummaries } from "./hooks/use-folder-summaries";
+import { preloadMedia } from "./hooks/use-preload-media";
+import { MoveToNavigator } from "./components/move-to-navigator";
+import { UploadButtonWithDialog } from "./components/upload-button-with-dialog";
+import { CreateFolderButtonWithDialog } from "./components/create-folder-button-with-dialog";
+import { UploadSection } from "./components/upload-section";
+import { CreateFolderSection } from "./components/create-folder-section";
+import { BulkActionBarContent } from "./components/bulk-action-bar";
+import type { MediaFile } from "./types";
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -152,13 +150,16 @@ function getFolderThumbnailUrl(
   return `${transformBaseUrl}/t/${dims},q_70/${item.path}`;
 }
 
-interface MediaGridProps {
+export interface MediaGridProps {
   onMediaSelect: (media: MediaFile) => void;
   sidebarOpen?: boolean;
   onUploadClick?: () => void;
   columns?: number;
   view?: "grid" | "list";
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /** Current folder, e.g. "photos/2024". Root is `null`. Lifted to the caller since this package doesn't dictate a router. */
+  folderPath?: string | null;
+  onFolderPathChange?: (folderPath: string | null) => void;
 }
 
 export function MediaGrid({
@@ -167,7 +168,10 @@ export function MediaGrid({
   columns = 6,
   view = "grid",
   scrollContainerRef,
+  folderPath = null,
+  onFolderPathChange,
 }: MediaGridProps) {
+  const { apiBaseUrl, transformBaseUrl, fetch } = useOpeninary();
   const [hideThumbnails] = useHideThumbnails();
   const queryClient = useQueryClient();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -177,7 +181,7 @@ export function MediaGrid({
   // is only rendered for the hovered row or the row whose menu is open.
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [folderPath, setFolderPath] = useQueryState("folder");
+  const setFolderPath = onFolderPathChange ?? (() => {});
 
   // Bulk selection state
   const [selection, setSelection] = useState<Map<string, SelectionEntry>>(
@@ -470,13 +474,6 @@ export function MediaGrid({
     );
   }
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  // Use dedicated transform base URL (empty in Docker, falls back to apiBaseUrl without /api)
-  const transformBaseUrl =
-    process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL !== undefined
-      ? process.env.NEXT_PUBLIC_TRANSFORM_BASE_URL
-      : apiBaseUrl.replace(/\/api$/, "");
-
   const handleFolderClick = (folderPath: string) => {
     setFolderPath(folderPath);
   };
@@ -525,7 +522,6 @@ export function MediaGrid({
     const rename = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName }),
       });
@@ -564,7 +560,6 @@ export function MediaGrid({
         `${apiBaseUrl}/storage/${encodedPath}/copy`,
         {
           method: "POST",
-          credentials: "include",
         },
       );
       if (!response.ok) {
@@ -599,7 +594,6 @@ export function MediaGrid({
         `${apiBaseUrl}/storage/${encodedPath}/move`,
         {
           method: "POST",
-          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ destination }),
         },
@@ -634,7 +628,6 @@ export function MediaGrid({
     const del = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!response.ok) {
         throw new Error(`Failed to delete "${name}"`);
@@ -681,7 +674,6 @@ export function MediaGrid({
     const rename = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName }),
       });
@@ -723,7 +715,6 @@ export function MediaGrid({
     const del = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!response.ok) {
         throw new Error(`Failed to delete folder "${path}"`);
@@ -765,7 +756,6 @@ export function MediaGrid({
     const downloadZip = async () => {
       const response = await fetch(`${apiBaseUrl}/download-zip`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: entries.map((entry) => ({
@@ -813,7 +803,6 @@ export function MediaGrid({
             .join("/");
           return fetch(`${apiBaseUrl}/storage/${encodedPath}/move`, {
             method: "POST",
-            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ destination }),
           }).then((response) => {
@@ -858,7 +847,6 @@ export function MediaGrid({
             .join("/");
           return fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
             method: "DELETE",
-            credentials: "include",
           }).then((response) => {
             if (!response.ok)
               throw new Error(`Failed to delete "${entry.name}"`);
