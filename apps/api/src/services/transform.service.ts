@@ -69,7 +69,7 @@ export class TransformService {
       const fileSegments = hasTransform ? segments.slice(1) : segments;
       const filePath = fileSegments.join('/');
       const localPath = `${getLocalAssetsBasePath()}/${filePath}`;
-      const ext = filePath.split('.').pop();
+      const ext = filePath.split('.').pop()?.toLowerCase();
 
       // Get effective parameters with format optimization
       const { effectiveParams, cachePath } =
@@ -148,7 +148,7 @@ export class TransformService {
     userAgent?: string,
     acceptHeader?: string
   ): Promise<{ effectiveParams: any; cachePath: string }> {
-    const ext = path.split('.').pop();
+    const ext = path.split('.').pop()?.toLowerCase();
     let effectiveParams = { ...params };
     let cachePath = getCachePath(path);
 
@@ -431,7 +431,7 @@ export class TransformService {
 
             return {
               buffer: cachedBuffer,
-              contentType: `video/${filePath.split('.').pop()}`,
+              contentType: `video/${filePath.split('.').pop()?.toLowerCase()}`,
               headers: {
                 'X-Video-Status': 'ready',
                 'Content-Length': cachedBuffer.length.toString(),
@@ -495,7 +495,7 @@ export class TransformService {
 
       return {
         buffer: originalBuffer,
-        contentType: `video/${filePath.split('.').pop()}`,
+        contentType: `video/${filePath.split('.').pop()?.toLowerCase()}`,
         headers: {
           'X-Video-Status': 'processing',
           'X-Original-Video': 'true',
