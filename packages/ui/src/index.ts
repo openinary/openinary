@@ -5,6 +5,7 @@ export type { MediaType, MediaFile, StorageFolder, StorageFile, StorageLevel } f
 export { getMediaType } from "./media-type";
 export { cn, isMac, toAbsoluteUrl } from "./lib/utils";
 export { Spinner } from "./ui/spinner";
+export { Toaster } from "./ui/sonner";
 
 // Provider
 export {

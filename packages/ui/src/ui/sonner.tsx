@@ -1,7 +1,7 @@
 "use client"
 
 import { Toaster as Sonner, ToasterProps } from "sonner"
-import { Spinner } from "@/components/ui/spinner"
+import { Spinner } from "./spinner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   return (

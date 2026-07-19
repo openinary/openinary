@@ -32,8 +32,7 @@ read from.
 
 ```tsx
 import { QueryClientProvider } from "@tanstack/react-query";
-import { OpeninaryProvider } from "@openinary/ui";
-import { Toaster } from "sonner";
+import { OpeninaryProvider, Toaster } from "@openinary/ui";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -106,6 +105,10 @@ pane layout, no tab state or tab content of its own — you pass `nav`,
 (theme switcher, hide-thumbnails toggle) and `StorageTab` (usage stats, clear
 cache). `AppearanceTab` needs a `next-themes` `ThemeProvider` above it in the
 tree (`next-themes` is a peer dependency, same reasoning as `react-query`).
+
+`Toaster` is Openinary's themed `sonner` wrapper (dark, pill-shaped toasts,
+custom action/cancel/close styling) — render it instead of importing
+`Toaster` from `sonner` directly, so toasts look the same as the dashboard.
 
 **Not included**, by design — these are coupled to Openinary's self-hosted,
 single-admin auth model and don't generalize to other apps' auth:
