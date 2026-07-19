@@ -1,6 +1,6 @@
 {
   "name": "@openinary/ui",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Openinary's dashboard UI components, hooks and design primitives as a standalone, embeddable React package.",
   "type": "module",
   "license": "AGPL-3.0-only",

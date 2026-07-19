@@ -100,6 +100,13 @@ keeps the package router-agnostic; wire it to your own URL state (nuqs,
 React Router, etc.) the same way you already do for `AssetDetailsSidebar`'s
 `assetId`/`onAssetIdChange`.
 
+Also included: a composable `SettingsDialog` shell (nav sidebar + content
+pane layout, no tab state or tab content of its own — you pass `nav`,
+`tab`/`onTabChange`, and `children`) plus two ready-made tabs, `AppearanceTab`
+(theme switcher, hide-thumbnails toggle) and `StorageTab` (usage stats, clear
+cache). `AppearanceTab` needs a `next-themes` `ThemeProvider` above it in the
+tree (`next-themes` is a peer dependency, same reasoning as `react-query`).
+
 **Not included**, by design — these are coupled to Openinary's self-hosted,
 single-admin auth model and don't generalize to other apps' auth:
 authentication UI (login/API-key management) and anything importing
