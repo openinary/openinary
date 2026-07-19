@@ -3,16 +3,12 @@
 import { useState } from "react";
 import { Database, HardDrive, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DeleteConfirmDialog,
-  useClearCache,
-  useRecalculateStorageStats,
-  useStorageStats,
-} from "@openinary/ui";
-import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
+import { Separator } from "../ui/separator";
+import { Skeleton } from "../ui/skeleton";
+import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
+import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
+import { cn } from "../lib/utils";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";

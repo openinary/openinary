@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { Laptop, Moon, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
-import { useHideThumbnails } from "@openinary/ui";
+import { Separator } from "../ui/separator";
+import { Switch } from "../ui/switch";
+import { cn } from "../lib/utils";
+import { useHideThumbnails } from "../hooks/use-hide-thumbnails";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: Sun },

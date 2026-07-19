@@ -65,6 +65,11 @@ export { useHideThumbnails } from "./hooks/use-hide-thumbnails";
 // Media grid
 export { MediaGrid, type MediaGridProps } from "./media-grid";
 
+// Settings dialog (composable shell + portable tabs)
+export { SettingsDialog, type SettingsDialogProps, type SettingsNavItem } from "./settings/settings-dialog";
+export { AppearanceTab } from "./settings/appearance-tab";
+export { StorageTab } from "./settings/storage-tab";
+
 // File uploader (presigned direct upload)
 export { FileUploader, type FileUploaderProps } from "./file-uploader/file-uploader";
 export {
