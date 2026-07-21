@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { DEFAULT_ACCEPT } from "../file-uploader/use-file-upload";
 
 interface UploadResult {
   filename: string;
@@ -61,10 +62,9 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "image/*": [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".psd"],
-      "video/*": [".mp4", ".mov", ".webm"],
-    },
+    // Mirrors the API's ALLOWED_TYPES. The previous "image/*" / "video/*"
+    // wildcards let the picker accept files (svg, tiff, mkv…) the API rejects.
+    accept: DEFAULT_ACCEPT,
   });
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

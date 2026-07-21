@@ -3,6 +3,11 @@ import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from 
 import logger, { serializeError } from '../logger';
 
 export class Compression {
+  /** Formats applyFormat() can actually encode. Excludes "auto". */
+  private static readonly ENCODABLE_FORMATS = new Set<string>([
+    'avif', 'webp', 'jpeg', 'jpg', 'png', 'gif'
+  ]);
+
   private static readonly FORMAT_PRIORITIES = {
     avif: { quality: 0.9, savings: 0.7 },  // AVIF: Excellent compression, slightly lower quality acceptable
     webp: { quality: 0.95, savings: 0.6 }, // WebP: Good compression, high quality
@@ -29,8 +34,10 @@ export class Compression {
     const metadata = await sharp(inputPath).metadata();
     
     // If format is explicitly specified, use it directly (no size comparison needed)
-    // "auto" is not an explicit format — it falls through to format size comparison below
-    if (params.format && params.format !== 'auto') {
+    // "auto" is not an explicit format — it falls through to format size comparison below.
+    // A video format requested on an image source (f_mp4 on a .jpg) also falls
+    // through rather than being mislabelled as image/mp4 with PNG bytes.
+    if (params.format && Compression.ENCODABLE_FORMATS.has(params.format)) {
       const explicitFormat = params.format === 'jpg' ? 'jpeg' : params.format;
       const userQuality = params.quality ? parseInt(String(params.quality)) : undefined;
       const optimalQuality = this.calculateOptimalQuality(
@@ -238,10 +245,13 @@ export class Compression {
         
       case 'png':
         return pipeline.png({
-          compressionLevel: 3, 
-          adaptiveFiltering: false 
+          compressionLevel: 3,
+          adaptiveFiltering: false
         });
-        
+
+      case 'gif':
+        return pipeline.gif();
+
       default:
         // PNG fallback
         return pipeline.png({
