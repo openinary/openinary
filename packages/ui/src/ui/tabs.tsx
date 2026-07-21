@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
+import * as React from "react";
 
 import { cn } from "../lib/utils";
 
@@ -27,8 +28,34 @@ function TabsList({
 }: TabsPrimitive.List.Props & {
   variant?: TabsVariant;
 }) {
+  const listRef = React.useRef<HTMLDivElement>(null);
+
+  // The indicator is positioned from measured CSS vars, so a resize would
+  // animate toward the new position instead of tracking it. Skip the
+  // transition while the list is being resized.
+  React.useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver(() => {
+      el.dataset.resizing = "";
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        delete el.dataset.resizing;
+      }, 100);
+    });
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
+
   return (
     <TabsPrimitive.List
+      ref={listRef}
       className={cn(
         "relative z-0 flex w-fit items-center justify-center gap-x-0.5 text-muted-foreground",
         "data-[orientation=vertical]:flex-col",
@@ -43,7 +70,7 @@ function TabsList({
       {children}
       <TabsPrimitive.Indicator
         className={cn(
-          "-translate-y-(--active-tab-bottom) absolute bottom-0 left-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) transition-[width,translate] duration-200 ease-in-out",
+          "-translate-y-(--active-tab-bottom) absolute bottom-0 left-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) transition-[width,translate] duration-200 ease-in-out [[data-resizing]_&]:transition-none",
           variant === "underline"
             ? "data-[orientation=vertical]:-translate-x-px z-10 bg-primary data-[orientation=horizontal]:h-0.5 data-[orientation=vertical]:w-0.5 data-[orientation=horizontal]:translate-y-px"
             : "-z-1 rounded-md bg-background shadow-sm dark:bg-input",
