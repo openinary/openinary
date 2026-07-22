@@ -33,6 +33,11 @@ services:
       - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
       - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      # Initial Authentication configuration
+      - OPENINARY_ADMIN_NAME=${OPENINARY_ADMIN_NAME}
+      - OPENINARY_ADMIN_EMAIL=${OPENINARY_ADMIN_EMAIL}
+      - OPENINARY_ADMIN_PASSWORD=${OPENINARY_ADMIN_PASSWORD}
+      - OPENINARY_GENERATE_API_KEY=${OPENINARY_GENERATE_API_KEY:-true}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
@@ -91,6 +96,11 @@ services:
       - VIDEO_JOB_CLEANUP_HOURS=${VIDEO_JOB_CLEANUP_HOURS:-24}
       - VIDEO_WORKER_POLL_INTERVAL_MS=${VIDEO_WORKER_POLL_INTERVAL_MS:-1000}
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      # Initial Authentication configuration
+      - OPENINARY_ADMIN_NAME=${OPENINARY_ADMIN_NAME}
+      - OPENINARY_ADMIN_EMAIL=${OPENINARY_ADMIN_EMAIL}
+      - OPENINARY_ADMIN_PASSWORD=${OPENINARY_ADMIN_PASSWORD}
+      - OPENINARY_GENERATE_API_KEY=${OPENINARY_GENERATE_API_KEY:-false}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
