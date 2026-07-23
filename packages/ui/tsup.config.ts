@@ -25,8 +25,11 @@ export default defineConfig([
     ...common,
     entry: { index: "src/index.ts" },
     // banner: { js } is silently dropped by esbuild's bundler when it
-    // detects directive-shaped text — see scripts/add-use-client-banner.mjs,
-    // run as a postbuild step instead.
+    // detects directive-shaped text — see scripts/add-use-client-banner.mjs.
+    // onSuccess (not a package.json postbuild step) so the banner is also
+    // re-stamped after every `tsup --watch` rebuild; a watch rebuild
+    // without it ships a dist that breaks Next.js client boundaries.
+    onSuccess: "node scripts/add-use-client-banner.mjs",
   },
   {
     ...common,

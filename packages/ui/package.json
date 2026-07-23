@@ -28,7 +28,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist && tsup && node scripts/add-use-client-banner.mjs",
+    "build": "rm -rf dist && tsup",
     "dev": "tsup --watch",
     "prepublishOnly": "npm run build",
     "type-check": "tsc --noEmit",
