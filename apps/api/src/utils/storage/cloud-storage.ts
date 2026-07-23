@@ -1,3 +1,4 @@
+import path from "path";
 import { StorageConfig } from "shared";
 import { StorageCache } from "./cache";
 import { KeyGenerator } from "./key-generator";
@@ -14,9 +15,24 @@ export class CloudStorage {
   constructor(config: StorageConfig) {
     this.s3Client = new S3ClientWrapper(config);
     this.cache = new StorageCache();
-    this.assetsDir = (config.assetsDir ?? getAssetsDir())
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+    this.assetsDir = this.normalizeSegment(config.assetsDir ?? getAssetsDir());
+  }
+
+  /**
+   * Normalizes a relative path segment: strips leading/trailing slashes and
+   * rejects any path-traversal (`..`) segment, which never makes sense for a
+   * cloud object key.
+   */
+  private normalizeSegment(value: string): string {
+    const trimmed = value.replace(/^\/+/, "").replace(/\/+$/, "");
+
+    if (trimmed.split("/").some((segment) => segment === "..")) {
+      throw new Error(
+        `Invalid asset path: path traversal ("..") is not allowed (received "${value}")`,
+      );
+    }
+
+    return trimmed;
   }
 
   /**
@@ -25,8 +41,19 @@ export class CloudStorage {
    * relative path is returned unchanged.
    */
   private assetKey(relativePath: string): string {
-    const normalized = relativePath.replace(/^\/+/, "");
-    return this.assetsDir ? `${this.assetsDir}/${normalized}` : normalized;
+    const normalized = this.normalizeSegment(relativePath);
+    // Cloud object keys always use POSIX ("/") separators, regardless of host OS.
+    return this.assetsDir
+      ? path.posix.join(this.assetsDir, normalized)
+      : normalized;
+  }
+
+  /**
+   * Builds the listing prefix (trailing slash included) for a folder path
+   * under the configured assets directory.
+   */
+  private folderPrefix(folderPath: string): string {
+    return `${this.assetKey(folderPath)}/`;
   }
 
   /** Cloud listing prefix for assets (trailing slash, or "" for root). */
@@ -65,8 +92,7 @@ export class CloudStorage {
    * Creates a folder marker object so empty folders are visible in S3-compatible storage
    */
   async createFolder(folderPath: string): Promise<void> {
-    const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const storageKey = this.assetKey(`${normalized}/`);
+    const storageKey = this.folderPrefix(folderPath);
 
     await this.s3Client.createFolderMarker(storageKey);
   }
@@ -75,8 +101,7 @@ export class CloudStorage {
    * Checks whether a folder exists (marker or any object with the folder prefix)
    */
   async folderExists(folderPath: string): Promise<boolean> {
-    const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const markerKey = this.assetKey(`${normalized}/`);
+    const markerKey = this.folderPrefix(folderPath);
 
     if (await this.s3Client.objectExists(markerKey)) {
       return true;
@@ -90,8 +115,8 @@ export class CloudStorage {
    * Deletes all objects under a folder prefix (marker + contents)
    */
   async deleteFolder(folderPath: string): Promise<number> {
-    const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const prefix = this.assetKey(`${normalized}/`);
+    const normalized = this.normalizeSegment(folderPath);
+    const prefix = this.folderPrefix(normalized);
 
     const objects = await this.s3Client.listObjects(prefix);
     if (objects.length === 0) {

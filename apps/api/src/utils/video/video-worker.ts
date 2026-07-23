@@ -2,7 +2,7 @@ import { EventEmitter } from "events";
 import { transformVideo } from "./index";
 import { saveToCache } from "../cache";
 import type { CloudStorage } from "../storage/index";
-import { getLocalAssetsBasePath } from "../storage/assets-config";
+import { getLocalAssetPath } from "../storage/assets-config";
 import logger, { serializeError } from "../logger";
 import {
   getNextPendingJob,
@@ -140,7 +140,7 @@ export class VideoWorker extends EventEmitter {
         const params = JSON.parse(job.params_json);
 
         // Download source file if using cloud storage
-        let sourcePath = `${getLocalAssetsBasePath()}/${job.file_path}`;
+        let sourcePath = getLocalAssetPath(job.file_path);
         if (this.storage) {
           try {
             const fs = await import('fs/promises');

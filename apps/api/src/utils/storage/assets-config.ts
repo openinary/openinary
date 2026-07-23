@@ -16,6 +16,23 @@ import path from "path";
 const DEFAULT_ASSETS_DIR = "public";
 
 /**
+ * Normalizes a relative path segment: strips leading/trailing slashes and
+ * rejects any path-traversal (`..`) segment, so neither the configured assets
+ * directory nor a relative asset path can ever escape its intended base.
+ */
+function normalizeRelativePath(value: string): string {
+  const trimmed = value.replace(/^\/+/, "").replace(/\/+$/, "");
+
+  if (trimmed.split("/").some((segment) => segment === "..")) {
+    throw new Error(
+      `Invalid asset path: path traversal ("..") is not allowed (received "${value}")`,
+    );
+  }
+
+  return trimmed;
+}
+
+/**
  * Returns the normalized assets directory name (no leading/trailing slashes).
  * Defaults to "public" when STORAGE_ASSETS_DIR is unset. An explicitly empty
  * value means "root" and yields an empty string.
@@ -28,7 +45,7 @@ export function getAssetsDir(): string {
     return DEFAULT_ASSETS_DIR;
   }
 
-  return raw.replace(/^\/+/, "").replace(/\/+$/, "");
+  return normalizeRelativePath(raw);
 }
 
 /**
@@ -40,8 +57,9 @@ export function getAssetsDir(): string {
  */
 export function buildAssetKey(relativePath: string): string {
   const dir = getAssetsDir();
-  const normalized = relativePath.replace(/^\/+/, "");
-  return dir ? `${dir}/${normalized}` : normalized;
+  const normalized = normalizeRelativePath(relativePath);
+  // Cloud object keys always use POSIX ("/") separators, regardless of host OS.
+  return dir ? path.posix.join(dir, normalized) : normalized;
 }
 
 /**
@@ -63,4 +81,14 @@ export function getAssetsPrefix(): string {
 export function getLocalAssetsBasePath(): string {
   const dir = getAssetsDir();
   return dir ? path.join(".", dir) : ".";
+}
+
+/**
+ * Builds the full local filesystem path for a relative asset path in local
+ * (no-cloud) mode, joining it onto the configured assets base directory.
+ *
+ * @example getLocalAssetPath("cows/black.png") // "public/cows/black.png"
+ */
+export function getLocalAssetPath(relativePath: string): string {
+  return path.join(getLocalAssetsBasePath(), relativePath);
 }

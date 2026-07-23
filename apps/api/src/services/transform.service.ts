@@ -2,7 +2,7 @@ import { Context } from 'hono';
 import { getCachePath, existsInCache, deleteCachedFiles } from '../utils/cache';
 import { parseParams, isTransformSegment } from '../utils/parser';
 import { createStorageClient } from '../utils/storage/index';
-import { getLocalAssetsBasePath } from '../utils/storage/assets-config';
+import { getLocalAssetPath } from '../utils/storage/assets-config';
 import { Compression } from '../utils/image/compression';
 import logger, { serializeError } from '../utils/logger';
 import { videoJobQueue } from '../utils/video-job-queue';
@@ -68,7 +68,7 @@ export class TransformService {
       const hasTransform = this.hasTransformSegment(segments);
       const fileSegments = hasTransform ? segments.slice(1) : segments;
       const filePath = fileSegments.join('/');
-      const localPath = `${getLocalAssetsBasePath()}/${filePath}`;
+      const localPath = getLocalAssetPath(filePath);
       const ext = filePath.split('.').pop()?.toLowerCase();
 
       // Get effective parameters with format optimization
@@ -483,7 +483,7 @@ export class TransformService {
 
     // Return original video immediately
     try {
-      const localPath = `${getLocalAssetsBasePath()}/${filePath}`;
+      const localPath = getLocalAssetPath(filePath);
       const originalBuffer = this.storage
         ? await this.storage.downloadOriginal(filePath)
         : await readFile(localPath);
