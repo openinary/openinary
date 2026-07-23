@@ -25,7 +25,10 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<string, RegExp>> = {
   c:  /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
   g:  /^(center|c|north(?:_center)?|n|south(?:_center)?|s|east|e|west|w|faces?(?:_center)?|auto)$/,
   q:  /^\d+$|^auto$/,
-  f:  /^(webp|jpe?g|png|avif|gif|psd|mp4|webm|mov|avi|mp3|wav|ogg|pdf|auto)$/,
+  // Only formats an encoder can actually produce. Image sources: webp/jpeg/png/
+  // avif/gif via sharp. Video sources: mp4/webm/mov, plus the image formats as
+  // thumbnails. psd is an accepted *upload* format but is never an output.
+  f:  /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
   a:  /^-?\d+$|^auto$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   b:  /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,

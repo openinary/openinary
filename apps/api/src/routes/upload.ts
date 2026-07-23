@@ -9,6 +9,7 @@ import {
   TRANSFORMATION_PRIORITY,
   TransformService,
   generateUploadSignature,
+  validateUploadFileType,
   logger,
   serializeError,
   type RouteDeps,
@@ -26,24 +27,6 @@ const MAX_PREWARM_TRANSFORMATIONS = 20;
 // Presigned upload token lifetime, in seconds
 const DEFAULT_PRESIGN_EXPIRES_IN = 5 * 60; // 5 minutes
 const MAX_PRESIGN_EXPIRES_IN = 60 * 60; // 1 hour
-
-// Allowed file extensions and MIME types
-const ALLOWED_TYPES = {
-  // Images
-  "image/jpeg": [".jpg", ".jpeg"],
-  "image/png": [".png"],
-  "image/webp": [".webp"],
-  "image/avif": [".avif"],
-  "image/gif": [".gif"],
-  "image/heic": [".heic", ".heif"],
-  "image/heif": [".heic", ".heif"],
-  "image/vnd.adobe.photoshop": [".psd"],
-  "application/octet-stream": [".psd"],
-  // Videos
-  "video/mp4": [".mp4"],
-  "video/quicktime": [".mov"],
-  "video/webm": [".webm"],
-};
 
 interface UploadResult {
   filename: string;
@@ -214,21 +197,6 @@ export function createUploadRoute(deps: RouteDeps) {
     sanitized = sanitized.replace(/\/+/g, "/"); // Multiple slashes
 
     return sanitized;
-  }
-
-  /**
-   * Validates file type based on MIME type and extension
-   */
-  function validateFileType(filename: string, mimeType: string): boolean {
-    const ext = path.extname(filename).toLowerCase();
-    const allowedExtensions =
-      ALLOWED_TYPES[mimeType as keyof typeof ALLOWED_TYPES];
-
-    if (!allowedExtensions) {
-      return false;
-    }
-
-    return allowedExtensions.includes(ext);
   }
 
   /**
@@ -509,7 +477,7 @@ export function createUploadRoute(deps: RouteDeps) {
         }
 
         // Validate file type
-        if (!validateFileType(filename, mimeType)) {
+        if (!validateUploadFileType(filename, mimeType)) {
           failedUploads.push({
             filename: rawSanitizedPath,
             error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif, psd) and videos (mp4, mov, webm)`,
