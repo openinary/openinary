@@ -222,49 +222,6 @@ export function createUploadRoute(deps: RouteDeps) {
     return fs.existsSync(fullPath);
   }
 
-  /**
-   * Queue thumbnail generation for a video
-   * Uses high priority to ensure thumbnails are generated first
-   */
-  async function queueThumbnailGeneration(
-    filePath: string,
-    storage: ReturnType<typeof createStorageClient>,
-  ): Promise<void> {
-    try {
-      // Define default thumbnail parameters (matching frontend defaults)
-      // t_true (thumbnail), tt_5 (time at 5s), f_webp, w_500, h_500, c_fill, q_80
-      const transformPath = `/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${filePath}`;
-      const params = parseParams(transformPath);
-      const cachePath = getCachePath(transformPath);
-
-      // Get source path
-      const sourcePath = storage
-        ? `./temp/${path.basename(filePath)}`
-        : path.join("./public", filePath);
-
-      // Add to queue with HIGH priority for thumbnails
-      const jobId = await videoJobQueue.addJob(
-        filePath,
-        params,
-        cachePath,
-        sourcePath,
-        storage,
-        THUMBNAIL_PRIORITY,
-      );
-
-      logger.info(
-        { filePath, jobId, priority: THUMBNAIL_PRIORITY },
-        "Thumbnail generation queued",
-      );
-    } catch (error) {
-      logger.error(
-        { error: serializeError(error), filePath },
-        "Failed to queue thumbnail generation",
-      );
-      // Don't throw - this is a background operation
-    }
-  }
-
   async function queueVideoTransformations(
     filePath: string,
     transformations: string[],
@@ -559,28 +516,23 @@ export function createUploadRoute(deps: RouteDeps) {
               );
             }
 
-            // Queue thumbnail generation for videos (non-blocking, high priority)
-            if (normalizedContentType.startsWith("video/")) {
-              queueThumbnailGeneration(finalPath, storage).catch((error) => {
-                logger.error(
-                  { error: serializeError(error), finalPath },
-                  "Failed to queue thumbnail generation",
-                );
-              });
-
-              if (prewarmTransformations.length > 0) {
-                const queueResult = await queueVideoTransformations(
-                  finalPath,
-                  prewarmTransformations,
-                  storage,
-                );
-                if (queueResult.queuedTransformationUrls.length > 0) {
-                  uploadResult.queuedTransformationUrls =
-                    queueResult.queuedTransformationUrls;
-                }
-                if (queueResult.queueErrors.length > 0) {
-                  uploadResult.queueErrors = queueResult.queueErrors;
-                }
+            // Video variants, including thumbnails, are only generated when the
+            // upload explicitly asks for them via `transformations`
+            if (
+              normalizedContentType.startsWith("video/") &&
+              prewarmTransformations.length > 0
+            ) {
+              const queueResult = await queueVideoTransformations(
+                finalPath,
+                prewarmTransformations,
+                storage,
+              );
+              if (queueResult.queuedTransformationUrls.length > 0) {
+                uploadResult.queuedTransformationUrls =
+                  queueResult.queuedTransformationUrls;
+              }
+              if (queueResult.queueErrors.length > 0) {
+                uploadResult.queueErrors = queueResult.queueErrors;
               }
             }
 
@@ -627,28 +579,23 @@ export function createUploadRoute(deps: RouteDeps) {
               );
             }
 
-            // Queue thumbnail generation for videos (non-blocking, high priority)
-            if (normalizedContentType.startsWith("video/")) {
-              queueThumbnailGeneration(finalPath, storage).catch((error) => {
-                logger.error(
-                  { error: serializeError(error), finalPath },
-                  "Failed to queue thumbnail generation",
-                );
-              });
-
-              if (prewarmTransformations.length > 0) {
-                const queueResult = await queueVideoTransformations(
-                  finalPath,
-                  prewarmTransformations,
-                  storage,
-                );
-                if (queueResult.queuedTransformationUrls.length > 0) {
-                  uploadResult.queuedTransformationUrls =
-                    queueResult.queuedTransformationUrls;
-                }
-                if (queueResult.queueErrors.length > 0) {
-                  uploadResult.queueErrors = queueResult.queueErrors;
-                }
+            // Video variants, including thumbnails, are only generated when the
+            // upload explicitly asks for them via `transformations`
+            if (
+              normalizedContentType.startsWith("video/") &&
+              prewarmTransformations.length > 0
+            ) {
+              const queueResult = await queueVideoTransformations(
+                finalPath,
+                prewarmTransformations,
+                storage,
+              );
+              if (queueResult.queuedTransformationUrls.length > 0) {
+                uploadResult.queuedTransformationUrls =
+                  queueResult.queuedTransformationUrls;
+              }
+              if (queueResult.queueErrors.length > 0) {
+                uploadResult.queueErrors = queueResult.queueErrors;
               }
             }
 
