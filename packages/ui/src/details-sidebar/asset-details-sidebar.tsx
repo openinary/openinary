@@ -28,15 +28,12 @@ export function AssetDetailsSidebar({
   const {
     asset,
     fileSize,
-    optimizedSize,
     createdAt,
     isDeleting,
     deleteDialogOpen,
     mediaUrl,
     previewUrl,
     transformBaseUrl,
-    videoStatus,
-    videoProgress,
     handleCopyUrl,
     handleDownload,
     handleOpenInNewTab,
@@ -89,12 +86,9 @@ export function AssetDetailsSidebar({
                 <AssetDetailsTab
                   asset={asset}
                   fileSize={fileSize}
-                  optimizedSize={optimizedSize}
                   createdAt={createdAt}
                   mediaUrl={mediaUrl}
                   isDeleting={isDeleting}
-                  videoStatus={videoStatus}
-                  videoProgress={videoProgress}
                   onCopyUrl={handleCopyUrl}
                   onDownload={handleDownload}
                   onOpenInNewTab={handleOpenInNewTab}

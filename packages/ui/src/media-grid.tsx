@@ -478,13 +478,15 @@ export function MediaGrid({
     setFolderPath(folderPath);
   };
 
-  // Preload preview when hovering over a media item
+  // Preload preview when hovering over a media item. Videos preload their
+  // thumbnail (what the grid renders), not the original: /t/<video> now streams
+  // the untouched file, which would pull hundreds of MB on a hover.
   const handleMediaHover = (media: MediaFile) => {
     const previewUrl =
       media.type === "image"
         ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-        : `${transformBaseUrl}/t/${media.path}`;
-    preloadMedia(previewUrl, media.type);
+        : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+    preloadMedia(previewUrl, "image");
   };
 
   const handleDownload = (path: string, name: string) => {

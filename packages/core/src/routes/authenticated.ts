@@ -152,9 +152,14 @@ export function createAuthenticatedRoute(deps: RouteDeps) {
         c.header("Content-Type", result.contentType);
       }
 
-      // Large payloads (e.g. original videos during processing) are streamed
+      // Large payloads (e.g. untransformed originals) are streamed
       if (result.stream) {
         return c.body(result.stream);
+      }
+
+      // Video transform still running: no content to serve yet
+      if (result.status === 202) {
+        return c.body(new Uint8Array(result.buffer!), 202);
       }
 
       // Check if this is an error response

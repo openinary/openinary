@@ -17,6 +17,10 @@ import {
   performPeriodicCacheCleanup,
 } from "../routes/transform-helpers";
 import { TRANSFORMATION_PRIORITY } from "../utils/video/config";
+import { VIDEO_FORMATS, contentTypeForFormat } from "../utils/video/format";
+
+const isVideo = (ext: string | undefined): ext is string =>
+  !!ext && VIDEO_FORMATS.has(ext);
 
 // Types for the service
 export interface TransformRequest {
@@ -34,6 +38,8 @@ export interface TransformResult {
   headers: Record<string, string>;
   isProcessing?: boolean;
   optimizationResult?: any;
+  /** Non-200 status the route handler must apply (e.g. 202 while transcoding) */
+  status?: number;
 }
 
 export interface CacheCheckResult {
@@ -92,6 +98,13 @@ export class TransformService {
         throw new Error(fileCheck.error || "File not found");
       }
 
+      // A bare /t/<video> URL delivers the untouched original. Transcoding only
+      // happens when the URL asks for it, either with explicit parameters or
+      // with q_auto for the default optimization.
+      if (isVideo(ext) && Object.keys(effectiveParams).length === 0) {
+        return await this.streamOriginalVideo(filePath, localPath, ext);
+      }
+
       // Check caches
       const cacheResult = await this.checkCaches(
         this.storage,
@@ -120,6 +133,7 @@ export class TransformService {
 
       // Process the file
       return await this.processFile(
+        path,
         filePath,
         localPath,
         ext,
@@ -223,7 +237,7 @@ export class TransformService {
     };
 
     // For videos, add video-specific headers
-    if (ext?.match(/mp4|mov|webm/)) {
+    if (isVideo(ext)) {
       headers["X-Video-Status"] = "ready";
     }
 
@@ -239,6 +253,7 @@ export class TransformService {
    * Process the file (images and videos)
    */
   private async processFile(
+    requestPath: string,
     filePath: string,
     localPath: string,
     ext: string | undefined,
@@ -253,8 +268,9 @@ export class TransformService {
     // response and waste memory/bandwidth.
     const isThumbnailRequest =
       effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
-    if (ext?.match(/mp4|mov|webm/) && !isThumbnailRequest) {
+    if (isVideo(ext) && !isThumbnailRequest) {
       return await this.handleVideoJobQueue(
+        requestPath,
         filePath,
         localPath,
         effectiveParams,
@@ -286,7 +302,7 @@ export class TransformService {
         buffer = result.buffer;
         contentType = result.contentType;
         optimizationResult = result.optimizationResult;
-      } else if (ext?.match(/mp4|mov|webm/)) {
+      } else if (isVideo(ext)) {
         // Only thumbnail requests reach this point (non-thumbnail video
         // transformations are intercepted before prepareSourceFile above);
         // thumbnails are extracted synchronously like images
@@ -339,7 +355,7 @@ export class TransformService {
       }
 
       // For videos, indicate this is the optimized version
-      if (ext?.match(/mp4|mov|webm/)) {
+      if (isVideo(ext)) {
         headers["X-Video-Status"] = "ready";
       }
 
@@ -383,6 +399,7 @@ export class TransformService {
    * Handle video job queue management
    */
   private async handleVideoJobQueue(
+    requestPath: string,
     filePath: string,
     localPath: string,
     params: any,
@@ -464,50 +481,70 @@ export class TransformService {
         });
     }
 
-    // Stream the original video immediately, without buffering it in memory:
-    // originals can weigh hundreds of MB and buffering both delays the first
-    // byte and pressures the container memory while ffmpeg jobs are running
+    // Never fall back to the original while the transform is pending: it would
+    // ship content whose transformations (watermark, crop, trim) have not been
+    // applied yet. Answer 202 and let the client poll /video-status.
+    return {
+      buffer: Buffer.from(
+        JSON.stringify({
+          status: "processing",
+          message: "Video transformation is being processed",
+          // Keeps the transformation segment: /video-status resolves the job
+          // from the same path + params the transform URL carries
+          statusUrl: requestPath.replace(/^\/t\//, "/video-status/"),
+        }),
+      ),
+      contentType: "application/json",
+      status: 202,
+      headers: {
+        "X-Video-Status": "processing",
+        "Cache-Control": "no-store",
+        "Retry-After": "5",
+      },
+      isProcessing: true,
+    };
+  }
+
+  /**
+   * Stream the untouched original without buffering it in memory: originals can
+   * weigh hundreds of MB and buffering both delays the first byte and pressures
+   * the container memory while ffmpeg jobs are running.
+   */
+  private async streamOriginalVideo(
+    filePath: string,
+    localPath: string,
+    ext: string,
+  ): Promise<TransformResult> {
     // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
     // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
     // accented characters (e.g. a combining accent has a code point > 255)
-    const processingHeaders: Record<string, string> = {
-      "X-Video-Status": "processing",
-      "X-Original-Video": "true",
-      "Cache-Control": "public, max-age=0, must-revalidate",
-      ETag: `"${encodeURIComponent(filePath)}-processing-${Date.now()}"`,
-      Vary: "Accept",
+    const headers: Record<string, string> = {
+      "X-Video-Status": "original",
+      "Cache-Control": "public, max-age=31536000, must-revalidate",
+      ETag: `"${encodeURIComponent(filePath)}-original"`,
     };
 
     try {
-      if (this.storage) {
-        const { stream, contentLength } =
-          await this.storage.downloadOriginalStream(filePath);
-        if (contentLength) {
-          processingHeaders["Content-Length"] = contentLength.toString();
-        }
+      let stream: ReadableStream<Uint8Array>;
 
-        return {
-          stream,
-          contentType: `video/${filePath.split(".").pop()}`,
-          headers: processingHeaders,
-          isProcessing: true,
-        };
+      if (this.storage) {
+        const original = await this.storage.downloadOriginalStream(filePath);
+        if (original.contentLength) {
+          headers["Content-Length"] = original.contentLength.toString();
+        }
+        stream = original.stream;
+      } else {
+        const { createReadStream } = await import("fs");
+        const { stat } = await import("fs/promises");
+        const { Readable } = await import("stream");
+        const stats = await stat(localPath);
+        headers["Content-Length"] = stats.size.toString();
+        stream = Readable.toWeb(
+          createReadStream(localPath),
+        ) as ReadableStream<Uint8Array>;
       }
 
-      const { createReadStream } = await import("fs");
-      const { stat } = await import("fs/promises");
-      const stats = await stat(localPath);
-      processingHeaders["Content-Length"] = stats.size.toString();
-      const { Readable } = await import("stream");
-
-      return {
-        stream: Readable.toWeb(
-          createReadStream(localPath),
-        ) as ReadableStream<Uint8Array>,
-        contentType: `video/${filePath.split(".").pop()}`,
-        headers: processingHeaders,
-        isProcessing: true,
-      };
+      return { stream, contentType: contentTypeForFormat(ext), headers };
     } catch (error) {
       logger.error(
         { error: serializeError(error), filePath },

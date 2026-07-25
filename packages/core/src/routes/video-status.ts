@@ -1,8 +1,26 @@
 import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
-import { parseParams } from "../utils/parser";
+import { parseParams, isTransformSegment } from "../utils/parser";
 import { getCachePath, existsInCache } from "../utils/cache";
 import logger, { serializeError } from "../utils/logger";
+
+/**
+ * Split a /video-status URL into the same (filePath, params, cachePath) triple
+ * the transform route derives, so a status lookup finds the job that the
+ * matching /t/ URL queued. The transformation segment, when present, belongs to
+ * the params, not to the file path the job is keyed on.
+ */
+function resolveStatusTarget(requestPath: string) {
+  const segments = requestPath.split("/").slice(2); // drop '/video-status'
+  const hasTransform = segments.length > 0 && isTransformSegment(segments[0]);
+  const fullPath = `/t/${segments.join("/")}`;
+
+  return {
+    filePath: (hasTransform ? segments.slice(1) : segments).join("/"),
+    params: parseParams(fullPath),
+    cachePath: getCachePath(fullPath),
+  };
+}
 
 export function createVideoStatusRoute(deps: RouteDeps) {
   const { storage, queue: videoJobQueue } = deps;
@@ -15,14 +33,10 @@ export function createVideoStatusRoute(deps: RouteDeps) {
    */
   videoStatus.get("/*/size", async (c) => {
     const path = c.req.path;
-    // Remove '/video-status' prefix and '/size' suffix
-    const segments = path.split("/").slice(2, -1); // Remove 'video-status' and 'size'
-    const filePath = segments.join("/");
-
-    // Parse params from query string or path
-    // Use the same path format as transform.ts: /t/{filePath}
-    const fullPath = `/t/${filePath}`;
-    const params = parseParams(fullPath);
+    // Remove the '/size' suffix, the rest is parsed like a transform path
+    const { filePath, params, cachePath } = resolveStatusTarget(
+      path.replace(/\/size$/, ""),
+    );
 
     // Get job status first - if job is completed, we know the cache exists
     const job = videoJobQueue.getJobByPath(filePath, params);
@@ -31,7 +45,6 @@ export function createVideoStatusRoute(deps: RouteDeps) {
       {
         requestPath: path,
         filePath,
-        fullPath,
         params: JSON.stringify(params),
         jobStatus: job?.status,
         jobId: job?.id,
@@ -75,9 +88,6 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     }
 
     // Fallback: Check if optimized video exists in local cache
-    // Use the same path format as transform.ts uses for getCachePath
-    const cachePath = getCachePath(fullPath);
-
     const existsLocally = await existsInCache(cachePath);
 
     logger.info(
@@ -165,13 +175,7 @@ export function createVideoStatusRoute(deps: RouteDeps) {
    * Check video processing status
    */
   videoStatus.get("/*", async (c) => {
-    const path = c.req.path;
-    const segments = path.split("/").slice(2); // Remove '/video-status' prefix
-    const filePath = segments.join("/");
-
-    // Parse params from query string or path
-    const fullPath = `/t/${filePath}`;
-    const params = parseParams(fullPath);
+    const { filePath, params, cachePath } = resolveStatusTarget(c.req.path);
 
     // Get job status
     const job = videoJobQueue.getJobByPath(filePath, params);
@@ -181,7 +185,6 @@ export function createVideoStatusRoute(deps: RouteDeps) {
       // BUT: Only return "completed" if the file is recent enough to be valid
       // This prevents false positives for newly uploaded videos
 
-      const cachePath = getCachePath(fullPath);
       const existsLocally = await existsInCache(cachePath);
 
       if (existsLocally) {

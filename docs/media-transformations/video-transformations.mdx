@@ -9,6 +9,14 @@ description: "Resize, trim, extract thumbnails, and re-encode videos with URL-ba
   variants at upload time so the first request is served from cache.
 </Warning>
 
+<Note>
+  A video is only transcoded when the URL asks for it. `/t/clip.mp4` streams the
+  original untouched; `/t/q_auto/clip.mp4` opts into the default optimization.
+  Until a requested transformation is ready, the URL answers `202 Accepted`
+  rather than serving the original, so an untransformed (unwatermarked,
+  uncropped) file is never delivered in its place.
+</Note>
+
 All video transformation parameters, the CRF quality table, and examples are documented in the API reference.
 
 <Card

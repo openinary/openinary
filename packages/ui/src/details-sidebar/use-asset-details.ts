@@ -8,7 +8,6 @@ import { useOpeninary } from "../provider/openinary-provider";
 import { getMediaType } from "../media-type";
 import { invalidateStorage } from "../hooks/use-storage-tree";
 import { usePreloadMedia } from "../hooks/use-preload-media";
-import { useVideoStatus } from "../hooks/use-video-status";
 import type { MediaFile } from "../types";
 
 export function useAssetDetails(
@@ -20,7 +19,6 @@ export function useAssetDetails(
   const queryClient = useQueryClient();
   const [asset, setAsset] = useState<MediaFile | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
-  const [optimizedSize, setOptimizedSize] = useState<number | null>(null);
   const [createdAt, setCreatedAt] = useState<Date | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -63,63 +61,6 @@ export function useAssetDetails(
     }
   };
 
-  const fetchOptimizedSize = async (path: string) => {
-    try {
-      // Encode each segment separately to preserve slashes
-      const encodedPath = path
-        .split("/")
-        .map((segment) => encodeURIComponent(segment))
-        .join("/");
-
-      const url = `${apiBaseUrl}/video-status/${encodedPath}/size`;
-
-      const response = await fetch(url, { method: "GET" });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.size && data.status === "ready") {
-          setOptimizedSize(data.size);
-          return;
-        }
-      } else {
-        const errorText = await response.text();
-        console.warn("Failed to get optimized size:", response.status, errorText);
-      }
-
-      // Fallback: Try HEAD request on transform endpoint
-      const headResponse = await fetch(`${transformBaseUrl}/t/${path}`, {
-        method: "HEAD",
-      });
-
-      if (headResponse.ok) {
-        const videoStatus = headResponse.headers.get("X-Video-Status");
-        const isOriginal = headResponse.headers.get("X-Original-Video") === "true";
-        const optimizedSizeHeader = headResponse.headers.get("X-Optimized-Size");
-        const contentLength = headResponse.headers.get("Content-Length");
-
-        // If X-Optimized-Size header is present, use it directly
-        if (optimizedSizeHeader) {
-          setOptimizedSize(parseInt(optimizedSizeHeader, 10));
-          return;
-        }
-
-        // Only use Content-Length if it's the optimized version (not the original)
-        if (videoStatus === "ready" && !isOriginal && contentLength) {
-          const size = parseInt(contentLength, 10);
-          if (size > 0) {
-            setOptimizedSize(size);
-            return;
-          }
-        }
-      }
-
-      setOptimizedSize(null);
-    } catch (error) {
-      console.error("Failed to fetch optimized size:", error);
-      setOptimizedSize(null);
-    }
-  };
-
   // Resolve the asset directly from its id (the id IS the storage path);
   // existence is confirmed by the metadata fetch below (404 clears it)
   useEffect(() => {
@@ -144,14 +85,8 @@ export function useAssetDetails(
   useEffect(() => {
     if (asset) {
       fetchFileMetadata(asset.path);
-      if (asset.type === "video") {
-        fetchOptimizedSize(asset.path);
-      } else {
-        setOptimizedSize(null);
-      }
     } else {
       setFileSize(null);
-      setOptimizedSize(null);
       setCreatedAt(null);
       setUpdatedAt(null);
     }
@@ -171,33 +106,6 @@ export function useAssetDetails(
   // Preload preview media when asset changes
   // Note: Even videos are preloaded as "image" since we extract thumbnails
   usePreloadMedia(previewUrl, "image");
-
-  // Track video processing status
-  const videoPath = asset?.type === "video" ? asset.path : null;
-  const { status: videoStatus, progress: videoProgress } = useVideoStatus(videoPath, !!asset);
-
-  // Retry fetching optimized size when video status becomes ready
-  useEffect(() => {
-    if (asset?.type === "video" && videoStatus === "ready" && !optimizedSize) {
-      fetchOptimizedSize(asset.path);
-    }
-  }, [asset, videoStatus, optimizedSize]);
-
-  // Trigger job creation for videos when details are opened
-  // This ensures the job is created even if the video hasn't been accessed yet
-  // Do this immediately to ensure the job exists when status is checked
-  useEffect(() => {
-    if (asset?.type === "video" && asset.path && transformBaseUrl) {
-      // Make a HEAD request to the video URL to trigger job creation immediately
-      // This is a lightweight way to ensure the job is created
-      fetch(`${transformBaseUrl}/t/${asset.path}`, {
-        method: "HEAD",
-      }).catch((error) => {
-        // Silently fail - this is just to trigger job creation
-        console.debug("Failed to trigger video job creation:", error);
-      });
-    }
-  }, [asset?.type, asset?.path, transformBaseUrl]);
 
   const handleCopyUrl = () => {
     if (mediaUrl) {
@@ -319,7 +227,6 @@ export function useAssetDetails(
   return {
     asset,
     fileSize,
-    optimizedSize,
     createdAt,
     updatedAt,
     isDeleting,
@@ -328,8 +235,6 @@ export function useAssetDetails(
     previewUrl,
     apiBaseUrl,
     transformBaseUrl,
-    videoStatus,
-    videoProgress,
     handleCopyUrl,
     handleDownload,
     handleOpenInNewTab,
