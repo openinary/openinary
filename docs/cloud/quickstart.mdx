@@ -3,8 +3,7 @@ title: "Cloud Quickstart"
 description: "Create your Openinary Cloud account, mint an API key, upload your first file, and deliver a transformed URL, in about five minutes."
 ---
 
-By the end of this page you'll have an account, an API key that works from your
-backend, a file in storage, and a public URL that resizes it on the fly.
+By the end of this page you'll have an account, an API key that works from your backend, a file in storage, and a public URL that resizes it on the fly.
 
 ## 1. Create your account
 
@@ -12,18 +11,13 @@ Cloud is in early access, so accounts are opened manually.
 
 <Steps>
   <Step title="Request access">
-    On [openinary.dev](https://openinary.dev), click **Request Cloud access**
-    and leave your email address.
+    On [openinary.dev](https://openinary.dev), click **Request Cloud access** and leave your email address.
   </Step>
   <Step title="Wait for the invite email">
-    When your account is opened you receive *"Your Openinary account is ready"*
-    with a sign-in link, valid for 24 hours. Clicking it signs you in at
-    [app.openinary.dev](https://app.openinary.dev).
+    When your account is opened you receive _"Your Openinary account is ready"_ with a sign-in link, valid for 24 hours. Clicking it signs you in at [app.openinary.dev](https://app.openinary.dev).
   </Step>
   <Step title="Sign back in later">
-    From [app.openinary.dev](https://app.openinary.dev), enter your email to get
-    a **6-digit code** (valid 10 minutes), or use **Google**. There is no
-    password.
+    From [app.openinary.dev](https://app.openinary.dev), enter your email to get a **6-digit code** (valid 10 minutes), or use **Google**. There is no password.
   </Step>
 </Steps>
 
@@ -37,32 +31,23 @@ Your key is what lets your backend talk to `https://cdn.openinary.dev`.
 
 <Steps>
   <Step title="Open the API keys tab">
-    Click your account in the bottom-left of the dashboard → **Settings** →
-    **API keys**.
+    Click your account in the bottom-left of the dashboard → **Settings** → **API keys**.
   </Step>
   <Step title="Fill in the three fields">
-
     - **Name**, so you can tell keys apart later, e.g. `Production`.
-    - **Bucket**, the one this key can read and write. It **cannot be changed
-      later**, create a second key rather than re-pointing this one.
+    - **Bucket**, the one this key can read and write. It **cannot be changed later**, create a second key rather than re-pointing this one.
     - **Expires**, in days, from 1 to 365 (default 365).
-
   </Step>
   <Step title="Copy the key immediately">
-    The key (`oik_…`) is displayed **once**, right after creation. Store it in
-    your secret manager or `.env` now, there is no way to read it back.
+    The key (`oik_…`) is displayed **once**, right after creation. Store it in your secret manager or `.env` now, there is no way to read it back.
   </Step>
 </Steps>
 
 <Warning>
-  Treat the key like a password. It writes to, and deletes from, your bucket.
-  Keep it **server-side only**, never ship it in a browser bundle, a mobile app,
-  or a public repo. For browser uploads use [presigned
-  signatures](/cloud/file-uploader) instead.
+  Treat the key like a password. It writes to, and deletes from, your bucket. Keep it **server-side only**, never ship it in a browser bundle, a mobile app, or a public repo. For browser uploads use [presigned signatures](/cloud/file-uploader) instead.
 </Warning>
 
-You can disable a key temporarily (**Power** icon) or delete it outright at any
-time, both take effect immediately.
+You can disable a key temporarily (**Power** icon) or delete it outright at any time, both take effect immediately.
 
 ## 3. Upload a file
 
@@ -72,6 +57,7 @@ Send the key as `x-api-key`, or as `Authorization: Bearer`, either works.
   <Tab title="curl">
     ```bash
     curl -X POST https://cdn.openinary.dev/upload \
+      -A "Mozilla/5.0" \
       -H "x-api-key: $OPENINARY_API_KEY" \
       -F "files=@photo.jpg" \
       -F "folder=products"
@@ -82,7 +68,7 @@ Send the key as `x-api-key`, or as `Authorization: Bearer`, either works.
     const form = new FormData();
     form.append("files", new Blob([await readFile("photo.jpg")]), "photo.jpg");
     form.append("folder", "products");
-
+    
     const res = await fetch("https://cdn.openinary.dev/upload", {
       method: "POST",
       headers: { "x-api-key": process.env.OPENINARY_API_KEY! },
@@ -90,7 +76,6 @@ Send the key as `x-api-key`, or as `Authorization: Bearer`, either works.
     });
     const { files } = await res.json();
     ```
-
   </Tab>
 </Tabs>
 
@@ -112,59 +97,44 @@ The response tells you where the file landed, and gives you your delivery path:
 ```
 
 <Note>
-  That `url` is where your **bucket ID** comes from, it's the `/b/{bucketId}/`
-  segment. You can also read it off any file's URL in the dashboard's asset
-  details panel. It's not a secret: it's in every public URL you serve.
+  That `url` is where your **bucket ID** comes from, it's the `/b/{bucketId}/` segment. You can also read it off any file's URL in the dashboard's asset details panel. It's not a secret: it's in every public URL you serve.
 </Note>
 
 ## 4. Deliver it, transformed
 
-Prefix the returned `url` with `https://cdn.openinary.dev` and insert
-transformation parameters right after `/t/`:
+Prefix the returned `url` with `https://cdn.openinary.dev` and insert transformation parameters right after `/t/`:
 
-```
+```text
 https://cdn.openinary.dev/b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg
 ```
 
 <Tabs>
   <Tab title="Thumbnail">
-
-    ```
+    ```text
     /b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg
     ```
-
   </Tab>
   <Tab title="WebP at quality 80">
-
-    ```
+    ```text
     /b/{bucketId}/t/w_1200,f_webp,q_80/products/photo.jpg
     ```
-
   </Tab>
   <Tab title="Original, untransformed">
-
-    ```
+    ```text
     /b/{bucketId}/t/products/photo.jpg
     ```
-
   </Tab>
 </Tabs>
 
-The first request runs the transformation; every later request is served from
-the CDN cache. The parameter list is exactly the same as the self-hosted version,
-see [Image transformations](/media-transformations/image-transformations) and
-[Video transformations](/media-transformations/video-transformations).
+The first request runs the transformation; every later request is served from the CDN cache. The parameter list is exactly the same as the self-hosted version, see [Image transformations](/media-transformations/image-transformations) and [Video transformations](/media-transformations/video-transformations).
 
 <Check>
-  Open that URL in a browser. If you see your resized image, everything is wired
-  up.
+  Open that URL in a browser. If you see your resized image, everything is wired up.
 </Check>
 
 ## 5. Use it in a real app
 
-The pattern that holds in production: **uploads and storage calls run on your
-server** with the API key, **delivery URLs are public** and go straight to the
-CDN.
+The pattern that holds in production: **uploads and storage calls run on your server** with the API key, **delivery URLs are public** and go straight to the CDN.
 
 ```ts app/api/products/route.ts
 // Server-side: the key never reaches the browser.
@@ -218,19 +188,12 @@ NEXT_PUBLIC_OPENINARY_BUCKET=1f0c7a2e-...  # public, it's in every URL
 ```
 
 <Warning>
-  Don't let users upload straight to `/upload` with your API key proxied through
-  a public route, that's the same as leaking the key. Either upload from a
-  server route you authenticate yourself (above), or use [presigned
-  signatures](/cloud/file-uploader) so the browser only ever holds a short-lived
-  token.
+  Don't let users upload straight to `/upload` with your API key proxied through a public route, that's the same as leaking the key. Either upload from a server route you authenticate yourself (above), or use [presigned signatures](/cloud/file-uploader) so the browser only ever holds a short-lived token.
 </Warning>
 
 ## Videos
 
-Videos work the same way, with one difference: a transformation is processed
-asynchronously. The first request for a transformed video returns `202` while it
-encodes; poll the status endpoint (or listen to
-[`/queue/events`](/cloud/api#video-processing)) until it's `completed`.
+Videos work the same way, with one difference: a transformation is processed asynchronously. The first request for a transformed video returns `202` while it encodes; poll the status endpoint (or listen to [`/queue/events`](/cloud/api#video-processing)) until it's `completed`.
 
 ```bash
 curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
@@ -242,9 +205,7 @@ curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
 ```
 
 <Note>
-  A video URL with **no** parameters (`/t/clips/demo.mp4`) is never transcoded,
-  it streams the stored file, with range requests, so seeking works. Transcoding
-  only happens when the URL asks for it.
+  A video URL with **no** parameters (`/t/clips/demo.mp4`) is never transcoded, it streams the stored file, with range requests, so seeking works. Transcoding only happens when the URL asks for it.
 </Note>
 
 ## Next steps
@@ -253,21 +214,16 @@ curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
   <Card title="Cloud API Reference" icon="code" href="/cloud/api">
     Every endpoint, authentication, errors and rate limits.
   </Card>
+
   <Card title="File Uploader" icon="puzzle-piece" href="/cloud/file-uploader">
     A ready-made React uploader wired to your Cloud bucket.
   </Card>
-  <Card
-    title="Transformations"
-    icon="wand-magic-sparkles"
-    href="/media-transformations/overview"
-  >
+
+  <Card title="Transformations" icon="wand-magic-sparkles" href="/media-transformations/overview">
     The complete parameter reference.
   </Card>
-  <Card
-    title="Plans & limits"
-    icon="gauge"
-    href="/cloud/overview#plans-and-limits"
-  >
+
+  <Card title="Plans & limits" icon="gauge" href="/cloud/overview#plans-and-limits">
     What's included, and what happens past it.
   </Card>
 </CardGroup>
