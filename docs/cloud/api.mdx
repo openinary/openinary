@@ -1,0 +1,347 @@
+---
+title: "Cloud API Reference"
+description: "Base URL, authentication, endpoints, errors and rate limits for the Openinary Cloud API."
+---
+
+## Base URL
+
+Everything, the API and the CDN, is served from one host:
+
+```
+https://cdn.openinary.dev
+```
+
+The dashboard lives at `https://app.openinary.dev`, and is not an API.
+
+## Authentication
+
+Send your API key on every request, either header works:
+
+```http
+x-api-key: oik_your_api_key
+```
+
+```http
+Authorization: Bearer oik_your_api_key
+```
+
+Keys are created in the dashboard (**Settings → API keys**), shown once, and
+**pinned to a single bucket**. Every request a key makes reads and writes that
+bucket, so you never pass a bucket ID to these endpoints, it's carried by the
+key. See [Create an API key](/cloud/quickstart#2-create-an-api-key).
+
+<Warning>
+  API keys are server-side credentials. The only endpoint meant to be called from
+  a browser is `POST /upload`, and only with a
+  [presigned signature](/cloud/file-uploader), never with a key. Every other
+  endpoint's CORS policy is pinned to the dashboard origin, so a browser on your
+  own domain can't call them even if you tried, call them from your backend.
+</Warning>
+
+## Endpoints
+
+| Group      | Endpoint                            | Auth                    |
+| ---------- | ----------------------------------- | ----------------------- |
+| **Media**  | `GET /b/{bucketId}/t/{path}`        | Public                  |
+| **Files**  | `POST /upload`                      | API key **or** presigned |
+|            | `POST /upload/sign`                 | API key                 |
+|            | `POST /upload/createfolder`         | API key                 |
+|            | `GET /download/{path}`              | API key                 |
+| **Storage**| `GET /storage?path=`                | API key                 |
+|            | `GET /storage/folders`              | API key                 |
+|            | `GET /storage/{path}/metadata`      | API key                 |
+|            | `PATCH /storage/{path}`             | API key                 |
+|            | `POST /storage/{path}/move`         | API key                 |
+|            | `POST /storage/{path}/copy`         | API key                 |
+|            | `DELETE /storage/{path}`            | API key                 |
+|            | `GET /storage/stats`                | API key                 |
+|            | `POST /storage/stats/recalculate`   | API key                 |
+|            | `POST /storage/cache/clear`         | API key                 |
+| **Video**  | `GET /video-status/{path}`          | API key                 |
+|            | `GET /queue/events`                 | API key                 |
+
+## Delivery
+
+```
+GET /b/{bucketId}/t/{transformations}/{path}
+```
+
+Public, cached at the edge, no authentication. Omit the transformation segment to
+serve the file as stored.
+
+<ParamField path="bucketId" type="string" required>
+  Your bucket's ID. It's the `/b/…/` segment of the `url` returned by
+  `POST /upload`, and visible on any asset in the dashboard.
+</ParamField>
+
+<ParamField path="transformations" type="string">
+  Comma-separated parameters, e.g. `w_400,h_400,c_fill,f_webp`. Identical syntax
+  to self-hosted, see [Image
+  transformations](/media-transformations/image-transformations) and [Video
+  transformations](/media-transformations/video-transformations).
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Storage path of the file, e.g. `products/photo.jpg`.
+</ParamField>
+
+The first request for a given URL runs the transformation and caches the result;
+later requests are served from cache. Cached deliveries count as **CDN requests**
+only. An image request that misses the cache also counts as one **image
+transformation**. Video transformations are queued, see [Video
+processing](#video-processing).
+
+## Upload
+
+```
+POST /upload
+```
+
+`multipart/form-data`.
+
+<ParamField path="files" type="file" required>
+  The file to upload. Repeat the field to send several in one request.
+</ParamField>
+
+<ParamField path="folder" type="string">
+  Destination folder, e.g. `products/2026`. Defaults to the bucket root. Ignored
+  when a `signature` is present, the signature carries its own folder.
+</ParamField>
+
+<ParamField path="signature" type="string">
+  A presigned token from `POST /upload/sign`. Use this instead of an API key for
+  browser uploads.
+</ParamField>
+
+```json Response
+{
+  "success": true,
+  "files": [
+    {
+      "path": "products/photo.jpg",
+      "name": "photo.jpg",
+      "filename": "photo.jpg",
+      "size": 248713,
+      "url": "/b/{bucketId}/t/products/photo.jpg"
+    }
+  ]
+}
+```
+
+Accepted types: JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM. SVG
+is rejected. HEIC/HEIF is converted to JPEG on upload, so the returned `path` may
+end in `.jpg`. A name that already exists is de-duplicated (`photo (1).jpg`),
+always trust the returned `path` over the one you sent.
+
+<Note>
+  The self-hosted `transformations` field (prewarming variants at upload time) is
+  **not supported on Cloud**. It's ignored, and variants are generated on the
+  first request instead.
+</Note>
+
+## Presigned uploads
+
+```
+POST /upload/sign
+```
+
+Mints a short-lived token so a browser can upload without an API key. Call it
+from your backend only.
+
+<ParamField path="folder" type="string">
+  Folder the upload is scoped to. Derive it from the authenticated user, never
+  from the browser.
+</ParamField>
+
+<ParamField path="expiresIn" type="number" default="300">
+  Lifetime in seconds, clamped to 1–3600. Keep it short, 60–300 is plenty.
+</ParamField>
+
+```json Response
+{
+  "success": true,
+  "signature": "eyJ1IjoiLi4uIn0.9f2c1d4e8a7b6c50",
+  "expires": 1785312000,
+  "folder": "users/42"
+}
+```
+
+The token names the account, bucket, and folder it was minted for, so it can't be
+replayed against another bucket or folder. See [File
+Uploader](/cloud/file-uploader) for the full flow.
+
+## Storage
+
+<AccordionGroup>
+  <Accordion title="GET /storage?path= — list one folder level">
+    ```bash
+    curl "https://cdn.openinary.dev/storage?path=products" \
+      -H "x-api-key: $OPENINARY_API_KEY"
+    ```
+
+    ```json
+    {
+      "path": "products",
+      "folders": [{ "name": "2026", "path": "products/2026" }],
+      "files": [
+        {
+          "name": "photo.jpg",
+          "path": "products/photo.jpg",
+          "size": 248713,
+          "mtime": "2026-07-20T09:12:44.000Z"
+        }
+      ]
+    }
+    ```
+
+  </Accordion>
+  <Accordion title="GET /storage/folders — every folder path in the bucket">
+    ```json
+    { "folders": ["products", "products/2026", "clips"] }
+    ```
+  </Accordion>
+  <Accordion title="GET /storage/{path}/metadata — size and timestamps">
+    ```json
+    {
+      "size": 248713,
+      "createdAt": "2026-07-20T09:12:44.000Z",
+      "updatedAt": "2026-07-20T09:12:44.000Z"
+    }
+    ```
+  </Accordion>
+  <Accordion title="PATCH /storage/{path} — rename in place">
+    Body: `{ "name": "new-name.jpg" }`, a bare name, no slashes. Works on files
+    and folders. Returns `{ "success": true, "path": "products/new-name.jpg" }`.
+  </Accordion>
+  <Accordion title="POST /storage/{path}/move — move to another folder">
+    Body: `{ "destination": "archive/2025" }`. An empty or missing body moves the
+    item to the bucket root. Works on files and folders.
+  </Accordion>
+  <Accordion title="POST /storage/{path}/copy — duplicate a file">
+    No body. The copy is named `photo copy.jpg`, de-duplicated if that already
+    exists. Files only.
+  </Accordion>
+  <Accordion title="DELETE /storage/{path} — delete a file or folder">
+    Deletes the original **and** its cached transform variants. Deleting a folder
+    deletes everything under it. Storage usage is credited back.
+
+    ```json
+    { "success": true, "message": "Asset deleted successfully", "details": { … } }
+    ```
+
+  </Accordion>
+  <Accordion title="GET /storage/stats — bucket footprint">
+    ```json
+    {
+      "storage": { "size": 51288331, "fileCount": 214 },
+      "cache": { "size": 20114882, "fileCount": 619 },
+      "updatedAt": "2026-07-26T18:02:11.000Z"
+    }
+    ```
+
+    Cached figures. `POST /storage/stats/recalculate` recomputes them from
+    storage; `POST /storage/cache/clear` empties the bucket's transform cache
+    (`204`), after which variants are regenerated on demand.
+
+  </Accordion>
+  <Accordion title="GET /download/{path} — fetch the stored original">
+    Authenticated download of the untransformed file, with `Range` support.
+    Public delivery goes through `/b/{bucketId}/t/…` instead.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Paths are URL-encoded in the request and compared as stored, so
+  `products/Marée.jpg` becomes `/storage/products/Mar%C3%A9e.jpg`.
+</Note>
+
+## Video processing
+
+A video transformation is queued rather than run inline. The first request for a
+transformed video returns `202` with a JSON body while it encodes.
+
+```
+GET /video-status/{transformations}/{path}
+```
+
+The transformation segment matters: jobs are tracked per parameter set, so ask
+about the exact URL you requested.
+
+```bash
+curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
+  -H "x-api-key: $OPENINARY_API_KEY"
+```
+
+```json
+{ "status": "running", "progress": 62, "startedAt": "2026-07-26T18:02:11.000Z" }
+```
+
+<ResponseField name="status" type="string">
+  One of `pending` · `running` · `completed` · `error` · `not_found`.
+</ResponseField>
+
+<ResponseField name="progress" type="number">
+  0 to 100.
+</ResponseField>
+
+`GET /queue/events` is a Server-Sent Events stream of the same job updates, for
+when polling is the wrong shape.
+
+<Note>
+  A video URL carrying no parameters is never transcoded, it streams the stored
+  file (with range requests, so seeking works) and costs no processing minutes.
+</Note>
+
+## Errors
+
+```json
+{ "error": "Human-readable message", "message": "Optional detail" }
+```
+
+| Status | Meaning                                                                    |
+| ------ | -------------------------------------------------------------------------- |
+| `400`  | Invalid parameters, unsupported file type, or a malformed path             |
+| `401`  | Missing, invalid, disabled or expired API key, or an expired upload signature |
+| `402`  | A plan limit was reached, see below                                        |
+| `403`  | Account suspended                                                          |
+| `404`  | No such file, folder, bucket, or job                                       |
+| `429`  | Rate limited                                                               |
+| `500`  | Something broke on our side                                                |
+
+A `402` tells you which allowance ran out:
+
+```json
+{
+  "error": "Storage limit reached on the Free plan. Upgrade to lift this limit.",
+  "code": "quota_exceeded",
+  "feature": "storage_mb",
+  "plan": "Free",
+  "planUrl": "https://app.openinary.dev/?settings=plan"
+}
+```
+
+`feature` is one of `storage_mb` · `image_transformations` ·
+`video_processing_seconds` · `cdn_requests`. Over the transformation quota,
+already-cached assets keep being served, only new work is refused. See [Plans and
+limits](/cloud/overview#plans-and-limits).
+
+## Rate limits
+
+| Scope                | Limit                   |
+| -------------------- | ----------------------- |
+| CDN delivery, per IP | 300 requests / 60s      |
+| All traffic, per account | 1,000 requests / 60s |
+
+Both answer `429`. They exist to stop abuse, not to shape normal traffic, if you
+expect to run against them, get in touch before you do.
+
+## Not available on Cloud
+
+These self-hosted endpoints have no Cloud equivalent today:
+
+- `/authenticated/s--{sig}/…` signed delivery URLs
+- `/api-keys/*`, keys are managed in the dashboard
+- `/queue/stats`, `/queue/worker/stats`, `/queue/jobs`, job retry/cancel
+- `/invalidate/{path}`, use `POST /storage/cache/clear`, or delete the asset
+- `/download-folder`, `/download-zip`
+- `/health`

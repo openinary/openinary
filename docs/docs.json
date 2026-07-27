@@ -29,6 +29,16 @@
             ]
           },
           {
+            "group": "Openinary Cloud",
+            "icon": "cloud",
+            "pages": [
+              "cloud/overview",
+              "cloud/quickstart",
+              "cloud/api",
+              "cloud/file-uploader"
+            ]
+          },
+          {
             "group": "Configuration",
             "icon": "gear",
             "pages": [
