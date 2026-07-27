@@ -23,8 +23,8 @@ key, and start uploading.
 
 ## Two hostnames
 
-| Host                     | What it is                                                             |
-| ------------------------ | ---------------------------------------------------------------------- |
+| Host                        | What it is                                                              |
+| --------------------------- | ----------------------------------------------------------------------- |
 | `https://app.openinary.dev` | Dashboard, sign-in, media browser, API keys, buckets, usage and billing |
 | `https://cdn.openinary.dev` | The API you call, and the CDN your assets are delivered from            |
 
@@ -46,10 +46,11 @@ https://cdn.openinary.dev/b/{bucketId}/t/{transformations}/{path}
     is ready"* with a sign-in link. The link is valid for **24 hours**.
   </Step>
   <Step title="Sign in">
-    The link drops you straight into [app.openinary.dev](https://app.openinary.dev),
-    already signed in. Afterwards, sign in from the same page with a **6-digit
-    code** sent to your email (valid 10 minutes), or with **Google** if that
-    address matches your account.
+    The link drops you straight into
+    [app.openinary.dev](https://app.openinary.dev), already signed in.
+    Afterwards, sign in from the same page with a **6-digit code** sent to your
+    email (valid 10 minutes), or with **Google** if that address matches your
+    account.
   </Step>
 </Steps>
 
@@ -81,19 +82,19 @@ Every account starts on **Free**. **Early Access** doubles the allowances, costs
 nothing per month, and adds pay-as-you-go past them (a card is collected at
 checkout so overage can be billed). Upgrade from **Settings → Plan**.
 
-| Included per month     | Free       | Early Access | Past the allowance |
-| ---------------------- | ---------- | ------------ | ------------------ |
-| Storage                | 1 GB       | 2 GB         | $0.03 / extra GB   |
-| Image transformations  | 500        | 1,000        | $0.40 / 1,000      |
-| Video processing       | 15 min     | 30 min       | $0.01 / min        |
-| CDN requests           | 25,000     | 50,000       | $0.50 / 100,000    |
-| Buckets                | 1          | 2            | —                  |
+| Included per month    | Free   | Early Access | Past the allowance |
+| --------------------- | ------ | ------------ | ------------------ |
+| Storage               | 1 GB   | 2 GB         | $0.03 / extra GB   |
+| Image transformations | 500    | 1,000        | $0.40 / 1,000      |
+| Video processing      | 15 min | 30 min       | $0.01 / min        |
+| CDN requests          | 25,000 | 50,000       | $0.50 / 100,000    |
+| Buckets               | 1      | 2            | —                  |
 
 <Note>
   On Free, hitting a limit returns [`402`](/cloud/api#errors) until the monthly
-  allowance resets (storage is cumulative, it doesn't reset). Video processing is
-  metered on how long the transform actually took to run, not on the length of
-  the video. Cached deliveries never count as transformations.
+  allowance resets (storage is cumulative, it doesn't reset). Video processing
+  is metered on how long the transform actually took to run, not on the length
+  of the video. Cached deliveries never count as transformations.
 </Note>
 
 Live usage, the deliveries behind each number, and your video jobs are in
@@ -104,15 +105,15 @@ Live usage, the deliveries behind each number, and your video jobs are in
 Almost nothing, at the level you write code, the transformation syntax is
 identical. The differences worth knowing:
 
-| Topic                | Self-hosted                          | Cloud                                                            |
-| -------------------- | ------------------------------------ | ---------------------------------------------------------------- |
-| Delivery URL         | `/t/{transformations}/{path}`        | `/b/{bucketId}/t/{transformations}/{path}`                       |
-| API keys             | Created via the dashboard or the API | Dashboard only, and each key is pinned to one bucket             |
-| Multi-tenancy        | One storage root                     | Buckets, isolated per account                                    |
-| Limits               | Your hardware                        | Plan allowances, `402` past them                                 |
-| Signed delivery URLs | `/authenticated/s--{sig}/…`          | Not available yet                                                |
-| Prewarm on upload    | `transformations` field on `/upload` | Ignored, variants are generated on the first request             |
-| Queue admin API      | `/queue/stats`, `/queue/jobs`, …     | Only `/queue/events` and `/video-status/{path}`                  |
+| Topic                | Self-hosted                          | Cloud                                                |
+| -------------------- | ------------------------------------ | ---------------------------------------------------- |
+| Delivery URL         | `/t/{transformations}/{path}`        | `/b/{bucketId}/t/{transformations}/{path}`           |
+| API keys             | Created via the dashboard or the API | Dashboard only, and each key is pinned to one bucket |
+| Multi-tenancy        | One storage root                     | Buckets, isolated per account                        |
+| Limits               | Your hardware                        | Plan allowances, `402` past them                     |
+| Signed delivery URLs | `/authenticated/s--{sig}/…`          | Not available yet                                    |
+| Prewarm on upload    | `transformations` field on `/upload` | Not available yet                                    |
+| Queue admin API      | `/queue/stats`, `/queue/jobs`, …     | Only `/queue/events` and `/video-status/{path}`      |
 
 ## Next steps
 
@@ -123,7 +124,11 @@ identical. The differences worth knowing:
   <Card title="Cloud API Reference" icon="code" href="/cloud/api">
     Base URL, authentication, every endpoint, errors and rate limits.
   </Card>
-  <Card title="File Uploader on Cloud" icon="puzzle-piece" href="/cloud/file-uploader">
+  <Card
+    title="File Uploader on Cloud"
+    icon="puzzle-piece"
+    href="/cloud/file-uploader"
+  >
     Drop the React uploader into your app, no API key in the browser.
   </Card>
   <Card
