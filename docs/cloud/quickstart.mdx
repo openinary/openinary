@@ -41,10 +41,12 @@ Your key is what lets your backend talk to `https://cdn.openinary.dev`.
     **API keys**.
   </Step>
   <Step title="Fill in the three fields">
-    - **Name**, so you can tell keys apart later, e.g. `Production`. -
-    **Bucket**, the one this key can read and write. It **cannot be changed
-    later**, create a second key rather than re-pointing this one. -
-    **Expires**, in days, from 1 to 365 (default 365).
+
+    - **Name**, so you can tell keys apart later, e.g. `Production`.
+    - **Bucket**, the one this key can read and write. It **cannot be changed
+      later**, create a second key rather than re-pointing this one.
+    - **Expires**, in days, from 1 to 365 (default 365).
+
   </Step>
   <Step title="Copy the key immediately">
     The key (`oik_…`) is displayed **once**, right after creation. Store it in
@@ -126,13 +128,25 @@ https://cdn.openinary.dev/b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg
 
 <Tabs>
   <Tab title="Thumbnail">
-    ``` /b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg ```
+
+    ```
+    /b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg
+    ```
+
   </Tab>
   <Tab title="WebP at quality 80">
-    ``` /b/{bucketId}/t/w_1200,f_webp,q_80/products/photo.jpg ```
+
+    ```
+    /b/{bucketId}/t/w_1200,f_webp,q_80/products/photo.jpg
+    ```
+
   </Tab>
   <Tab title="Original, untransformed">
-    ``` /b/{bucketId}/t/products/photo.jpg ```
+
+    ```
+    /b/{bucketId}/t/products/photo.jpg
+    ```
+
   </Tab>
 </Tabs>
 
