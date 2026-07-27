@@ -18,7 +18,7 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
+        "tab": "Self Host",
         "groups": [
           {
             "group": "Getting Started",
@@ -26,16 +26,6 @@
             "pages": [
               "index",
               "quickstart"
-            ]
-          },
-          {
-            "group": "Openinary Cloud",
-            "icon": "cloud",
-            "pages": [
-              "cloud/overview",
-              "cloud/quickstart",
-              "cloud/api",
-              "cloud/file-uploader"
             ]
           },
           {
@@ -71,6 +61,15 @@
               "cloudinary-comparison"
             ]
           }
+        ]
+      },
+      {
+        "tab": "Cloud",
+        "pages": [
+          "cloud/overview",
+          "cloud/quickstart",
+          "cloud/api",
+          "cloud/file-uploader"
         ]
       },
       {
