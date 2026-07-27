@@ -1,0 +1,285 @@
+---
+title: "File Uploader on Cloud"
+description: "Wire the Openinary React file uploader to Openinary Cloud: drag & drop uploads straight from the browser, with no API key in the bundle."
+---
+
+The [Openinary File Uploader](/guides/file-uploader) is a shadcn/ui-compatible
+React component with drag & drop, per-file progress, previews, retry, cancel and
+client-side validation. It works against Cloud unchanged, only the configuration
+differs.
+
+This page covers the Cloud wiring. For the full props table, styling and the
+component's own troubleshooting, see the [component
+guide](/guides/file-uploader).
+
+## How it stays safe
+
+The browser never holds your API key. Your backend mints a **short-lived
+presigned signature**, the browser uploads with that.
+
+<Steps>
+  <Step title="Your backend requests a signature">
+    A route you control calls [`POST /upload/sign`](/cloud/api#presigned-uploads)
+    with your Cloud API key, scoping the upload to a folder and an expiry.
+  </Step>
+  <Step title="The browser gets the signature">
+    The component calls your `sign()` function right before uploading and gets
+    back `{ signature, expires, folder }`, opaque values that die in minutes.
+  </Step>
+  <Step title="Cloud verifies it">
+    `POST /upload` reads the destination account, bucket and folder **from the
+    token itself**, never from the request. A tampered, replayed or expired token
+    is rejected.
+  </Step>
+</Steps>
+
+<Note>
+  Because the token names its own bucket, an upload can't be redirected into
+  another bucket, or another customer's storage, by editing the form fields.
+</Note>
+
+## Prerequisites
+
+- A Cloud account, see [Cloud Quickstart](/cloud/quickstart).
+- An **API key** pinned to the bucket you want uploads to land in.
+- A project set up for shadcn/ui (`components.json` present), with the shadcn
+  CLI **v3+** for namespaced registries.
+
+Nothing else. No `API_SECRET`, no `CORS_ORIGIN` allow-list, no
+`MAX_FILE_SIZE_MB`, Cloud handles all of it, and `POST /upload` accepts
+token-authenticated uploads from any origin.
+
+## Installation
+
+<Steps>
+  <Step title="Register the Openinary namespace">
+    ```json components.json
+    {
+      "registries": {
+        "@openinary": "https://raw.githubusercontent.com/openinary/openinary/main/r/{name}.json"
+      }
+    }
+    ```
+  </Step>
+  <Step title="Add the component and the signing helper">
+    ```bash
+    pnpm dlx shadcn@latest add @openinary/file-uploader
+    ```
+
+    ```bash
+    pnpm dlx shadcn@latest add @openinary/upload-token
+    ```
+
+    The first installs the component and its hook into `components/openinary/`;
+    the second installs `lib/upload-token.ts`, a thin client for
+    `POST /upload/sign`.
+
+  </Step>
+  <Step title="Set your environment variables">
+    ```bash .env.local
+    # Public: the browser posts the upload here directly
+    NEXT_PUBLIC_OPENINARY_URL=https://cdn.openinary.dev
+
+    # Secret: server only, never exposed to the browser
+    OPENINARY_API_KEY=oik_your_api_key
+    ```
+
+    <Warning>
+      Unlike a self-hosted full-stack instance, there is **no `/api` suffix** on
+      Cloud. The API is served at the root of `cdn.openinary.dev`.
+    </Warning>
+
+  </Step>
+</Steps>
+
+## Create a signing endpoint
+
+<Warning>
+  Protect this route with your own authentication, and derive `folder` from the
+  **authenticated user** server-side. A folder sent by the browser is a folder
+  any visitor can choose, including someone else's.
+</Warning>
+
+<Tabs>
+  <Tab title="Next.js (App Router)">
+    ```ts app/api/upload-token/route.ts
+    import { NextResponse } from "next/server";
+    import { signUpload } from "@/lib/upload-token";
+    // import { auth } from "@/lib/auth"; // your own auth
+
+    export async function POST() {
+      // const session = await auth();
+      // if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      const signed = await signUpload(
+        process.env.NEXT_PUBLIC_OPENINARY_URL!,
+        process.env.OPENINARY_API_KEY!,
+        {
+          expiresIn: 300,
+          folder: "uploads", // e.g. `users/${session.user.id}`
+        },
+      );
+
+      return NextResponse.json(signed);
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express">
+    ```ts
+    import express from "express";
+    import { signUpload } from "./lib/upload-token";
+
+    const app = express();
+
+    app.post("/api/upload-token", requireAuth, async (req, res) => {
+      const signed = await signUpload(
+        "https://cdn.openinary.dev",
+        process.env.OPENINARY_API_KEY!,
+        { expiresIn: 300, folder: `users/${req.user.id}` },
+      );
+      res.json(signed);
+    });
+    ```
+
+  </Tab>
+  <Tab title="Cloudflare Workers">
+    ```ts
+    import { signUpload } from "./lib/upload-token";
+
+    export default {
+      async fetch(request: Request, env: Env) {
+        // authenticate the request first...
+        const signed = await signUpload(
+          "https://cdn.openinary.dev",
+          env.OPENINARY_API_KEY,
+          { expiresIn: 300, folder: "uploads" },
+        );
+        return Response.json(signed);
+      },
+    };
+    ```
+
+  </Tab>
+</Tabs>
+
+## Usage
+
+```tsx
+"use client";
+
+import { FileUploader } from "@/components/openinary/file-uploader";
+
+export function Uploader() {
+  const sign = async () => {
+    const res = await fetch("/api/upload-token", { method: "POST" });
+    if (!res.ok) throw new Error("Failed to sign the upload");
+    return res.json();
+  };
+
+  return (
+    <FileUploader
+      sign={sign}
+      maxFiles={10}
+      onSuccess={(files) => {
+        // files[0].url is "/b/{bucketId}/t/{path}"
+        const url = `${process.env.NEXT_PUBLIC_OPENINARY_URL}${files[0].url}`;
+        console.log("Uploaded:", url);
+      }}
+      onError={({ message }) => toast.error(message)}
+    />
+  );
+}
+```
+
+## What comes back
+
+`onSuccess` receives the stored files:
+
+<ResponseField name="path" type="string">
+  The stored path, e.g. `uploads/photo.jpg`. May be de-duplicated if a file of
+  that name already existed (`photo (1).jpg`), so always use this value rather
+  than the name you sent.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The delivery path, `/b/{bucketId}/t/{path}`. Prefix it with
+  `https://cdn.openinary.dev` for a full URL, and insert transformations right
+  after `/t/`:
+
+```
+https://cdn.openinary.dev/b/{bucketId}/t/w_600,c_fill,f_webp/uploads/photo.jpg
+```
+
+</ResponseField>
+
+<ResponseField name="filename" type="string">
+  The stored filename.
+</ResponseField>
+
+<Note>
+  HEIC/HEIF files are converted to JPEG on upload, so `path` may end in `.jpg`.
+</Note>
+
+## Cloud-specific behaviour
+
+| Prop / field                                  | On Cloud                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `baseUrl` / `NEXT_PUBLIC_OPENINARY_URL`        | `https://cdn.openinary.dev`, no `/api` suffix                                                     |
+| `transformations`                              | **Ignored.** Variants are generated on the first request instead of at upload time                |
+| `prewarmedUrls` / `queuedTransformationUrls`   | Never returned, for the same reason                                                              |
+| `maxSize`                                      | Component default is 50 MB. Cloud has no server-side size setting, raise it only after testing the sizes you need |
+| Destination folder                             | Always the one in the signature. `folder` set on the component is ignored when a signature is used |
+
+## Handling quota errors
+
+An upload that would push the account past its storage allowance is refused with
+`402` and a JSON body naming the feature. Surface it, don't retry it, the retry
+will fail identically until the plan or the usage changes.
+
+```tsx
+<FileUploader
+  sign={sign}
+  onError={({ message }) => {
+    // "Storage limit reached on the Free plan. …"
+    toast.error(message);
+  }}
+/>
+```
+
+See [Errors](/cloud/api#errors) and [Plans and
+limits](/cloud/overview#plans-and-limits).
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="signUpload throws 'Failed to sign upload (HTTP 404)'">
+    `NEXT_PUBLIC_OPENINARY_URL` probably still ends in `/api`, that suffix is a
+    self-hosted full-stack thing. On Cloud the API is at the root:
+    `https://cdn.openinary.dev`.
+  </Accordion>
+  <Accordion title="401 on POST /upload/sign">
+    The API key is missing, disabled, expired, or you're calling the endpoint from
+    the browser (where the key shouldn't be at all). Check `OPENINARY_API_KEY` on
+    your backend, and that the key is still enabled in **Settings → API keys**.
+  </Accordion>
+  <Accordion title="401 'Invalid or expired upload signature'">
+    The token's `expires` passed before the upload started, or the signature was
+    altered. Raise `expiresIn` a little (the server clamps it to 3600s). The
+    component always re-signs on retry, so this shouldn't survive a retry.
+  </Accordion>
+  <Accordion title="402 quota_exceeded">
+    A plan allowance ran out. `feature` in the body says which one. Storage is
+    cumulative, deleting files frees it back; everything else resets monthly.
+  </Accordion>
+  <Accordion title="Files land in the wrong folder">
+    On Cloud the destination comes from the **signature**, not the component. Fix
+    the `folder` you pass to `signUpload` on your backend.
+  </Accordion>
+  <Accordion title="CORS error in the console">
+    `POST /upload` accepts token-authenticated uploads from any origin, so a CORS
+    failure here usually means the request isn't the one you think, e.g. your code
+    is calling `/upload/sign` or `/storage` from the browser. Those are
+    backend-only endpoints. Move the call server-side.
+  </Accordion>
+</AccordionGroup>

@@ -7,26 +7,18 @@
     "light": "#FFFFFF"
   },
   "contextual": {
-    "options": [
-      "copy",
-      "chatgpt",
-      "claude",
-      "cursor"
-    ]
+    "options": ["copy", "chatgpt", "claude", "cursor"]
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
+        "tab": "Self-hosted",
         "groups": [
           {
             "group": "Getting Started",
             "icon": "rocket",
-            "pages": [
-              "index",
-              "quickstart"
-            ]
+            "pages": ["index", "quickstart"]
           },
           {
             "group": "Configuration",
@@ -64,6 +56,15 @@
         ]
       },
       {
+        "tab": "Cloud Managed",
+        "pages": [
+          "cloud/overview",
+          "cloud/quickstart",
+          "cloud/api",
+          "cloud/file-uploader"
+        ]
+      },
+      {
         "tab": "Guides",
         "groups": [
           {
@@ -78,9 +79,7 @@
           {
             "group": "Components",
             "icon": "puzzle-piece",
-            "pages": [
-              "guides/file-uploader"
-            ]
+            "pages": ["guides/file-uploader"]
           }
         ]
       },
@@ -90,9 +89,7 @@
           {
             "group": "Overview",
             "icon": "code",
-            "pages": [
-              "api-reference/introduction"
-            ]
+            "pages": ["api-reference/introduction"]
           },
           {
             "group": "Media",
@@ -130,9 +127,7 @@
           {
             "group": "Cache",
             "icon": "rotate",
-            "pages": [
-              "api-reference/cache/invalidate"
-            ]
+            "pages": ["api-reference/cache/invalidate"]
           },
           {
             "group": "Video Processing",
@@ -158,9 +153,7 @@
           {
             "group": "System",
             "icon": "server",
-            "pages": [
-              "api-reference/health"
-            ]
+            "pages": ["api-reference/health"]
           }
         ]
       },

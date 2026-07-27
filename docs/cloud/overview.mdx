@@ -1,0 +1,141 @@
+---
+title: "Openinary Cloud"
+sidebarTitle: "Overview"
+description: "Managed Openinary, hosted for you. Same transformation API, same upload API, no server to run. Currently in early access."
+---
+
+Openinary Cloud is the hosted version of Openinary. You get the same URL-based
+transformation API and the same upload API as the [self-hosted](/quickstart)
+version, without running Docker, storage, or a video worker yourself.
+
+<Note>
+  Cloud is in **early access**. Sign-up is not open: accounts are opened one by
+  one from the request list. See [Request access](#request-access) below.
+</Note>
+
+## What you don't have to do
+
+Everything the self-hosted docs ask you to configure, Cloud already runs:
+storage, the transform pipeline, the video processing queue, the CDN cache, and
+the dashboard. There are no environment variables, no `API_SECRET`, no
+`CORS_ORIGIN`, no Docker resources to size. You create an account, create an API
+key, and start uploading.
+
+## Two hostnames
+
+| Host                        | What it is                                                              |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `https://app.openinary.dev` | Dashboard, sign-in, media browser, API keys, buckets, usage and billing |
+| `https://cdn.openinary.dev` | The API you call, and the CDN your assets are delivered from            |
+
+Your public asset URLs always look like this:
+
+```
+https://cdn.openinary.dev/b/{bucketId}/t/{transformations}/{path}
+```
+
+## Request access
+
+<Steps>
+  <Step title="Ask for an invite">
+    Open [openinary.dev](https://openinary.dev), click **Request Cloud access**,
+    and leave your email address.
+  </Step>
+  <Step title="Wait for the invite email">
+    When your account is opened you get an email titled *"Your Openinary account
+    is ready"* with a sign-in link. The link is valid for **24 hours**.
+  </Step>
+  <Step title="Sign in">
+    The link drops you straight into
+    [app.openinary.dev](https://app.openinary.dev), already signed in.
+    Afterwards, sign in from the same page with a **6-digit code** sent to your
+    email (valid 10 minutes), or with **Google** if that address matches your
+    account.
+  </Step>
+</Steps>
+
+<Warning>
+  There is no password and no self-service sign-up. If the sign-in page says it
+  can't send a code, the address isn't on an account yet, request access first.
+  If your invite link expired, just request a code from the sign-in page: your
+  account already exists.
+</Warning>
+
+## Buckets
+
+A **bucket** is an isolated space for your media. Files, folders, and cached
+transforms never cross between buckets, and each bucket has its own `bucketId`
+in your delivery URLs, so a staging bucket can't serve a production asset.
+
+- One bucket is **active** at a time in the dashboard, that's the one the media
+  browser shows.
+- **API keys are pinned to a single bucket** when you create them, and can't be
+  re-scoped afterwards. What an integration writes to therefore never depends on
+  what's selected in the dashboard.
+- Deleting a bucket deletes its files and every API key pinned to it.
+
+Manage them in the dashboard under **Settings → Buckets**.
+
+## Plans and limits
+
+Every account starts on **Free**. **Early Access** doubles the allowances, costs
+nothing per month, and adds pay-as-you-go past them (a card is collected at
+checkout so overage can be billed). Upgrade from **Settings → Plan**.
+
+| Included per month    | Free   | Early Access | Past the allowance |
+| --------------------- | ------ | ------------ | ------------------ |
+| Storage               | 1 GB   | 2 GB         | $0.03 / extra GB   |
+| Image transformations | 500    | 1,000        | $0.40 / 1,000      |
+| Video processing      | 15 min | 30 min       | $0.01 / min        |
+| CDN requests          | 25,000 | 50,000       | $0.50 / 100,000    |
+| Buckets               | 1      | 2            | —                  |
+
+<Note>
+  On Free, hitting a limit returns [`402`](/cloud/api#errors) until the monthly
+  allowance resets (storage is cumulative, it doesn't reset). Video processing
+  is metered on how long the transform actually took to run, not on the length
+  of the video. Cached deliveries never count as transformations.
+</Note>
+
+Live usage, the deliveries behind each number, and your video jobs are in
+**Settings → Usage** and **Settings → Plan**.
+
+## What's different from self-hosted
+
+Almost nothing, at the level you write code, the transformation syntax is
+identical. The differences worth knowing:
+
+| Topic                | Self-hosted                          | Cloud                                                |
+| -------------------- | ------------------------------------ | ---------------------------------------------------- |
+| Delivery URL         | `/t/{transformations}/{path}`        | `/b/{bucketId}/t/{transformations}/{path}`           |
+| API keys             | Created via the dashboard or the API | Dashboard only, and each key is pinned to one bucket |
+| Multi-tenancy        | One storage root                     | Buckets, isolated per account                        |
+| Limits               | Your hardware                        | Plan allowances, `402` past them                     |
+| Signed delivery URLs | `/authenticated/s--{sig}/…`          | Not available yet                                    |
+| Prewarm on upload    | `transformations` field on `/upload` | Not available yet                                    |
+| Queue admin API      | `/queue/stats`, `/queue/jobs`, …     | Only `/queue/events` and `/video-status/{path}`      |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Cloud Quickstart" icon="bolt" href="/cloud/quickstart">
+    Create an API key, upload a file, and deliver your first transformed URL.
+  </Card>
+  <Card title="Cloud API Reference" icon="code" href="/cloud/api">
+    Base URL, authentication, every endpoint, errors and rate limits.
+  </Card>
+  <Card
+    title="File Uploader on Cloud"
+    icon="puzzle-piece"
+    href="/cloud/file-uploader"
+  >
+    Drop the React uploader into your app, no API key in the browser.
+  </Card>
+  <Card
+    title="Transformations"
+    icon="wand-magic-sparkles"
+    href="/media-transformations/overview"
+  >
+    The full parameter list, shared with the self-hosted version.
+  </Card>
+</CardGroup>
