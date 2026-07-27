@@ -238,8 +238,8 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
               </Button>
             </div>
 
-            <div className="relative rounded-lg border overflow-hidden">
-              <div className="divide-y max-h-64 overflow-y-auto">
+            <div className="rounded-lg border overflow-hidden">
+              <div className="scroll-fade divide-y max-h-64 overflow-y-auto">
                 {selectedFiles.slice(0, 50).map((file, index) => {
                   const displayPath =
                     (file as any).webkitRelativePath || file.name;
@@ -266,8 +266,6 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                   </div>
                 )}
               </div>
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-card to-transparent" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-card to-transparent" />
             </div>
           </div>
         )}
