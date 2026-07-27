@@ -58,7 +58,7 @@ export function SettingsDialog({
             </button>
           ))}
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-w-0 flex-1 [&>[data-radix-scroll-area-viewport]]:scroll-fade [&>[data-radix-scroll-area-viewport]>div]:block!">
           <div className="px-8 py-6">
             <h2 className="mb-6 text-2xl font-semibold tracking-tight">
               {activeItem?.label}
