@@ -126,9 +126,8 @@ will comment asking you to sign. Reply with a comment containing exactly:
 I have read the CLA Document and I hereby sign the CLA
 ```
 
-Your signature is recorded in
-[`signatures/version1/cla.json`](signatures/version1/cla.json) and covers all of
-your future contributions. You only ever sign once.
+Your signature is recorded in `signatures/version1/cla.json` in this repository
+and covers all of your future contributions. You only ever sign once.
 
 If your Contribution is made on behalf of an employer or a company, make sure
 you are authorized to sign before doing so (see section 4.2). If your
