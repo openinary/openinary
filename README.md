@@ -20,6 +20,9 @@
 
 **For documentation and more examples, please visit https://docs.openinary.dev.**
 
+> [!TIP]
+> **☁️ Openinary Cloud — early access is open.** Same engine, hosted for you: 10 spots, free while we test, accounts set up the same day. [Request access →](https://openinary.dev/?utm_source=github-readme)
+
 > [!WARNING]
 > Please keep in mind that Openinary is still under active development
 > and therefore full backward compatibility is not guaranteed before reaching v1.0.0.
