@@ -17,7 +17,11 @@ import {
   performPeriodicCacheCleanup,
 } from "../routes/transform-helpers";
 import { TRANSFORMATION_PRIORITY } from "../utils/video/config";
-import { VIDEO_FORMATS, contentTypeForFormat } from "../utils/video/format";
+import {
+  VIDEO_FORMATS,
+  contentTypeForFormat,
+  determineOutputFormat,
+} from "../utils/video/format";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -241,9 +245,19 @@ export class TransformService {
       headers["X-Video-Status"] = "ready";
     }
 
+    // Video sources must derive the type from the requested output format:
+    // f_avif on a .mp4 caches an image, and the route's path-extension
+    // fallback would mislabel it video/mp4 (browsers then render an empty
+    // player). Mirrors the contentType the worker uploads to cloud cache.
+    const contentType = isVideo(ext)
+      ? contentTypeForFormat(
+          determineOutputFormat(ext, effectiveParams.format).format,
+        )
+      : ""; // Images: route handler falls back to path extension
+
     return {
       buffer,
-      contentType: "", // Will be determined by the route handler
+      contentType,
       headers,
       isProcessing: false,
     };
@@ -428,7 +442,12 @@ export class TransformService {
           if (cachedBuffer) {
             return {
               buffer: cachedBuffer,
-              contentType: `video/${filePath.split(".").pop()}`,
+              contentType: contentTypeForFormat(
+                determineOutputFormat(
+                  filePath.split(".").pop()?.toLowerCase(),
+                  params.format,
+                ).format,
+              ),
               headers: {
                 "X-Video-Status": "ready",
                 "Content-Length": cachedBuffer.length.toString(),

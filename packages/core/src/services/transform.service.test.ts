@@ -99,6 +99,27 @@ test("the 202 status URL resolves to the job the transform queued", async () => 
   });
 });
 
+test("a cached video→image transform is served as an image, not video/mp4", async () => {
+  const storage = fakeStorage();
+  storage.exists = async () => true; // cloud cache hit
+  storage.download = async () => Buffer.from("avif-bytes");
+  const service = new TransformService(storage, fakeQueue());
+
+  const image = await service.transform({
+    path: "/t/f_avif/clip.mp4",
+    userAgent: "",
+    context: {} as any,
+  });
+  assert.equal(image.contentType, "image/avif");
+
+  const video = await service.transform({
+    path: "/t/w_640,q_80/clip.mp4",
+    userAgent: "",
+    context: {} as any,
+  });
+  assert.equal(video.contentType, "video/mp4");
+});
+
 test("q_auto opts a video into transformation", async () => {
   const service = new TransformService(fakeStorage(), fakeQueue());
 
