@@ -45,6 +45,11 @@ RUN pnpm --filter @openinary/core build
 # Build API using workspace filter
 RUN pnpm --filter api build
 
+# Bake the image version for runtime consumers (telemetry, /api/version)
+# when no IMAGE_TAG env var is provided (Railway, k8s, plain docker run).
+ARG IMAGE_TAG="latest"
+RUN echo "${IMAGE_TAG}" > /app/version.txt
+
 # Set default environment variables (will be overridden by docker-compose or init-env.js)
 ENV BETTER_AUTH_SECRET=""
 ENV BETTER_AUTH_URL="http://localhost:3000"
