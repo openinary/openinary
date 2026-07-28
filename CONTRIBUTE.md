@@ -65,24 +65,28 @@ removing existing keys, so upgrades across versions stay reliable.
 
 ## Contributor License Agreement (CLA)
 
-**By submitting a Pull Request, you agree to the following terms:**
+**Every pull request requires a signed [CLA](CLA.md) before it can be merged.**
 
-To keep Openinary sustainable while staying Open Source, we use an "Open Core" model:
+Signing takes one comment inside your PR — a bot will walk you through it, and
+you only ever sign once. Read the full terms in [`CLA.md`](CLA.md).
 
 ### What does this mean?
 
+To keep Openinary sustainable while staying Open Source, we use an "Open Core" model:
+
 - **Open Source Core:** The main Openinary engine remains **free and open source** (GNU AGPLv3) for everyone to self-host
 - **Managed Cloud Version:** We plan to launch a managed Cloud offering. Revenue from this service funds long-term maintenance and development of the open-source project
-- **Your Rights:** You retain ownership of your contributions
-- **License Grant:** You grant Openinary a non-exclusive, worldwide, royalty-free, perpetual, and irrevocable license to use, reproduce, modify, and distribute your contributions under any license (including in commercial offerings)
+- **Commercial Licenses:** Organizations that cannot comply with the AGPL can buy a commercial license, which also funds the project
+- **Your Rights:** You retain full ownership of your contributions — the CLA is a license, not a transfer of copyright
+- **License Grant:** You grant a non-exclusive, worldwide, royalty-free, perpetual, and irrevocable license to use, reproduce, modify, sublicense, and distribute your contributions under any license (including in commercial offerings)
 
-### Why does Openinary have this?
+The Cloud and commercial licenses both require the right to relicense the
+**entire** codebase, so a single unsigned contribution would block them for the
+whole project. That is the only reason this agreement exists.
 
-This CLA allows us to:
-
-- Build a professional managed service without legal friction
-- Fund development and maintenance
-- Keep the core free and open for the community
+> **Contributing on company time?** If you write your contribution as part of
+> your job, your employer likely owns it. Make sure you're authorized to sign
+> before you do — see section 4.2 of [`CLA.md`](CLA.md).
 
 **Similar projects using this model:** GitLab, Sentry, Discourse, and many other successful open-source projects.
 
