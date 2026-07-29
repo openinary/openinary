@@ -1,7 +1,7 @@
 ---
 title: "Openinary Cloud"
 sidebarTitle: "Overview"
-description: "Managed Openinary, hosted for you. Same transformation API, same upload API, no server to run. Currently in early access."
+description: "Managed Openinary, hosted for you. Same transformation API, same upload API, no server to run. Currently in public alpha."
 ---
 
 Openinary Cloud is the hosted version of Openinary. You get the same URL-based
@@ -9,8 +9,9 @@ transformation API and the same upload API as the [self-hosted](/quickstart)
 version, without running Docker, storage, or a video worker yourself.
 
 <Note>
-  Cloud is in **early access**. Sign-up is not open: accounts are opened one by
-  one from the request list. See [Request access](#request-access) below.
+  Cloud is in **public alpha**. Sign-up is open to everyone — see
+  [Create your account](#create-your-account) below. It's early: expect rough
+  edges, and please report what breaks.
 </Note>
 
 ## What you don't have to do
@@ -34,31 +35,25 @@ Your public asset URLs always look like this:
 https://cdn.openinary.dev/b/{bucketId}/t/{transformations}/{path}
 ```
 
-## Request access
+## Create your account
 
 <Steps>
-  <Step title="Ask for an invite">
-    Open [openinary.dev](https://openinary.dev), click **Request Cloud access**,
-    and leave your email address.
+  <Step title="Open the app">
+    Go to [app.openinary.dev](https://app.openinary.dev) and enter your email
+    address. Signing in and signing up are the same form — a new address
+    creates the account.
   </Step>
-  <Step title="Wait for the invite email">
-    When your account is opened you get an email titled *"Your Openinary account
-    is ready"* with a sign-in link. The link is valid for **24 hours**.
-  </Step>
-  <Step title="Sign in">
-    The link drops you straight into
-    [app.openinary.dev](https://app.openinary.dev), already signed in.
-    Afterwards, sign in from the same page with a **6-digit code** sent to your
-    email (valid 10 minutes), or with **Google** if that address matches your
-    account.
+  <Step title="Enter the code">
+    You receive a **6-digit code** by email (valid 10 minutes). Enter it and
+    you're in, on the [Free plan](#plans-and-limits). You can also sign in
+    with **Google**.
   </Step>
 </Steps>
 
 <Warning>
-  There is no password and no self-service sign-up. If the sign-in page says it
-  can't send a code, the address isn't on an account yet, request access first.
-  If your invite link expired, just request a code from the sign-in page: your
-  account already exists.
+  There is no password: every sign-in is a fresh emailed code, or Google. If
+  you joined during the invite-only phase and your invite link expired, just
+  request a code from the sign-in page — your account already exists.
 </Warning>
 
 ## Buckets

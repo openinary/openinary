@@ -21,7 +21,7 @@
 **For documentation and more examples, please visit https://docs.openinary.dev.**
 
 > [!TIP]
-> **☁️ Openinary Cloud — early access is open.** Same engine, hosted for you: 10 spots, free while we test, accounts set up the same day. [Request access →](https://openinary.dev/?utm_source=github-readme)
+> **☁️ Openinary Cloud is in public alpha.** Same engine, hosted for you — sign up and you're in, free plan included. It's early: expect rough edges, tell us what breaks. [Try it →](https://app.openinary.dev)
 
 > [!WARNING]
 > Please keep in mind that Openinary is still under active development
