@@ -30,7 +30,7 @@ jobs:
           # Must be an unprotected branch. If main ever gets branch protection,
           # point this at a dedicated unprotected branch instead.
           branch: 'main'
-          allowlist: dependabot[bot],renovate[bot],github-actions[bot],copilot-swe-agent[bot]
+          allowlist: florianheysen,dependabot[bot],renovate[bot],github-actions[bot],copilot-swe-agent[bot]
           custom-notsigned-prcomment: 'Thanks for the pull request! Openinary is AGPL-3.0, and a commercial license is offered alongside it to fund the project — which means every contribution needs a signed CLA before it can be merged. Please read the <a href="https://github.com/openinary/openinary/blob/main/CLA.md">CLA document</a> and sign it by posting the comment below. You keep ownership of your work, and you only sign once.'
           custom-allsigned-prcomment: 'All contributors have signed the CLA. Thanks! ✍️'
           lock-pullrequest-aftermerge: false
