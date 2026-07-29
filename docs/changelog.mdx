@@ -3,6 +3,31 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="July 29, 2026" description="v0.3.0" tags={["Feature", "Improvement", "Fix"]}>
+  ## New features
+
+**Openinary Cloud documentation**, The hosted version of Openinary is now documented, including a quickstart, the API reference and the drop-in file uploader. Early access is open, see the [Cloud overview](/cloud/overview).
+
+## Improvements
+
+**Videos are only transcoded when you ask**, A bare `/t/<video>` URL now streams the original untouched and queues no job. Transcoding starts when the URL actually requests it, with `q_auto` or any explicit parameter, so uploading a video no longer costs processing time nobody asked for. See [video transformations](/media-transformations/video-transformations).
+
+**No more automatic thumbnails on video upload**, Uploads no longer queue a thumbnail job by default. Thumbnails are still generated on the first request in about a second, and you can pre-generate them by listing them in `transformations` at upload time. See [upload & cache warming](/media-transformations/upload-and-prewarm).
+
+## Bug fixes
+
+- **Pending video transforms no longer serve the original**, While a transformation is still processing, the endpoint answers `202` instead of falling back to the untransformed file, which could serve un-watermarked or un-cropped content under a transformed URL. The `statusUrl` in that response now points at the job the transform actually queued.
+- **Output formats no encoder can produce are rejected**, `f_gif` on an image returned PNG bytes labelled `image/gif`, and `f_mp4` on a `.jpg` returned PNG bytes labelled `image/mp4`. GIF is now a real output format, and `f_psd`, `f_avi`, `f_mp3`, `f_wav`, `f_ogg` and `f_pdf` are rejected instead of silently falling back. PSD stays a supported upload format. See the [transform API reference](/api-reference/media/transform#f-image).
+- **Upload picker matches what the API accepts**, The dashboard file picker no longer offers formats the API then rejects, and its supported-formats label mentions HEIC.
+- **Tabs indicator during resize**, The tab indicator now tracks the container while it is being resized instead of lagging behind through its transition.
+
+<Warning>
+  Breaking: `f_psd` and `f_avi` URLs no longer parse as transformations. The
+  segment is read as a folder name and returns a 404 instead of silently falling
+  back to another format.
+</Warning>
+</Update>
+
 <Update label="July 11, 2026" description="CLI patch fixes" tags={["Fix"]}>
   **Clearer next steps when Docker isn't running**, `openinary create` now tells
   you clearly what to do next if Docker isn't available on your machine, instead
