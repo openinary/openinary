@@ -26,6 +26,17 @@ import {
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
 
+// Content types for formats Openinary doesn't transform but should still
+// serve as-is (e.g. SVG, audio, PDFs) instead of erroring, so a single
+// Openinary instance can act as a drop-in CDN for all media types.
+const PASSTHROUGH_CONTENT_TYPES: Readonly<Record<string, string>> = {
+  svg: "image/svg+xml",
+  wav: "audio/wav",
+  mp3: "audio/mpeg",
+  ico: "image/x-icon",
+  pdf: "application/pdf",
+};
+
 // Types for the service
 export interface TransformRequest {
   path: string;
@@ -330,7 +341,21 @@ export class TransformService {
           },
         };
       } else {
-        throw new Error("Unsupported file type");
+        // Not a format we transform (SVG, WAV, MP3, ICO, PDF, ...). Serve the
+        // original file as-is instead of erroring, so callers don't need
+        // separate infrastructure just to get these files off the same
+        // domain. The file is already on disk at sourcePath.
+        const { readFile } = await import("fs/promises");
+        const passthroughBuffer = await readFile(sourcePath);
+        return {
+          buffer: passthroughBuffer,
+          contentType:
+            PASSTHROUGH_CONTENT_TYPES[ext ?? ""] ?? "application/octet-stream",
+          headers: {
+            "Content-Length": passthroughBuffer.length.toString(),
+            "Cache-Control": "public, max-age=31536000, must-revalidate",
+          },
+        };
       }
 
       // Save to caches
