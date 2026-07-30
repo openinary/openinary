@@ -110,6 +110,21 @@ tree (`next-themes` is a peer dependency, same reasoning as `react-query`).
 custom action/cancel/close styling) — render it instead of importing
 `Toaster` from `sonner` directly, so toasts look the same as the dashboard.
 
+`BorderBeam` is re-exported from [`border-beam`](https://github.com/Jakubantalik/border-beam)
+untouched, so it keeps its full prop surface (`colorVariant`, `strength`,
+`brightness`, `duration`, `hueRange`, …). `MediaGrid` uses it around the empty
+state's upload button; pass `beamProps` to restyle that one, or `active: false`
+to stop it animating:
+
+```tsx
+<MediaGrid
+  onMediaSelect={handleSelect}
+  beamProps={{ colorVariant: "sunset", strength: 0.2 }}
+/>
+```
+
+It renders its own `<style>` inline, so there is no stylesheet to import.
+
 **Not included**, by design — these are coupled to Openinary's self-hosted,
 single-admin auth model and don't generalize to other apps' auth:
 authentication UI (login/API-key management) and anything importing
