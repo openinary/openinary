@@ -2,6 +2,8 @@
 
 import type React from "react";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { BorderBeam, type BorderBeamProps } from "border-beam";
+import { useTheme } from "next-themes";
 import {
   FileImage,
   FileVideo,
@@ -51,10 +53,7 @@ import { VideoThumbnail } from "./components/video-thumbnail";
 import { DefaultDialog } from "./components/default-dialog";
 import { RenameSection } from "./components/rename-section";
 import { DeleteConfirmDialog } from "./components/delete-confirm-dialog";
-import {
-  invalidateStorage,
-  useStorageLevel,
-} from "./hooks/use-storage-tree";
+import { invalidateStorage, useStorageLevel } from "./hooks/use-storage-tree";
 import { useHideThumbnails } from "./hooks/use-hide-thumbnails";
 import { useFolderSummaries } from "./hooks/use-folder-summaries";
 import { preloadMedia } from "./hooks/use-preload-media";
@@ -160,6 +159,8 @@ export interface MediaGridProps {
   /** Current folder, e.g. "photos/2024". Root is `null`. Lifted to the caller since this package doesn't dictate a router. */
   folderPath?: string | null;
   onFolderPathChange?: (folderPath: string | null) => void;
+  /** Overrides for the beam around the empty-state upload button. Merged over the defaults, so any subset wins. Pass `active: false` to stop the animation. */
+  beamProps?: Omit<BorderBeamProps, "children">;
 }
 
 export function MediaGrid({
@@ -170,6 +171,7 @@ export function MediaGrid({
   scrollContainerRef,
   folderPath = null,
   onFolderPathChange,
+  beamProps,
 }: MediaGridProps) {
   const { apiBaseUrl, transformBaseUrl, fetch } = useOpeninary();
   const [hideThumbnails] = useHideThumbnails();
@@ -213,6 +215,10 @@ export function MediaGrid({
     onMove: (_destination: string) => {},
     onDelete: () => {},
   });
+
+  // BorderBeam picks its own colors per background; next-themes' class-based
+  // toggle isn't visible to its `theme="auto"` (prefers-color-scheme) mode.
+  const { resolvedTheme } = useTheme();
 
   // Dialog state for grid-level context menu
   const [gridUploadOpen, setGridUploadOpen] = useState(false);
@@ -362,7 +368,9 @@ export function MediaGrid({
           .getVirtualItems()
           .flatMap((virtualRow) =>
             (folderRows[virtualRow.index] ?? [])
-              .filter((entry): entry is (typeof folders)[number] => entry !== null)
+              .filter(
+                (entry): entry is (typeof folders)[number] => entry !== null,
+              )
               .map((entry) => entry.path),
           )
       : folderListVirtualizer
@@ -443,7 +451,15 @@ export function MediaGrid({
           </EmptyHeader>
           <EmptyContent>
             <div className="flex gap-2">
-              <UploadButtonWithDialog />
+              <BorderBeam
+                size="pulse-outside"
+                colorVariant="colorful"
+                strength={0.7}
+                theme={resolvedTheme === "light" ? "light" : "dark"}
+                {...beamProps}
+              >
+                <UploadButtonWithDialog />
+              </BorderBeam>
               <Button variant="outline" asChild>
                 <a
                   href="https://docs.openinary.dev/"
@@ -504,7 +520,9 @@ export function MediaGrid({
   };
 
   const handleCopyUrl = (path: string, id?: string) => {
-    navigator.clipboard.writeText(toAbsoluteUrl(`${transformBaseUrl}/t/${path}`));
+    navigator.clipboard.writeText(
+      toAbsoluteUrl(`${transformBaseUrl}/t/${path}`),
+    );
     toast.success("URL copied to clipboard");
     if (id) {
       setCopiedId(id);
@@ -906,15 +924,11 @@ export function MediaGrid({
           <Move className="h-4 w-4" />
           Move selection
         </ContextMenuSubTrigger>
-        <ContextMenuSubContent
-          className="w-48 max-h-[400px] overflow-y-auto"
-        >
+        <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
           <MoveToNavigator
             ItemComponent={ContextMenuItem}
             currentDir={currentDir}
-            onSelect={(destination) =>
-              setBulkMoveDestination({ destination })
-            }
+            onSelect={(destination) => setBulkMoveDestination({ destination })}
           />
         </ContextMenuSubContent>
       </ContextMenuSub>
@@ -1082,236 +1096,271 @@ export function MediaGrid({
         <ContextMenuTrigger asChild>
           <div className="space-y-4">
             {view === "grid" && (
-            <div
-              ref={setFoldersEl}
-              style={{
-                height: folderVirtualizer.getTotalSize(),
-                position: "relative",
-              }}
-            >
-              {folderVirtualizer.getVirtualItems().map((virtualRow) => (
-                <div
-                  key={virtualRow.key}
-                  data-index={virtualRow.index}
-                  ref={folderVirtualizer.measureElement}
-                  className="absolute top-0 left-0 w-full pb-4"
-                  style={{
-                    transform: `translateY(${virtualRow.start - folderVirtualizer.options.scrollMargin}px)`,
-                  }}
-                >
-                  <div className="flex flex-wrap gap-4">
-              {folderRows[virtualRow.index].map((entry) => {
-                if (entry === null) {
-                  return (
-                    <CreateFolderButtonWithDialog
-                      key="__new-folder__"
-                      uploadToFolder={folderPath || undefined}
-                      trigger={
-                        <div className="group relative w-[190px] h-[180px] rounded-lg border border-dashed border-border cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center justify-center gap-2">
-                          <Plus
-                            className="h-6 w-6 text-muted-foreground"
-                            strokeWidth={1.5}
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            New folder
-                          </p>
-                        </div>
-                      }
-                    />
-                  );
-                }
-                const folder = entry;
-                const summary = folderSummaries[folder.path];
-                const itemCountLabel = !summary
-                  ? "…"
-                  : summary.truncated
-                    ? `${summary.itemCount}+`
-                    : `${summary.itemCount}`;
-                const previewItems =
-                  hideThumbnails || !summary ? [] : summary.previewItems;
-                const renderPreview = (
-                  item: { path: string; type: "image" | "video" },
-                  size: "square" | "tall" | "large",
-                ) =>
-                  item.type === "video" ? (
-                    <VideoThumbnail
-                      src={getFolderThumbnailUrl(transformBaseUrl, item, size)}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <img
-                      src={getFolderThumbnailUrl(transformBaseUrl, item, size)}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  );
-                return (
-                  <ContextMenu
-                    key={folder.path}
-                    onOpenChange={(open) =>
-                      setOpenMenuId(open ? folder.path : null)
-                    }
+              <div
+                ref={setFoldersEl}
+                style={{
+                  height: folderVirtualizer.getTotalSize(),
+                  position: "relative",
+                }}
+              >
+                {folderVirtualizer.getVirtualItems().map((virtualRow) => (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={folderVirtualizer.measureElement}
+                    className="absolute top-0 left-0 w-full pb-4"
+                    style={{
+                      transform: `translateY(${virtualRow.start - folderVirtualizer.options.scrollMargin}px)`,
+                    }}
                   >
-                    <ContextMenuTrigger asChild>
-                      <div
-                        className={cn(
-                          "group relative w-[190px] h-[180px] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
-                          isSelected(folder.path) &&
-                            "ring-2 ring-primary border-primary",
-                        )}
-                        onClick={() => handleFolderClick(folder.path)}
-                        onContextMenu={(e) => e.stopPropagation()}
-                      >
-                        <div
-                          className={cn(
-                            "absolute top-2 left-2 z-10 transition-opacity",
-                            selectionMode || isSelected(folder.path)
-                              ? "opacity-100"
-                              : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
-                          )}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Checkbox
-                            checked={isSelected(folder.path)}
-                            onCheckedChange={() =>
-                              toggleSelection(folder.path, {
-                                path: folder.path,
-                                name: folder.name,
-                                kind: "folder",
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="relative w-full h-full">
-                          {previewItems.length === 4 ? (
-                            <div className="grid grid-cols-2 gap-0.5 w-full h-full">
-                              {previewItems.map((item, i) => (
-                                <div key={i} className="overflow-hidden">
-                                  {renderPreview(item, "square")}
+                    <div className="flex flex-wrap gap-4">
+                      {folderRows[virtualRow.index].map((entry) => {
+                        if (entry === null) {
+                          return (
+                            <CreateFolderButtonWithDialog
+                              key="__new-folder__"
+                              uploadToFolder={folderPath || undefined}
+                              trigger={
+                                <div className="group relative w-[190px] h-[180px] rounded-lg border border-dashed border-border cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center justify-center gap-2">
+                                  <Plus
+                                    className="h-6 w-6 text-muted-foreground"
+                                    strokeWidth={1.5}
+                                  />
+                                  <p className="text-sm text-muted-foreground">
+                                    New folder
+                                  </p>
                                 </div>
-                              ))}
-                            </div>
-                          ) : previewItems.length === 3 ? (
-                            <div className="grid grid-cols-2 gap-0.5 w-full h-full">
-                              <div className="overflow-hidden row-span-2">
-                                {renderPreview(previewItems[0], "tall")}
-                              </div>
-                              {previewItems.slice(1).map((item, i) => (
-                                <div key={i} className="overflow-hidden">
-                                  {renderPreview(item, "square")}
-                                </div>
-                              ))}
-                            </div>
-                          ) : previewItems.length === 2 ? (
-                            <div className="grid grid-cols-2 gap-0.5 w-full h-full">
-                              {previewItems.map((item, i) => (
-                                <div key={i} className="overflow-hidden">
-                                  {renderPreview(item, "tall")}
-                                </div>
-                              ))}
-                            </div>
-                          ) : previewItems.length === 1 ? (
-                            renderPreview(previewItems[0], "large")
+                              }
+                            />
+                          );
+                        }
+                        const folder = entry;
+                        const summary = folderSummaries[folder.path];
+                        const itemCountLabel = !summary
+                          ? "…"
+                          : summary.truncated
+                            ? `${summary.itemCount}+`
+                            : `${summary.itemCount}`;
+                        const previewItems =
+                          hideThumbnails || !summary
+                            ? []
+                            : summary.previewItems;
+                        const renderPreview = (
+                          item: { path: string; type: "image" | "video" },
+                          size: "square" | "tall" | "large",
+                        ) =>
+                          item.type === "video" ? (
+                            <VideoThumbnail
+                              src={getFolderThumbnailUrl(
+                                transformBaseUrl,
+                                item,
+                                size,
+                              )}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-muted/30">
-                              <Folder
-                                className="h-8 w-8 text-muted-foreground"
-                                strokeWidth={1.5}
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <div
-                          className={cn(
-                            "absolute inset-x-0 bottom-0 max-w-full p-3 text-left",
-                            hideThumbnails
-                              ? ""
-                              : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
-                          )}
-                        >
-                          <p
-                            className={cn(
-                              "text-sm font-medium truncate",
-                              hideThumbnails ? "text-foreground" : "text-white",
-                            )}
+                            <img
+                              src={getFolderThumbnailUrl(
+                                transformBaseUrl,
+                                item,
+                                size,
+                              )}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          );
+                        return (
+                          <ContextMenu
+                            key={folder.path}
+                            onOpenChange={(open) =>
+                              setOpenMenuId(open ? folder.path : null)
+                            }
                           >
-                            {folder.name}
-                          </p>
-                          <p
-                            className={cn(
-                              "text-xs",
-                              hideThumbnails
-                                ? "text-muted-foreground"
-                                : "text-white/70",
+                            <ContextMenuTrigger asChild>
+                              <div
+                                className={cn(
+                                  "group relative w-[190px] h-[180px] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
+                                  isSelected(folder.path) &&
+                                    "ring-2 ring-primary border-primary",
+                                )}
+                                onClick={() => handleFolderClick(folder.path)}
+                                onContextMenu={(e) => e.stopPropagation()}
+                              >
+                                <div
+                                  className={cn(
+                                    "absolute top-2 left-2 z-10 transition-opacity",
+                                    selectionMode || isSelected(folder.path)
+                                      ? "opacity-100"
+                                      : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
+                                  )}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Checkbox
+                                    checked={isSelected(folder.path)}
+                                    onCheckedChange={() =>
+                                      toggleSelection(folder.path, {
+                                        path: folder.path,
+                                        name: folder.name,
+                                        kind: "folder",
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="relative w-full h-full">
+                                  {previewItems.length === 4 ? (
+                                    <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                                      {previewItems.map((item, i) => (
+                                        <div
+                                          key={i}
+                                          className="overflow-hidden"
+                                        >
+                                          {renderPreview(item, "square")}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : previewItems.length === 3 ? (
+                                    <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                                      <div className="overflow-hidden row-span-2">
+                                        {renderPreview(previewItems[0], "tall")}
+                                      </div>
+                                      {previewItems.slice(1).map((item, i) => (
+                                        <div
+                                          key={i}
+                                          className="overflow-hidden"
+                                        >
+                                          {renderPreview(item, "square")}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : previewItems.length === 2 ? (
+                                    <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                                      {previewItems.map((item, i) => (
+                                        <div
+                                          key={i}
+                                          className="overflow-hidden"
+                                        >
+                                          {renderPreview(item, "tall")}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : previewItems.length === 1 ? (
+                                    renderPreview(previewItems[0], "large")
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                                      <Folder
+                                        className="h-8 w-8 text-muted-foreground"
+                                        strokeWidth={1.5}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                                <div
+                                  className={cn(
+                                    "absolute inset-x-0 bottom-0 max-w-full p-3 text-left",
+                                    hideThumbnails
+                                      ? ""
+                                      : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
+                                  )}
+                                >
+                                  <p
+                                    className={cn(
+                                      "text-sm font-medium truncate",
+                                      hideThumbnails
+                                        ? "text-foreground"
+                                        : "text-white",
+                                    )}
+                                  >
+                                    {folder.name}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "text-xs",
+                                      hideThumbnails
+                                        ? "text-muted-foreground"
+                                        : "text-white/70",
+                                    )}
+                                  >
+                                    {itemCountLabel}{" "}
+                                    {summary &&
+                                    summary.itemCount === 1 &&
+                                    !summary.truncated
+                                      ? "item"
+                                      : "items"}
+                                  </p>
+                                </div>
+                              </div>
+                            </ContextMenuTrigger>
+                            {selectionMode ? (
+                              openMenuId === folder.path ? (
+                                renderBulkContextMenuContent()
+                              ) : null
+                            ) : (
+                              <ContextMenuContent>
+                                <ContextMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    const path = folder.path;
+                                    setTimeout(
+                                      () => setFolderUploadTarget(path),
+                                      0,
+                                    );
+                                  }}
+                                >
+                                  <Upload className="h-4 w-4" />
+                                  Upload to folder
+                                </ContextMenuItem>
+                                <ContextMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    const target = folder;
+                                    setTimeout(
+                                      () => setRenameFolderTarget(target),
+                                      0,
+                                    );
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  Rename
+                                </ContextMenuItem>
+                                <ContextMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    handleDownloadFolder(
+                                      folder.path,
+                                      folder.name,
+                                    );
+                                  }}
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Download folder
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    const path = folder.path;
+                                    setTimeout(
+                                      () => setDeleteFolderTarget(path),
+                                      0,
+                                    );
+                                  }}
+                                  variant="destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete folder
+                                </ContextMenuItem>
+                              </ContextMenuContent>
                             )}
-                          >
-                            {itemCountLabel}{" "}
-                            {summary && summary.itemCount === 1 && !summary.truncated
-                              ? "item"
-                              : "items"}
-                          </p>
-                        </div>
-                      </div>
-                    </ContextMenuTrigger>
-                    {selectionMode ? (
-                      openMenuId === folder.path ? (
-                        renderBulkContextMenuContent()
-                      ) : null
-                    ) : (
-                      <ContextMenuContent>
-                        <ContextMenuItem
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            const path = folder.path;
-                            setTimeout(() => setFolderUploadTarget(path), 0);
-                          }}
-                        >
-                          <Upload className="h-4 w-4" />
-                          Upload to folder
-                        </ContextMenuItem>
-                        <ContextMenuItem
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            const target = folder;
-                            setTimeout(() => setRenameFolderTarget(target), 0);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Rename
-                        </ContextMenuItem>
-                        <ContextMenuItem
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            handleDownloadFolder(folder.path, folder.name);
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                          Download folder
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            const path = folder.path;
-                            setTimeout(() => setDeleteFolderTarget(path), 0);
-                          }}
-                          variant="destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete folder
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    )}
-                  </ContextMenu>
-                );
-              })}
+                          </ContextMenu>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
 
             {view === "list" && (
@@ -1583,164 +1632,171 @@ export function MediaGrid({
                     >
                       <div className="grid gap-4" style={gridStyle}>
                         {row.map((media) => {
-                  // For images: resize and optimize
-                  // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
-                  const thumbnailUrl =
-                    media.type === "image"
-                      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-                      : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
-                  const isHovered = hoveredId === media.id;
+                          // For images: resize and optimize
+                          // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
+                          const thumbnailUrl =
+                            media.type === "image"
+                              ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
+                              : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+                          const isHovered = hoveredId === media.id;
 
-                  return (
-                    <ContextMenu
-                      key={media.id}
-                      onOpenChange={(open) => {
-                        setOpenMenuId(open ? media.id : null);
-                        if (open) setHoveredId(media.id);
-                      }}
-                    >
-                      <ContextMenuTrigger asChild>
-                        <div
-                          className={cn(
-                            "group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md [content-visibility:auto] [contain-intrinsic-size:auto_300px]",
-                            isSelected(media.id) &&
-                              "ring-2 ring-primary border-primary",
-                          )}
-                          onClick={() => onMediaSelect(media)}
-                          onContextMenu={(e) => e.stopPropagation()}
-                          onMouseEnter={() => {
-                            setHoveredId(media.id);
-                            handleMediaHover(media);
-                          }}
-                          onMouseLeave={() => setHoveredId(null)}
-                        >
-                          <div
-                            className={cn(
-                              "absolute top-2 left-2 z-10 transition-opacity",
-                              selectionMode || isSelected(media.id)
-                                ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
-                            )}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Checkbox
-                              checked={isSelected(media.id)}
-                              onCheckedChange={() =>
-                                toggleSelection(media.id, {
-                                  path: media.path,
-                                  name: media.name,
-                                  kind: "file",
-                                })
-                              }
-                            />
-                          </div>
-                          {hideThumbnails ? (
-                            <FileTypeIcon type={media.type} />
-                          ) : media.type === "image" ? (
-                            <img
-                              src={thumbnailUrl}
-                              alt={media.name}
-                              className="w-full h-full object-cover transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <VideoThumbnail
-                              src={thumbnailUrl}
-                              alt={media.name}
-                              className="transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
-                              loading="lazy"
-                            />
-                          )}
-                          <div
-                            className={cn(
-                              "absolute inset-x-0 bottom-0 p-2 transition-opacity",
-                              hideThumbnails
-                                ? ""
-                                : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
-                              isHovered ? "opacity-100" : "opacity-0",
-                              "group-data-[state=open]:opacity-100",
-                            )}
-                          >
-                            <p
-                              className={cn(
-                                "text-xs font-medium truncate",
-                                hideThumbnails
-                                  ? "text-foreground"
-                                  : "text-white",
+                          return (
+                            <ContextMenu
+                              key={media.id}
+                              onOpenChange={(open) => {
+                                setOpenMenuId(open ? media.id : null);
+                                if (open) setHoveredId(media.id);
+                              }}
+                            >
+                              <ContextMenuTrigger asChild>
+                                <div
+                                  className={cn(
+                                    "group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md [content-visibility:auto] [contain-intrinsic-size:auto_300px]",
+                                    isSelected(media.id) &&
+                                      "ring-2 ring-primary border-primary",
+                                  )}
+                                  onClick={() => onMediaSelect(media)}
+                                  onContextMenu={(e) => e.stopPropagation()}
+                                  onMouseEnter={() => {
+                                    setHoveredId(media.id);
+                                    handleMediaHover(media);
+                                  }}
+                                  onMouseLeave={() => setHoveredId(null)}
+                                >
+                                  <div
+                                    className={cn(
+                                      "absolute top-2 left-2 z-10 transition-opacity",
+                                      selectionMode || isSelected(media.id)
+                                        ? "opacity-100"
+                                        : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
+                                    )}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Checkbox
+                                      checked={isSelected(media.id)}
+                                      onCheckedChange={() =>
+                                        toggleSelection(media.id, {
+                                          path: media.path,
+                                          name: media.name,
+                                          kind: "file",
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  {hideThumbnails ? (
+                                    <FileTypeIcon type={media.type} />
+                                  ) : media.type === "image" ? (
+                                    <img
+                                      src={thumbnailUrl}
+                                      alt={media.name}
+                                      className="w-full h-full object-cover transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <VideoThumbnail
+                                      src={thumbnailUrl}
+                                      alt={media.name}
+                                      className="transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
+                                      loading="lazy"
+                                    />
+                                  )}
+                                  <div
+                                    className={cn(
+                                      "absolute inset-x-0 bottom-0 p-2 transition-opacity",
+                                      hideThumbnails
+                                        ? ""
+                                        : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
+                                      isHovered ? "opacity-100" : "opacity-0",
+                                      "group-data-[state=open]:opacity-100",
+                                    )}
+                                  >
+                                    <p
+                                      className={cn(
+                                        "text-xs font-medium truncate",
+                                        hideThumbnails
+                                          ? "text-foreground"
+                                          : "text-white",
+                                      )}
+                                    >
+                                      {media.name}
+                                    </p>
+                                  </div>
+                                </div>
+                              </ContextMenuTrigger>
+                              {!isHovered &&
+                              openMenuId !== media.id ? null : selectionMode ? (
+                                renderBulkContextMenuContent()
+                              ) : (
+                                <ContextMenuContent className="w-64">
+                                  <ContextMenuItem
+                                    onClick={() => onMediaSelect(media)}
+                                  >
+                                    <File className="h-4 w-4" />
+                                    Open
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
+                                    onClick={() =>
+                                      setTimeout(
+                                        () => setRenameTarget(media),
+                                        0,
+                                      )
+                                    }
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    Rename
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
+                                    onClick={() => handleCopyMedia(media.path)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                    Make a copy
+                                  </ContextMenuItem>
+                                  <ContextMenuSub>
+                                    <ContextMenuSubTrigger>
+                                      <Move className="h-4 w-4" />
+                                      Move to
+                                    </ContextMenuSubTrigger>
+                                    <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
+                                      <MoveToNavigator
+                                        ItemComponent={ContextMenuItem}
+                                        currentDir={currentDir}
+                                        onSelect={(path) =>
+                                          setMoveMediaTarget({
+                                            media,
+                                            destination: path,
+                                          })
+                                        }
+                                      />
+                                    </ContextMenuSubContent>
+                                  </ContextMenuSub>
+                                  <ContextMenuItem
+                                    onClick={() =>
+                                      handleDownload(media.path, media.name)
+                                    }
+                                  >
+                                    <Download className="h-4 w-4" />
+                                    Download
+                                    <ContextMenuShortcut>
+                                      {mac ? "⇧⌘D" : "Ctrl Shift D"}
+                                    </ContextMenuShortcut>
+                                  </ContextMenuItem>
+                                  <ContextMenuSeparator />
+                                  <ContextMenuItem
+                                    onClick={() =>
+                                      setTimeout(
+                                        () => setDeleteMediaTarget(media),
+                                        0,
+                                      )
+                                    }
+                                    variant="destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                  </ContextMenuItem>
+                                </ContextMenuContent>
                               )}
-                            >
-                              {media.name}
-                            </p>
-                          </div>
-                        </div>
-                      </ContextMenuTrigger>
-                      {!isHovered && openMenuId !== media.id ? null : selectionMode ? (
-                        renderBulkContextMenuContent()
-                      ) : (
-                        <ContextMenuContent className="w-64">
-                          <ContextMenuItem onClick={() => onMediaSelect(media)}>
-                            <File className="h-4 w-4" />
-                            Open
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onClick={() =>
-                              setTimeout(() => setRenameTarget(media), 0)
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                            Rename
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onClick={() => handleCopyMedia(media.path)}
-                          >
-                            <Copy className="h-4 w-4" />
-                            Make a copy
-                          </ContextMenuItem>
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger>
-                              <Move className="h-4 w-4" />
-                              Move to
-                            </ContextMenuSubTrigger>
-                            <ContextMenuSubContent
-                              className="w-48 max-h-[400px] overflow-y-auto"
-                            >
-                              <MoveToNavigator
-                                ItemComponent={ContextMenuItem}
-                                currentDir={currentDir}
-                                onSelect={(path) =>
-                                  setMoveMediaTarget({
-                                    media,
-                                    destination: path,
-                                  })
-                                }
-                              />
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
-                          <ContextMenuItem
-                            onClick={() =>
-                              handleDownload(media.path, media.name)
-                            }
-                          >
-                            <Download className="h-4 w-4" />
-                            Download
-                            <ContextMenuShortcut>
-                              {mac ? "⇧⌘D" : "Ctrl Shift D"}
-                            </ContextMenuShortcut>
-                          </ContextMenuItem>
-                          <ContextMenuSeparator />
-                          <ContextMenuItem
-                            onClick={() =>
-                              setTimeout(() => setDeleteMediaTarget(media), 0)
-                            }
-                            variant="destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      )}
-                    </ContextMenu>
-                  );
+                            </ContextMenu>
+                          );
                         })}
                       </div>
                     </div>
@@ -1779,224 +1835,225 @@ export function MediaGrid({
                         transform: `translateY(${virtualRow.start - listVirtualizer.options.scrollMargin}px)`,
                       }}
                     >
-                    <ContextMenu
-                      onOpenChange={(open) => {
-                        setOpenMenuId(open ? media.id : null);
-                        if (open) setHoveredId(media.id);
-                      }}
-                    >
-                      <ContextMenuTrigger asChild>
-                        <div
-                          className={cn(
-                            "group flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50 [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
-                            isSelected(media.id) && "bg-muted/40",
-                          )}
-                          onClick={() => onMediaSelect(media)}
-                          onContextMenu={(e) => e.stopPropagation()}
-                          onMouseEnter={() => {
-                            setHoveredId(media.id);
-                            handleMediaHover(media);
-                          }}
-                          onMouseLeave={() => setHoveredId(null)}
-                        >
+                      <ContextMenu
+                        onOpenChange={(open) => {
+                          setOpenMenuId(open ? media.id : null);
+                          if (open) setHoveredId(media.id);
+                        }}
+                      >
+                        <ContextMenuTrigger asChild>
                           <div
-                            className="relative h-6 w-6 shrink-0 overflow-hidden rounded bg-muted/50 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleSelection(media.id, {
-                                path: media.path,
-                                name: media.name,
-                                kind: "file",
-                              });
-                            }}
-                          >
-                            {hideThumbnails ? (
-                              <FileTypeIcon type={media.type} />
-                            ) : media.type === "image" ? (
-                              <img
-                                src={thumbnailUrl}
-                                alt={media.name}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <VideoThumbnail
-                                src={thumbnailUrl}
-                                alt={media.name}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
+                            className={cn(
+                              "group flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50 [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
+                              isSelected(media.id) && "bg-muted/40",
                             )}
+                            onClick={() => onMediaSelect(media)}
+                            onContextMenu={(e) => e.stopPropagation()}
+                            onMouseEnter={() => {
+                              setHoveredId(media.id);
+                              handleMediaHover(media);
+                            }}
+                            onMouseLeave={() => setHoveredId(null)}
+                          >
                             <div
-                              className={cn(
-                                "absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity",
-                                selectionMode || isSelected(media.id)
-                                  ? "opacity-100"
-                                  : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
-                              )}
+                              className="relative h-6 w-6 shrink-0 overflow-hidden rounded bg-muted/50 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSelection(media.id, {
+                                  path: media.path,
+                                  name: media.name,
+                                  kind: "file",
+                                });
+                              }}
                             >
-                              <Checkbox
-                                checked={isSelected(media.id)}
-                                onCheckedChange={() =>
-                                  toggleSelection(media.id, {
-                                    path: media.path,
-                                    name: media.name,
-                                    kind: "file",
-                                  })
-                                }
-                                onClick={(e) => e.stopPropagation()}
-                                className="size-4"
-                              />
+                              {hideThumbnails ? (
+                                <FileTypeIcon type={media.type} />
+                              ) : media.type === "image" ? (
+                                <img
+                                  src={thumbnailUrl}
+                                  alt={media.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <VideoThumbnail
+                                  src={thumbnailUrl}
+                                  alt={media.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div
+                                className={cn(
+                                  "absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity",
+                                  selectionMode || isSelected(media.id)
+                                    ? "opacity-100"
+                                    : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
+                                )}
+                              >
+                                <Checkbox
+                                  checked={isSelected(media.id)}
+                                  onCheckedChange={() =>
+                                    toggleSelection(media.id, {
+                                      path: media.path,
+                                      name: media.name,
+                                      kind: "file",
+                                    })
+                                  }
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="size-4"
+                                />
+                              </div>
+                            </div>
+                            <p
+                              className="min-w-0 flex-1 truncate text-sm"
+                              title={media.name}
+                            >
+                              {media.name}
+                            </p>
+                            <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
+                              {getMimeType(media.name)}
+                            </span>
+                            <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                              {formatListSize(media.size)}
+                            </span>
+                            <div className="flex w-28 shrink-0 items-center justify-end">
+                              {isHovered ? (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    className="relative h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground disabled:cursor-default"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCopyUrl(media.path, media.id);
+                                    }}
+                                    disabled={copiedId === media.id}
+                                    aria-label="Copy URL"
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "absolute inset-0 h-4 w-4 stroke-emerald-500 transition-all",
+                                        copiedId === media.id
+                                          ? "scale-100 opacity-100 blur-0"
+                                          : "scale-0 opacity-0 blur-sm",
+                                      )}
+                                    />
+                                    <Link2
+                                      className={cn(
+                                        "absolute inset-0 h-4 w-4 transition-all",
+                                        copiedId === media.id
+                                          ? "scale-0 opacity-0 blur-sm"
+                                          : "scale-100 opacity-100 blur-0",
+                                      )}
+                                    />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cursor-pointer text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownload(media.path, media.name);
+                                    }}
+                                    aria-label="Download"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="cursor-pointer text-muted-foreground hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTimeout(
+                                        () => setDeleteMediaTarget(media),
+                                        0,
+                                      );
+                                    }}
+                                    aria-label="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  {formatListDate(media.mtime)}
+                                </span>
+                              )}
                             </div>
                           </div>
-                          <p
-                            className="min-w-0 flex-1 truncate text-sm"
-                            title={media.name}
-                          >
-                            {media.name}
-                          </p>
-                          <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
-                            {getMimeType(media.name)}
-                          </span>
-                          <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
-                            {formatListSize(media.size)}
-                          </span>
-                          <div className="flex w-28 shrink-0 items-center justify-end">
-                            {isHovered ? (
-                              <div className="flex items-center gap-3">
-                                <button
-                                  type="button"
-                                  className="relative h-4 w-4 cursor-pointer text-muted-foreground hover:text-foreground disabled:cursor-default"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCopyUrl(media.path, media.id);
-                                  }}
-                                  disabled={copiedId === media.id}
-                                  aria-label="Copy URL"
-                                >
-                                  <Check
-                                    className={cn(
-                                      "absolute inset-0 h-4 w-4 stroke-emerald-500 transition-all",
-                                      copiedId === media.id
-                                        ? "scale-100 opacity-100 blur-0"
-                                        : "scale-0 opacity-0 blur-sm",
-                                    )}
-                                  />
-                                  <Link2
-                                    className={cn(
-                                      "absolute inset-0 h-4 w-4 transition-all",
-                                      copiedId === media.id
-                                        ? "scale-0 opacity-0 blur-sm"
-                                        : "scale-100 opacity-100 blur-0",
-                                    )}
-                                  />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="cursor-pointer text-muted-foreground hover:text-foreground"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDownload(media.path, media.name);
-                                  }}
-                                  aria-label="Download"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="cursor-pointer text-muted-foreground hover:text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setTimeout(
-                                      () => setDeleteMediaTarget(media),
-                                      0,
-                                    );
-                                  }}
-                                  aria-label="Delete"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {formatListDate(media.mtime)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </ContextMenuTrigger>
-                      {!isHovered && openMenuId !== media.id ? null : selectionMode ? (
-                        renderBulkContextMenuContent()
-                      ) : (
-                        <ContextMenuContent className="w-64">
-                          <ContextMenuItem onClick={() => onMediaSelect(media)}>
-                            <File className="h-4 w-4" />
-                            Open
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onClick={() =>
-                              setTimeout(() => setRenameTarget(media), 0)
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                            Rename
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onClick={() => handleCopyMedia(media.path)}
-                          >
-                            <Copy className="h-4 w-4" />
-                            Make a copy
-                          </ContextMenuItem>
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger>
-                              <Move className="h-4 w-4" />
-                              Move to
-                            </ContextMenuSubTrigger>
-                            <ContextMenuSubContent
-                              className="w-48 max-h-[400px] overflow-y-auto"
+                        </ContextMenuTrigger>
+                        {!isHovered &&
+                        openMenuId !== media.id ? null : selectionMode ? (
+                          renderBulkContextMenuContent()
+                        ) : (
+                          <ContextMenuContent className="w-64">
+                            <ContextMenuItem
+                              onClick={() => onMediaSelect(media)}
                             >
-                              <MoveToNavigator
-                                ItemComponent={ContextMenuItem}
-                                currentDir={currentDir}
-                                onSelect={(path) =>
-                                  setMoveMediaTarget({
-                                    media,
-                                    destination: path,
-                                  })
-                                }
-                              />
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
-                          <ContextMenuItem
-                            onClick={() => handleCopyUrl(media.path)}
-                          >
-                            <Link2 className="h-4 w-4" />
-                            Copy URL
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onClick={() =>
-                              handleDownload(media.path, media.name)
-                            }
-                          >
-                            <Download className="h-4 w-4" />
-                            Download
-                            <ContextMenuShortcut>
-                              {mac ? "⇧⌘D" : "Ctrl Shift D"}
-                            </ContextMenuShortcut>
-                          </ContextMenuItem>
-                          <ContextMenuSeparator />
-                          <ContextMenuItem
-                            onClick={() =>
-                              setTimeout(() => setDeleteMediaTarget(media), 0)
-                            }
-                            variant="destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      )}
-                    </ContextMenu>
+                              <File className="h-4 w-4" />
+                              Open
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={() =>
+                                setTimeout(() => setRenameTarget(media), 0)
+                              }
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Rename
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={() => handleCopyMedia(media.path)}
+                            >
+                              <Copy className="h-4 w-4" />
+                              Make a copy
+                            </ContextMenuItem>
+                            <ContextMenuSub>
+                              <ContextMenuSubTrigger>
+                                <Move className="h-4 w-4" />
+                                Move to
+                              </ContextMenuSubTrigger>
+                              <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
+                                <MoveToNavigator
+                                  ItemComponent={ContextMenuItem}
+                                  currentDir={currentDir}
+                                  onSelect={(path) =>
+                                    setMoveMediaTarget({
+                                      media,
+                                      destination: path,
+                                    })
+                                  }
+                                />
+                              </ContextMenuSubContent>
+                            </ContextMenuSub>
+                            <ContextMenuItem
+                              onClick={() => handleCopyUrl(media.path)}
+                            >
+                              <Link2 className="h-4 w-4" />
+                              Copy URL
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={() =>
+                                handleDownload(media.path, media.name)
+                              }
+                            >
+                              <Download className="h-4 w-4" />
+                              Download
+                              <ContextMenuShortcut>
+                                {mac ? "⇧⌘D" : "Ctrl Shift D"}
+                              </ContextMenuShortcut>
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem
+                              onClick={() =>
+                                setTimeout(() => setDeleteMediaTarget(media), 0)
+                              }
+                              variant="destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        )}
+                      </ContextMenu>
                     </div>
                   );
                 })}
