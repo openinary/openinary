@@ -123,6 +123,15 @@ function addCorsHeaders(
 }
 
 export async function middleware(request: NextRequest) {
+  const response = await handleRequest(request);
+  // Self-hosted dashboards were turning up in search results. Every response
+  // the dashboard serves is private, so tell crawlers to drop the lot -- the
+  // header rides along on the /login redirect too, which a <meta> tag can't do.
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
+}
+
+async function handleRequest(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const allowedOrigin = getAllowedOrigin();
   const requestOrigin = request.headers.get("origin");
