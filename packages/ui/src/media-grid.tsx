@@ -2,6 +2,8 @@
 
 import type React from "react";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { BorderBeam, type BorderBeamProps } from "border-beam";
+import { useTheme } from "next-themes";
 import {
   FileImage,
   FileVideo,
@@ -157,6 +159,8 @@ export interface MediaGridProps {
   /** Current folder, e.g. "photos/2024". Root is `null`. Lifted to the caller since this package doesn't dictate a router. */
   folderPath?: string | null;
   onFolderPathChange?: (folderPath: string | null) => void;
+  /** Overrides for the beam around the empty-state upload button. Merged over the defaults, so any subset wins. Pass `active: false` to stop the animation. */
+  beamProps?: Omit<BorderBeamProps, "children">;
 }
 
 export function MediaGrid({
@@ -167,6 +171,7 @@ export function MediaGrid({
   scrollContainerRef,
   folderPath = null,
   onFolderPathChange,
+  beamProps,
 }: MediaGridProps) {
   const { apiBaseUrl, transformBaseUrl, fetch } = useOpeninary();
   const [hideThumbnails] = useHideThumbnails();
@@ -210,6 +215,10 @@ export function MediaGrid({
     onMove: (_destination: string) => {},
     onDelete: () => {},
   });
+
+  // BorderBeam picks its own colors per background; next-themes' class-based
+  // toggle isn't visible to its `theme="auto"` (prefers-color-scheme) mode.
+  const { resolvedTheme } = useTheme();
 
   // Dialog state for grid-level context menu
   const [gridUploadOpen, setGridUploadOpen] = useState(false);
@@ -442,7 +451,15 @@ export function MediaGrid({
           </EmptyHeader>
           <EmptyContent>
             <div className="flex gap-2">
-              <UploadButtonWithDialog />
+              <BorderBeam
+                size="pulse-outside"
+                colorVariant="colorful"
+                strength={0.7}
+                theme={resolvedTheme === "light" ? "light" : "dark"}
+                {...beamProps}
+              >
+                <UploadButtonWithDialog />
+              </BorderBeam>
               <Button variant="outline" asChild>
                 <a
                   href="https://docs.openinary.dev/"

@@ -24,6 +24,15 @@ export { RenameSection } from "./components/rename-section";
 export { ColumnCountSlider, MIN_COLUMNS, MAX_COLUMNS } from "./components/column-count-slider";
 export { VideoThumbnail } from "./components/video-thumbnail";
 export { UserAvatar } from "./components/user-avatar";
+// Re-exported as-is (no wrapper) so consumers keep border-beam's full prop
+// surface — colorVariant, strength, brightness, duration, etc.
+export {
+  BorderBeam,
+  type BorderBeamProps,
+  type BorderBeamSize,
+  type BorderBeamColorVariant,
+  type BorderBeamTheme,
+} from "border-beam";
 
 // Queue widgets
 export { JobStatusBadge, type JobStatus } from "./queue/job-status-badge";
