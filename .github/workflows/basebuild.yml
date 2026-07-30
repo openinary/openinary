@@ -5,8 +5,10 @@ on:
     branches:
       - main
     tags:
+      # No bare '*.*.*': '*' matches everything but '/', so it swallowed every
+      # package tag too (ui-v0.6.0, core-v*, cli-v*) and rebuilt the image on
+      # each npm release. App releases are all 'vX.Y.Z', already covered above.
       - 'v*'
-      - '*.*.*'
     paths:
       - 'docker/**'
       - 'apps/**'
