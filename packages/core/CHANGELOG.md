@@ -41,6 +41,11 @@
   outright, and a caller proxying this instance over `fetch` can be left
   awaiting a response that never settles, with no status to report.
 
+  It is now dropped for a buffered body and kept for a streamed one, because
+  `@hono/node-server` writes its own header only when it can measure the body.
+  Dropping it in both cases would leave a bare `/t/<video>` streaming the
+  original as `Transfer-Encoding: chunked` with no length for the player.
+
   `saveToCache` wrote in place, so a concurrent `existsInCache`/`readFromCache`
   could observe a half-written entry and hand back a truncated image. It now
   writes a temp file and renames, which is atomic.

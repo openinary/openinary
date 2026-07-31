@@ -24,15 +24,22 @@ export function createTransformRoute(deps: RouteDeps) {
 
       // Set response headers.
       //
-      // Content-Length is dropped: @hono/node-server writes its own from the
-      // body it is handed, so passing this one through emits the header twice.
-      // Two Content-Lengths is a framing error (RFC 9110 8.6) - undici rejects
+      // Content-Length is dropped for a buffered body and kept for a streamed
+      // one, because @hono/node-server only writes its own when it can measure
+      // the body:
+      //
+      //   buffer + our header  -> "content-length" AND "Content-Length", twice
+      //   buffer, no header    -> Content-Length, correct
+      //   stream + our header  -> Content-Length, correct, no duplicate
+      //   stream, no header    -> Transfer-Encoding: chunked, length lost
+      //
+      // Two Content-Lengths is a framing error (RFC 9110 8.6): undici rejects
       // the response outright, and a caller proxying this instance over fetch
-      // can be left awaiting a response that never settles, with no status to
-      // report. Seen against a container behind Cloudflare Workers, on the one
-      // route that awaits the transform rather than streaming it.
+      // can be left awaiting one that never settles, with no status to report.
+      // Dropping it unconditionally trades that for the last line above -
+      // a bare /t/<video> would stream the original with no length at all.
       Object.entries(result.headers).forEach(([key, value]) => {
-        if (key.toLowerCase() === "content-length") return;
+        if (key.toLowerCase() === "content-length" && !result.stream) return;
         c.header(key, value);
       });
 
