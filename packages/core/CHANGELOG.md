@@ -1,5 +1,19 @@
 # @openinary/core
 
+## 1.4.1
+
+### Patch Changes
+
+- Probe a remote source with GET, not HEAD
+
+  A presigned URL authorizes exactly one method — SigV4 signs the verb into the
+  string it signs — so a URL issued for GET answers 403 to a HEAD. The existence
+  check introduced in 1.4.0 used HEAD, which reported every object that exists as
+  missing and meant no transform against a remote source ever ran.
+
+  It now asks for one byte over GET (`Range: bytes=0-0`). An absent key still
+  answers 404, so nothing is lost by asking this way.
+
 ## 1.4.0
 
 ### Minor Changes

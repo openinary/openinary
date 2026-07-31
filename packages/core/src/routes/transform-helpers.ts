@@ -210,12 +210,22 @@ export async function verifyFileExists(
   sourceUrl?: string
 ): Promise<{ exists: boolean; isCloud: boolean; error?: string }> {
   if (sourceUrl) {
-    // A HEAD rather than trusting the caller: a signed URL that has expired, or
-    // names an object since deleted, has to read as "not found" right here.
-    // Left unchecked it surfaces much later as a truncated download inside
-    // sharp or ffmpeg, where the error says nothing about the real cause.
+    // Checked rather than trusted: a URL that has expired, or names an object
+    // since deleted, has to read as "not found" right here. Left unchecked it
+    // surfaces much later as a truncated download inside sharp or ffmpeg,
+    // where the error says nothing about the real cause.
+    //
+    // One byte over GET, never HEAD. A presigned URL authorizes exactly one
+    // method - SigV4 signs the verb into the string it signs - so a URL issued
+    // for GET answers 403 to a HEAD, which would read as "missing" for every
+    // object that exists. A range still 404s on an absent key, so nothing is
+    // lost by asking this way.
     try {
-      const response = await fetch(sourceUrl, { method: "HEAD" });
+      const response = await fetch(sourceUrl, {
+        headers: { Range: "bytes=0-0" },
+      });
+      // Nothing reads the byte; releasing it keeps the connection reusable.
+      await response.body?.cancel();
       if (response.ok) return { exists: true, isCloud: true };
       return {
         exists: false,
