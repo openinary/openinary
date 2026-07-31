@@ -1,5 +1,50 @@
 # @openinary/core
 
+## 1.4.0
+
+### Minor Changes
+
+- 8125c4b: Read a transform's source from a caller-supplied URL
+
+  An instance can now be told to fetch one original from a signed URL instead of
+  its own storage, via an `X-Openinary-Source-Url` request header on `/t/*`. It
+  exists for deployments where the originals belong to the end user: a control
+  plane holding the user's storage credentials can hand out a short-lived URL for
+  a single object rather than distributing the credentials themselves.
+
+  Off unless `ALLOW_REMOTE_SOURCE=true`, and that gate is deliberate. `/t/*` is a
+  public route, so honouring an arbitrary URL from a request header would make a
+  reachable instance a fetch proxy for whatever it can address — enable it only
+  where the transform route is not publicly reachable and every caller is
+  trusted. https only, and the URL is HEADed before use so an expired signature
+  reads as "not found" rather than surfacing later as a truncated download inside
+  sharp.
+
+  Covers images and video thumbnails. A full video transcode goes through the
+  background job queue, which downloads its own copy when it picks the job up —
+  possibly long after any signed URL has expired — so that path still reads from
+  the instance's own storage.
+
+  Nothing changes for instances that don't set the flag, and the cache is
+  untouched either way: only where the source bytes come from.
+
+### Patch Changes
+
+- ed6ebe8: Stop emitting Content-Length twice, and write cache entries atomically
+
+  Both had been carried as downstream patches against the published package
+  rather than fixed here, so every consumer that upgraded silently lost them.
+
+  `/t/*` passed the transform result's own `Content-Length` through to Hono,
+  which then wrote its own from the body it was handed. Two `Content-Length`
+  headers is a framing error (RFC 9110 8.6): undici rejects the response
+  outright, and a caller proxying this instance over `fetch` can be left
+  awaiting a response that never settles, with no status to report.
+
+  `saveToCache` wrote in place, so a concurrent `existsInCache`/`readFromCache`
+  could observe a half-written entry and hand back a truncated image. It now
+  writes a temp file and renames, which is atomic.
+
 ## 1.1.1
 
 ### Patch Changes
