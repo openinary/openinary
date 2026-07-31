@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, rm } from "node:fs/promises";
-import { remoteSourceUrl, prepareSourceFile } from "./transform-helpers";
+import {
+  remoteSourceUrl,
+  prepareSourceFile,
+  verifyFileExists,
+} from "./transform-helpers";
 
 const ctx = (headers: Record<string, string>): any => ({
   req: { header: (name: string) => headers[name.toLowerCase()] },
@@ -81,6 +85,49 @@ test("a source URL is staged to a temp file, ahead of storage", async () => {
     assert.match(staged, /^\.?\/?temp\//, "staged under ./temp");
     assert.deepEqual([...(await readFile(staged))], [1, 2, 3, 4]);
     await rm(staged, { force: true });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// --- checking the source exists ----------------------------------------
+
+// The regression this exists for. A presigned URL authorizes one method:
+// SigV4 signs the verb, so a URL issued for GET answers 403 to a HEAD. Probing
+// with HEAD reported every existing object as missing, and the transform never
+// ran - against real S3-compatible storage, where a HEAD-signed URL would then
+// have broken the download instead.
+test("existence is probed with GET, never HEAD", async () => {
+  const realFetch = globalThis.fetch;
+  const seen: { method: string; range: string | null }[] = [];
+  globalThis.fetch = (async (_url: any, init: any) => {
+    seen.push({
+      method: init?.method ?? "GET",
+      range: new Headers(init?.headers).get("range"),
+    });
+    // What Filebase, R2 and S3 all answer to a signed GET carrying a range.
+    return new Response(new Uint8Array([1]), { status: 206 });
+  }) as typeof fetch;
+
+  try {
+    const check = await verifyFileExists(null, "photos/a.png", "", SIGNED);
+    assert.equal(check.exists, true);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].method, "GET", "HEAD is refused by a GET-signed URL");
+    assert.equal(seen[0].range, "bytes=0-0", "one byte, not the whole object");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("an absent object still reads as not found", async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response("", { status: 404 })) as typeof fetch;
+  try {
+    const check = await verifyFileExists(null, "photos/gone.png", "", SIGNED);
+    assert.equal(check.exists, false);
+    assert.match(check.error ?? "", /404/);
   } finally {
     globalThis.fetch = realFetch;
   }
