@@ -32,6 +32,13 @@ export interface TransformRequest {
   userAgent: string;
   acceptHeader?: string;
   context: Context;
+  /**
+   * Read the original from here rather than from this instance's storage. Only
+   * ever set on an instance that opted in - see remoteSourceUrl in
+   * routes/transform-helpers. Changes where the source bytes come from and
+   * nothing else: the cache, on both sides, stays this instance's own.
+   */
+  sourceUrl?: string;
 }
 
 export interface TransformResult {
@@ -68,7 +75,7 @@ export class TransformService {
    * Main transformation method that handles the complete flow
    */
   async transform(request: TransformRequest): Promise<TransformResult> {
-    const { path, userAgent, acceptHeader } = request;
+    const { path, userAgent, acceptHeader, sourceUrl } = request;
 
     try {
       // Parse path and parameters
@@ -96,6 +103,7 @@ export class TransformService {
         this.storage,
         filePath,
         localPath,
+        sourceUrl,
       );
       if (!fileCheck.exists) {
         await this.handleFileNotFound(filePath);
@@ -106,7 +114,12 @@ export class TransformService {
       // happens when the URL asks for it, either with explicit parameters or
       // with q_auto for the default optimization.
       if (isVideo(ext) && Object.keys(effectiveParams).length === 0) {
-        return await this.streamOriginalVideo(filePath, localPath, ext);
+        return await this.streamOriginalVideo(
+          filePath,
+          localPath,
+          ext,
+          sourceUrl,
+        );
       }
 
       // Check caches
@@ -145,6 +158,7 @@ export class TransformService {
         cachePath,
         userAgent,
         acceptHeader,
+        sourceUrl,
       );
     } catch (error) {
       return this.handleTransformationError(error, request);
@@ -275,11 +289,17 @@ export class TransformService {
     cachePath: string,
     userAgent?: string,
     acceptHeader?: string,
+    sourceUrl?: string,
   ): Promise<TransformResult> {
     // Video transformations (non-thumbnail) are processed by the background
     // job queue, which downloads its own source copy. Skip prepareSourceFile
     // entirely: downloading the full original here would only delay the
     // response and waste memory/bandwidth.
+    //
+    // That own copy is why sourceUrl stops here: the worker reads the original
+    // through this instance's storage when it picks the job up, which may be
+    // minutes later and long after any signed URL would have expired. A remote
+    // source therefore covers images and video thumbnails, not transcodes.
     const isThumbnailRequest =
       effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
     if (isVideo(ext) && !isThumbnailRequest) {
@@ -297,8 +317,12 @@ export class TransformService {
       this.storage,
       filePath,
       localPath,
+      sourceUrl,
     );
-    const isTempFile = !!this.storage;
+    // A remote source is staged to ./temp the same way a cloud download is, so
+    // it has to be cleaned up the same way. Only the no-storage, no-URL case
+    // reads a file in ./public that must survive the request.
+    const isTempFile = !!this.storage || !!sourceUrl;
 
     try {
       let buffer: Buffer;
@@ -533,6 +557,7 @@ export class TransformService {
     filePath: string,
     localPath: string,
     ext: string,
+    sourceUrl?: string,
   ): Promise<TransformResult> {
     // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
     // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
@@ -546,7 +571,17 @@ export class TransformService {
     try {
       let stream: ReadableStream<Uint8Array>;
 
-      if (this.storage) {
+      if (sourceUrl) {
+        // Passed straight through rather than staged to disk - this route
+        // hands back the untouched original, so there is nothing to process.
+        const response = await fetch(sourceUrl);
+        if (!response.ok || !response.body) {
+          throw new Error(`Source URL answered ${response.status}`);
+        }
+        const length = response.headers.get("content-length");
+        if (length) headers["Content-Length"] = length;
+        stream = response.body;
+      } else if (this.storage) {
         const original = await this.storage.downloadOriginalStream(filePath);
         if (original.contentLength) {
           headers["Content-Length"] = original.contentLength.toString();

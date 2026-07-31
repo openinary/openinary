@@ -174,13 +174,66 @@ export async function checkLocalCache(
 }
 
 /**
- * Verifies that the original file exists (cloud or local)
+ * A URL to read the original from, instead of this instance's own storage.
+ *
+ * It exists for deployments where the originals belong to the end user: a
+ * hosted control plane can hand this instance a short-lived signed URL for one
+ * object, rather than the user's storage credentials. Nothing about the
+ * transform itself changes - only where the source bytes come from.
+ *
+ * Ignored unless ALLOW_REMOTE_SOURCE is set, and that gate is a security
+ * boundary rather than a convenience: /t/* is a public route, so honouring an
+ * arbitrary URL out of a request header would make any reachable instance a
+ * fetch proxy for whatever it can address. Enable it only where the transform
+ * route is not publicly reachable and every caller is trusted.
+ */
+export function remoteSourceUrl(c: Context): string | undefined {
+  if (process.env.ALLOW_REMOTE_SOURCE !== "true") return undefined;
+  const url = c.req.header("x-openinary-source-url");
+  if (!url) return undefined;
+  try {
+    // https only - the URL carries its own authorization in the query string.
+    if (new URL(url).protocol !== "https:") return undefined;
+  } catch {
+    return undefined;
+  }
+  return url;
+}
+
+/**
+ * Verifies that the original file exists (cloud, remote URL, or local)
  */
 export async function verifyFileExists(
   storage: CloudStorage | null,
   filePath: string,
-  localPath: string
+  localPath: string,
+  sourceUrl?: string
 ): Promise<{ exists: boolean; isCloud: boolean; error?: string }> {
+  if (sourceUrl) {
+    // A HEAD rather than trusting the caller: a signed URL that has expired, or
+    // names an object since deleted, has to read as "not found" right here.
+    // Left unchecked it surfaces much later as a truncated download inside
+    // sharp or ffmpeg, where the error says nothing about the real cause.
+    try {
+      const response = await fetch(sourceUrl, { method: "HEAD" });
+      if (response.ok) return { exists: true, isCloud: true };
+      return {
+        exists: false,
+        isCloud: true,
+        error: `File not found: ${filePath}. The source URL answered ${response.status}.`,
+      };
+    } catch (error) {
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Error checking remote source URL"
+      );
+      return {
+        exists: false,
+        isCloud: true,
+        error: "Error checking source URL",
+      };
+    }
+  }
   if (storage) {
     try {
       const exists = await storage.existsOriginal(filePath);
@@ -213,27 +266,54 @@ export async function verifyFileExists(
   }
 }
 
+/** Where a downloaded original is staged for sharp/ffmpeg to read. */
+async function tempPathFor(filePath: string): Promise<string> {
+  const { mkdir } = await import("fs/promises");
+  const path = await import("path");
+  const tempDir = "./temp";
+  await mkdir(tempDir, { recursive: true });
+  return path.join(
+    tempDir,
+    `${crypto.randomUUID()}-${path.basename(filePath)}`,
+  );
+}
+
 /**
  * Prepares the source file for processing (downloads from cloud if needed)
  */
 export async function prepareSourceFile(
   storage: CloudStorage | null,
   filePath: string,
-  localPath: string
+  localPath: string,
+  sourceUrl?: string
 ): Promise<string> {
+  if (sourceUrl) {
+    logger.debug({ filePath }, "Processing from remote source URL");
+    const response = await fetch(sourceUrl);
+    if (!response.ok || !response.body) {
+      throw new Error(
+        `Failed to fetch source (${response.status}) for ${filePath}`,
+      );
+    }
+    const tempPath = await tempPathFor(filePath);
+    // Streamed to disk rather than buffered: an original can weigh hundreds of
+    // MB, and this runs alongside whatever ffmpeg jobs are already resident.
+    const { createWriteStream } = await import("fs");
+    const { Readable } = await import("stream");
+    const { pipeline } = await import("stream/promises");
+    await pipeline(
+      Readable.fromWeb(response.body as any),
+      createWriteStream(tempPath),
+    );
+    return tempPath;
+  }
   if (storage) {
     logger.debug({ filePath }, "Processing from cloud file");
     const sourceBuffer = await storage.downloadOriginal(filePath);
 
     // Temporarily save the file locally for processing
-    const { mkdir, writeFile } = await import("fs/promises");
-    const path = await import("path");
-    const tempDir = "./temp";
-    await mkdir(tempDir, { recursive: true });
-    const tempPath = path.join(
-      tempDir,
-      `${crypto.randomUUID()}-${path.basename(filePath)}`,
-    );
+    const { writeFile } = await import("fs/promises");
+    const tempPath = await tempPathFor(filePath);
     await writeFile(tempPath, sourceBuffer);
     return tempPath;
   } else {

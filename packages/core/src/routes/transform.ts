@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { TransformService } from "../services/transform.service";
 import type { RouteDeps } from "../config/deps";
+import { remoteSourceUrl } from "./transform-helpers";
 import logger, { serializeError } from "../utils/logger";
 
 export function createTransformRoute(deps: RouteDeps) {
@@ -18,6 +19,7 @@ export function createTransformRoute(deps: RouteDeps) {
         userAgent,
         acceptHeader,
         context: c,
+        sourceUrl: remoteSourceUrl(c),
       });
 
       // Set response headers
