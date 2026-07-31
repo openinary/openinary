@@ -108,11 +108,16 @@ export async function saveToCache(cachePath: string, buffer: Buffer): Promise<vo
       await fs.mkdir(cacheDir, { recursive: true });
     }
     
-    await fs.writeFile(cachePath, buffer);
-    
+    // Written to a temp file and renamed rather than written in place: rename
+    // is atomic, so a concurrent existsInCache/readFromCache never observes a
+    // half-written entry and hands back a truncated image.
+    const tmpPath = `${cachePath}.tmp-${process.pid}-${Date.now()}`;
+    await fs.writeFile(tmpPath, buffer);
+    await fs.rename(tmpPath, cachePath);
+
     // Update cache size tracking
     SmartCache['stats'].totalCacheSize += buffer.length;
-    
+
     logger.debug({ cachePath, size: buffer.length }, 'Saved to cache');
   } catch (error) {
     logger.warn({ error: serializeError(error), cachePath }, 'Failed to save to cache');

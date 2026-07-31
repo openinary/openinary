@@ -22,8 +22,17 @@ export function createTransformRoute(deps: RouteDeps) {
         sourceUrl: remoteSourceUrl(c),
       });
 
-      // Set response headers
+      // Set response headers.
+      //
+      // Content-Length is dropped: @hono/node-server writes its own from the
+      // body it is handed, so passing this one through emits the header twice.
+      // Two Content-Lengths is a framing error (RFC 9110 8.6) - undici rejects
+      // the response outright, and a caller proxying this instance over fetch
+      // can be left awaiting a response that never settles, with no status to
+      // report. Seen against a container behind Cloudflare Workers, on the one
+      // route that awaits the transform rather than streaming it.
       Object.entries(result.headers).forEach(([key, value]) => {
+        if (key.toLowerCase() === "content-length") return;
         c.header(key, value);
       });
 
