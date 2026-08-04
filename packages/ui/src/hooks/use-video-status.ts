@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useOpeninary } from "../provider/openinary-provider";
 import { useQueueEvents } from "./use-queue-events";
+import { encodePath } from "../lib/utils";
 
 export type VideoStatus = "unknown" | "processing" | "ready" | "error";
 
@@ -93,7 +94,9 @@ export function useVideoStatus(videoPath: string | null, enabled: boolean = true
 
     const checkStatus = async () => {
       try {
-        const response = await fetch(`${apiBaseUrl}/video-status/${videoPath}`);
+        const response = await fetch(
+          `${apiBaseUrl}/video-status/${encodePath(videoPath)}`,
+        );
 
         if (response.ok) {
           const data: VideoStatusResponse = await response.json();

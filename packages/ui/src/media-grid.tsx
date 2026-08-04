@@ -47,7 +47,7 @@ import {
   ContextMenuTrigger,
 } from "./ui/context-menu";
 import { Checkbox } from "./ui/checkbox";
-import { cn, isMac, toAbsoluteUrl } from "./lib/utils";
+import { cn, encodePath, isMac, toAbsoluteUrl } from "./lib/utils";
 import { useOpeninary } from "./provider/openinary-provider";
 import { VideoThumbnail } from "./components/video-thumbnail";
 import { DefaultDialog } from "./components/default-dialog";
@@ -138,7 +138,7 @@ function getFolderThumbnailUrl(
         : size === "tall"
           ? "w_250,h_500"
           : "w_250,h_250";
-    return `${transformBaseUrl}/t/t_true,tt_5,f_webp,${dims},c_fill,q_70/${item.path}`;
+    return `${transformBaseUrl}/t/t_true,tt_5,f_webp,${dims},c_fill,q_70/${encodePath(item.path)}`;
   }
   const dims =
     size === "large"
@@ -146,7 +146,7 @@ function getFolderThumbnailUrl(
       : size === "tall"
         ? "w_250,h_500"
         : "w_250,h_250";
-  return `${transformBaseUrl}/t/${dims},q_70/${item.path}`;
+  return `${transformBaseUrl}/t/${dims},q_70/${encodePath(item.path)}`;
 }
 
 export interface MediaGridProps {
@@ -500,16 +500,13 @@ export function MediaGrid({
   const handleMediaHover = (media: MediaFile) => {
     const previewUrl =
       media.type === "image"
-        ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-        : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+        ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(media.path)}`
+        : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(media.path)}`;
     preloadMedia(previewUrl, "image");
   };
 
   const handleDownload = (path: string, name: string) => {
-    const downloadUrl = `${apiBaseUrl}/download/${path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/")}`;
+    const downloadUrl = `${apiBaseUrl}/download/${encodePath(path)}`;
     const a = document.createElement("a");
     a.href = downloadUrl;
     a.download = name;
@@ -521,7 +518,7 @@ export function MediaGrid({
 
   const handleCopyUrl = (path: string, id?: string) => {
     navigator.clipboard.writeText(
-      toAbsoluteUrl(`${transformBaseUrl}/t/${path}`),
+      toAbsoluteUrl(`${transformBaseUrl}/t/${encodePath(path)}`),
     );
     toast.success("URL copied to clipboard");
     if (id) {
@@ -534,10 +531,7 @@ export function MediaGrid({
   };
 
   const handleRenameMedia = async (path: string, newName: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
 
     const rename = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -570,10 +564,7 @@ export function MediaGrid({
   };
 
   const handleCopyMedia = async (path: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
 
     const copy = async () => {
       const response = await fetch(
@@ -604,10 +595,7 @@ export function MediaGrid({
   };
 
   const handleMoveMedia = async (path: string, destination: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
 
     const move = async () => {
       const response = await fetch(
@@ -640,10 +628,7 @@ export function MediaGrid({
   };
 
   const handleDeleteMedia = async (path: string, name: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
 
     const del = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -672,10 +657,7 @@ export function MediaGrid({
   };
 
   const handleDownloadFolder = (path: string, name: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
     const a = document.createElement("a");
     a.href = `${apiBaseUrl}/download-folder/${encodedPath}`;
     a.download = `${name}.zip`;
@@ -686,10 +668,7 @@ export function MediaGrid({
   };
 
   const handleRenameFolder = async (path: string, newName: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
 
     const rename = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -727,10 +706,7 @@ export function MediaGrid({
   };
 
   const handleDeleteFolder = async (path: string) => {
-    const encodedPath = path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
+    const encodedPath = encodePath(path);
 
     const del = async () => {
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
@@ -817,10 +793,7 @@ export function MediaGrid({
     const move = async () => {
       const results = await Promise.allSettled(
         entries.map((entry) => {
-          const encodedPath = entry.path
-            .split("/")
-            .map((s) => encodeURIComponent(s))
-            .join("/");
+          const encodedPath = encodePath(entry.path);
           return fetch(`${apiBaseUrl}/storage/${encodedPath}/move`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -861,10 +834,7 @@ export function MediaGrid({
     const del = async () => {
       const results = await Promise.allSettled(
         entries.map((entry) => {
-          const encodedPath = entry.path
-            .split("/")
-            .map((s) => encodeURIComponent(s))
-            .join("/");
+          const encodedPath = encodePath(entry.path);
           return fetch(`${apiBaseUrl}/storage/${encodedPath}`, {
             method: "DELETE",
           }).then((response) => {
@@ -1636,8 +1606,8 @@ export function MediaGrid({
                           // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
                           const thumbnailUrl =
                             media.type === "image"
-                              ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-                              : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+                              ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(media.path)}`
+                              : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(media.path)}`;
                           const isHovered = hoveredId === media.id;
 
                           return (
@@ -1822,8 +1792,8 @@ export function MediaGrid({
                   // second thumbnail variant.
                   const thumbnailUrl =
                     media.type === "image"
-                      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${media.path}`
-                      : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${media.path}`;
+                      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(media.path)}`
+                      : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(media.path)}`;
 
                   return (
                     <div

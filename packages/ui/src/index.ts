@@ -3,7 +3,7 @@
 // banner, not written here — see the build tooling decision in the plan.
 export type { MediaType, MediaFile, StorageFolder, StorageFile, StorageLevel } from "./types";
 export { getMediaType } from "./media-type";
-export { cn, isMac, toAbsoluteUrl } from "./lib/utils";
+export { cn, encodePath, isMac, toAbsoluteUrl } from "./lib/utils";
 export { Spinner } from "./ui/spinner";
 export { Toaster } from "./ui/sonner";
 
