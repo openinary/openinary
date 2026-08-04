@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { DEFAULT_ACCEPT } from "../file-uploader/use-file-upload";
+import { DEFAULT_ACCEPT, validateFile } from "../file-uploader/use-file-upload";
 
 interface UploadResult {
   filename: string;
@@ -68,8 +68,15 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   });
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // webkitdirectory ignores the input's `accept`, so a folder picked here
+    // hands over everything inside it - the dropzone above filters by
+    // DEFAULT_ACCEPT, this path did not, and a single stray .txt or .zip made
+    // the API reject the whole batch. Size is left to the server (Infinity):
+    // this component has no per-plan limit to check against.
     const files = Array.from(e.target.files || []).filter(
-      (file) => !isIgnoredFile(file),
+      (file) =>
+        !isIgnoredFile(file) &&
+        validateFile(file, DEFAULT_ACCEPT, Number.POSITIVE_INFINITY) === null,
     );
     if (files.length > 0) {
       setSelectedFiles(files);

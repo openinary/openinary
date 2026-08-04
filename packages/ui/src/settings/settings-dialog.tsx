@@ -35,7 +35,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[520px] max-w-2xl gap-0 overflow-hidden p-0">
+      <DialogContent className="flex h-[600px] max-w-[750px] gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <div className="flex w-48 shrink-0 flex-col gap-0.5 border-r bg-muted/30 px-3 py-4">
           <span className="px-2 pb-3 text-xs font-medium text-muted-foreground">

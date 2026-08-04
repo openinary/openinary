@@ -22,8 +22,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         unstyled: false,
         classNames: {
+          // inset-x-0 + mx-auto because "!w-fit" above drops the width sonner
+          // positions against: without them the pill is laid out from the
+          // container's left edge and drifts off-centre as its text changes
+          // length, instead of staying centred under the cursor's eye.
           toast:
-            "!w-fit !max-w-[90vw] !rounded-full !gap-3 !py-2.5 !px-4 !shadow-lg",
+            "!w-fit !max-w-[90vw] !rounded-full !gap-3 !py-2.5 !px-4 !shadow-lg !inset-x-0 !mx-auto",
           content: "!flex-none",
           title: "!text-sm !font-medium !whitespace-nowrap",
           description: "!whitespace-nowrap",
