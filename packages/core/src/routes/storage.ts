@@ -5,6 +5,7 @@ import path from "path";
 import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
 import { getUniqueFilePath } from "../utils/get-unique-file-path";
+import { stripUrlHostile } from "../utils/upload-validation";
 import { deleteCachedFiles, getCacheSize, clearAllCache } from "../utils/cache";
 import { sumTreeSize, type StorageNode } from "../utils/storage-tree";
 import {
@@ -700,7 +701,8 @@ export function createStorageRoute(deps: RouteDeps) {
       );
     }
 
-    const newName = typeof body.name === "string" ? body.name.trim() : "";
+    const newName =
+      typeof body.name === "string" ? stripUrlHostile(body.name.trim()) : "";
     if (!newName || newName.includes("/") || newName.includes("\\")) {
       return c.json(
         { error: "Bad request", message: "A valid name is required" },
@@ -813,7 +815,10 @@ export function createStorageRoute(deps: RouteDeps) {
         }
         targetDir =
           typeof body.destination === "string"
-            ? body.destination.trim().replace(/^\/+|\/+$/g, "")
+            ? stripUrlHostile(body.destination.trim()).replace(
+                /^\/+|\/+$/g,
+                "",
+              )
             : "";
 
         if (targetDir === normalizedDir) {
