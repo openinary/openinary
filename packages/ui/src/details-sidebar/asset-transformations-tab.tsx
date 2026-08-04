@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { CopyInput } from "../ui/copy-input";
 import type { MediaFile } from "../types";
+import { encodePath } from "../lib/utils";
 
 interface AssetTransformationsTabProps {
   asset: MediaFile;
@@ -18,11 +19,11 @@ export function AssetTransformationsTab({ asset, apiBaseUrl }: AssetTransformati
           Common Transformations
         </h3>
         <div className="space-y-2">
-          <CopyInput label="Thumbnail (300x300)" value={`${apiBaseUrl}/t/w_300,h_300/${asset.path}`} />
-          <CopyInput label="Medium (800x800)" value={`${apiBaseUrl}/t/w_800,h_800/${asset.path}`} />
-          <CopyInput label="Large (1920x1080)" value={`${apiBaseUrl}/t/w_1920,h_1080/${asset.path}`} />
-          <CopyInput label="WebP Format" value={`${apiBaseUrl}/t/f_webp/${asset.path}`} />
-          <CopyInput label="Quality 80" value={`${apiBaseUrl}/t/q_80/${asset.path}`} />
+          <CopyInput label="Thumbnail (300x300)" value={`${apiBaseUrl}/t/w_300,h_300/${encodePath(asset.path)}`} />
+          <CopyInput label="Medium (800x800)" value={`${apiBaseUrl}/t/w_800,h_800/${encodePath(asset.path)}`} />
+          <CopyInput label="Large (1920x1080)" value={`${apiBaseUrl}/t/w_1920,h_1080/${encodePath(asset.path)}`} />
+          <CopyInput label="WebP Format" value={`${apiBaseUrl}/t/f_webp/${encodePath(asset.path)}`} />
+          <CopyInput label="Quality 80" value={`${apiBaseUrl}/t/q_80/${encodePath(asset.path)}`} />
         </div>
       </div>
     </div>

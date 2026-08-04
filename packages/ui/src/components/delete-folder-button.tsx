@@ -8,6 +8,7 @@ import { invalidateStorage } from "../hooks/use-storage-tree";
 import { useOpeninary } from "../provider/openinary-provider";
 import { toast } from "sonner";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { encodePath } from "../lib/utils";
 
 export function DeleteFolderButton({
   folderPath,
@@ -21,12 +22,7 @@ export function DeleteFolderButton({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleDelete = async () => {
-    // Encode each segment of the path separately to preserve slashes
-    // This is necessary for files in subdirectories
-    const encodedPath = folderPath
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
+    const encodedPath = encodePath(folderPath);
 
     const deleteUrl = `${apiBaseUrl}/storage/${encodedPath}`;
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { toAbsoluteUrl } from "../lib/utils";
+import { encodePath, toAbsoluteUrl } from "../lib/utils";
 import { useOpeninary } from "../provider/openinary-provider";
 import { getMediaType } from "../media-type";
 import { invalidateStorage } from "../hooks/use-storage-tree";
@@ -26,11 +26,7 @@ export function useAssetDetails(
 
   const fetchFileMetadata = async (path: string) => {
     try {
-      // Encode each segment of the path separately to preserve slashes
-      const encodedPath = path
-        .split("/")
-        .map((segment) => encodeURIComponent(segment))
-        .join("/");
+      const encodedPath = encodePath(path);
 
       const response = await fetch(`${apiBaseUrl}/storage/${encodedPath}/metadata`, {
         method: "GET",
@@ -95,12 +91,12 @@ export function useAssetDetails(
   // Resolve to an absolute URL so Copy URL / Open / the displayed field all
   // produce a shareable link even when transformBaseUrl is empty (same-origin
   // Docker deployments where the bundle was built with NEXT_PUBLIC_API_BASE_URL=/api).
-  const mediaUrl = asset ? toAbsoluteUrl(`${transformBaseUrl}/t/${asset.path}`) : "";
+  const mediaUrl = asset ? toAbsoluteUrl(`${transformBaseUrl}/t/${encodePath(asset.path)}`) : "";
   // For preview: use thumbnail extraction for videos with crop mode to avoid stretching
   const previewUrl = asset
     ? asset.type === "image"
-      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${asset.path}`
-      : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${asset.path}`
+      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(asset.path)}`
+      : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(asset.path)}`
     : "";
 
   // Preload preview media when asset changes
@@ -116,10 +112,7 @@ export function useAssetDetails(
 
   const handleDownload = () => {
     if (!asset) return;
-    const downloadUrl = `${apiBaseUrl}/download/${asset.path
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/")}`;
+    const downloadUrl = `${apiBaseUrl}/download/${encodePath(asset.path)}`;
     const a = document.createElement("a");
     a.href = downloadUrl;
     a.download = asset.name;
@@ -155,12 +148,7 @@ export function useAssetDetails(
     const assetName = asset.name;
 
     const del = async () => {
-      // Encode each segment of the path separately to preserve slashes
-      // This is necessary for files in subdirectories
-      const encodedPath = asset.path
-        .split("/")
-        .map((segment) => encodeURIComponent(segment))
-        .join("/");
+      const encodedPath = encodePath(asset.path);
 
       const deleteUrl = `${apiBaseUrl}/storage/${encodedPath}`;
 
