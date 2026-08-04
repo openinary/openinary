@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Skeleton } from "../ui/skeleton";
 import { VideoThumbnail } from "../components/video-thumbnail";
 import type { MediaFile } from "../types";
@@ -11,22 +11,22 @@ interface AssetPreviewProps {
 }
 
 export function AssetPreview({ asset, previewUrl }: AssetPreviewProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-
-  // Reset loading state when previewUrl changes
-  useEffect(() => {
-    setIsLoading(true);
-    setHasError(false);
-  }, [previewUrl]);
+  // Keyed by URL rather than reset in an effect. usePreloadMedia warms the
+  // same URL, so on a revisit the <img> is served from cache and fires load
+  // before the passive effect runs - the effect then set isLoading back to
+  // true with no load event left to clear it, and the preview stayed an empty
+  // grey square until the sidebar was closed and reopened.
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const isLoading = loadedUrl !== previewUrl && failedUrl !== previewUrl;
+  const hasError = failedUrl === previewUrl;
 
   const handleLoad = () => {
-    setIsLoading(false);
+    setLoadedUrl(previewUrl);
   };
 
   const handleError = () => {
-    setIsLoading(false);
-    setHasError(true);
+    setFailedUrl(previewUrl);
   };
 
   return (
@@ -45,6 +45,10 @@ export function AssetPreview({ asset, previewUrl }: AssetPreviewProps) {
               <Skeleton className="absolute inset-0 w-full h-full" />
             )}
             <img
+              // Fresh element per URL, so the load event is guaranteed to
+              // fire for the URL the state above is keyed on rather than
+              // being swallowed by a reused node that already loaded.
+              key={previewUrl}
               src={previewUrl}
               alt={asset.name}
               className={`w-full h-full object-contain transition-opacity duration-200 ${

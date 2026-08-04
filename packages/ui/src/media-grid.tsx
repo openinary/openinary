@@ -482,7 +482,7 @@ export function MediaGrid({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learn More <ArrowUpRight className="mr-2 h-4 w-4" />
+              Learn More <ArrowUpRight className="ml-1 h-4 w-4" />
             </a>
           </Button>
         </Empty>
