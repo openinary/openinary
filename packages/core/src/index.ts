@@ -53,6 +53,10 @@ export { getCachePath } from "./utils/cache";
 export { parseParams } from "./utils/parser";
 export { validateApiSecret } from "./utils/signature";
 export { generateUploadSignature, verifyUploadSignature } from "./utils/upload-signature";
-export { ALLOWED_UPLOAD_TYPES, validateUploadFileType } from "./utils/upload-validation";
+export {
+  ALLOWED_UPLOAD_TYPES,
+  stripUrlHostile,
+  validateUploadFileType,
+} from "./utils/upload-validation";
 export { deleteAssetCompletely, type DeleteAssetResult } from "./utils/asset-deletion";
 export { default as logger, serializeError } from "./utils/logger";

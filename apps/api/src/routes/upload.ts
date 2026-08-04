@@ -9,6 +9,7 @@ import {
   TRANSFORMATION_PRIORITY,
   TransformService,
   generateUploadSignature,
+  stripUrlHostile,
   validateUploadFileType,
   logger,
   serializeError,
@@ -184,7 +185,10 @@ export function createUploadRoute(deps: RouteDeps) {
   }
 
   /**
-   * Sanitizes file path to prevent directory traversal attacks
+   * Sanitizes file path to prevent directory traversal attacks, and strips
+   * the characters that would make the stored key unreachable through a URL
+   * (see stripUrlHostile). Both write routes below - file upload and folder
+   * creation - go through here, so nothing enters storage unaddressable.
    */
   function sanitizePath(filepath: string): string {
     // Remove leading slashes and any parent directory references
@@ -196,7 +200,7 @@ export function createUploadRoute(deps: RouteDeps) {
     // Remove any remaining dangerous patterns
     sanitized = sanitized.replace(/\/+/g, "/"); // Multiple slashes
 
-    return sanitized;
+    return stripUrlHostile(sanitized);
   }
 
   /**
