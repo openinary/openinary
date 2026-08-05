@@ -215,7 +215,18 @@ export class CloudStorage implements StatsBackend {
     }
 
     // Only if not in cache
-    const exists = await this.s3Client.objectExists(key);
+    let exists: boolean;
+    try {
+      exists = await this.s3Client.objectExists(key);
+    } catch (error: any) {
+      // Transient storage error: report "not found" for this request
+      // but don't cache the verdict - the next request re-checks.
+      logger.error(
+        { error: error.message, originalPath },
+        "Cloud storage error while checking transformed file",
+      );
+      return false;
+    }
 
     this.cache.set(cacheKey, {
       exists,
@@ -294,10 +305,8 @@ export class CloudStorage implements StatsBackend {
         "Cloud storage error while checking original path",
       );
 
-      this.cache.set(cacheKey, {
-        exists: false,
-        timestamp: Date.now(),
-      });
+      // Deliberately NOT cached: a transient storage error must not
+      // pin "file missing" for NEGATIVE_CACHE_TTL on this instance.
       return false;
     }
   }

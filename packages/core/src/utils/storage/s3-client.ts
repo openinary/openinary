@@ -62,8 +62,16 @@ export class S3ClientWrapper {
         }),
       );
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      // Only a real 404 means the object is absent. Anything else
+      // (network timeout, throttling, TLS reset during cold start) must
+      // not masquerade as "not found": callers cache that verdict for
+      // 30s per instance, turning one transient hiccup into a sticky
+      // "File not found" 404 for an object that exists.
+      if (error?.$metadata?.httpStatusCode === 404 || error?.name === "NotFound") {
+        return false;
+      }
+      throw error;
     }
   }
 
