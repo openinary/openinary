@@ -161,6 +161,10 @@ export interface MediaGridProps {
   onFolderPathChange?: (folderPath: string | null) => void;
   /** Overrides for the beam around the empty-state upload button. Merged over the defaults, so any subset wins. Pass `active: false` to stop the animation. */
   beamProps?: Omit<BorderBeamProps, "children">;
+  /** Replaces the empty-state action row (upload button + docs link). Hosts with their own onboarding route swap in their own CTAs here. */
+  emptyActions?: React.ReactNode;
+  /** Replaces the empty-state footer link ("Learn More"). */
+  emptyFooter?: React.ReactNode;
 }
 
 export function MediaGrid({
@@ -172,6 +176,8 @@ export function MediaGrid({
   folderPath = null,
   onFolderPathChange,
   beamProps,
+  emptyActions,
+  emptyFooter,
 }: MediaGridProps) {
   const { apiBaseUrl, transformBaseUrl, fetch } = useOpeninary();
   const [hideThumbnails] = useHideThumbnails();
@@ -450,41 +456,45 @@ export function MediaGrid({
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <div className="flex gap-2">
-              <BorderBeam
-                size="pulse-outside"
-                colorVariant="colorful"
-                strength={0.7}
-                theme={resolvedTheme === "light" ? "light" : "dark"}
-                {...beamProps}
-              >
-                <UploadButtonWithDialog />
-              </BorderBeam>
-              <Button variant="outline" asChild>
-                <a
-                  href="https://docs.openinary.dev/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+            {emptyActions ?? (
+              <div className="flex gap-2">
+                <BorderBeam
+                  size="pulse-outside"
+                  colorVariant="colorful"
+                  strength={0.7}
+                  theme={resolvedTheme === "light" ? "light" : "dark"}
+                  {...beamProps}
                 >
-                  Docs
-                </a>
-              </Button>
-            </div>
+                  <UploadButtonWithDialog />
+                </BorderBeam>
+                <Button variant="outline" asChild>
+                  <a
+                    href="https://docs.openinary.dev/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Docs
+                  </a>
+                </Button>
+              </div>
+            )}
           </EmptyContent>
-          <Button
-            variant="link"
-            asChild
-            className="text-muted-foreground"
-            size="sm"
-          >
-            <a
-              href="https://docs.openinary.dev/"
-              target="_blank"
-              rel="noopener noreferrer"
+          {emptyFooter ?? (
+            <Button
+              variant="link"
+              asChild
+              className="text-muted-foreground"
+              size="sm"
             >
-              Learn More <ArrowUpRight className="ml-1 h-4 w-4" />
-            </a>
-          </Button>
+              <a
+                href="https://docs.openinary.dev/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Learn More <ArrowUpRight className="ml-1 h-4 w-4" />
+              </a>
+            </Button>
+          )}
         </Empty>
       </div>
     );
