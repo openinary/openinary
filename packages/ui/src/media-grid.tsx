@@ -1118,30 +1118,18 @@ export function MediaGrid({
                         const renderPreview = (
                           item: { path: string; type: "image" | "video" },
                           size: "square" | "tall" | "large",
-                        ) =>
-                          item.type === "video" ? (
-                            <VideoThumbnail
-                              src={getFolderThumbnailUrl(
-                                transformBaseUrl,
-                                item,
-                                size,
-                              )}
-                              alt=""
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <img
-                              src={getFolderThumbnailUrl(
-                                transformBaseUrl,
-                                item,
-                                size,
-                              )}
-                              alt=""
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          );
+                        ) => (
+                          <VideoThumbnail
+                            src={getFolderThumbnailUrl(
+                              transformBaseUrl,
+                              item,
+                              size,
+                            )}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        );
                         return (
                           <ContextMenu
                             key={folder.path}
@@ -1655,13 +1643,6 @@ export function MediaGrid({
                                   </div>
                                   {hideThumbnails ? (
                                     <FileTypeIcon type={media.type} />
-                                  ) : media.type === "image" ? (
-                                    <img
-                                      src={thumbnailUrl}
-                                      alt={media.name}
-                                      className="w-full h-full object-cover transition-transform group-hover:scale-105 group-data-[state=open]:scale-105"
-                                      loading="lazy"
-                                    />
                                   ) : (
                                     <VideoThumbnail
                                       src={thumbnailUrl}
@@ -1838,13 +1819,6 @@ export function MediaGrid({
                             >
                               {hideThumbnails ? (
                                 <FileTypeIcon type={media.type} />
-                              ) : media.type === "image" ? (
-                                <img
-                                  src={thumbnailUrl}
-                                  alt={media.name}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
                               ) : (
                                 <VideoThumbnail
                                   src={thumbnailUrl}
