@@ -154,7 +154,11 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   };
 
   return (
-    <section className="flex-1">
+    // min-w-0: DefaultDialog's DialogContent is a grid, and a grid child's
+    // min-width defaults to its content - one unbreakable filename would
+    // otherwise stretch this section wider than the dialog and defeat every
+    // `truncate` below, which only ellipsizes once ancestor width is capped.
+    <section className="flex-1 min-w-0">
       <div className="space-y-4">
         {/* Hidden folder input */}
         <input

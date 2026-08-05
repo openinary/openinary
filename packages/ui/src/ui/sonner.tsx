@@ -28,9 +28,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
           // length, instead of staying centred under the cursor's eye.
           toast:
             "!w-fit !max-w-[90vw] !rounded-full !gap-3 !py-2.5 !px-4 !shadow-lg !inset-x-0 !mx-auto",
-          content: "!flex-none",
-          title: "!text-sm !font-medium !whitespace-nowrap",
-          description: "!whitespace-nowrap",
+          // flex-initial + min-w-0, not flex-none: the pill still hugs short
+          // text (no grow), but once it hits max-w the content may shrink -
+          // flex-none pinned it at the intrinsic width of the nowrap title,
+          // so a long filename pushed the text out of the pill. truncate
+          // ellipsizes what no longer fits.
+          content: "!flex-initial !min-w-0",
+          title: "!text-sm !font-medium !truncate",
+          description: "!truncate",
           icon: "!m-0",
           actionButton:
             "!ml-1 !h-7 !shrink-0 !whitespace-nowrap !rounded-full !bg-white/15 !px-3 !text-xs !font-semibold !text-white hover:!bg-white/25",
