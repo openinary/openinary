@@ -1,5 +1,11 @@
 # @openinary/ui
 
+## 0.8.1
+
+### Patch Changes
+
+- d2153b8: MediaGrid: new `emptyActions` and `emptyFooter` props to replace the empty-state CTAs (defaults unchanged). Long filenames no longer overflow: the upload dialog's file list stays inside the dialog (grid min-width fix) and toast titles truncate instead of stretching the pill across the viewport.
+
 ## 0.8.0
 
 ### Minor Changes
