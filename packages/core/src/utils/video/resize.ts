@@ -28,21 +28,40 @@ export const applyResize: TransformFunction = (
     h = typeof height === 'string' ? parseInt(height, 10) : height;
   }
 
-  // Skip if no valid dimensions
-  if (!w || !h || isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
+  // One dimension is enough - see the scale filter below. Requiring both
+  // meant w_303 alone fell through untouched: the video was still fully
+  // re-encoded (minutes of container time, billed to the customer) and came
+  // back at its original size, so the transform silently did nothing.
+  const valid = (n: number | undefined): n is number =>
+    n !== undefined && !isNaN(n) && n > 0;
+  if (!valid(w) && !valid(h)) {
     return command;
   }
 
-  // Apply resize based on crop mode
-  if (crop === 'fill' || crop === 'crop') {
+  // setsar=1 on every branch: ffmpeg's scale filter keeps the *display*
+  // aspect ratio by rewriting the sample aspect ratio, so a source with a
+  // non-square SAR came out with the requested pixel dimensions but was
+  // still displayed at the original shape (w_300,h_300 on a 16:9 source
+  // encoded 300x300 with SAR 16:9, i.e. a 533x300 picture in every player).
+  // Cropping needs a box to crop to, so it still takes both dimensions;
+  // with only one given, fall through to the plain scale below.
+  if ((crop === 'fill' || crop === 'crop') && valid(w) && valid(h)) {
     // Cover behavior (no stretching):
     // 1) scale until the smallest side reaches the target, preserving aspect ratio
     // 2) crop to exact WxH from the center
-    const filter = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h}`;
+    const filter = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1`;
     return command.videoFilters(filter);
   } else {
     // Backwards-compatible behavior: simple resize to exact dimensions,
-    // which may stretch to fit
-    return command.size(`${w}x${h}`);
+    // which may stretch to fit. Emitted as a filter rather than .size()
+    // because fluent-ffmpeg appends its size filters *after* videoFilters,
+    // so setsar=1 could not be chained behind that scale.
+    // Dimensions rounded to multiples of 2, as .size() did - h264 refuses
+    // odd ones. -2 for a side that wasn't asked for: ffmpeg derives it
+    // from the source aspect ratio, already rounded to an even number.
+    const even = (n: number): number => Math.round(n / 2) * 2;
+    const sw = valid(w) ? even(w) : -2;
+    const sh = valid(h) ? even(h) : -2;
+    return command.videoFilters(`scale=${sw}:${sh},setsar=1`);
   }
 };
