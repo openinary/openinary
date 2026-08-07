@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { TransformService } from "../services/transform.service";
 import type { RouteDeps } from "../config/deps";
 import { remoteSourceUrl } from "./transform-helpers";
+import { contentTypeForExt } from "../utils/upload-validation";
 import logger, { serializeError } from "../utils/logger";
 
 export function createTransformRoute(deps: RouteDeps) {
@@ -43,27 +44,20 @@ export function createTransformRoute(deps: RouteDeps) {
         c.header(key, value);
       });
 
-      // Determine content type if not set in headers
-      if (!result.contentType) {
-        // Extract file extension from path
-        const ext = path.split(".").pop()?.toLowerCase();
-        const contentTypeMap: Record<string, string> = {
-          jpg: "image/jpeg",
-          jpeg: "image/jpeg",
-          png: "image/png",
-          webp: "image/webp",
-          avif: "image/avif",
-          gif: "image/gif",
-          mp4: "video/mp4",
-          mov: "video/quicktime",
-          webm: "video/webm",
-        };
-        const contentType =
-          contentTypeMap[ext || ""] || "application/octet-stream";
-        c.header("Content-Type", contentType);
-      } else {
-        c.header("Content-Type", result.contentType);
-      }
+      // A stored original is served back untouched, so a file whose bytes are
+      // markup must not be allowed to become HTML in the browser: without this
+      // it would run as a page on our own origin. Set on every response - the
+      // transformed ones are re-encoded and safe already, but the header costs
+      // nothing and this way no delivery path is left uncovered.
+      c.header("X-Content-Type-Options", "nosniff");
+
+      // Determine content type if not set in headers. Falls back to the shared
+      // media-type table rather than a local map, so an extension can never be
+      // labelled here differently from how it is labelled at upload.
+      c.header(
+        "Content-Type",
+        result.contentType || contentTypeForExt(path.split(".").pop()),
+      );
 
       // Large payloads (e.g. untransformed originals) are streamed
       if (result.stream) {

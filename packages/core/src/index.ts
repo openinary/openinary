@@ -57,6 +57,9 @@ export {
   ALLOWED_UPLOAD_TYPES,
   stripUrlHostile,
   validateUploadFileType,
+  validateUploadContent,
+  contentTypeForExt,
+  allowedUploadExtensions,
 } from "./utils/upload-validation";
 export { deleteAssetCompletely, type DeleteAssetResult } from "./utils/asset-deletion";
 export { default as logger, serializeError } from "./utils/logger";

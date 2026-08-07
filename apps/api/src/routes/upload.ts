@@ -11,6 +11,8 @@ import {
   generateUploadSignature,
   stripUrlHostile,
   validateUploadFileType,
+  validateUploadContent,
+  allowedUploadExtensions,
   logger,
   serializeError,
   type RouteDeps,
@@ -441,7 +443,7 @@ export function createUploadRoute(deps: RouteDeps) {
         if (!validateUploadFileType(filename, mimeType)) {
           failedUploads.push({
             filename: rawSanitizedPath,
-            error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif, psd) and videos (mp4, mov, webm)`,
+            error: `Invalid file type: ${mimeType}. Allowed extensions: ${allowedUploadExtensions().join(", ")}`,
           });
           continue;
         }
@@ -450,6 +452,17 @@ export function createUploadRoute(deps: RouteDeps) {
           // Convert File to Buffer
           const arrayBuffer = await file.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
+
+          // Validate the bytes, not just what the client called them. Checked
+          // before normalizeUploadFormat so the signature is matched against
+          // the file as uploaded (heic is transcoded below).
+          if (!validateUploadContent(filename, buffer)) {
+            failedUploads.push({
+              filename: rawSanitizedPath,
+              error: `File content does not match its ${path.extname(filename).toLowerCase() || "file"} type`,
+            });
+            continue;
+          }
 
           const {
             buffer: normalizedBuffer,
