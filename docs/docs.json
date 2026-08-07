@@ -77,6 +77,11 @@
             ]
           },
           {
+            "group": "Integrate",
+            "icon": "plug",
+            "pages": ["guides/integrate/nextjs", "guides/integrate/react"]
+          },
+          {
             "group": "Components",
             "icon": "puzzle-piece",
             "pages": ["guides/file-uploader"]
