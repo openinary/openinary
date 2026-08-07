@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "registry:build": "shadcn build --output ../../r",
+    "registry:build": "shadcn build --output ../../r && prettier --write ../../r",
     "test": "node --import tsx --test $(find src -name '*.test.ts')",
     "type-check": "tsc --noEmit"
   },
@@ -12,6 +12,7 @@
     "@types/node": "^24.2.0",
     "@types/react": "^19",
     "lucide-react": "^0.536.0",
+    "prettier": "^3.8.1",
     "react": "^19",
     "shadcn": "^3",
     "tsx": "^4.7.0",
