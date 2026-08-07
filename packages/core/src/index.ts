@@ -57,6 +57,7 @@ export {
   ALLOWED_UPLOAD_TYPES,
   stripUrlHostile,
   validateUploadFileType,
+  validateUploadContent,
   contentTypeForExt,
   allowedUploadExtensions,
 } from "./utils/upload-validation";

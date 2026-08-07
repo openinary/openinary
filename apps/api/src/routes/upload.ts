@@ -11,6 +11,7 @@ import {
   generateUploadSignature,
   stripUrlHostile,
   validateUploadFileType,
+  validateUploadContent,
   allowedUploadExtensions,
   logger,
   serializeError,
@@ -451,6 +452,17 @@ export function createUploadRoute(deps: RouteDeps) {
           // Convert File to Buffer
           const arrayBuffer = await file.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
+
+          // Validate the bytes, not just what the client called them. Checked
+          // before normalizeUploadFormat so the signature is matched against
+          // the file as uploaded (heic is transcoded below).
+          if (!validateUploadContent(filename, buffer)) {
+            failedUploads.push({
+              filename: rawSanitizedPath,
+              error: `File content does not match its ${path.extname(filename).toLowerCase() || "file"} type`,
+            });
+            continue;
+          }
 
           const {
             buffer: normalizedBuffer,
