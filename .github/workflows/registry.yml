@@ -7,14 +7,14 @@ on:
     paths:
       - 'packages/registry/**'
       - 'packages/ui/src/file-uploader/**'
-      - 'apps/api/src/utils/upload-token.ts'
+      - 'packages/core/src/utils/upload-signature.ts'
       - 'r/**'
       - '.github/workflows/registry.yml'
   pull_request:
     paths:
       - 'packages/registry/**'
       - 'packages/ui/src/file-uploader/**'
-      - 'apps/api/src/utils/upload-token.ts'
+      - 'packages/core/src/utils/upload-signature.ts'
       - 'r/**'
       - '.github/workflows/registry.yml'
   workflow_dispatch: {}
@@ -51,8 +51,8 @@ jobs:
       - name: Type-check registry
         run: pnpm --filter registry type-check
 
-      - name: Test upload token (unit + cross-check with registry helper)
-        run: pnpm --filter api test
+      - name: Test the upload signature the registry helper depends on
+        run: pnpm --filter @openinary/core test
 
       - name: Rebuild registry
         run: pnpm --filter registry registry:build
