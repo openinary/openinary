@@ -195,6 +195,8 @@ export function Uploader() {
   ```text
   https://cdn.openinary.dev/b/{bucketId}/t/w_600,c_fill,f_webp/uploads/photo.jpg
   ```
+
+  To display the file that was just uploaded, use it unchanged, see [Showing the file you just uploaded](#showing-the-file-you-just-uploaded).
 </ResponseField>
 
 <ResponseField name="filename" type="string">
@@ -204,6 +206,24 @@ export function Uploader() {
 <Note>
   HEIC/HEIF files are converted to JPEG on upload, so `path` may end in `.jpg`.
 </Note>
+
+## Showing the file you just uploaded
+
+Render it once, as the original, and never swap it for another URL afterwards. `url` already points at `/t/{path}` with no transformation segment, so use it as it comes:
+
+```tsx
+onSuccess={(files) => {
+  setImage(`${process.env.NEXT_PUBLIC_OPENINARY_URL}${files[0].url}`);
+}}
+```
+
+That form is served straight from storage, so it renders on the first try, every time.
+
+A sized transformation can't promise the same, because it's generated on demand: the first request for one returns `202 {"status":"processing"}` rather than bytes, and an `<img>` can't decode a JSON body, it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame. Transformed URLs are for the next page load, once the file is at rest.
+
+<Warning>
+  A confirmation, not a gallery. The original is full-size bytes and one CDN request, which is right for the single file that just arrived and wrong for a grid of fifty, use transformations there. Only jpg, png, webp, avif and gif decode in a browser, anything else is a link. And drop the component's local preview once the upload finishes rather than showing both, that second copy is the same swap.
+</Warning>
 
 ## Cloud-specific behaviour
 
@@ -252,6 +272,10 @@ See [Errors](/cloud/api#errors) and [Plans and limits](/cloud/overview#plans-and
 
   <Accordion title="Files land in the wrong folder">
     On Cloud the destination comes from the **signature**, not the component. Fix the `folder` you pass to `signUpload` on your backend.
+  </Accordion>
+
+  <Accordion title="The uploaded image appears after a delay, or flashes broken first">
+    You're rendering a transformation of a file that was just uploaded, so your own request is the one generating it and it answers `202` before it answers bytes. Show the original instead, see [Showing the file you just uploaded](#showing-the-file-you-just-uploaded). Retrying on a visible `<img>` makes it worse, every cycle paints the broken state again.
   </Accordion>
 
   <Accordion title="CORS error in the console">
