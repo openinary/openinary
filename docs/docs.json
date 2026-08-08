@@ -204,5 +204,11 @@
       "github": "https://github.com/openinary/openinary",
       "linkedin": "https://www.linkedin.com/in/florian-heysen/"
     }
+  },
+  "integrations": {
+    "posthog": {
+      "apiKey": "phc_kSWX2q7bTDJPoqv5oLWAYzShJ5u7kaqjgzAzeosShVzc",
+      "sessionRecording": true
+    }
   }
 }
