@@ -18,7 +18,7 @@ export const applyResize: TransformFunction = (
   const valid = (n: number | undefined): n is number =>
     n !== undefined && !isNaN(n) && n > 0;
   if (!valid(width) && !valid(height)) {
-    return command;
+    return;
   }
 
   // setsar=1 on every branch: ffmpeg's scale filter keeps the *display*
@@ -56,7 +56,6 @@ export const applyResize: TransformFunction = (
           outputs: "resizesar",
         },
       ],
-
       outputVideoStream: "resizesar",
     };
   } else {
