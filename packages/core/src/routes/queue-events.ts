@@ -118,7 +118,7 @@ export function createQueueEventsRoute(deps: RouteDeps) {
         try {
           sendSSE(client, "heartbeat", { timestamp: Date.now() });
           client.lastHeartbeat = Date.now();
-        } catch (error) {
+        } catch {
           // Connection closed, cleanup
           clearInterval(heartbeatInterval);
           clients.delete(clientId);

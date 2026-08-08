@@ -22,7 +22,8 @@ import {
   contentTypeForFormat,
   determineOutputFormat,
 } from "../utils/video/format";
-import { CombindedTransformParams, VideoTransformParams } from "../../types";
+import path from "path";
+import { CombindedTransformParams } from "types";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -80,8 +81,8 @@ export class TransformService {
 
     try {
       // Parse path and parameters
-      const segments = path.split("/").slice(2); // Remove '/t' prefix
-      const params = parseParams(path);
+      const segments = pathname.split("/").slice(2); // Remove '/t' prefix
+      const params = parseParams(pathname);
 
       // Determine file path segments
       const hasTransform = this.hasTransformSegment(segments);
@@ -138,7 +139,7 @@ export class TransformService {
 
       // Process the file
       return await this.processFile(
-        path,
+        pathname,
         filePath,
         localPath,
         ext,
@@ -276,14 +277,18 @@ export class TransformService {
     cachePath: string,
     userAgent?: string,
     acceptHeader?: string,
+    sourceUrl?: string,
   ): Promise<TransformResult> {
     // Video transformations (non-thumbnail) are processed by the background
     // job queue, which downloads its own source copy. Skip prepareSourceFile
     // entirely: downloading the full original here would only delay the
     // response and waste memory/bandwidth.
-    const isThumbnailRequest =
-      effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
-    if (ext?.match(/mp4|mov|webm/) && !isThumbnailRequest) {
+    //
+    // That own copy is why sourceUrl stops here: the worker reads the original
+    // through this instance's storage when it picks the job up, which may be
+    // minutes later and long after any signed URL would have expired. A remote
+    // source therefore covers images and video thumbnails, not transcodes.
+    if (isVideo(ext) && !effectiveParams.thumbnail) {
       return await this.handleVideoJobQueue(
         requestPath,
         filePath,
@@ -298,6 +303,7 @@ export class TransformService {
       this.storage,
       filePath,
       localPath,
+      sourceUrl,
     );
 
     if (effectiveParams.overlayPath) {

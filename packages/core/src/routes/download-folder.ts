@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
-import { zipSync, strToU8 } from "fflate";
+import { zipSync } from "fflate";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";

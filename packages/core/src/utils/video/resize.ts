@@ -1,4 +1,4 @@
-import type { TransformFunction } from './types';
+import type { TransformFunction } from "./types";
 
 /**
  * Apply resize transformation to a video
@@ -6,27 +6,10 @@ import type { TransformFunction } from './types';
  */
 export const applyResize: TransformFunction = (
   command,
-  context
+  outputVideoStream,
+  context,
 ) => {
-  const { resize, width, height, crop } = context.params;
-
-  let w: number | undefined;
-  let h: number | undefined;
-
-  // Parse dimensions from resize parameter
-  if (resize) {
-    const [wStr, hStr] = resize.split('x');
-    w = wStr ? parseInt(wStr, 10) : undefined;
-    h = hStr ? parseInt(hStr, 10) : undefined;
-  }
-
-  // Individual width/height parameters take precedence
-  if (width !== undefined) {
-    w = typeof width === 'string' ? parseInt(width, 10) : width;
-  }
-  if (height !== undefined) {
-    h = typeof height === 'string' ? parseInt(height, 10) : height;
-  }
+  const { width, height, crop } = context.params;
 
   // One dimension is enough - see the scale filter below. Requiring both
   // meant w_303 alone fell through untouched: the video was still fully
@@ -34,7 +17,7 @@ export const applyResize: TransformFunction = (
   // back at its original size, so the transform silently did nothing.
   const valid = (n: number | undefined): n is number =>
     n !== undefined && !isNaN(n) && n > 0;
-  if (!valid(w) && !valid(h)) {
+  if (!valid(width) && !valid(height)) {
     return command;
   }
 
@@ -45,23 +28,60 @@ export const applyResize: TransformFunction = (
   // encoded 300x300 with SAR 16:9, i.e. a 533x300 picture in every player).
   // Cropping needs a box to crop to, so it still takes both dimensions;
   // with only one given, fall through to the plain scale below.
-  if ((crop === 'fill' || crop === 'crop') && valid(w) && valid(h)) {
+  if ((crop === "fill" || crop === "crop") && valid(w) && valid(h)) {
     // Cover behavior (no stretching):
     // 1) scale until the smallest side reaches the target, preserving aspect ratio
     // 2) crop to exact WxH from the center
-    const filter = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1`;
-    return command.videoFilters(filter);
+
+    //const filter = `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
+    //return { command: command.videoFilters(filter) };
+    return {
+      complexFilters: [
+        {
+          filter: "scale",
+          options: `${width}:${height}:force_original_aspect_ratio=increase`,
+          inputs: outputVideoStream,
+          outputs: "scaled",
+        },
+        {
+          filter: "crop",
+          options: `${width}:${height}`,
+          inputs: "scaled",
+          outputs: "cropped",
+        },
+        {
+          filter: "setsar",
+          options: "1",
+          inputs: "cropped",
+          outputs: "resizesar",
+        },
+      ],
+
+      outputVideoStream: "resizesar",
+    };
   } else {
     // Backwards-compatible behavior: simple resize to exact dimensions,
-    // which may stretch to fit. Emitted as a filter rather than .size()
-    // because fluent-ffmpeg appends its size filters *after* videoFilters,
-    // so setsar=1 could not be chained behind that scale.
+    // which may stretch to fit
     // Dimensions rounded to multiples of 2, as .size() did - h264 refuses
     // odd ones. -2 for a side that wasn't asked for: ffmpeg derives it
     // from the source aspect ratio, already rounded to an even number.
-    const even = (n: number): number => Math.round(n / 2) * 2;
-    const sw = valid(w) ? even(w) : -2;
-    const sh = valid(h) ? even(h) : -2;
-    return command.videoFilters(`scale=${sw}:${sh},setsar=1`);
+
+    return {
+      complexFilters: [
+        {
+          filter: "scale",
+          options: `${width}:${height}`,
+          inputs: outputVideoStream,
+          outputs: "scaled",
+        },
+        {
+          filter: "setsar",
+          options: "1",
+          inputs: "scaled",
+          outputs: "resizesar",
+        },
+      ],
+      outputVideoStream: "resizesar",
+    };
   }
 };

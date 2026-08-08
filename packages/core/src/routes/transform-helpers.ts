@@ -12,8 +12,8 @@ import {
   readFromCache,
   SmartCache,
 } from "../utils/cache";
-import { CombindedTransformParams, ImageTransformParams } from "shared";
 import fs from "fs/promises";
+import { CombindedTransformParams, ImageTransformParams } from "types";
 
 /**
  * Sets the Content-Type header based on file extension or content-type string

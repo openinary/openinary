@@ -8,6 +8,7 @@ import type {
   JobStatus,
   VideoJobStore,
 } from "./queue-store";
+import { VideoTransformParams } from "types";
 
 /**
  * Normalize params to a consistent JSON string. Sorts keys alphabetically so
@@ -39,7 +40,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
 
   createJob(
     filePath: string,
-    params: ReturnType<typeof parseParams>,
+    params: VideoTransformParams,
     cachePath: string,
     priority: number = 2,
   ): string {
@@ -192,7 +193,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
 
   getJobByFileAndParams(
     filePath: string,
-    params: ReturnType<typeof parseParams>,
+    params: VideoTransformParams,
   ): VideoJob | null {
     try {
       const paramsJson = normalizeParamsJson(params);
