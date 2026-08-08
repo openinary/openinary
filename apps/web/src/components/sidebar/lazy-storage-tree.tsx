@@ -14,14 +14,8 @@ import {
   useStorageLevel,
   type StorageFile,
   type StorageFolder,
-} from "@/hooks/use-storage-tree";
-
-type MediaFile = {
-  id: string;
-  name: string;
-  path: string;
-  type: "image" | "video";
-};
+  type MediaFile,
+} from "@openinary/ui";
 
 interface LazyStorageTreeProps {
   onMediaSelect?: (media: MediaFile) => void;

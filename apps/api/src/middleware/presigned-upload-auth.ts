@@ -1,7 +1,6 @@
 import { Context, Next } from "hono";
 import { AuthVariables, authenticateRequest } from "./auth";
-import { verifyUploadSignature } from "../utils/upload-signature";
-import logger, { serializeError } from "../utils/logger";
+import { verifyUploadSignature, logger, serializeError } from "@openinary/core";
 
 /**
  * Allows POST /upload requests to authenticate either with a real API key /

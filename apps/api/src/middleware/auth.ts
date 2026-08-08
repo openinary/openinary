@@ -1,6 +1,6 @@
 import { Context, Next } from "hono";
 import { auth } from "shared/auth";
-import logger, { serializeError } from "../utils/logger";
+import { logger, serializeError } from "@openinary/core";
 
 // Define the variables that will be available in the context
 export type AuthVariables = {

@@ -16,8 +16,8 @@ import {
   FormLabel,
   FormMessage,
 } from "./ui/form";
-import { DeleteConfirmDialog } from "./delete-confirm-dialog";
-import { CopyInput } from "./ui/copy-input";
+import { DeleteConfirmDialog } from "@openinary/ui";
+import { CopyInput } from "@openinary/ui";
 import { Separator } from "./ui/separator";
 import {
   Table,

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@source "../../../../packages/ui/src";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -41,6 +43,68 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Fades the top and bottom edges of a scrollable area as it scrolls. Lives
+   here rather than in @openinary/ui because that package ships JS only, so
+   every consumer declares the utilities its class names rely on. */
+@property --scroll-fade-t {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-b {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes scroll-fade-t {
+  from {
+    --scroll-fade-t: 0px;
+  }
+  to {
+    --scroll-fade-t: var(--scroll-fade-size);
+  }
+}
+
+@keyframes scroll-fade-b {
+  from {
+    --scroll-fade-b: var(--scroll-fade-size);
+  }
+  to {
+    --scroll-fade-b: 0px;
+  }
+}
+
+@utility scroll-fade {
+  --scroll-fade-size: 2rem;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--scroll-fade-t),
+    #000 calc(100% - var(--scroll-fade-b)),
+    transparent
+  );
+
+  /* Both sizes stay 0 while the timeline is inactive, which is what makes
+     content that doesn't overflow come out unfaded. */
+  @supports (animation-timeline: scroll(self block)) {
+    animation:
+      scroll-fade-t linear both,
+      scroll-fade-b linear both;
+    animation-timeline: scroll(self block);
+    animation-range:
+      0 var(--scroll-fade-size),
+      calc(100% - var(--scroll-fade-size)) 100%;
+  }
+
+  /* No timelines: the animations would settle on their end state (a permanent
+     top fade, no bottom one), so drop them and keep a static bottom fade. */
+  @supports not (animation-timeline: scroll(self block)) {
+    --scroll-fade-b: var(--scroll-fade-size);
+  }
 }
 
 :root {

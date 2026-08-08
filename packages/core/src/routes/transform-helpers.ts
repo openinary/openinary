@@ -1,0 +1,591 @@
+import { Context } from "hono";
+import { existsSync } from "fs";
+import { CloudStorage } from "../utils/storage/index";
+import { parseParams } from "../utils/parser";
+import { transformImage } from "../utils/image/index";
+import { transformVideo } from "../utils/video/index";
+import { Compression } from "../utils/image/compression";
+import logger, { serializeError } from "../utils/logger";
+import {
+  existsInCache,
+  saveToCache,
+  readFromCache,
+  SmartCache,
+} from "../utils/cache";
+import { CombindedTransformParams, ImageTransformParams } from "shared";
+import fs from "fs/promises";
+
+/**
+ * Sets the Content-Type header based on file extension or content-type string
+ * Accepts either an extension (e.g., "jpg", "png") or a full content-type (e.g., "image/avif")
+ */
+export function setContentTypeHeader(
+  c: Context,
+  extensionOrContentType: string | undefined,
+): void {
+  if (!extensionOrContentType) return;
+
+  // If it's already a content-type (starts with "image/" or "video/"), use it directly
+  if (
+    extensionOrContentType.startsWith("image/") ||
+    extensionOrContentType.startsWith("video/")
+  ) {
+    c.header("Content-Type", extensionOrContentType);
+    return;
+  }
+
+  // Otherwise, treat it as an extension
+  const contentTypeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    avif: "image/avif",
+    gif: "image/gif",
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+  };
+
+  const normalizedExt = extensionOrContentType.toLowerCase();
+  const contentType = contentTypeMap[normalizedExt];
+
+  if (contentType) {
+    c.header("Content-Type", contentType);
+  }
+}
+
+/**
+ * Determines the content-type from transformation parameters or buffer
+ * Priority: params.format > buffer detection > original extension
+ */
+export async function determineContentType(
+  params: ReturnType<typeof parseParams>,
+  buffer: Buffer | null,
+  originalExtension: string | undefined,
+): Promise<string> {
+  // 1. Check if format is explicitly specified in params
+  if (params.format) {
+    const format = params.format.toLowerCase();
+    // Normalize jpg to jpeg
+    const normalizedFormat = format === "jpg" ? "jpeg" : format;
+
+    const formatMap: Record<string, string> = {
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+      gif: "image/gif",
+    };
+
+    const contentType = formatMap[normalizedFormat];
+    if (contentType) {
+      return contentType;
+    }
+  }
+
+  // 2. Try to detect from buffer using sharp (if available and buffer is provided)
+  // Skip Sharp detection for video files (Sharp only handles images)
+  const isVideoFile =
+    originalExtension && /mp4|mov|webm/i.test(originalExtension);
+
+  if (buffer && !isVideoFile) {
+    try {
+      const sharp = await import("sharp");
+      const metadata = await sharp.default(buffer).metadata();
+      if (metadata.format) {
+        const formatMap: Record<string, string> = {
+          jpeg: "image/jpeg",
+          jpg: "image/jpeg",
+          png: "image/png",
+          webp: "image/webp",
+          avif: "image/avif",
+          gif: "image/gif",
+          tiff: "image/tiff",
+          svg: "image/svg+xml",
+        };
+        const contentType = formatMap[metadata.format];
+        if (contentType) {
+          return contentType;
+        }
+      }
+    } catch (error) {
+      // If sharp detection fails, fall through to extension-based detection
+      // This is expected for non-image files (e.g., videos, corrupted images, etc.)
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("unsupported image format")) {
+        // This is normal for video files or other non-image formats - skip logging
+        // as it's expected behavior when Sharp tries to process non-image buffers
+      } else {
+        logger.debug(
+          { error: serializeError(error), originalExtension },
+          "Failed to detect format from buffer",
+        );
+      }
+    }
+  }
+
+  // 3. Fallback to extension-based detection
+  if (originalExtension) {
+    const ext = originalExtension.toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+      gif: "image/gif",
+      mp4: "video/mp4",
+      mov: "video/quicktime",
+      webm: "video/webm",
+    };
+    return contentTypeMap[ext] || "image/jpeg"; // Default to jpeg
+  }
+
+  // Final fallback
+  return "image/jpeg";
+}
+
+/**
+ * Checks cloud cache and returns buffer if found
+ */
+export async function checkCloudCache(
+  storage: CloudStorage | null,
+  filePath: string,
+  params: ReturnType<typeof parseParams>,
+): Promise<Buffer | null> {
+  if (!storage) return null;
+
+  try {
+    if (await storage.exists(filePath, params)) {
+      logger.debug({ filePath }, "Serving from cloud cache");
+      return await storage.download(filePath, params);
+    }
+  } catch (error) {
+    logger.warn(
+      { error: serializeError(error), filePath },
+      "Cloud cache error, falling back to local cache",
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Checks local cache and returns buffer if found
+ */
+export async function checkLocalCache(
+  cachePath: string,
+): Promise<Buffer | null> {
+  if (await existsInCache(cachePath)) {
+    logger.debug({ cachePath }, "Serving from local cache");
+    return await readFromCache(cachePath);
+  }
+
+  return null;
+}
+
+/**
+ * A URL to read the original from, instead of this instance's own storage.
+ *
+ * It exists for deployments where the originals belong to the end user: a
+ * hosted control plane can hand this instance a short-lived signed URL for one
+ * object, rather than the user's storage credentials. Nothing about the
+ * transform itself changes - only where the source bytes come from.
+ *
+ * Ignored unless ALLOW_REMOTE_SOURCE is set, and that gate is a security
+ * boundary rather than a convenience: /t/* is a public route, so honouring an
+ * arbitrary URL out of a request header would make any reachable instance a
+ * fetch proxy for whatever it can address. Enable it only where the transform
+ * route is not publicly reachable and every caller is trusted.
+ */
+export function remoteSourceUrl(c: Context): string | undefined {
+  if (process.env.ALLOW_REMOTE_SOURCE !== "true") return undefined;
+  const url = c.req.header("x-openinary-source-url");
+  if (!url) return undefined;
+  try {
+    // https only - the URL carries its own authorization in the query string.
+    if (new URL(url).protocol !== "https:") return undefined;
+  } catch {
+    return undefined;
+  }
+  return url;
+}
+
+/**
+ * Verifies that the original file exists (cloud, remote URL, or local)
+ */
+export async function verifyFileExists(
+  storage: CloudStorage | null,
+  filePath: string,
+  localPath: string,
+  sourceUrl?: string,
+): Promise<{ exists: boolean; isCloud: boolean; error?: string }> {
+  if (sourceUrl) {
+    // Checked rather than trusted: a URL that has expired, or names an object
+    // since deleted, has to read as "not found" right here. Left unchecked it
+    // surfaces much later as a truncated download inside sharp or ffmpeg,
+    // where the error says nothing about the real cause.
+    //
+    // One byte over GET, never HEAD. A presigned URL authorizes exactly one
+    // method - SigV4 signs the verb into the string it signs - so a URL issued
+    // for GET answers 403 to a HEAD, which would read as "missing" for every
+    // object that exists. A range still 404s on an absent key, so nothing is
+    // lost by asking this way.
+    try {
+      const response = await fetch(sourceUrl, {
+        headers: { Range: "bytes=0-0" },
+      });
+      // Nothing reads the byte; releasing it keeps the connection reusable.
+      await response.body?.cancel();
+      if (response.ok) return { exists: true, isCloud: true };
+      return {
+        exists: false,
+        isCloud: true,
+        error: `File not found: ${filePath}. The source URL answered ${response.status}.`,
+      };
+    } catch (error) {
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Error checking remote source URL",
+      );
+      return {
+        exists: false,
+        isCloud: true,
+        error: "Error checking source URL",
+      };
+    }
+  }
+  if (storage) {
+    try {
+      const exists = await storage.existsOriginal(filePath);
+      if (!exists) {
+        return {
+          exists: false,
+          isCloud: true,
+          error: `File not found: ${filePath}. Make sure the file exists in your cloud storage bucket.`,
+        };
+      }
+      return { exists: true, isCloud: true };
+    } catch (error) {
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Error checking cloud storage for original file",
+      );
+      return {
+        exists: false,
+        isCloud: true,
+        error: "Error checking cloud storage",
+      };
+    }
+  } else {
+    const exists = existsSync(localPath);
+    if (!exists) {
+      return {
+        exists: false,
+        isCloud: false,
+        error: `File not found: ${filePath}. Make sure the file exists in the public folder or configure cloud storage.`,
+      };
+    }
+    return { exists: true, isCloud: false };
+  }
+}
+
+/** Where a downloaded original is staged for sharp/ffmpeg to read. */
+async function tempPathFor(filePath: string): Promise<string> {
+  const { mkdir } = await import("fs/promises");
+  const path = await import("path");
+  const tempDir = "./temp";
+  await mkdir(tempDir, { recursive: true });
+  return path.join(
+    tempDir,
+    `${crypto.randomUUID()}-${path.basename(filePath)}`,
+  );
+}
+
+/**
+ * Prepares the source file for processing (downloads from cloud if needed)
+ */
+export async function prepareSourceFile(
+  storage: CloudStorage | null,
+  filePath: string,
+  localPath: string,
+  sourceUrl?: string,
+): Promise<string> {
+  if (sourceUrl) {
+    logger.debug({ filePath }, "Processing from remote source URL");
+    const response = await fetch(sourceUrl);
+    if (!response.ok || !response.body) {
+      throw new Error(
+        `Failed to fetch source (${response.status}) for ${filePath}`,
+      );
+    }
+    const tempPath = await tempPathFor(filePath);
+    // Streamed to disk rather than buffered: an original can weigh hundreds of
+    // MB, and this runs alongside whatever ffmpeg jobs are already resident.
+    const { createWriteStream } = await import("fs");
+    const { Readable } = await import("stream");
+    const { pipeline } = await import("stream/promises");
+    await pipeline(
+      Readable.fromWeb(response.body as any),
+      createWriteStream(tempPath),
+    );
+    return tempPath;
+  }
+  if (storage) {
+    logger.debug({ filePath }, "Processing from cloud file");
+    const sourceBuffer = await storage.downloadOriginal(filePath);
+
+    // Temporarily save the file locally for processing
+    const { writeFile } = await import("fs/promises");
+    const tempPath = await tempPathFor(filePath);
+    await writeFile(tempPath, sourceBuffer);
+    return tempPath;
+  } else {
+    logger.debug({ localPath }, "Processing from local file");
+    return localPath;
+  }
+}
+
+/**
+ * Processes an image file with optimization
+ */
+export async function processImage(
+  originalPath: string,
+  params: CombindedTransformParams,
+  userAgent: string | undefined,
+  acceptHeader: string | undefined,
+  compression: Compression,
+): Promise<{ buffer: Buffer; contentType: string; optimizationResult?: any }> {
+  // Basic processing with existing parameters
+  const basicBuffer = await transformImage(
+    originalPath,
+    params as ImageTransformParams,
+  );
+
+  // Temporary save for advanced optimization
+  const { writeFile, unlink } = await import("fs/promises");
+  const tempOptimPath = originalPath + `.${crypto.randomUUID()}.temp`;
+  await writeFile(tempOptimPath, basicBuffer);
+
+  try {
+    // Advanced optimization
+    const optimizationResult = await compression.optimizeForDelivery(
+      tempOptimPath,
+      params as ImageTransformParams,
+      userAgent,
+      acceptHeader,
+    );
+
+    const contentType = `image/${optimizationResult.format}`;
+
+    // Cleanup temporary file
+    await unlink(tempOptimPath);
+
+    return {
+      buffer: optimizationResult.buffer,
+      contentType,
+      optimizationResult,
+    };
+  } catch (error) {
+    logger.warn(
+      { error: serializeError(error), originalPath },
+      "Advanced compression failed, using basic",
+    );
+
+    // Determine content type from extension
+    const ext = originalPath.split(".").pop()?.toLowerCase();
+    let contentType = "image/jpeg"; // default
+    if (ext?.match(/png/)) {
+      contentType = "image/png";
+    } else if (ext?.match(/webp/)) {
+      contentType = "image/webp";
+    } else if (ext?.match(/avif/)) {
+      contentType = "image/avif";
+    } else if (ext?.match(/gif/)) {
+      contentType = "image/gif";
+    } else if (ext?.match(/psd/)) {
+      contentType = "image/png"; // PSD is decoded to PNG before Sharp processing
+    }
+
+    // Cleanup in case of error
+    try {
+      await unlink(tempOptimPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    return { buffer: basicBuffer, contentType };
+  }
+}
+
+/**
+ * Processes a video file
+ */
+export async function processVideo(
+  originalPath: string,
+  params: ReturnType<typeof parseParams>,
+): Promise<{ buffer: Buffer; contentType: string }> {
+  // Check file size before processing to prevent server crashes
+  const fs = await import("fs");
+  const stats = fs.statSync(originalPath);
+  const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB (increased for 8K videos)
+
+  if (stats.size > MAX_VIDEO_SIZE) {
+    const fileSizeMB = (stats.size / 1024 / 1024).toFixed(1);
+    throw new Error(
+      `Video file too large: ${fileSizeMB} MB (maximum allowed: 200 MB)`,
+    );
+  }
+
+  // Get video information for better diagnostics
+  try {
+    const { getVideoInfo, getResolutionLabel } =
+      await import("../utils/video/video-info.js");
+    const videoInfo = await getVideoInfo(originalPath);
+    const resLabel = getResolutionLabel(videoInfo);
+
+    logger.info(
+      {
+        resolution: `${videoInfo.width}x${videoInfo.height}`,
+        label: resLabel,
+        duration: videoInfo.duration.toFixed(1),
+        size: (stats.size / 1024 / 1024).toFixed(1) + " MB",
+        codec: videoInfo.codec,
+      },
+      "Processing video",
+    );
+
+    // Warn about large resolutions
+    if (videoInfo.width >= 3000) {
+      logger.warn(
+        { resolution: resLabel },
+        "Processing large resolution video - this may take several minutes and use significant memory",
+      );
+    }
+  } catch (error) {
+    logger.warn(
+      { error: serializeError(error) },
+      "Failed to get video info, proceeding with processing",
+    );
+  }
+
+  const buffer = await transformVideo(originalPath, params);
+  const ext = originalPath.split(".").pop()?.toLowerCase();
+
+  const requestedFormat = params.format?.toLowerCase();
+  const imageFormats = new Set(["jpg", "jpeg", "png", "webp", "avif", "gif"]);
+
+  // If an image format is explicitly requested, treat output as an image (thumbnail)
+  if (requestedFormat && imageFormats.has(requestedFormat)) {
+    const normalizedFormat =
+      requestedFormat === "jpg" ? "jpeg" : requestedFormat;
+
+    const imageTypeMap: Record<string, string> = {
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      avif: "image/avif",
+      gif: "image/gif",
+    };
+
+    const imageContentType =
+      (normalizedFormat && imageTypeMap[normalizedFormat]) || "image/jpeg";
+
+    return { buffer, contentType: imageContentType };
+  }
+
+  let contentType = "video/mp4"; // default
+  if (ext?.match(/mov/)) {
+    contentType = "video/quicktime";
+  } else if (ext?.match(/webm/)) {
+    contentType = "video/webm";
+  }
+
+  return { buffer, contentType };
+}
+
+/**
+ * Saves processed file to cache (local and/or cloud)
+ */
+export async function saveToCaches(
+  storage: CloudStorage | null,
+  filePath: string,
+  params: CombindedTransformParams,
+  cachePath: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<void> {
+  const fileSize = buffer.length;
+  await SmartCache.trackRequest(filePath, fileSize);
+  const shouldKeepLocal = await SmartCache.shouldKeepLocal(filePath, fileSize);
+
+  // Save to local cache (conditionally)
+  if (shouldKeepLocal) {
+    await saveToCache(cachePath, buffer);
+    logger.debug({ filePath }, "Keeping in local cache");
+  } else {
+    logger.debug({ filePath }, "Skipping local cache");
+  }
+
+  // Save to cloud cache (if configured)
+  if (storage) {
+    try {
+      await storage.upload(filePath, params, buffer, contentType);
+
+      if (!shouldKeepLocal) {
+        try {
+          const fs = await import("fs");
+          if (fs.existsSync(cachePath)) {
+            fs.unlinkSync(cachePath);
+            logger.debug({ filePath }, "Removed from local cache");
+          }
+        } catch (error) {
+          logger.warn(
+            { error: serializeError(error), filePath },
+            "Failed to cleanup local cache",
+          );
+        }
+      }
+    } catch (error) {
+      logger.warn(
+        { error: serializeError(error), filePath },
+        "Failed to upload to cloud cache",
+      );
+    }
+  }
+}
+
+/**
+ * Cleans up temporary files
+ */
+export async function cleanupTempFile(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error as NodeJS.ErrnoException).code !== "ENOENT"
+    )
+      return; // If file is not found
+
+    logger.warn(
+      { error: serializeError(error), filePath },
+      "Failed to cleanup temp file",
+    );
+  }
+}
+
+/**
+ * Performs periodic cache cleanup (1% chance)
+ */
+export async function performPeriodicCacheCleanup(): Promise<void> {
+  if (Math.random() < 0.01) {
+    // 1% chance of cache cleanup
+    if (await SmartCache.shouldCleanupCache()) {
+      logger.info("Starting cache cleanup...");
+      await SmartCache.performCleanup();
+    }
+  }
+}

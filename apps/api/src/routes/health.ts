@@ -4,7 +4,7 @@ import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import fs from "fs";
 import path from "path";
 import type Database from "better-sqlite3";
-import logger, { serializeError } from "../utils/logger";
+import { logger, serializeError } from "@openinary/core";
 
 const health = new Hono<AuthVariables>();
 

@@ -1,4 +1,4 @@
-export { AssetDetailsSidebar } from "./asset-details-sidebar"
+export { AssetDetailsSidebar } from "@openinary/ui"
 export { AssetDetailsSidebarTrigger } from "./asset-details-sidebar-trigger"
-export type { MediaFile } from "./types"
+export type { MediaFile } from "@openinary/ui"
 

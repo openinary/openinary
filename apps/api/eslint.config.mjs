@@ -40,6 +40,16 @@ const eslintConfig = [
       "@typescript-eslint/no-unused-expressions": "error",
     },
   },
+  {
+    // Test files are excluded from tsconfig (they aren't compiled to dist),
+    // so lint them without type-aware parsing.
+    files: ["**/*.test.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: null,
+      },
+    },
+  },
 ];
 
 export default eslintConfig;

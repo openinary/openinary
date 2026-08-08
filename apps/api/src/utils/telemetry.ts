@@ -1,11 +1,14 @@
 import os from "os";
+import fs from "fs";
 import { db } from "shared/auth";
-import logger from "./logger";
+import { logger } from "@openinary/core";
+import { getStorageConfigFromEnv } from "../config/storage";
+import { canDeriveFrom, deriveInstanceId } from "./telemetry-id";
 
 /**
  * Anonymous usage telemetry.
  *
- * What this sends and why: see /docs/TELEMETRY.md.
+ * What this sends and why: see /docs/configuration/telemetry.mdx.
  * - No PII, no file names, no media content, no IPs are collected here.
  * - Every property is bucketed/enumerated, never a raw count or free-text value.
  * - Disable entirely with OPENINARY_TELEMETRY=false.
@@ -19,7 +22,7 @@ const TELEMETRY_ENDPOINT =
   process.env.TELEMETRY_ENDPOINT || "https://telemetry.openinary.dev/collect";
 const TELEMETRY_ENABLED = process.env.OPENINARY_TELEMETRY !== "false";
 const HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
-const HEARTBEAT_JITTER_MS = 60 * 60 * 1000; // +/- up to 1h, avoids thundering herd
+const HEARTBEAT_JITTER_MS = 60 * 60 * 1000; // boot-time spread of up to 1h, avoids thundering herd
 const SEND_TIMEOUT_MS = 3000;
 
 type CountBucket = "0" | "1-10" | "11-100" | "101-1000" | "1000+";
@@ -54,12 +57,26 @@ function setConfig(key: string, value: string) {
 function getOrCreateInstanceId(): string {
   const existing = getConfig("instance_id");
   if (existing) return existing;
-  const id = crypto.randomUUID();
+  // Prefer an id derived from BETTER_AUTH_SECRET (salted one-way hash): the
+  // secret lives in the deployment env, so the id survives DB wipes and
+  // redeploys without a volume. Random UUID otherwise (dev, placeholder secret).
+  const secret = process.env.BETTER_AUTH_SECRET;
+  const id = canDeriveFrom(secret) ? deriveInstanceId(secret) : crypto.randomUUID();
   setConfig("instance_id", id);
   return id;
 }
 
 function getVersion(): string {
+  // /app/version.txt is baked at image build time and always holds the real
+  // build version (a :latest release image still says v1.2.3), so it wins
+  // over the IMAGE_TAG env var, which is user config and often just "latest".
+  // Neither exists when running from source → "unknown".
+  try {
+    const baked = fs.readFileSync("/app/version.txt", "utf8").trim();
+    if (baked) return baked;
+  } catch {
+    // not a docker image
+  }
   return process.env.IMAGE_TAG || "unknown";
 }
 
@@ -68,8 +85,10 @@ function getDeploymentMode(): string {
 }
 
 function getStorageBackend(): "s3" | "local" {
-  // Presence of any S3-compatible config indicates cloud storage.
-  return process.env.S3_BUCKET || process.env.AWS_S3_BUCKET ? "s3" : "local";
+  // Same STORAGE_* env resolution the app itself uses. (The old check looked
+  // at S3_BUCKET/AWS_S3_BUCKET, which nothing sets — it reported "local" even
+  // for instances running on S3-compatible storage.)
+  return getStorageConfigFromEnv().config.bucketName ? "s3" : "local";
 }
 
 function getVideoJobCount(): number {
@@ -163,40 +182,45 @@ export function initTelemetry() {
     return;
   }
 
-  ensureTelemetryTable();
-  const instanceId = getOrCreateInstanceId();
+  try {
+    ensureTelemetryTable();
+    const instanceId = getOrCreateInstanceId();
 
-  if (!getConfig("first_started_at")) {
-    setConfig("first_started_at", Date.now().toString());
-    send(instanceId, {
-      event: "instance_started",
-      properties: {
-        ...buildBaseProperties(),
-        os_platform: os.platform(),
-        os_arch: os.arch(),
-        node_version: process.version,
-      },
-    });
-  }
+    if (!getConfig("first_started_at")) {
+      setConfig("first_started_at", Date.now().toString());
+      send(instanceId, {
+        event: "instance_started",
+        properties: {
+          ...buildBaseProperties(),
+          os_platform: os.platform(),
+          os_arch: os.arch(),
+          node_version: process.version,
+        },
+      });
+    }
 
-  // Send a heartbeat if the last one is missing or older than the interval,
-  // then keep sending on a jittered daily interval for as long as the process runs.
-  const lastHeartbeatAt = Number(getConfig("last_heartbeat_at") || 0);
-  const dueIn = Math.max(
-    0,
-    HEARTBEAT_INTERVAL_MS - (Date.now() - lastHeartbeatAt),
-  );
-  const jitter = Math.floor(Math.random() * HEARTBEAT_JITTER_MS);
+    // Send a heartbeat if the last one is missing or older than the interval,
+    // then keep sending every 24h for as long as the process runs. Only the
+    // first send is jittered (thundering-herd protection); the steady-state
+    // period stays exact so a live instance never drifts out of a rolling
+    // 24h "active instances" window.
+    const lastHeartbeatAt = Number(getConfig("last_heartbeat_at") || 0);
+    const dueIn = Math.max(
+      0,
+      HEARTBEAT_INTERVAL_MS - (Date.now() - lastHeartbeatAt),
+    );
+    const jitter = Math.floor(Math.random() * HEARTBEAT_JITTER_MS);
 
-  setTimeout(() => {
-    sendHeartbeat(instanceId);
-    setInterval(
-      () => {
+    setTimeout(() => {
+      sendHeartbeat(instanceId);
+      setInterval(() => {
         sendHeartbeat(instanceId);
-      },
-      HEARTBEAT_INTERVAL_MS + Math.floor(Math.random() * HEARTBEAT_JITTER_MS),
-    ).unref();
-  }, dueIn + jitter).unref();
+      }, HEARTBEAT_INTERVAL_MS).unref();
+    }, dueIn + jitter).unref();
 
-  logger.info({ instanceId }, "Telemetry initialized");
+    logger.info({ instanceId }, "Telemetry initialized");
+  } catch (error) {
+    // Telemetry must never take the instance down (e.g. read-only DB).
+    logger.debug({ error }, "Telemetry init failed (ignored)");
+  }
 }

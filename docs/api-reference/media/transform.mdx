@@ -280,6 +280,20 @@ Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
   variants at upload time so the first request is served from cache.
 </Warning>
 
+<Note>
+  Videos are never transcoded unless the URL asks for it. `GET /t/clip.mp4`
+  streams the untouched original. Use `q_auto` to opt into the default
+  optimization (`GET /t/q_auto/clip.mp4`), or any explicit parameter.
+
+While a video transformation is still being processed, the endpoint answers
+`202 Accepted` instead of the original, so a request never returns content whose
+transformations have not been applied yet. Poll the `statusUrl` from the
+response body — see [video status](/api-reference/video/status) — and retry once
+it reports `completed`. That URL keeps the transformation segment, since the job
+is keyed on the path *and* its parameters.
+
+</Note>
+
 ### Quick reference
 
 | Param             | Full name      | Description                                                     |
@@ -342,8 +356,8 @@ Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
 </ParamField>
 
 <a id="q-video"></a>
-<ParamField path="q" type="integer" default="75">
-  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100.
+<ParamField path="q" type="integer | auto" default="75">
+  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100, or `auto` to opt a video into the default optimization without picking a CRF yourself.
 
 | `q` value | CRF | Notes                         |
 | --------- | --- | ----------------------------- |
@@ -474,7 +488,17 @@ Returns the binary content of the transformed file.
 | `Content-Type`  | Detected from output format (e.g. `image/webp`, `video/mp4`) |
 | `Cache-Control` | Set for browser caching                                      |
 
-**Status codes:** `200` success · `404` file not found · `500` processing error
+**Status codes:** `200` success · `202` video transformation still processing · `404` file not found · `500` processing error
+
+A `202` carries a JSON body instead of media, and a `Retry-After` header:
+
+```json
+{
+  "status": "processing",
+  "message": "Video transformation is being processed",
+  "statusUrl": "/video-status/w_640,q_80/videos/clip.mp4"
+}
+```
 
 ## Related
 

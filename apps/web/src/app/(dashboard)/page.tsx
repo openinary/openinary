@@ -2,7 +2,6 @@
 
 import { AssetDetailsSidebar } from "@/components/details-sidebar";
 import HeaderBar from "@/components/headerbar";
-import { MediaGrid } from "@/components/media-grid";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import {
   ResizableHandle,
@@ -12,7 +11,7 @@ import {
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/auth-client";
-import { Image as ImageIcon, Package, Video } from "lucide-react";
+import { MediaGrid, type MediaFile } from "@openinary/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -21,13 +20,6 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 const SIDEBAR_MAX_WIDTH_PX = 500;
 const COLUMNS_STORAGE_KEY = "openinary:media-grid-columns";
 const VIEW_STORAGE_KEY = "openinary:media-grid-view";
-
-type MediaFile = {
-  id: string;
-  name: string;
-  path: string;
-  type: "image" | "video";
-};
 
 function getStoredColumns(): number {
   if (typeof window === "undefined") return 6;
@@ -46,6 +38,7 @@ function HomePageContent() {
     "asset",
     parseAsString.withOptions({ clearOnDefault: true }),
   );
+  const [folderPath, setFolderPath] = useQueryState("folder");
   const [assetSidebarOpen, setAssetSidebarOpen] = useState(false);
   const [columns, setColumns] = useState(getStoredColumns);
   const [view, setView] = useState<"grid" | "list">(getStoredView);
@@ -100,25 +93,6 @@ function HomePageContent() {
     setAssetId(media.id);
   };
 
-  const assetSidebarItems = [
-    {
-      title: "Details",
-      url: "#",
-      icon: Package,
-      isActive: true,
-    },
-    {
-      title: "Preview",
-      url: "#",
-      icon: ImageIcon,
-    },
-    {
-      title: "Metadata",
-      url: "#",
-      icon: Video,
-    },
-  ];
-
   return (
     <>
       <AppSidebar onMediaSelect={handleMediaSelect} />
@@ -146,6 +120,8 @@ function HomePageContent() {
                   columns={columns}
                   view={view}
                   scrollContainerRef={scrollContainerRef}
+                  folderPath={folderPath}
+                  onFolderPathChange={setFolderPath}
                 />
               </div>
             </ResizablePanel>
@@ -163,7 +139,8 @@ function HomePageContent() {
                   id="sidebar-panel"
                 >
                   <AssetDetailsSidebar
-                    items={assetSidebarItems}
+                    assetId={assetId}
+                    onAssetIdChange={setAssetId}
                     open={assetSidebarOpen}
                     onOpenChange={setAssetSidebarOpen}
                   />

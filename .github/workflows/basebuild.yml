@@ -5,8 +5,10 @@ on:
     branches:
       - main
     tags:
+      # No bare '*.*.*': '*' matches everything but '/', so it swallowed every
+      # package tag too (ui-v0.6.0, core-v*, cli-v*) and rebuilt the image on
+      # each npm release. App releases are all 'vX.Y.Z', already covered above.
       - 'v*'
-      - '*.*.*'
     paths:
       - 'docker/**'
       - 'apps/**'
@@ -129,6 +131,8 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE_FULL }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache-${{ env.PLATFORM_PAIR }}
           cache-to: type=registry,ref=${{ env.IMAGE_FULL }}:buildcache-${{ env.PLATFORM_PAIR }},mode=max
+          build-args: |
+            IMAGE_TAG=${{ needs.determine-version.outputs.version }}
 
       - name: Export digest
         run: |
@@ -223,6 +227,8 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE_API }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=registry,ref=${{ env.IMAGE_API }}:buildcache-${{ env.PLATFORM_PAIR }}
           cache-to: type=registry,ref=${{ env.IMAGE_API }}:buildcache-${{ env.PLATFORM_PAIR }},mode=max
+          build-args: |
+            IMAGE_TAG=${{ needs.determine-version.outputs.version }}
 
       - name: Export digest
         run: |

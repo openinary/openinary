@@ -1,0 +1,53 @@
+"use client"
+
+import { Toaster as Sonner, ToasterProps } from "sonner"
+import { Spinner } from "./spinner"
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  return (
+    <Sonner
+      theme="dark"
+      className="toaster group"
+      position="bottom-center"
+      icons={{
+        loading: <Spinner size={16} className="text-white" />,
+      }}
+      style={
+        {
+          "--normal-bg": "oklch(0.205 0 0)",
+          "--normal-text": "oklch(0.985 0 0)",
+          "--normal-border": "oklch(1 0 0 / 10%)",
+        } as React.CSSProperties
+      }
+      toastOptions={{
+        unstyled: false,
+        classNames: {
+          // inset-x-0 + mx-auto because "!w-fit" above drops the width sonner
+          // positions against: without them the pill is laid out from the
+          // container's left edge and drifts off-centre as its text changes
+          // length, instead of staying centred under the cursor's eye.
+          toast:
+            "!w-fit !max-w-[90vw] !rounded-full !gap-3 !py-2.5 !px-4 !shadow-lg !inset-x-0 !mx-auto",
+          // flex-initial + min-w-0, not flex-none: the pill still hugs short
+          // text (no grow), but once it hits max-w the content may shrink -
+          // flex-none pinned it at the intrinsic width of the nowrap title,
+          // so a long filename pushed the text out of the pill. truncate
+          // ellipsizes what no longer fits.
+          content: "!flex-initial !min-w-0",
+          title: "!text-sm !font-medium !truncate",
+          description: "!truncate",
+          icon: "!m-0",
+          actionButton:
+            "!ml-1 !h-7 !shrink-0 !whitespace-nowrap !rounded-full !bg-white/15 !px-3 !text-xs !font-semibold !text-white hover:!bg-white/25",
+          cancelButton:
+            "!ml-1 !h-7 !shrink-0 !whitespace-nowrap !rounded-full !bg-white/10 !px-3 !text-xs !font-semibold !text-white hover:!bg-white/20",
+          closeButton:
+            "!left-auto !right-0 !translate-x-1/3 !-translate-y-1/3 !bg-neutral-800 !border-white/10 !text-white",
+        },
+      }}
+      {...props}
+    />
+  )
+}
+
+export { Toaster }

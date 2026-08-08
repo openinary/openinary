@@ -5,13 +5,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
-
-type MediaFile = {
-  id: string
-  name: string
-  path: string
-  type: "image" | "video"
-}
+import type { MediaFile } from "@openinary/ui"
 
 interface NavProjectsProps {
   onMediaSelect?: (media: MediaFile) => void
