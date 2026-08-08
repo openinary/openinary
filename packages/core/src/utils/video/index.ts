@@ -17,7 +17,7 @@ import { VideoCommandBuilder } from "./command-builder";
 import type { VideoContext } from "./types";
 import { applyOverlay } from "./overlay";
 import { cleanupTempFile, prepareSourceFile } from "routes/transform-helpers";
-import { createStorageClient } from "utils/storage";
+import { CloudStorage, createStorageClient } from "utils/storage";
 
 // Re-export types for backward compatibility
 export * from "./types";
@@ -79,6 +79,7 @@ async function convertWithSharp(
 export const transformVideo = async (
   inputPath: string,
   params: VideoTransformParams,
+  storage: CloudStorage | null,
 ): Promise<Buffer> => {
   // Create temporary directory for output
   const tmpDir = await mkdtemp(join(tmpdir(), "video-"));
@@ -118,7 +119,6 @@ export const transformVideo = async (
 
   try {
     if (context.params.overlayPath) {
-      const storage = createStorageClient();
       context.params.overlayPath = await prepareSourceFile(
         storage,
         context.params.overlayPath,

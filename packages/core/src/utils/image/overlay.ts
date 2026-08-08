@@ -1,8 +1,5 @@
 import sharp from "sharp";
-import {
-  ImageResizeTransformParams,
-  OverlayTransformParams,
-} from "shared/types";
+import { ImageResizeTransformParams, OverlayTransformParams } from "types";
 import logger from "utils/logger";
 
 /**

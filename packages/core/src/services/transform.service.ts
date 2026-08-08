@@ -243,7 +243,7 @@ export class TransformService {
     };
 
     // For videos, add video-specific headers
-    if (ext?.match(/mp4|mov|webm/)) {
+    if (isVideo(ext)) {
       headers["X-Video-Status"] = "ready";
     }
 
@@ -339,7 +339,7 @@ export class TransformService {
         // Only thumbnail requests reach this point (non-thumbnail video
         // transformations are intercepted before prepareSourceFile above);
         // thumbnails are extracted synchronously like images
-        const result = await processVideo(sourcePath, effectiveParams);
+        const result = await processVideo(sourcePath, effectiveParams, this.storage);
         return {
           buffer: result.buffer,
           contentType: result.contentType,
@@ -480,7 +480,7 @@ export class TransformService {
             "Job marked as completed but cache missing - resetting to pending",
           );
           try {
-            updateJobStatus(existingJob.id, "pending", 0);
+            this.queue.getStore().updateJobStatus(existingJob.id, "pending", 0);
             shouldRequeue = true;
             existingJob = { ...existingJob, status: "pending" as const };
           } catch (error) {
@@ -563,44 +563,43 @@ export class TransformService {
     // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
     // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
     // accented characters (e.g. a combining accent has a code point > 255)
-    const processingHeaders: Record<string, string> = {
-      "X-Video-Status": "processing",
-      "X-Original-Video": "true",
-      "Cache-Control": "public, max-age=0, must-revalidate",
-      ETag: `"${encodeURIComponent(filePath)}-processing-${Date.now()}"`,
-      Vary: "Accept",
+    const headers: Record<string, string> = {
+      "X-Video-Status": "original",
+      "Cache-Control": "public, max-age=31536000, must-revalidate",
+      ETag: `"${encodeURIComponent(filePath)}-original"`,
     };
 
     try {
-      if (this.storage) {
-        const { stream, contentLength } =
-          await this.storage.downloadOriginalStream(filePath);
-        if (contentLength) {
-          processingHeaders["Content-Length"] = contentLength.toString();
-        }
+      let stream: ReadableStream<Uint8Array>;
 
-        return {
-          stream,
-          contentType: `video/${filePath.split(".").pop()}`,
-          headers: processingHeaders,
-          isProcessing: true,
-        };
+      if (sourceUrl) {
+        // Passed straight through rather than staged to disk - this route
+        // hands back the untouched original, so there is nothing to process.
+        const response = await fetch(sourceUrl);
+        if (!response.ok || !response.body) {
+          throw new Error(`Source URL answered ${response.status}`);
+        }
+        const length = response.headers.get("content-length");
+        if (length) headers["Content-Length"] = length;
+        stream = response.body;
+      } else if (this.storage) {
+        const original = await this.storage.downloadOriginalStream(filePath);
+        if (original.contentLength) {
+          headers["Content-Length"] = original.contentLength.toString();
+        }
+        stream = original.stream;
+      } else {
+        const { createReadStream } = await import("fs");
+        const { stat } = await import("fs/promises");
+        const { Readable } = await import("stream");
+        const stats = await stat(localPath);
+        headers["Content-Length"] = stats.size.toString();
+        stream = Readable.toWeb(
+          createReadStream(localPath),
+        ) as ReadableStream<Uint8Array>;
       }
 
-      const { createReadStream } = await import("fs");
-      const { stat } = await import("fs/promises");
-      const stats = await stat(localPath);
-      processingHeaders["Content-Length"] = stats.size.toString();
-      const { Readable } = await import("stream");
-
-      return {
-        stream: Readable.toWeb(
-          createReadStream(localPath),
-        ) as ReadableStream<Uint8Array>,
-        contentType: `video/${filePath.split(".").pop()}`,
-        headers: processingHeaders,
-        isProcessing: true,
-      };
+      return { stream, contentType: contentTypeForFormat(ext), headers };
     } catch (error) {
       logger.error(
         { error: serializeError(error), filePath },
@@ -632,7 +631,7 @@ export class TransformService {
     request: TransformRequest,
   ): Promise<TransformResult> {
     if (error instanceof TransformationIncompleteError) {
-      logger.error(
+      logger.info(
         {
           error: error.message,
           path: request.path,

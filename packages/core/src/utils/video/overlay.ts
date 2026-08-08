@@ -1,4 +1,4 @@
-import { FullGravityMode } from "shared";
+import { FullGravityMode } from "types";
 import sharp from "sharp";
 import Ffmpeg from "fluent-ffmpeg";
 import { promisify } from "util";

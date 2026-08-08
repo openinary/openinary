@@ -28,7 +28,7 @@ export const applyResize: TransformFunction = (
   // encoded 300x300 with SAR 16:9, i.e. a 533x300 picture in every player).
   // Cropping needs a box to crop to, so it still takes both dimensions;
   // with only one given, fall through to the plain scale below.
-  if ((crop === "fill" || crop === "crop") && valid(w) && valid(h)) {
+  if ((crop === "fill" || crop === "crop") && valid(width) && valid(height)) {
     // Cover behavior (no stretching):
     // 1) scale until the smallest side reaches the target, preserving aspect ratio
     // 2) crop to exact WxH from the center

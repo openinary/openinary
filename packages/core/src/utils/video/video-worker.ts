@@ -184,7 +184,7 @@ export class VideoWorker extends EventEmitter {
       }
 
       // Process video
-      const buffer = await transformVideo(sourcePath, params);
+      const buffer = await transformVideo(sourcePath, params, this.storage);
 
       // Save to cache
       await saveToCache(job.cache_path, buffer);

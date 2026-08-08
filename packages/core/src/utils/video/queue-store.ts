@@ -1,3 +1,4 @@
+import { VideoTransformParams } from "types";
 import type { parseParams } from "../parser";
 
 export type JobStatus =
@@ -41,7 +42,7 @@ export interface JobStats {
 export interface VideoJobStore {
   createJob(
     filePath: string,
-    params: ReturnType<typeof parseParams>,
+    params: VideoTransformParams,
     cachePath: string,
     priority?: number,
   ): string;
@@ -58,7 +59,7 @@ export interface VideoJobStore {
 
   getJobByFileAndParams(
     filePath: string,
-    params: ReturnType<typeof parseParams>,
+    params: VideoTransformParams,
   ): VideoJob | null;
 
   getJobById(jobId: string): VideoJob | null;

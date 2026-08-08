@@ -13,7 +13,7 @@ import {
   SmartCache,
 } from "../utils/cache";
 import fs from "fs/promises";
-import { CombindedTransformParams, ImageTransformParams } from "types";
+import { CombindedTransformParams, ImageTransformParams, VideoTransformParams } from "types";
 
 /**
  * Sets the Content-Type header based on file extension or content-type string
@@ -425,7 +425,8 @@ export async function processImage(
  */
 export async function processVideo(
   originalPath: string,
-  params: ReturnType<typeof parseParams>,
+  params: VideoTransformParams,
+  storage: CloudStorage | null,
 ): Promise<{ buffer: Buffer; contentType: string }> {
   // Check file size before processing to prevent server crashes
   const fs = await import("fs");
@@ -471,7 +472,7 @@ export async function processVideo(
     );
   }
 
-  const buffer = await transformVideo(originalPath, params);
+  const buffer = await transformVideo(originalPath, params, storage);
   const ext = originalPath.split(".").pop()?.toLowerCase();
 
   const requestedFormat = params.format?.toLowerCase();
