@@ -11,6 +11,7 @@ import {
   generateUploadSignature,
   stripUrlHostile,
   validateUploadFileType,
+  allowedUploadExtensions,
   logger,
   serializeError,
   type RouteDeps,
@@ -441,7 +442,7 @@ export function createUploadRoute(deps: RouteDeps) {
         if (!validateUploadFileType(filename, mimeType)) {
           failedUploads.push({
             filename: rawSanitizedPath,
-            error: `Invalid file type: ${mimeType}. Allowed types: images (jpg, jpeg, png, webp, avif, gif, heic, heif, psd) and videos (mp4, mov, webm)`,
+            error: `Invalid file type: ${mimeType}. Allowed extensions: ${allowedUploadExtensions().join(", ")}`,
           });
           continue;
         }

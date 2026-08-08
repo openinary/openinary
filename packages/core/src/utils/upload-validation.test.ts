@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { stripUrlHostile } from './upload-validation';
+import {
+  ALLOWED_UPLOAD_TYPES,
+  allowedUploadExtensions,
+  contentTypeForExt,
+  stripUrlHostile,
+  validateUploadFileType,
+} from './upload-validation';
 
 const BASE = 'https://cdn.example.com/t';
 
@@ -63,4 +69,50 @@ test('the raw name does not - which is the bug', () => {
   const url = new URL(`${BASE}/VAULT/The #1 clip.mp4`);
   assert.notEqual(url.hash, '');
   assert.equal(url.pathname.endsWith('.mp4'), false);
+});
+
+test("accepts audio and 3D uploads with the MIME variants browsers send", () => {
+  assert.ok(validateUploadFileType("sfx.wav", "audio/wav"));
+  assert.ok(validateUploadFileType("sfx.wav", "audio/x-wav"));
+  assert.ok(validateUploadFileType("track.mp3", "audio/mpeg"));
+  assert.ok(validateUploadFileType("amb.ogg", "application/ogg"));
+  assert.ok(validateUploadFileType("duck.glb", "model/gltf-binary"));
+  // browsers usually send .glb as octet-stream, the same as .psd
+  assert.ok(validateUploadFileType("duck.glb", "application/octet-stream"));
+  assert.ok(validateUploadFileType("scene.gltf", "model/gltf+json"));
+});
+
+test("still rejects disallowed types and ext/MIME mismatches", () => {
+  assert.ok(!validateUploadFileType("evil.svg", "image/svg+xml"));
+  assert.ok(!validateUploadFileType("clip.wav", "video/mp4"));
+});
+
+test("the existing image/video whitelist is preserved", () => {
+  assert.deepEqual(ALLOWED_UPLOAD_TYPES["image/jpeg"], [".jpg", ".jpeg"]);
+  assert.deepEqual(ALLOWED_UPLOAD_TYPES["image/heic"], [".heic", ".heif"]);
+  assert.deepEqual(ALLOWED_UPLOAD_TYPES["video/mp4"], [".mp4"]);
+  // octet-stream now covers psd + the new 3D types
+  assert.deepEqual(ALLOWED_UPLOAD_TYPES["application/octet-stream"], [
+    ".psd",
+    ".glb",
+    ".gltf",
+  ]);
+});
+
+test("allowedUploadExtensions lists the accepted types for error messages", () => {
+  const exts = allowedUploadExtensions();
+  for (const e of ["glb", "gltf", "wav", "mp3", "ogg", "jpg", "mp4", "psd"]) {
+    assert.ok(exts.includes(e), `${e} should be listed`);
+  }
+  // sorted + de-duplicated (aliases like jpeg/jpg both appear once each)
+  assert.deepEqual(exts, [...new Set(exts)].sort());
+});
+
+test("content-type comes from the same table; unknown falls back to octet-stream", () => {
+  assert.equal(contentTypeForExt("glb"), "model/gltf-binary");
+  assert.equal(contentTypeForExt("wav"), "audio/wav");
+  assert.equal(contentTypeForExt("jpeg"), "image/jpeg"); // alias of jpg
+  assert.equal(contentTypeForExt("mp4"), "video/mp4");
+  assert.equal(contentTypeForExt("xyz"), "application/octet-stream");
+  assert.equal(contentTypeForExt(undefined), "application/octet-stream");
 });

@@ -1,29 +1,94 @@
 import path from "path";
 
 /**
- * Single source of truth for what Openinary accepts at upload time.
- * Consumed by the OSS API and the SaaS so their whitelists cannot diverge.
+ * Single source of truth for the media types Openinary handles: what it accepts
+ * at upload time AND the content-type each one is served with. The upload
+ * whitelist and the extension->content-type map are derived from one table so
+ * they cannot drift.
  *
- * Deliberately excludes svg (stored-XSS vector when served inline) and every
- * format the transform pipeline cannot decode.
+ * Consumed by the OSS API and the SaaS so their whitelists cannot diverge.
+ * Deliberately excludes svg (stored-XSS vector when served inline). Images and
+ * videos go through the transform pipeline; audio and 3D are stored and served
+ * as opaque originals (no transform pipeline).
+ */
+interface MediaType {
+  /** canonical extension, no dot, lowercase */
+  ext: string;
+  /** extra extensions that resolve to the same type (e.g. jpeg -> jpg) */
+  aliases?: readonly string[];
+  /** content-type used when serving the stored original */
+  contentType: string;
+  /** MIME values a browser may send for this type at upload (includes contentType) */
+  uploadMimes: readonly string[];
+}
+
+const MEDIA_TYPES: readonly MediaType[] = [
+  // Images
+  { ext: "jpg", aliases: ["jpeg"], contentType: "image/jpeg", uploadMimes: ["image/jpeg"] },
+  { ext: "png", contentType: "image/png", uploadMimes: ["image/png"] },
+  { ext: "webp", contentType: "image/webp", uploadMimes: ["image/webp"] },
+  { ext: "avif", contentType: "image/avif", uploadMimes: ["image/avif"] },
+  { ext: "gif", contentType: "image/gif", uploadMimes: ["image/gif"] },
+  { ext: "heic", aliases: ["heif"], contentType: "image/heic",
+    uploadMimes: ["image/heic", "image/heif"] },
+  { ext: "psd", contentType: "image/vnd.adobe.photoshop",
+    uploadMimes: ["image/vnd.adobe.photoshop", "application/octet-stream"] },
+  // Videos
+  { ext: "mp4", contentType: "video/mp4", uploadMimes: ["video/mp4"] },
+  { ext: "mov", contentType: "video/quicktime", uploadMimes: ["video/quicktime"] },
+  { ext: "webm", contentType: "video/webm", uploadMimes: ["video/webm"] },
+  // Audio (stored + delivered as originals, not transformed)
+  { ext: "wav", contentType: "audio/wav", uploadMimes: ["audio/wav", "audio/x-wav"] },
+  { ext: "mp3", contentType: "audio/mpeg", uploadMimes: ["audio/mpeg"] },
+  { ext: "ogg", contentType: "audio/ogg", uploadMimes: ["audio/ogg", "application/ogg"] },
+  // 3D models (stored + delivered as originals). Browsers usually send .glb as
+  // application/octet-stream, the same as .psd.
+  { ext: "glb", contentType: "model/gltf-binary",
+    uploadMimes: ["model/gltf-binary", "application/octet-stream"] },
+  { ext: "gltf", contentType: "model/gltf+json",
+    uploadMimes: ["model/gltf+json", "application/octet-stream"] },
+];
+
+const CONTENT_TYPE_BY_EXT: Readonly<Record<string, string>> = Object.fromEntries(
+  MEDIA_TYPES.flatMap((t) =>
+    [t.ext, ...(t.aliases ?? [])].map((e) => [e, t.contentType] as const),
+  ),
+);
+
+/**
+ * Upload whitelist derived from the table above: MIME type -> allowed extensions.
  */
 export const ALLOWED_UPLOAD_TYPES: Readonly<Record<string, readonly string[]>> =
-  {
-    // Images
-    "image/jpeg": [".jpg", ".jpeg"],
-    "image/png": [".png"],
-    "image/webp": [".webp"],
-    "image/avif": [".avif"],
-    "image/gif": [".gif"],
-    "image/heic": [".heic", ".heif"],
-    "image/heif": [".heic", ".heif"],
-    "image/vnd.adobe.photoshop": [".psd"],
-    "application/octet-stream": [".psd"],
-    // Videos
-    "video/mp4": [".mp4"],
-    "video/quicktime": [".mov"],
-    "video/webm": [".webm"],
-  };
+  (() => {
+    const out: Record<string, string[]> = {};
+    for (const t of MEDIA_TYPES) {
+      const exts = [t.ext, ...(t.aliases ?? [])].map((e) => `.${e}`);
+      for (const mime of t.uploadMimes) {
+        out[mime] = [...new Set([...(out[mime] ?? []), ...exts])];
+      }
+    }
+    return out;
+  })();
+
+/**
+ * Content-type to serve a stored original with, keyed by file extension. Falls
+ * back to application/octet-stream for anything unknown (never a guessed type).
+ */
+export function contentTypeForExt(ext: string | undefined): string {
+  return (
+    (ext && CONTENT_TYPE_BY_EXT[ext.toLowerCase()]) || "application/octet-stream"
+  );
+}
+
+/**
+ * The distinct file extensions accepted at upload, for user-facing error
+ * messages. Derived from the same table so it can never list a stale set.
+ */
+export function allowedUploadExtensions(): string[] {
+  return [
+    ...new Set(MEDIA_TYPES.flatMap((t) => [t.ext, ...(t.aliases ?? [])])),
+  ].sort();
+}
 
 /**
  * Validates an upload's file type: the MIME type must be allowed and the

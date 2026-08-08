@@ -110,14 +110,15 @@ export class TransformService {
         throw new Error(fileCheck.error || "File not found");
       }
 
-      // A bare /t/<video> URL delivers the untouched original. Transcoding only
-      // happens when the URL asks for it, either with explicit parameters or
-      // with q_auto for the default optimization.
-      if (isVideo(ext) && Object.keys(effectiveParams).length === 0) {
-        return await this.streamOriginalVideo(
+      // A bare /t/<path> URL delivers the untouched original for any stored type
+      // (video, audio, 3D). Images always carry an auto-selected format at this
+      // point, so they keep optimizing; transcoding only happens when the URL
+      // asks for it, either with explicit parameters or with q_auto.
+      if (Object.keys(effectiveParams).length === 0) {
+        return await this.streamOriginal(
           filePath,
           localPath,
-          ext,
+          ext ?? "",
           sourceUrl,
         );
       }
@@ -551,9 +552,10 @@ export class TransformService {
   /**
    * Stream the untouched original without buffering it in memory: originals can
    * weigh hundreds of MB and buffering both delays the first byte and pressures
-   * the container memory while ffmpeg jobs are running.
+   * the container memory while ffmpeg jobs are running. Serves any stored type
+   * (video, audio, 3D, image) with its real content-type.
    */
-  private async streamOriginalVideo(
+  private async streamOriginal(
     filePath: string,
     localPath: string,
     ext: string,
@@ -563,10 +565,12 @@ export class TransformService {
     // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
     // accented characters (e.g. a combining accent has a code point > 255)
     const headers: Record<string, string> = {
-      "X-Video-Status": "original",
       "Cache-Control": "public, max-age=31536000, must-revalidate",
       ETag: `"${encodeURIComponent(filePath)}-original"`,
     };
+    if (isVideo(ext)) {
+      headers["X-Video-Status"] = "original";
+    }
 
     try {
       let stream: ReadableStream<Uint8Array>;
@@ -602,9 +606,9 @@ export class TransformService {
     } catch (error) {
       logger.error(
         { error: serializeError(error), filePath },
-        "Failed to serve original video",
+        "Failed to serve original",
       );
-      throw new Error("Failed to load video");
+      throw new Error("Failed to load original");
     }
   }
 
