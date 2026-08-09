@@ -1,6 +1,14 @@
 # @openinary/core
 
-## 1.5.1
+## 1.6.0
+
+### Minor Changes
+
+- 496da21: Audio (`wav`, `mp3`, `ogg`) and 3D (`glb`, `gltf`) uploads are accepted, stored and delivered as untouched originals. A bare `/t/<path>` URL now streams the stored original for any type with its real content-type; images keep their automatic format optimization. The upload whitelist and the extension to content-type map derive from a single media-type table so they cannot drift.
+
+### Patch Changes
+
+- dab1579: Uploads are checked against the file's own bytes (magic signatures per accepted type), so a payload renamed to an allowed extension is rejected at upload. Every delivery response, including the authenticated route, carries `X-Content-Type-Options: nosniff` and labels stored originals from the shared media-type table.
 
 ### Patch Changes
 
