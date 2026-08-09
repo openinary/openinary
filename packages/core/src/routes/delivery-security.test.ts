@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { createTransformRoute } from "./transform";
 import { TransformService } from "../services/transform.service";
+import { generateSignature } from "../utils/signature";
 
 // /t/* serves stored originals back untouched, so the bytes it returns are
 // whatever was uploaded. Content-sniffing is what turns that into a stored-XSS
@@ -81,4 +82,57 @@ test("the content-type fallback uses the shared media table", async () => {
     "/t/notes.xyz",
   );
   assert.equal(unknown.get("content-type"), "application/octet-stream");
+});
+
+// The authenticated route serves the same TransformService results as /t/,
+// just gated by a signature. The gate decides who can request a URL, not what
+// the stored bytes are, so it needs the exact same nosniff + shared-table
+// labelling - it must not be the one delivery path left uncovered.
+
+process.env.API_SECRET = "test-secret";
+const { createAuthenticatedRoute } = await import("./authenticated");
+
+async function authenticatedHeadersFor(
+  result: unknown,
+  filePath: string,
+): Promise<Headers> {
+  const app = new Hono();
+  app.route("/authenticated", createAuthenticatedRoute(deps()));
+  const signature = generateSignature("", filePath, "test-secret");
+  const original = TransformService.prototype.transform;
+  TransformService.prototype.transform = async () => result as any;
+  try {
+    return (await app.request(`/authenticated/s--${signature}/${filePath}`))
+      .headers;
+  } finally {
+    TransformService.prototype.transform = original;
+  }
+}
+
+test("an authenticated streamed original is served with nosniff", async () => {
+  const headers = await authenticatedHeadersFor(
+    {
+      stream: new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(new Uint8Array([0, 1, 2]));
+          c.close();
+        },
+      }),
+      contentType: "model/gltf-binary",
+      headers: {},
+    },
+    "models/duck.glb",
+  );
+
+  assert.equal(headers.get("x-content-type-options"), "nosniff");
+  assert.equal(headers.get("content-type"), "model/gltf-binary");
+});
+
+test("the authenticated content-type fallback uses the shared media table", async () => {
+  const headers = await authenticatedHeadersFor(
+    { buffer: Buffer.from("RIFF"), contentType: "", headers: {} },
+    "audio/sfx.wav",
+  );
+  assert.equal(headers.get("x-content-type-options"), "nosniff");
+  assert.equal(headers.get("content-type"), "audio/wav");
 });
