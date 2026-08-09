@@ -12,8 +12,6 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
 - **Uploads are validated against the file's actual bytes**, Every accepted type now carries a magic-byte signature, so a payload renamed to an allowed extension is rejected at upload instead of being stored. The MIME type and the extension are both set by the uploader, so on their own they only ever stopped honest mistakes.
 - **`nosniff` on every delivery response**, All delivery routes, including signed authenticated URLs, now send `X-Content-Type-Options: nosniff`, so stored bytes can never be content-sniffed into HTML on your origin. Stored originals are labelled from the same media-type table the upload whitelist uses.
-
-`@openinary/core` 1.6.0 ships these changes on npm.
 </Update>
 
 <Update label="July 29, 2026" description="Cloud" tags={["Announcement"]}>
