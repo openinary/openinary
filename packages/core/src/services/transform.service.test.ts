@@ -132,3 +132,23 @@ test("q_auto opts a video into transformation", async () => {
   assert.equal(result.status, 202);
   assert.equal(result.stream, undefined);
 });
+
+test("a bare audio/3D URL streams the original with its real content-type", async () => {
+  const service = new TransformService(fakeStorage(), fakeQueue());
+
+  const glb = await service.transform({
+    path: "/t/models/duck.glb",
+    userAgent: "",
+    context: {} as any,
+  });
+  assert.ok(glb.stream, "glb original should be streamed");
+  assert.equal(glb.contentType, "model/gltf-binary");
+
+  const wav = await service.transform({
+    path: "/t/audio/sfx.wav",
+    userAgent: "",
+    context: {} as any,
+  });
+  assert.ok(wav.stream, "wav original should be streamed");
+  assert.equal(wav.contentType, "audio/wav");
+});

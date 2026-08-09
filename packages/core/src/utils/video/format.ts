@@ -1,3 +1,5 @@
+import { contentTypeForExt } from "../upload-validation";
+
 /**
  * Supported image formats for video thumbnails
  */
@@ -54,23 +56,10 @@ export const determineOutputFormat = (
 };
 
 /**
- * MIME content type for a resolved output format.
+ * MIME content type for a resolved output format or a stored original's
+ * extension. Backed by the single media-type table in upload-validation so the
+ * accepted-types whitelist and the content-type map cannot drift, and so audio /
+ * 3D originals get their real type instead of the old video/mp4 fallback.
  */
-const CONTENT_TYPE_BY_FORMAT: Readonly<Record<string, string>> = {
-  jpg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-  avif: "image/avif",
-  gif: "image/gif",
-  mp4: "video/mp4",
-  webm: "video/webm",
-  mov: "video/quicktime",
-};
-
-export const contentTypeForFormat = (format: string): string => {
-  const normalized = normalizeFormat(format.toLowerCase());
-  if (CONTENT_TYPE_BY_FORMAT[normalized]) {
-    return CONTENT_TYPE_BY_FORMAT[normalized];
-  }
-  return IMAGE_FORMATS.has(normalized) ? `image/${normalized}` : "video/mp4";
-};
+export const contentTypeForFormat = (format: string): string =>
+  contentTypeForExt(normalizeFormat(format.toLowerCase()));
