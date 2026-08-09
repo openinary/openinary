@@ -3,6 +3,19 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="August 9, 2026" description="v0.3.1" tags={["Feature", "Fix"]}>
+  ## New features
+
+**Audio and 3D files**, Openinary now accepts audio (`wav`, `mp3`, `ogg`) and 3D model (`glb`, `gltf`) files, stored and delivered as untouched originals with their real content type. A bare `/t/<path>` URL streams the file back byte for byte. No waveforms, thumbnails or format conversion for these types yet, transformations still apply to images and videos only. See the [upload API reference](/api-reference/files/upload). Thanks to [andrzejb2137](https://github.com/andrzejb2137) for both contributions in this release.
+
+## Bug fixes
+
+- **Uploads are validated against the file's actual bytes**, Every accepted type now carries a magic-byte signature, so a payload renamed to an allowed extension is rejected at upload instead of being stored. The MIME type and the extension are both set by the uploader, so on their own they only ever stopped honest mistakes.
+- **`nosniff` on every delivery response**, All delivery routes, including signed authenticated URLs, now send `X-Content-Type-Options: nosniff`, so stored bytes can never be content-sniffed into HTML on your origin. Stored originals are labelled from the same media-type table the upload whitelist uses.
+
+`@openinary/core` 1.6.0 ships these changes on npm.
+</Update>
+
 <Update label="July 29, 2026" description="Cloud" tags={["Announcement"]}>
   ## Openinary Cloud is in public alpha
 
