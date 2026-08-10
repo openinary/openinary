@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { FullWidthDivider } from "../ui/full-width-divider";
 
 export default function FAQsSection() {
   return (

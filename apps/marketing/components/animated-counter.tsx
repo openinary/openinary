@@ -15,7 +15,10 @@ export function AnimatedCounter({
   duration = 1500,
   onComplete,
 }: AnimatedCounterProps) {
-  const [display, setDisplay] = useState(hasAnimated ? value : 0);
+  // Only the count-up is state; when the animation has already played the
+  // displayed number is just the value, so the effect has no state to sync.
+  const [animatedValue, setAnimatedValue] = useState(0);
+  const display = hasAnimated ? value : animatedValue;
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
@@ -23,7 +26,6 @@ export function AnimatedCounter({
     if (value <= 0) return;
 
     if (hasAnimated) {
-      setDisplay(value);
       onComplete?.();
       return;
     }
@@ -39,7 +41,7 @@ export function AnimatedCounter({
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = Math.round(eased * value);
 
-      setDisplay(current);
+      setAnimatedValue(current);
 
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(animate);

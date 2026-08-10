@@ -1,12 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import Logo from "@/components/logo";
 
 type FeatureItem = {
@@ -21,22 +15,6 @@ type FeatureCategory = {
   items: FeatureItem[];
 };
 
-function flattenFeatures(features: FeatureCategory[]): {
-  name: string;
-  description?: string;
-  openinary: boolean | string;
-  competitor: boolean | string;
-  category: string;
-}[] {
-  return features.flatMap((cat) =>
-    cat.items.map((item) => ({
-      ...item,
-      category: cat.category,
-      competitor: false, // placeholder, will be resolved in component
-    })),
-  );
-}
-
 export function ComparisonTable({
   features,
   competitorSlug,
@@ -46,8 +24,13 @@ export function ComparisonTable({
   competitorSlug: string;
   competitorName: string;
 }) {
-  const allItems = features.flatMap((cat) =>
-    cat.items.map((item) => ({
+  // Enriched once and kept grouped by category. The flat list this replaced
+  // was walked with counters incremented mid-render, which React rejects: a
+  // render has to be a pure function of its inputs to be safely replayable.
+  const categories = features.map((cat) => ({
+    category: cat.category,
+    count: cat.items.length,
+    items: cat.items.map((item) => ({
       name: item.name,
       description: undefined as string | undefined,
       openinary: item.openinary,
@@ -56,12 +39,6 @@ export function ComparisonTable({
         false,
       category: cat.category,
     })),
-  );
-
-  // Group by category for section headers
-  const categories = features.map((cat) => ({
-    category: cat.category,
-    count: cat.items.length,
   }));
 
   const renderPlanColumn = (plan: "openinary" | "competitor") => {
@@ -80,7 +57,6 @@ export function ComparisonTable({
         </div>
       );
 
-    let itemIndex = 0;
 
     return (
       <div
@@ -99,8 +75,7 @@ export function ComparisonTable({
               <div className="flex h-8 sm:h-10 items-center justify-center px-2 sm:px-6 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/30">
                 &nbsp;
               </div>
-              {Array.from({ length: cat.count }).map((_, i) => {
-                const item = allItems[itemIndex++];
+              {cat.items.map((item, i) => {
                 const value =
                   plan === "openinary" ? item.openinary : item.competitor;
                 return (
@@ -130,8 +105,6 @@ export function ComparisonTable({
     );
   };
 
-  let featureIndex = 0;
-
   return (
     <div className="-mx-4 sm:mx-0">
       <div className="overflow-x-auto pt-4 -mt-4 pb-8">
@@ -145,11 +118,7 @@ export function ComparisonTable({
             </div>
 
             {categories.map((cat) => {
-              const catFeatures = allItems.slice(
-                featureIndex,
-                featureIndex + cat.count,
-              );
-              featureIndex += cat.count;
+              const catFeatures = cat.items;
               return (
                 <div key={cat.category}>
                   {/* Category header */}

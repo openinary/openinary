@@ -10,7 +10,7 @@ interface GitHubStats {
 }
 
 async function getGitHubStats(): Promise<GitHubStats> {
-  const opts = (url: string) => ({
+  const opts = (_url: string) => ({
     headers: { Accept: 'application/vnd.github+json' },
     next: { revalidate: 3600 },
   })

@@ -18,7 +18,7 @@ import "slot-text/style.css";
 
 export function Header() {
   const scrolled = useScroll(10);
-  const { starCount, isLoading } = useGitHubStars("openinary", "openinary");
+  const { starCount } = useGitHubStars("openinary", "openinary");
   const [isHovered, setIsHovered] = useState(false);
   const [counterDone, setCounterDone] = useState(false);
 

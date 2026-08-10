@@ -120,7 +120,7 @@ export default function PrivacyPage() {
               Some of our processors (for example Stripe, Autumn, Google, Cloudflare and Attio) may
               process data outside the European Economic Area, including in the United States. Where
               that happens, transfers are protected by appropriate safeguards such as the European
-              Commission's Standard Contractual Clauses or an adequacy decision.
+              Commission&rsquo;s Standard Contractual Clauses or an adequacy decision.
             </P>
           </Section>
 

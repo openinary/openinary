@@ -1,6 +1,5 @@
 import CodeBlockIllustration from "@/components/ui/illustrations/code-block-illustration";
-import { FullWidthDivider } from "@/components/ui/full-width-divider";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 

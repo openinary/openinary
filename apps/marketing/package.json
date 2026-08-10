@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3200",
+    "lint": "eslint .",
     "prebuild": "mkdir -p public/r && cp ../../r/*.json public/r/",
     "build": "next build --webpack",
     "start": "next start",

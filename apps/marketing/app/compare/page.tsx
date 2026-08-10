@@ -1,7 +1,6 @@
 import competitorsData from "@/data/competitors.json";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";

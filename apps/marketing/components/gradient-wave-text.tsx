@@ -72,15 +72,16 @@ export function GradientWaveText({
   const startAtRef = useRef(0);
   const hasPlayedRef = useRef(false);
 
-  const [isInView, setIsInView] = useState(!inView);
+  // Derived rather than stored: with inView off there is nothing to observe and
+  // the text is always considered visible, so the effect no longer has to push
+  // that back into state.
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const isInView = !inView || isIntersecting;
 
   const cycles = repeat ? 0 : 1;
 
   useEffect(() => {
-    if (!inView) {
-      setIsInView(true);
-      return;
-    }
+    if (!inView) return;
 
     const node = elRef.current;
     if (!node) return;
@@ -90,10 +91,10 @@ export function GradientWaveText({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             if (once && hasPlayedRef.current) return;
-            setIsInView(true);
+            setIsIntersecting(true);
             hasPlayedRef.current = true;
           } else if (!once) {
-            setIsInView(false);
+            setIsIntersecting(false);
           }
         });
       },

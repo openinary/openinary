@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { FullWidthDivider } from "@/components/ui/full-width-divider";
 import {
   Item,
   ItemContent,
@@ -9,12 +8,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { CopyInput } from "@/components/comp-53";
 import Link from "next/link";
 import { ImageIcon, VideoIcon } from "lucide-react";
@@ -25,32 +18,6 @@ type UrlPart = {
   className: string;
   tooltip: string;
 };
-
-function ColoredUrl({ parts }: { parts: UrlPart[] }) {
-  return (
-    <TooltipProvider delayDuration={0}>
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">URL breakdown</span>
-        <div className="bg-muted rounded border p-3 font-mono text-xs overflow-x-auto whitespace-nowrap">
-          {parts.map((part, i) => (
-            <Tooltip key={i}>
-              <TooltipTrigger asChild>
-                <span
-                  className={`${part.className} cursor-help rounded px-0.5 transition-opacity hover:opacity-80`}
-                >
-                  {part.text}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[200px] text-xs">
-                {part.tooltip}
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-      </div>
-    </TooltipProvider>
-  );
-}
 
 const examples: {
   title: string;

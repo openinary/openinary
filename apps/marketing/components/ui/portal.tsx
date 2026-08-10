@@ -2,12 +2,18 @@ import { cn } from "@/lib/utils";
 import React from "react";
 import { createPortal } from "react-dom";
 
+// Renders false on the server and true once hydrated, without the setState in
+// an effect that the mounted-flag idiom needs (and that react-hooks flags).
+const subscribeToNothing = () => () => {};
+
 function Portal({ className, ...props }: React.ComponentProps<"div">) {
-	const [mounted, setMounted] = React.useState(false);
+	const mounted = React.useSyncExternalStore(
+		subscribeToNothing,
+		() => true,
+		() => false,
+	);
 
 	React.useEffect(() => {
-		setMounted(true);
-
 		const originalStyle = window.getComputedStyle(document.body).overflow;
 		const scrollbarWidth =
 			window.innerWidth - document.documentElement.clientWidth;
