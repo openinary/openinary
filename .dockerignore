@@ -24,7 +24,7 @@
 data/
 apps/docs/
 r/
-signatures/
+.github/
 .claude/
 .agents/
 
