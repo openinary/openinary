@@ -33,7 +33,11 @@
       "outputs": []
     },
     "type-check": {
-      "dependsOn": ["^build"],
+      // Its own build too, not just its dependencies': the Next apps include
+      // .next/types/**/*.ts in tsconfig, and tsc globbing that directory while
+      // next build is rewriting it fails with TS6053 on files that existed a
+      // moment earlier. Ordering the two removes the race.
+      "dependsOn": ["^build", "build"],
       "outputs": []
     },
     "test": {
