@@ -9,6 +9,7 @@ import { useScroll } from "@/hooks/use-scroll";
 import { useGitHubStars } from "@/hooks/use-github-stars";
 import { Button } from "@/components/ui/button";
 import { AnimatedCounter } from "@/components/animated-counter";
+import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { useState } from "react";
@@ -104,6 +105,7 @@ export function Header() {
               <Star className="h-4 w-4 fill-current" />
             </Button>
           </Link>
+          <MobileNav />
         </div>
       </nav>
     </header>
