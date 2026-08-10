@@ -1,22 +1,45 @@
-# The media container is built with the repo root as its context (see
-# apps/server/wrangler.jsonc's image_build_context), so this is what keeps the
-# daemon from being handed a gigabyte of node_modules on every build. Only the
-# workspace manifests, patches/ and apps/server are ever COPYed.
+# Three images build from this repo root: docker/api.Dockerfile and
+# docker/full.Dockerfile (the self-host images), and apps/cloud/server's
+# Dockerfile (the Cloud media container, whose wrangler.jsonc points its
+# image_build_context here). What follows must therefore keep apps/api,
+# apps/web, packages/ and scripts/ intact - only the manifests of the apps
+# nobody builds are needed, and only so --frozen-lockfile sees a complete
+# workspace.
 **/node_modules
 .git
 .turbo
 **/.turbo
 **/.env
 **/.env.*
+!**/.env.example
 
-# Not built here - only its manifest is needed, and only so
-# --frozen-lockfile sees a complete workspace.
-apps/web/**
-!apps/web/package.json
+# Build outputs
+**/dist
+**/.next
+**/.open-next
+**/.wrangler
+**/*.tsbuildinfo
 
-apps/server/dist
-apps/server/cache
-apps/server/temp
-# Worker-side code: bundled by wrangler, never by the container.
-apps/server/worker
-apps/server/wrangler.jsonc
+# Runtime state and things no image needs
+data/
+apps/docs/
+r/
+signatures/
+.claude/
+.agents/
+
+# Manifest-only apps: never built in any image, but the lockfile lists them.
+apps/marketing/**
+!apps/marketing/package.json
+apps/telemetry/**
+!apps/telemetry/package.json
+apps/cloud/web/**
+!apps/cloud/web/package.json
+apps/cloud/admin/**
+!apps/cloud/admin/package.json
+
+# The Cloud container runs api/ only; the worker half is bundled by wrangler.
+apps/cloud/server/cache
+apps/cloud/server/temp
+apps/cloud/server/worker
+apps/cloud/server/wrangler.jsonc

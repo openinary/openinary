@@ -11,13 +11,15 @@ ENV MALLOC_ARENA_MAX=2
 ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
 
 # Enable Corepack to use the pnpm version specified in package.json
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 WORKDIR /app
 
 # Copy monorepo configuration files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-RUN pnpm fetch
+# The root manifest declares a patchedDependencies entry; pnpm reads the patch
+# file even for a filtered install that never applies it.
+COPY patches/ ./patches/
 
 # Copy shared packages
 COPY packages/ ./packages/
@@ -28,8 +30,19 @@ COPY apps/api/ ./apps/api/
 # Copy security scripts
 COPY scripts/ ./scripts/
 
-# Install all monorepo dependencies
-RUN pnpm install --offline --frozen-lockfile
+# --frozen-lockfile compares the lockfile against every workspace project, so
+# the apps this image never builds still need their manifest present.
+COPY apps/web/package.json ./apps/web/
+COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/telemetry/package.json ./apps/telemetry/
+COPY apps/cloud/server/package.json ./apps/cloud/server/
+COPY apps/cloud/web/package.json ./apps/cloud/web/
+COPY apps/cloud/admin/package.json ./apps/cloud/admin/
+
+# Filtered, and no `pnpm fetch` before it: fetch downloads everything the
+# lockfile names, which since the monorepo merge means the Cloud apps and the
+# marketing site too. This image needs the API's closure and nothing else.
+RUN pnpm install --frozen-lockfile --filter api... --filter shared...
 
 # Create necessary directories with proper ownership (only writable dirs, chown -R /app is prohibitively slow)
 RUN mkdir -p apps/api/cache apps/api/public /app/data && \

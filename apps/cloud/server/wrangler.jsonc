@@ -11,7 +11,7 @@
       // The repo root, so the image build gets pnpm-lock.yaml and patches/ -
       // without them the container installed from apps/server/package.json
       // alone and ran unpatched, drifting dependencies. See the Dockerfile.
-      "image_build_context": "../..",
+      "image_build_context": "../../..",
       // Custom type instead of standard-1 (4 GiB): memory-provisioned time is
       // the dominant cost and a 22 MB video transform peaked at ~500 MiB.
       // 3 GiB is the platform floor (custom types need >= 1 vCPU, and 1 vCPU
