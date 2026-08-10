@@ -100,12 +100,14 @@ Thumbs.db
 # Documentation
 .vercel
 
-# Database files
+# Database files. Anchored: a bare `data/` matches at every depth, and it
+# silently swallowed apps/marketing/data/competitors.json on import.
 *.db
 *.db-shm
 *.db-wal
-data/
-apps/*/data/
+/data/
+/apps/api/data/
+/apps/web/data/
 
 # AI (root only — apps/marketing/CLAUDE.md is tracked, imported public)
 /CLAUDE.md
