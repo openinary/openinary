@@ -91,9 +91,6 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Docker
-.dockerignore
-
 # TypeScript
 *.tsbuildinfo
 
@@ -110,6 +107,6 @@ Thumbs.db
 data/
 apps/*/data/
 
-# AI
-CLAUDE.md
+# AI (root only — apps/marketing/CLAUDE.md is tracked, imported public)
+/CLAUDE.md
 .claude/

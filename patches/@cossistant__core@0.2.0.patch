@@ -1,0 +1,32 @@
+diff --git a/support-controller.js b/support-controller.js
+index 775eea2433511b30daa368cf5402c415752e30bc..2aeedcdcc756c83af7307d42f47db8b55f902855 100644
+--- a/support-controller.js
++++ b/support-controller.js
+@@ -225,7 +225,17 @@ function createSupportController(options = {}) {
+ 	const controller = {
+ 		supportStore,
+ 		start() {
+-			if (started || destroyed) return;
++			if (started) return;
++			// `destroyed` was a permanent latch, so a controller could never be
++			// restarted. React StrictMode mounts, runs the cleanup, then mounts
++			// again: start() -> destroy() -> start(), and that third call bailed
++			// out here. The website fetch from the first start still resolved,
++			// but destroy() had cleared every store subscription, so
++			// applyWebsiteState() never ran and the snapshot stayed
++			// {website: null, isLoading: true} forever - with no error to show.
++			// <Support> renders null in that state, so the widget silently never
++			// appeared in dev. Re-arm instead of refusing.
++			destroyed = false;
+ 			started = true;
+ 			const currentClient = stateStore.getState().client;
+ 			if (!currentClient) return;
+@@ -253,6 +263,8 @@ function createSupportController(options = {}) {
+ 			cleanupFns.clear();
+ 			listeners.clear();
+ 			eventHandlers.clear();
++			// Lets start() resubscribe rather than no-op on the `started` guard.
++			started = false;
+ 		},
+ 		getState() {
+ 			return snapshot;

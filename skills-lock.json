@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "loops-api": {
+      "source": "loops-so/skills",
+      "sourceType": "github",
+      "skillPath": "skills/loops-api/SKILL.md",
+      "computedHash": "f93d7ca6b897ce5c53e75319cfe3bed2bd5f776e43784a08dbcf8ab0dc1416d1"
+    },
+    "loops-cli": {
+      "source": "loops-so/skills",
+      "sourceType": "github",
+      "skillPath": "skills/loops-cli/SKILL.md",
+      "computedHash": "a4c2b339ec9cbe1aa68dea9f1dc2145d7569862b452518d38bb00dbcfc599ab1"
+    },
+    "loops-email-sending-best-practices": {
+      "source": "loops-so/skills",
+      "sourceType": "github",
+      "skillPath": "skills/loops-email-sending-best-practices/SKILL.md",
+      "computedHash": "143a669542b450d63dfd289a6a013c89462c1b74b01c1089424e7768fce5087a"
+    },
+    "loops-lmx": {
+      "source": "loops-so/skills",
+      "sourceType": "github",
+      "skillPath": "skills/loops-lmx/SKILL.md",
+      "computedHash": "70f5e871fa89762c7e70641c8957a58b2ec31c6e781a1cbde59e684e2796210c"
+    }
+  }
+}

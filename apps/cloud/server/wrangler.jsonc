@@ -1,0 +1,174 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "openinary-server",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "MediaContainer",
+      "image": "./Dockerfile",
+      // The repo root, so the image build gets pnpm-lock.yaml and patches/ -
+      // without them the container installed from apps/server/package.json
+      // alone and ran unpatched, drifting dependencies. See the Dockerfile.
+      "image_build_context": "../..",
+      // Custom type instead of standard-1 (4 GiB): memory-provisioned time is
+      // the dominant cost and a 22 MB video transform peaked at ~500 MiB.
+      // 3 GiB is the platform floor (custom types need >= 1 vCPU, and 1 vCPU
+      // needs >= 3 GiB) - still $0.028/h vs standard-1's $0.038/h, with
+      // ~8.3 free GiB-hours/month. The full vCPU costs nothing extra: CPU
+      // bills on actual usage, not provisioned capacity.
+      "instance_type": {
+        "vcpu": 1,
+        "memory_mib": 3072,
+        "disk_mb": 4000
+      },
+      // Raised from 5 so this stops being the first thing to hit under load.
+      // Note it is NOT currently the binding constraint: CdnAssets.fetch in
+      // worker/index.ts asks for a singleton container, so concurrency is 1
+      // whatever this says. This is the account-level spend ceiling that has
+      // to already be out of the way on the day that singleton becomes a
+      // pool - raising it costs nothing on its own, since idle instances
+      // don't bill (sleepAfter 2m).
+      "max_instances": 20
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MEDIA_CONTAINER",
+        "class_name": "MediaContainer"
+      },
+      {
+        "name": "USAGE_METER",
+        "class_name": "UsageMeter"
+      }
+    ]
+  },
+  // Native R2 access for the Worker itself (phase 1: read-only cache-hit
+  // path in worker/index.ts). The container still uses its own S3-compatible
+  // credentials (R2_ACCESS_KEY_ID etc. below) via @openinary/core - same
+  // underlying bucket, two access paths for two runtimes.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "openinary-cloud-storage",
+      // Dev gets its own bucket, not prod's and not an empty local one.
+      //
+      // The container reaches R2 over S3 with its own credentials, which in
+      // apps/server/.env point at openinary-storage-dev - it cannot address a
+      // miniflare store. So while this binding was emulated locally, the two
+      // runtimes disagreed on what storage even was: the Worker wrote uploads
+      // into an empty local store and the container looked for them in the
+      // dev bucket. Nothing uploaded locally could be transformed, and the
+      // cache-HIT branch of CdnAssets.fetch never fired.
+      //
+      // preview_bucket_name is what `wrangler dev` binds (same idiom as
+      // preview_id on BUCKET_OWNERS below), and "remote" makes it a real
+      // bucket rather than an emulated one - so both runtimes now agree on
+      // openinary-storage-dev. Deploys still bind bucket_name, so this cannot
+      // put dev traffic on customer media, which is why plain "remote": true
+      // was wrong here.
+      "preview_bucket_name": "openinary-storage-dev",
+      "remote": true
+    }
+  ],
+  // Caches the bucketId -> owning userId mapping (see getBucketOwner in
+  // api/lib/bucket.ts) so the Worker can rebuild a transform's R2 cache key
+  // without a DB round trip. Populated lazily: on a miss the request falls
+  // through to the container, which resolves ownership via Postgres as
+  // before and echoes it back in a response header for the Worker to cache.
+  "kv_namespaces": [
+    {
+      "binding": "BUCKET_OWNERS",
+      "id": "7151a5e13ad44f07a8f1a93f0c885107",
+      // Only `wrangler dev --remote` reaches for this one - the default local
+      // dev emulates KV in .wrangler/state and never sees either namespace.
+      // It exists so that debugging against real resources can't poison
+      // production's ownership cache, which is the one failure here that
+      // would serve one account's media under another's bucket.
+      "preview_id": "c9ba0464d9c04bc48c9fd79cd5ba6cc6"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "CDN_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 300,
+        "period": 60
+      }
+    },
+    // Per-account circuit breaker: UsageMeter only flushes to Autumn (and
+    // blocks) every 60s (see FLUSH_INTERVAL_MS in worker/usage-meter.ts), so
+    // a single account could otherwise blast requests for up to a minute
+    // before being cut off. 1000/60s (~1M/day) sits far above any real
+    // account's burst - it exists to stop abuse, not to shape legitimate
+    // (including paid) traffic.
+    {
+      "name": "ACCOUNT_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 1000,
+        "period": 60
+      }
+    }
+  ],
+  // Workers Caching (tiered cache + request collapsing) is scoped to just
+  // the CdnAssets entrypoint via per-export overrides - the default export
+  // is a gateway (rate limiting, sticky routing, the /b/ and /download/
+  // manual Cache API logic) that must run on every request, so caching stays
+  // off for it. See worker/index.ts.
+  "cache": {
+    "enabled": true
+  },
+  "exports": {
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "CdnAssets": { "type": "worker", "cache": { "enabled": true } }
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MediaContainer"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["UsageMeter"]
+    }
+  ],
+  "vars": {
+    "CORS_ORIGIN": "https://app.openinary.dev",
+    "BETTER_AUTH_URL": "https://cdn.openinary.dev",
+    // The admin panel (apps/admin). Shares this auth server with the customer
+    // app above, so it appears in trustedOrigins and in the /api/* CORS list;
+    // its own /admin/* routes are pinned to it alone.
+    "ADMIN_ORIGIN": "https://admin.openinary.dev",
+    // The single account allowed through /admin/* and every adminProcedure.
+    // Not a secret (it is just a user id, and it appears in the session of the
+    // person it names), but the only thing standing between a signed-in
+    // customer and the admin surface - see requireAdmin in api/lib/orpc.ts.
+    // Unset = the admin panel refuses everyone.
+    "ADMIN_USER_ID": "In27b4F6nK9vvN0ltyKQqHw6H8TCcuCE",
+    // Write-only ingestion token (the "phc_" project token PostHog ships in
+    // client bundles), not a personal API key - a var rather than a secret on
+    // purpose. Consumed by worker/posthog.ts from UsageMeter's alarm; unset it
+    // and delivery logging silently no-ops, which is what local dev wants.
+    "POSTHOG_PROJECT_TOKEN": "phc_kSWX2q7bTDJPoqv5oLWAYzShJ5u7kaqjgzAzeosShVzc",
+    // Public alpha: unknown emails may sign up (see signUpClosed in
+    // api/lib/auth.ts). Set to anything but "true" - or remove - to close
+    // signups again; existing accounts keep working either way.
+    "ALLOW_PUBLIC_SIGNUP": "true"
+  },
+  // Every 5 minutes: reports completed video transform jobs' minutes to Autumn
+  // (meterCompletedVideoJobs). Daily at 07:00 UTC: pushes every account's
+  // marketing profile to Loops and fires the inactivity / near-limit events
+  // (syncLifecycle). Both in worker/index.ts's scheduled handler, which tells
+  // them apart by the expression - so DAILY_CRON there must match the second
+  // string here character for character.
+  "triggers": {
+    "crons": ["*/5 * * * *", "0 7 * * *"]
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "server",
+  "main": "api/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "check-types": "tsc --noEmit",
+    "test": "tsx worker/transform-cache.test.ts && tsx worker/bucket-delete.test.ts && tsx worker/rename-cache-purge.test.ts && tsx worker/delivery-log.test.ts && tsx worker/video-metering.test.ts && tsx worker/admin-suspend.test.ts && tsx worker/loops-lifecycle.test.ts && tsx worker/loops-collisions.test.ts && tsx worker/url-hostile-keys.test.ts && tsx worker/signup-attribution.test.ts",
+    "compile": "bun build --compile --minify --sourcemap --bytecode ./api/index.ts --outfile server",
+    "dev": "wrangler dev --port 3000",
+    "dev:local": "wrangler dev --port 3000 --local",
+    "dev:container": "NODE_ENV=development tsx watch api/index.ts",
+    "start": "node dist/api/index.js",
+    "deploy": "wrangler deploy",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "backfill:storage": "tsx api/scripts/backfill-storage.ts"
+  },
+  "dependencies": {
+    "@better-auth/api-key": "1.6.23",
+    "@cloudflare/containers": "^0.3.7",
+    "@hono/node-server": "^1.14.4",
+    "@neondatabase/serverless": "^1.1.0",
+    "@openinary/core": "^1.5.1",
+    "@orpc/client": "^1.14.8",
+    "@orpc/server": "^1.14.8",
+    "autumn-js": "1.2.43",
+    "better-auth": "^1.6.23",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.44.2",
+    "hono": "^4.12.30",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260716.1",
+    "@types/node": "^22.13.11",
+    "drizzle-kit": "^0.31.2",
+    "tsc-alias": "^1.8.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.111.0"
+  }
+}

@@ -1,0 +1,22 @@
+# The media container is built with the repo root as its context (see
+# apps/server/wrangler.jsonc's image_build_context), so this is what keeps the
+# daemon from being handed a gigabyte of node_modules on every build. Only the
+# workspace manifests, patches/ and apps/server are ever COPYed.
+**/node_modules
+.git
+.turbo
+**/.turbo
+**/.env
+**/.env.*
+
+# Not built here - only its manifest is needed, and only so
+# --frozen-lockfile sees a complete workspace.
+apps/web/**
+!apps/web/package.json
+
+apps/server/dist
+apps/server/cache
+apps/server/temp
+# Worker-side code: bundled by wrangler, never by the container.
+apps/server/worker
+apps/server/wrangler.jsonc
