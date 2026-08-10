@@ -132,5 +132,30 @@ STORAGE_PUBLIC_URL=https://your-cdn-domain.com
 
 [Full Documentation](https://docs.openinary.dev) | [Issues](https://github.com/openinary/openinary/issues) | [Contact](https://x.com/initflorian)
 
+## Repository layout
+
+This repository holds the self-hosted product and the managed Cloud service side
+by side, so a fix to the shared engine reaches both without a release in between.
+
+```
+apps/api  apps/web  apps/telemetry   the self-hosted product
+apps/cloud                           Openinary Cloud (server, web, admin)
+apps/marketing  apps/docs            openinary.dev and its documentation
+packages/                            core, ui, cli, registry, shared
+```
+
+See [Project Structure](https://docs.openinary.dev/project-structure) for the
+full tour.
+
 ## License
-This project is licensed under the  AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+
+Everything in this repository is **AGPL-3.0** — see [LICENSE](LICENSE) — with two
+exceptions:
+
+- **`apps/cloud/`** is the managed Cloud service. It is source-available, not
+  open source: read it, audit it, contribute to it, but running it needs a
+  written agreement. See [apps/cloud/LICENSE](apps/cloud/LICENSE).
+- **`apps/marketing/`** (the website) is MIT.
+
+Self-hosting Openinary needs nothing from `apps/cloud/`. The AGPL parts are the
+whole product.

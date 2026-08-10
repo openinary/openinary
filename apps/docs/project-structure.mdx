@@ -1,20 +1,50 @@
 ---
 title: "Project Structure"
-description: "Openinary monorepo layout: Hono.js API, Next.js 15 dashboard, and a shared auth/database package, with key file paths for contributors."
+description: "Openinary monorepo layout: the Hono.js API, the Next.js dashboard, the shared packages, and where the managed Cloud lives alongside them."
 ---
 
 Openinary is a **pnpm monorepo** orchestrated by [Turbo](https://turbo.build/).
+It holds both the AGPL-3.0 self-hosted product and the source of the managed
+Cloud service, so a fix to the shared engine lands in both at once.
 
 ```bash
 openinary/
 ├── apps/
-│   ├── api/          # Hono.js media processing API
-│   └── web/          # Next.js 15 admin dashboard
-├── packages/
-│   └── shared/       # Auth config, DB instance, shared types
+│   ├── api/          # Hono.js media processing API         (AGPL-3.0)
+│   ├── web/          # Next.js admin dashboard              (AGPL-3.0)
+│   ├── telemetry/    # Anonymous self-host telemetry worker (AGPL-3.0)
+│   ├── marketing/    # openinary.dev                        (MIT)
+│   ├── docs/         # This documentation
+│   └── cloud/        # Openinary Cloud — see apps/cloud/LICENSE
+│       ├── server/   #   API worker + media container
+│       ├── web/      #   Customer dashboard
+│       └── admin/    #   Back office
+├── packages/         # core, ui, cli, registry, shared      (AGPL-3.0)
+├── r/                # Built shadcn registry (generated)
 ├── docker/           # Optimized Dockerfiles
 └── docker-compose.yml
 ```
+
+<Note>
+  Everything is AGPL-3.0 except `apps/cloud/`, which is source-available under a
+  commercial license, and `apps/marketing/`, which is MIT. Self-hosting needs
+  nothing from `apps/cloud/`.
+</Note>
+
+## packages/
+
+| Package | What it is |
+| --- | --- |
+| `@openinary/core` | The transformation engine: image and video pipelines, storage clients, the job queue. Used by `apps/api` and by the Cloud's media container. |
+| `@openinary/ui` | React components, including the file uploader. |
+| `create-openinary` | The CLI (`npx create-openinary`), published to npm. |
+| `registry` | shadcn/ui registry source; its build output is `r/`. |
+| `shared` | Auth config, database instance and shared types for the self-hosted apps. |
+
+`core` and `ui` are workspace packages rather than npm releases: the apps
+consume them through `workspace:*`, so nothing has to be published between
+fixing one and shipping it. To use them in your own app, go through the
+[shadcn registry](/guides/file-uploader).
 
 ## apps/api
 

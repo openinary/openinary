@@ -39,8 +39,9 @@ Pull requests are welcome! Here's how to get started:
 
 1. **Fork** the repository and create your branch from `main`
 2. **Set up your environment:**
-   - Install dependencies: `npm install` (or `pnpm install`)
+   - Install dependencies: `pnpm install` (pnpm 10, Node 20+)
    - Follow the setup instructions in the README
+   - `pnpm dev` runs the self-hosted API (`:3000`) and dashboard (`:3001`)
 3. **Make your changes:**
    - Follow the existing code style and ensure your code is well-documented
    - Keep PRs focused and scoped to a single change
@@ -52,6 +53,25 @@ Pull requests are welcome! Here's how to get started:
    - Link any related issues or discussions
 
 PRs will be reviewed by maintainers and merged once they meet quality standards and align with the project direction.
+
+### What lives where
+
+This repository holds the self-hosted product and the managed Cloud service in
+one tree. Everything is AGPL-3.0 except `apps/cloud/`, which is source-available
+under [its own license](apps/cloud/LICENSE), and `apps/marketing/`, which is MIT.
+Contributions are welcome to all of them, under the same CLA below.
+
+The shared engine lives in `packages/core` and `packages/ui`, and both the
+self-hosted apps and the Cloud consume it through `workspace:*`. That is the
+point of the single tree: a fix in `packages/core` reaches `apps/api` and
+`apps/cloud/server` in the same commit, with nothing published in between.
+Neither package is released to npm — to use them in your own app, go through the
+shadcn registry in `packages/registry`.
+
+The dev servers are on separate ports so the self-hosted and Cloud stacks can run
+side by side: `pnpm dev` (3000/3001), `pnpm dev:cloud` (3100/3101),
+`pnpm dev:admin` (3102), `pnpm dev:marketing` (3200), `pnpm dev:telemetry`
+(8787), `pnpm dev:docs` (3333).
 
 ### A note on `docker.env.example`
 
