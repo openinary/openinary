@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { QueueStatsCards } from "@openinary/ui";
 import { QueueTable, type QueueTableJob as QueueJob } from "@openinary/ui";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,11 @@ export default function QueuePage() {
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   
   // Use SSE for real-time updates
-  const { jobStatuses, isConnected } = useQueueEvents(true);
+  const { isConnected } = useQueueEvents(true);
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/queue/stats`, {
         credentials: "include",
@@ -37,9 +37,9 @@ export default function QueuePage() {
     } catch (error) {
       console.error("Failed to fetch stats:", error);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setIsLoading(true);
     try {
       const url =
@@ -60,7 +60,7 @@ export default function QueuePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [apiBaseUrl, selectedFilter]);
 
   useEffect(() => {
     fetchStats();
@@ -73,7 +73,9 @@ export default function QueuePage() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [selectedFilter]);
+    // fetchJobs changes identity with selectedFilter, so the poll restarts on
+    // a filter change exactly as it did when that was the only dependency.
+  }, [fetchStats, fetchJobs]);
 
   const handleRefresh = () => {
     fetchStats();

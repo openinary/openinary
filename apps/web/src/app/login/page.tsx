@@ -51,7 +51,6 @@ export default function LoginPage() {
   // Check if user is already authenticated and if setup is required on mount
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: NodeJS.Timeout;
 
     const checkAuthAndSetup = async () => {
       try {
@@ -70,11 +69,13 @@ export default function LoginPage() {
         // Next, check if user is already authenticated
         // Add timeout to prevent infinite loading
         const sessionPromise = authClient.getSession();
-        const timeoutPromise = new Promise((_, reject) =>
+        // Promise<never>: it only ever rejects, so the race keeps the session's
+        // own type instead of widening to unknown.
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Session check timeout")), 3000)
         );
-        
-        const session = await Promise.race([sessionPromise, timeoutPromise]) as any;
+
+        const session = await Promise.race([sessionPromise, timeoutPromise]);
         
         if (!isMounted) return;
         
@@ -125,7 +126,7 @@ export default function LoginPage() {
     };
 
     // Add a fallback timeout to ensure we never stay stuck
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       if (isMounted) {
         logger.warn("Auth check timeout - unblocking UI");
         setCheckingSetup(false);
@@ -133,16 +134,14 @@ export default function LoginPage() {
     }, 5000); // 5 second absolute timeout
 
     checkAuthAndSetup().finally(() => {
-      if (isMounted && timeoutId) {
+      if (isMounted) {
         clearTimeout(timeoutId);
       }
     });
 
     return () => {
       isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
     };
   }, [router]);
 
@@ -168,9 +167,13 @@ export default function LoginPage() {
         logger.error("[Login] Sign in failed - no data in result", { result });
         throw new Error(result?.error?.message || "Sign in failed - please try again");
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.error("[Login] Sign in error", { error: err });
-      setError(err.message || "Incorrect email or password");
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Incorrect email or password",
+      );
     }
   };
 

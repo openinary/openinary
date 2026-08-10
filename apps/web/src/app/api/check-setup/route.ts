@@ -25,7 +25,7 @@ export async function GET() {
       return NextResponse.json({
         setupComplete: result.count > 0,
       });
-    } catch (error) {
+    } catch {
       // Database doesn't exist or table doesn't exist - setup not complete
       return NextResponse.json({
         setupComplete: false,

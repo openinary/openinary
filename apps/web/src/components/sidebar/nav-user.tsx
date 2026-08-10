@@ -18,7 +18,7 @@ import { SettingsDialog } from "./settings-dialog"
 
 export function NavUser() {
   const { data, isPending } = useSession()
-  const [tab, setTab] = useQueryState("settings")
+  const [, setTab] = useQueryState("settings")
 
   const user = data?.user
   const userName = user?.name || user?.email?.split("@")[0] || "User"

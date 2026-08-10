@@ -246,8 +246,12 @@ export default function SetupPage() {
 
       // Redirect to login after successful account creation
       router.push("/login");
-    } catch (err: any) {
-      setError(err.message || "An error occurred while creating the account");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "An error occurred while creating the account",
+      );
     }
   };
 
