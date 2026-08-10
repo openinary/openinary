@@ -1,9 +1,16 @@
-name: Deploy to Cloudflare Workers
+name: deploy-marketing
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'apps/marketing/**'
+      # The site serves the built shadcn registry from /r (copied in by the
+      # app's prebuild), so a registry change has to redeploy it.
+      - 'r/**'
+      - '.github/workflows/deploy-marketing.yml'
+  workflow_dispatch: {}
 
 jobs:
   deploy:
@@ -11,9 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No `version:` input - it conflicts with the root packageManager field,
+      # which is the single source of truth for the pnpm version here.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -24,7 +31,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build and deploy
-        run: pnpm run deploy
+        run: pnpm run deploy:marketing
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 94c4079b2c83ce0a8a9c73c84a80b221

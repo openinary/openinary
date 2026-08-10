@@ -63,37 +63,3 @@ jobs:
             echo "::error::The built registry in /r is out of date. Run 'pnpm --filter registry registry:build' and commit the result."
             exit 1
           fi
-
-  publish:
-    needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout this repository
-        uses: actions/checkout@v4
-
-      - name: Checkout marketing site
-        uses: actions/checkout@v4
-        with:
-          repository: openinary/marketing
-          token: ${{ secrets.MARKETING_REPO_TOKEN }}
-          path: marketing
-
-      - name: Copy built registry into the marketing site
-        run: |
-          mkdir -p marketing/public/r
-          cp r/*.json marketing/public/r/
-
-      - name: Commit and push if changed
-        working-directory: marketing
-        run: |
-          git config user.name "openinary-bot"
-          git config user.email "bot@openinary.dev"
-          if git diff --quiet -- public/r/; then
-            echo "Registry already up to date on the marketing site."
-            exit 0
-          fi
-          git add public/r/
-          git commit -m "chore: sync @openinary registry from openinary@${GITHUB_SHA::7}"
-          git push

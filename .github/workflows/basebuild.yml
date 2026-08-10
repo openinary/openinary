@@ -14,6 +14,12 @@ on:
       - 'apps/**'
       - 'packages/**'
       - '.github/workflows/basebuild.yml'
+      # These share the monorepo but ship nothing into the self-host images.
+      # Negations come last: GitHub applies the patterns in order.
+      - '!apps/cloud/**'
+      - '!apps/marketing/**'
+      - '!apps/telemetry/**'
+      - '!apps/docs/**'
   workflow_dispatch:
     inputs:
       version:
