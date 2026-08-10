@@ -8,8 +8,9 @@
   "files": {
     "ignoreUnknown": false,
     "includes": [
-      "**",
+      "apps/cloud/**",
       "!**/.next",
+      "!**/.open-next",
       "!**/dist",
       "!**/.turbo",
       "!**/dev-dist",
@@ -18,7 +19,6 @@
       "!**/routeTree.gen.ts",
       "!**/src-tauri",
       "!**/.nuxt",
-      "!bts.jsonc",
       "!**/.expo",
       "!**/.wrangler"
     ]

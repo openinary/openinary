@@ -1,12 +1,13 @@
 {
-  "name": "admin",
+  "name": "cloud-admin",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN ../LICENSE",
   "scripts": {
-    "dev": "next dev --turbopack --port=3002",
+    "dev": "next dev --turbopack --port=3102",
     "build": "next build",
     "start": "next start",
-    "check-types": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },

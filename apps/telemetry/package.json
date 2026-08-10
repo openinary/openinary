@@ -1,5 +1,5 @@
 {
-  "name": "openinary-telemetry-worker",
+  "name": "telemetry",
   "version": "1.0.0",
   "private": true,
   "type": "module",

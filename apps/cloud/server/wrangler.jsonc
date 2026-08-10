@@ -143,12 +143,11 @@
     // app above, so it appears in trustedOrigins and in the /api/* CORS list;
     // its own /admin/* routes are pinned to it alone.
     "ADMIN_ORIGIN": "https://admin.openinary.dev",
-    // The single account allowed through /admin/* and every adminProcedure.
-    // Not a secret (it is just a user id, and it appears in the session of the
-    // person it names), but the only thing standing between a signed-in
-    // customer and the admin surface - see requireAdmin in api/lib/orpc.ts.
-    // Unset = the admin panel refuses everyone.
-    "ADMIN_USER_ID": "In27b4F6nK9vvN0ltyKQqHw6H8TCcuCE",
+    // The single account allowed through /admin/* and every adminProcedure is
+    // ADMIN_USER_ID - a Worker secret, not a var, because this repo is public
+    // and that id is the only thing standing between a signed-in customer and
+    // the admin surface (see requireAdmin in api/lib/orpc.ts). Set it with
+    // `wrangler secret put ADMIN_USER_ID`; unset = the panel refuses everyone.
     // Write-only ingestion token (the "phc_" project token PostHog ships in
     // client bundles), not a personal API key - a var rather than a secret on
     // purpose. Consumed by worker/posthog.ts from UsageMeter's alarm; unset it

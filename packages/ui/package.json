@@ -1,6 +1,7 @@
 {
   "name": "@openinary/ui",
   "version": "0.8.1",
+  "private": true,
   "description": "Openinary's dashboard UI components, hooks and design primitives as a standalone, embeddable React package.",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -24,13 +25,9 @@
       "default": "./dist/server.js"
     }
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "rm -rf dist && tsup",
     "dev": "tsup --watch",
-    "prepublishOnly": "npm run build",
     "type-check": "tsc --noEmit",
     "test": "node --import tsx --test $(find test -name '*.test.ts')"
   },

@@ -110,3 +110,11 @@ apps/*/data/
 # AI (root only — apps/marketing/CLAUDE.md is tracked, imported public)
 /CLAUDE.md
 .claude/
+
+# Cloudflare
+.wrangler/
+.open-next/
+.dev.vars
+
+# Built registry mirrored into the marketing site (source of truth is /r)
+apps/marketing/public/r/

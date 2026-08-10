@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 
 process.env.BETTER_AUTH_SECRET ??= "check-secret-long-enough-to-not-warn-xx";
-process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
+process.env.BETTER_AUTH_URL ??= "http://localhost:3100";
 process.env.CORS_ORIGIN ??= "https://app.openinary.dev";
 process.env.DATABASE_URL ??= "postgresql://u:p@localhost/db";
 
@@ -92,11 +92,11 @@ async function post(
 {
   const { res } = await post(
     { folder: "x" },
-    { Origin: "http://localhost:3001" },
+    { Origin: "http://localhost:3101" },
   );
   assert.equal(
     res.headers.get("access-control-allow-origin"),
-    "http://localhost:3001",
+    "http://localhost:3101",
   );
 }
 {

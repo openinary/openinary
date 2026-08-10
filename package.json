@@ -5,12 +5,18 @@
   "private": true,
   "workspaces": [
     "apps/*",
+    "apps/cloud/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev -F api -F web",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev",
+    "dev:cloud": "turbo run dev -F cloud-server -F cloud-web",
+    "dev:admin": "turbo run dev -F cloud-admin",
+    "dev:telemetry": "turbo run dev -F telemetry",
+    "dev:marketing": "turbo run dev -F marketing",
+    "dev:docs": "cd apps/docs && npx mint dev --port 3333",
     "build": "turbo run build",
     "build:api": "pnpm --filter api build",
     "build:web": "pnpm --filter web build",
@@ -20,27 +26,65 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
+    "check": "biome check --write .",
     "clean": "pnpm --filter api clean && pnpm --filter web clean",
+    "deploy:cloud": "turbo run deploy -F cloud-server -F cloud-web",
+    "deploy:admin": "turbo run deploy -F cloud-admin",
+    "deploy:telemetry": "turbo run deploy -F telemetry",
+    "deploy:marketing": "turbo run deploy -F marketing",
+    "db:push": "turbo run db:push -F cloud-server",
+    "db:studio": "turbo run db:studio -F cloud-server",
+    "db:generate": "turbo run db:generate -F cloud-server",
+    "db:migrate": "turbo run db:migrate -F cloud-server",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down",
     "init-env": "node scripts/init-env.js",
     "secure-db": "node scripts/secure-db.js",
-    "cli": "pnpm --filter create-openinary",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "turbo run build --filter=@openinary/core --filter=@openinary/ui && changeset publish"
+    "cli": "pnpm --filter create-openinary"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
-    "@changesets/cli": "^2.27.10",
+    "@biomejs/biome": "^2.1.1",
     "better-sqlite3": "^11.10.0",
     "turbo": "^2.8.12"
   },
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=8.0.0"
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
   },
-  "packageManager": "pnpm@9.0.0",
-  "type": "module"
+  "packageManager": "pnpm@10.13.1",
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "workerd"
+    ],
+    "patchedDependencies": {
+      "@cossistant/core@0.2.0": "patches/@cossistant__core@0.2.0.patch"
+    },
+    "overrides": {
+      "tar@7": "^7.5.19",
+      "postcss@8": "^8.5.12",
+      "sharp@0.34": "^0.35.0",
+      "js-yaml@4": "^4.3.0",
+      "brace-expansion@1": "^1.1.16",
+      "brace-expansion@2": "^2.1.2",
+      "brace-expansion@5": "^5.0.7",
+      "minimatch@3": "^3.1.4",
+      "picomatch@2": "^2.3.2",
+      "picomatch@4": "^4.0.4",
+      "undici@6": "^6.27.0",
+      "undici@7": "^7.28.0",
+      "ws@8": "^8.21.0",
+      "uuid@11": "^11.1.1",
+      "qs@6": "^6.15.2",
+      "form-data@4": "^4.0.6",
+      "flatted@3": "^3.4.2",
+      "ajv@6": "^6.14.0",
+      "body-parser@2": "^2.3.0",
+      "@babel/core@7": "^7.29.6"
+    }
+  }
 }

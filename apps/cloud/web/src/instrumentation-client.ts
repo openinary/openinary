@@ -24,8 +24,8 @@ import posthog from "posthog-js";
 // cross-subdomain identity continuity described above is untouched.
 //
 // Local dev is muted, for the same reason and by the same hostname test as
-// captureEvent in apps/server/api/lib/analytics.ts: `next dev` loads this
-// file too, and localhost:3001 was outweighing production two to one on
+// captureEvent in apps/cloud/server/api/lib/analytics.ts: `next dev` loads
+// this file too, and localhost was outweighing production two to one on
 // $pageview and ten to one on playground_opened. opt_out rather than skipping
 // init, so the capture() calls in lib/analytics.ts stay no-ops instead of
 // warning on every click. Preview deploys (*.workers.dev) are muted with it.

@@ -1,18 +1,19 @@
 {
-  "name": "web",
+  "name": "cloud-web",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN ../LICENSE",
   "scripts": {
-    "dev": "next dev --turbopack --port=3001",
+    "dev": "next dev --turbopack --port=3101",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "type-check": "tsc --noEmit",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@cossistant/next": "^0.2.0",
-    "@openinary/ui": "^0.8.1",
+    "@openinary/ui": "workspace:*",
     "@opennextjs/cloudflare": "^1.20.1",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.14.8",

@@ -16,7 +16,7 @@ import { notify } from "./push.js";
 
 // The ".openinary.dev" cookie domain is only valid when actually serving on
 // that domain (cdn.openinary.dev in prod). Applying it to a local
-// http://localhost:3000 origin makes the browser silently reject the
+// http://localhost:3100 origin makes the browser silently reject the
 // session cookie - sign-in looks like it succeeds (the API call returns
 // 200) but no cookie is ever stored, so every subsequent request is
 // unauthenticated. Scope it to the real BETTER_AUTH_URL host instead.

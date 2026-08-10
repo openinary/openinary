@@ -11,7 +11,7 @@
 
 import assert from "node:assert/strict";
 
-process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
+process.env.BETTER_AUTH_URL ??= "http://localhost:3100";
 process.env.DATABASE_URL ??= "postgresql://u:p@localhost/db";
 process.env.CLOUDFLARE_ACCOUNT_ID = "acct-123";
 process.env.CLOUDFLARE_EMAIL_TOKEN = "token-abc";
