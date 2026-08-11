@@ -3,40 +3,17 @@ title: "Integrate with React"
 description: "Add secure file uploads and media delivery to any React app, on Openinary Cloud or your own instance: your backend mints a short-lived signature, the browser uploads with it, and your API key never reaches the bundle."
 ---
 
-This guide wires Openinary into a React app whose backend is separate, a Vite frontend with an Express, Hono or Fastify API behind it. The component is the same one Next.js uses; only the plumbing around it differs. It works the same on Openinary Cloud and on a self-hosted instance, and the few steps that differ say which is which.
+You end up with a `<FileUploader />` in your React app, a route on your own API that mints a short-lived upload signature, and an API key that never reaches the bundle. Two shadcn commands install both pieces as source you own. This is the setup for a React frontend with a separate backend, a Vite app with an Express, Hono or Fastify API behind it. The flow is identical on Openinary Cloud and on a self-hosted instance, and the few steps that differ say which is which.
 
-Copy each file into your project as you go. Every snippet is complete.
-
-<Note>
-  On Next.js the route handler and the uploader live in one project, which changes where the environment variables go. See [Integrate with Next.js](/guides/integrate/nextjs).
-</Note>
-
-## Prerequisites
-
-Both deployments need a project set up for shadcn/ui (`components.json` present) and the shadcn CLI **v3 or newer**, which is what resolves namespaced registries.
-
-<Tabs>
-  <Tab title="Cloud">
-    - An account with a bucket, see [Cloud Quickstart](/cloud/quickstart).
-    - An **API key** pinned to that bucket, from **Settings → API keys** in the dashboard.
-
-    Nothing else. No `API_SECRET`, no `CORS_ORIGIN` allow-list, no `MAX_FILE_SIZE_MB`, and `POST /upload` accepts token-authenticated uploads from any origin.
-  </Tab>
-
-  <Tab title="Self-hosted">
-    - A running instance, see [Quickstart](/quickstart).
-    - `API_SECRET` set on the instance (**at least 16 characters**; `openssl rand -hex 32` gives you a strong 64-character one). It computes the HMAC signature, and is the same secret used for [signed delivery URLs](/media-transformations/signed-urls).
-    - An **API key** for your backend to sign with, see [API Keys](/api-reference/api-keys/create).
-    - `CORS_ORIGIN` including the origin of the app that embeds the uploader, comma-separated for several: `CORS_ORIGIN=https://app.example.com,https://admin.example.com`.
-    - `MAX_FILE_SIZE_MB` if you need to raise the default 50 MB limit.
-  </Tab>
-</Tabs>
+On Next.js the route handler and the uploader live in one project, which changes where the environment variables go. See [Integrate with Next.js](/guides/integrate/nextjs).
 
 ## Install
 
+Every snippet below is complete. Copy each file into your project as you go.
+
 <Steps>
   <Step title="Register the Openinary registry">
-    The uploader installs as source you own, not as a package. Point shadcn at the namespace once.
+    The uploader installs as source you own, not as a package. Point shadcn at the namespace once. You need a project already set up for shadcn/ui (`components.json` present) and the shadcn CLI **v3 or newer**, which is what resolves namespaced registries.
 
     ```json components.json
     {
@@ -55,13 +32,9 @@ Both deployments need a project set up for shadcn/ui (`components.json` present)
 
     The first writes `components/openinary/file-uploader.tsx` and its hook into the frontend, with drag & drop, per-file progress, previews, retry, cancel and client-side validation. The second writes `lib/upload-token.ts`, a thin client for `POST /upload/sign`.
 
-    <Warning>
-      `upload-token` belongs to **your backend**, not to the Vite app. It reads an API key, and anything the Vite app imports ends up in the bundle. Run that second command in the backend project, or move the file there.
-    </Warning>
+    **Run that second command in the backend project, or move the file there.** `upload-token` reads an API key, and anything the Vite app imports ends up in the bundle.
 
-    <Note>
-      No shadcn in this project? Don't run `shadcn init` for it, that would restructure a project that never asked for it. Take `use-file-upload.ts` alone, verbatim, from [the registry JSON](https://openinary.dev/r/file-uploader.json), which carries each file's target and full content. The hook holds all the logic and no styling, so you can write the markup your codebase would have written anyway.
-    </Note>
+    No shadcn in this project? Don't run `shadcn init` for it, that would restructure a project that never asked for it. Take `use-file-upload.ts` alone, verbatim, from [the registry JSON](https://openinary.dev/r/file-uploader.json), which carries each file's target and full content. The hook holds all the logic and no styling, so you write the markup your codebase would have written anyway.
   </Step>
 
   <Step title="Set your environment">
@@ -74,19 +47,34 @@ Both deployments need a project set up for shadcn/ui (`components.json` present)
     OPENINARY_API_KEY=your-openinary-api-key
     ```
 
-    <Note>
-      `YOUR_OPENINARY_URL` is `https://cdn.openinary.dev` on Cloud. Self-hosted, it's your own domain, plus `/api` in full stack mode where nginx reserves the root for the dashboard.
-    </Note>
+    `YOUR_OPENINARY_URL` is `https://cdn.openinary.dev` on Cloud. Self-hosted, it's your own domain, plus `/api` in full stack mode where nginx reserves the root for the dashboard.
 
-    <Warning>
-      The API key mints upload signatures, so it is a secret. Keep it in the backend environment only, never in a `VITE_*` variable, never in client code, never in the repository. Vite inlines every `VITE_*` variable into the bundle, so the prefix is the whole difference between a secret and a public value.
-    </Warning>
+    The API key mints upload signatures, so it is a secret. Keep it in the backend environment only, never in a `VITE_*` variable, never in client code, never in the repository. Vite inlines every `VITE_*` variable into the bundle, so the prefix is the whole difference between a secret and a public value.
   </Step>
 </Steps>
 
+## What each deployment needs
+
+<Tabs>
+  <Tab title="Cloud">
+    - An account with a bucket, see [Cloud Quickstart](/cloud/quickstart).
+    - An **API key** pinned to that bucket, from **Settings → API keys** in the dashboard.
+
+    Nothing else. No `API_SECRET`, no `CORS_ORIGIN` allow-list, no `MAX_FILE_SIZE_MB`, and `POST /upload` accepts token-authenticated uploads from any origin.
+  </Tab>
+
+  <Tab title="Self-hosted">
+    - A running instance, see [Quickstart](/quickstart).
+    - `API_SECRET` set on the instance, **at least 16 characters**. `openssl rand -hex 32` gives you a strong 64-character one. It computes the HMAC signature, and is the same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+    - An **API key** for your backend to sign with, see [API Keys](/api-reference/api-keys/create).
+    - `CORS_ORIGIN` including the origin of the app that embeds the uploader, comma-separated for several: `CORS_ORIGIN=https://app.example.com,https://admin.example.com`.
+    - `MAX_FILE_SIZE_MB` if you need to raise the default 50 MB limit.
+  </Tab>
+</Tabs>
+
 ## Mint the signature on your server
 
-Your backend holds the key and hands the browser a signature that dies in five minutes. `signUpload()` makes that call; you write the route around it, in whatever framework your API uses.
+Your backend holds the key and hands the browser a signature that dies in five minutes. `signUpload()` makes that call. You write the route around it, in whatever framework your API uses.
 
 ```ts server/upload-token.ts
 import express from "express";
@@ -106,25 +94,15 @@ app.post("/api/upload-token", requireAuth, async (req, res) => {
 });
 ```
 
-Two things this route has to do, and `signUpload()` does neither for you:
-
 <Warning>
-  **Authenticate it with whatever this app already uses.** The route hands out an upload grant, so it belongs wherever your existing auth lives, in the API rather than in the app that renders the uploader.
-
-  **Derive `folder` server-side, from the authenticated user.** A folder read from the request body is a folder any visitor can choose, including someone else's.
+  **Derive `folder` server-side, from the authenticated user.** A folder read from the request body is a folder any visitor can choose, including someone else's. Authenticate the route too, with whatever this app already uses: it hands out an upload grant. `signUpload()` does neither for you.
 </Warning>
 
-<Note>
-  `signUpload` sends its own `User-Agent`, so Cloudflare Workers, Deno and Bun
-  work without extra setup. Pass a `userAgent` option if you want to identify
-  your app specifically.
-</Note>
+The route belongs in the API, not in the app that renders the uploader. A frontend on `app.example.com` calling an API on `api.example.com` needs CORS on **your own** signing route, which is separate from anything Openinary is configured with.
 
-The route returns `{ signature, expires, folder }`. Those are opaque values that expire in minutes, so they are safe to hand to the browser. Keep `expiresIn` short, 60 to 300 seconds is plenty; the server clamps it to 3600 anyway, and it only has to live long enough to start the upload.
+`signUpload` sends its own `User-Agent`, so Cloudflare Workers, Deno and Bun work without extra setup. Pass a `userAgent` option if you want to identify your app specifically.
 
-<Tip>
-  A frontend on `app.example.com` calling an API on `api.example.com` needs CORS on **your own** signing route, which is separate from anything Openinary is configured with.
-</Tip>
+The route returns `{ signature, expires, folder }`. Those are opaque values that expire in minutes, so they are safe to hand to the browser. Keep `expiresIn` short, 60 to 300 seconds is plenty. The server clamps it to 3600 anyway, and it only has to live long enough to start the upload.
 
 ## Drop in the uploader
 
@@ -163,27 +141,22 @@ export function Uploader() {
 
 `sign()` runs right before each upload batch and again on every retry, so an expired signature never survives a retry. The destination folder is whatever the signature is scoped to, and a `folder` prop on the component is ignored when a signature is used.
 
-<Note>
-  The `transformations` prop pre-warms variants at upload time on a self-hosted instance, see [Upload & Pre-warm](/media-transformations/upload-and-prewarm). **On Cloud it is ignored**, along with the `prewarmedUrls` and `queuedTransformationUrls` fields, because variants are generated on the first request instead.
-</Note>
+The `transformations` prop pre-warms variants at upload time on a self-hosted instance, see [Upload & Pre-warm](/media-transformations/upload-and-prewarm). **On Cloud it is ignored**, along with the `prewarmedUrls` and `queuedTransformationUrls` fields, because variants are generated on the first request instead.
 
 For the full props table and styling, see [`<FileUploader />`](/guides/file-uploader). On Cloud, [the Cloud page](/cloud/file-uploader) adds the behaviour table for the props that differ.
 
 ## Render it once, as the original
 
-`onSuccess` gives you two values worth knowing apart:
+`onSuccess` gives you two values worth knowing apart.
 
-<ResponseField name="path" type="string">
-  The stored path, e.g. `users/42/photo.jpg`. **This is what you persist**, not a URL. It may be de-duplicated if a file of that name already existed (`photo (1).jpg`), so always use this value rather than the name you sent.
-</ResponseField>
+| Field | What it holds |
+| --- | --- |
+| `path` | The stored path, e.g. `users/42/photo.jpg`. **This is what you persist**, not a URL. It may be de-duplicated if a file of that name already existed (`photo (1).jpg`), so use it rather than the name you sent. |
+| `url` | The delivery path, with no transformation segment: `/t/{path}` self-hosted, `/b/{bucketId}/t/{path}` on Cloud. The server echoes it, so prefix it with your base URL and use it unchanged on either deployment. |
 
-<ResponseField name="url" type="string">
-  The delivery path, with no transformation segment: `/t/{path}` self-hosted, `/b/{bucketId}/t/{path}` on Cloud. The server echoes it rather than expecting you to rebuild it, so prefix it with your base URL and use it unchanged, on either deployment.
-</ResponseField>
+Render `url` once and never swap it for another URL. That form is served straight from storage, so it decodes on the first try, every time.
 
-Render it once and never swap it for another URL. That form is served straight from storage, so it decodes on the first try, every time.
-
-A sized transformation can't promise the same, because it's generated on demand. On Openinary Cloud the first request for one returns `202 {"status":"processing"}` rather than bytes; self-hosted, that applies to video, while images are processed inline and come back as bytes on the first request. Where the `202` happens, an `<img>` can't decode a JSON body: it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame.
+A sized transformation can't promise the same, because it's generated on demand. On Openinary Cloud the first request for one returns `202 {"status":"processing"}` rather than bytes. Self-hosted, that applies to video, while images are processed inline and come back as bytes on the first request. Where the `202` happens, an `<img>` can't decode a JSON body: it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame.
 
 Transformed URLs are for the next page load, once the file is at rest. Insert the transformation right after `/t/` in the `url` you stored, and you don't need to know which deployment shape it has:
 
@@ -195,13 +168,11 @@ const thumbnail = `${import.meta.env.VITE_OPENINARY_URL}${url.replace(
 )}`;
 ```
 
-<Warning>
-  A confirmation, not a gallery. The original is full-size bytes and one CDN request, which is right for the single file that just arrived and wrong for a grid of fifty, use transformations there. Only jpg, png, webp, avif and gif decode in a browser, anything else is a link. And drop the component's local preview once the upload finishes rather than showing both, that second copy is the same swap.
-</Warning>
+Treat the original as a confirmation, not a gallery. It is full-size bytes and one CDN request, which is right for the single file that just arrived and wrong for a grid of fifty, use transformations there. Only jpg, png, webp, avif and gif decode in a browser, anything else is a link. Drop the component's local preview once the upload finishes rather than showing both.
 
 ## Verify
 
-Run the app, upload a real file through the new UI, and confirm three things:
+Run the app, upload a real file through the new UI, and confirm three things.
 
 <Steps>
   <Step title="The signing route returns 200">
@@ -219,7 +190,7 @@ Run the app, upload a real file through the new UI, and confirm three things:
 
 <AccordionGroup>
   <Accordion title="signUpload throws 'Failed to sign upload (HTTP 404)', or the response redirects to /login">
-    `OPENINARY_URL` has the wrong shape for your deployment. A full-stack self-hosted instance needs the `/api` suffix, because nginx routes everything else to the dashboard. Cloud and API-only deployments must not have it.
+    `OPENINARY_URL` has the wrong shape for your deployment. A full-stack self-hosted instance needs the `/api` suffix. Cloud and API-only deployments must not have it.
   </Accordion>
 
   <Accordion title="401 on POST /upload/sign">
@@ -227,11 +198,11 @@ Run the app, upload a real file through the new UI, and confirm three things:
   </Accordion>
 
   <Accordion title="401 on POST /upload after signing">
-    The signature's `expires` passed before the upload started, or the folder used to sign doesn't match the one submitted. The component always uses the folder `sign()` returned and re-signs on retry, so this normally means the signing route and the instance disagree. On self-hosted, also check for clock skew and for an `API_SECRET` that changed after the signature was minted.
+    The signature's `expires` passed before the upload started, or the folder used to sign doesn't match the one submitted. The component re-signs on retry, so this normally means the signing route and the instance disagree. On self-hosted, also check for clock skew and for an `API_SECRET` that changed after the signature was minted.
   </Accordion>
 
   <Accordion title="CORS error in the console">
-    First work out whose route failed. Your own signing route needs CORS if the frontend is on a different origin. For `POST /upload` itself: self-hosted, add the app's origin to `CORS_ORIGIN` and restart the API, matching scheme and port exactly; Cloud accepts token-authenticated uploads from any origin, so a failure there is usually a browser calling `/upload/sign` or `/storage` directly. Those are backend-only.
+    First work out whose route failed. Your own signing route needs CORS if the frontend is on a different origin. For `POST /upload` itself, self-hosted: add the app's origin to `CORS_ORIGIN` and restart the API, matching scheme and port exactly. Cloud accepts token-authenticated uploads from any origin, so a failure there is usually a browser calling `/upload/sign` or `/storage` directly. Those are backend-only.
   </Accordion>
 
   <Accordion title="402 quota_exceeded (Cloud only)">

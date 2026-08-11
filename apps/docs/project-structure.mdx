@@ -1,11 +1,12 @@
 ---
 title: "Project Structure"
-description: "Openinary monorepo layout: the Hono.js API, the Next.js dashboard, the shared packages, and where the managed Cloud lives alongside them."
+description: "Where everything lives in the Openinary monorepo, and which package owns what."
 ---
 
-Openinary is a **pnpm monorepo** orchestrated by [Turbo](https://turbo.build/).
-It holds both the AGPL-3.0 self-hosted product and the source of the managed
-Cloud service, so a fix to the shared engine lands in both at once.
+Openinary is a **pnpm monorepo** orchestrated by [Turbo](https://turbo.build/). It
+holds both the AGPL-3.0 self-hosted product and the source of the managed Cloud
+service, so a fix to the shared engine lands in both at once. The engine itself is
+`packages/core`, not `apps/api`.
 
 ```bash
 openinary/
@@ -25,11 +26,9 @@ openinary/
 └── docker-compose.yml
 ```
 
-<Note>
-  Everything is AGPL-3.0 except `apps/cloud/`, which is source-available under a
-  commercial license, and `apps/marketing/`, which is MIT. Self-hosting needs
-  nothing from `apps/cloud/`.
-</Note>
+Everything is AGPL-3.0 except `apps/cloud/`, which is source-available under a
+commercial license, and `apps/marketing/`, which is MIT. Self-hosting needs
+nothing from `apps/cloud/`.
 
 ## packages/
 
@@ -42,14 +41,16 @@ openinary/
 | `shared` | Auth config, database instance and shared types for the self-hosted apps. |
 
 The apps consume `core` and `ui` through `workspace:*`, so nothing has to be
-published between fixing one and shipping it. Both were published to npm up to
-`@openinary/core` 1.6.0 and `@openinary/ui` 0.8.1, and both are marked
+published between fixing something and shipping it. Both were published to npm up
+to `@openinary/core` 1.6.0 and `@openinary/ui` 0.8.1, and both are marked
 `private` now, so those versions are frozen. To use them in your own app, go
 through the [shadcn registry](/guides/file-uploader).
 
 ## packages/core
 
-The transformation engine. Nearly all media, storage and queue logic lives here rather than in `apps/api`, which is what lets the self-hosted API and the Cloud's media container share one implementation.
+Nearly all media, storage and queue logic lives here rather than in `apps/api`.
+That is what lets the self-hosted API and the Cloud's media container share one
+implementation.
 
 ```bash
 packages/core/src/
@@ -69,7 +70,9 @@ packages/core/src/
 
 ## apps/api
 
-The self-hosted server. It wires the engine to HTTP: it owns startup, auth, rate limiting and the routes that are specific to a self-hosted instance, and mounts everything else from `@openinary/core`.
+The self-hosted server. It wires the engine to HTTP: startup, auth, rate limiting,
+and the three routes specific to a self-hosted instance. Everything else is
+mounted from `@openinary/core`.
 
 ```bash
 apps/api/src/
@@ -83,7 +86,7 @@ apps/api/src/
 
 ## apps/web
 
-The Next.js 15 admin dashboard. Provides a UI for managing uploads, API keys, and video queue status.
+The Next.js 15 admin dashboard, for uploads, API keys and video queue status.
 
 ```bash
 apps/web/src/app/
@@ -105,7 +108,8 @@ apps/web/src/app/
 
 ## packages/shared
 
-Shared code consumed by both `api` and `web`. Keeps auth configuration and the SQLite instance in one place so both apps always use the same database.
+Consumed by both `api` and `web`. It keeps auth configuration and the SQLite
+instance in one place, so both apps always use the same database.
 
 ```bash
 packages/shared/src/
@@ -117,6 +121,8 @@ packages/shared/src/
 ```
 
 The SQLite instance is created inside `auth.ts`; there is no separate `db.ts`.
+Both apps import through the `"shared"` and `"shared/*"` path aliases defined in
+`packages/shared/package.json`.
 
 ## Dependency flow
 
@@ -126,8 +132,6 @@ api  →  shared           →  better-auth, @better-auth/api-key, better-sqlite
 web  →  @openinary/ui
 web  →  shared
 ```
-
-Both apps import from `shared` via the `"shared"` and `"shared/*"` path aliases defined in `packages/shared/package.json`.
 
 ## Next steps
 
@@ -139,4 +143,3 @@ Both apps import from `shared` via the `"shared"` and `"shared/*"` path aliases 
     Auth architecture, API keys, and route reference.
   </Card>
 </CardGroup>
-

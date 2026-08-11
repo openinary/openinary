@@ -1,7 +1,29 @@
 ---
 title: "Local Development"
-description: "Set up a local Openinary development environment with Node.js 20, pnpm, and FFmpeg. Runs the API on :3000 and the dashboard on :3001."
+description: "Run the Openinary monorepo from source, with the API on :3000 and the dashboard on :3001."
 ---
+
+Clone, install, run:
+
+```bash
+git clone https://github.com/openinary/openinary.git
+cd openinary
+pnpm install
+pnpm dev
+```
+
+`pnpm dev` starts both services in parallel.
+
+| Service       | URL                   |
+| ------------- | --------------------- |
+| API           | http://localhost:3000 |
+| Web dashboard | http://localhost:3001 |
+
+Run them one at a time with `pnpm dev:api` (:3000) or `pnpm dev:web` (:3001).
+
+## First run
+
+Visit **http://localhost:3001** and you are redirected to `/setup` to create your admin account. Once logged in, open **API Keys** from the bottom-left profile menu to generate your first key.
 
 ## Prerequisites
 
@@ -43,34 +65,6 @@ Download a build from [ffmpeg.org/download.html](https://ffmpeg.org/download.htm
 </Tab>
 </Tabs>
 
-## Setup
-
-```bash
-git clone https://github.com/openinary/openinary.git
-cd openinary
-pnpm install
-```
-
-## Run
-
-```bash
-pnpm dev
-```
-
-This starts both services in parallel:
-
-| Service       | URL                   |
-| ------------- | --------------------- |
-| API           | http://localhost:3000 |
-| Web dashboard | http://localhost:3001 |
-
-To run them independently:
-
-```bash
-pnpm dev:api   # API only  → :3000
-pnpm dev:web   # Web only  → :3001
-```
-
 ## Run with Docker Compose
 
 Prefer containers? Use the compose profiles instead:
@@ -83,13 +77,9 @@ docker compose --profile full up --build
 docker compose --profile api up --build
 ```
 
-## First run
-
-On first start, visit **http://localhost:3001**, you'll be redirected to `/setup` to create your admin account. Once logged in, go to **API Keys** (bottom-left profile menu) to generate your first key.
-
 ## Storage
 
-By default, uploaded files are stored in `apps/api/public/`. To use cloud storage (AWS S3, Cloudflare R2, etc.) during local development, configure the [`STORAGE_*` variables](/configuration/storage) in `apps/api/.env`.
+Uploaded files land in `apps/api/public/` by default. For cloud storage, set the [`STORAGE_*` variables](/configuration/storage) in `apps/api/.env`.
 
 ## Next steps
 
@@ -105,4 +95,3 @@ By default, uploaded files are stored in `apps/api/public/`. To use cloud storag
     Understand how the monorepo is organized before contributing.
   </Card>
 </CardGroup>
-

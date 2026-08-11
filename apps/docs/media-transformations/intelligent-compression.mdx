@@ -3,7 +3,13 @@ title: "Automatic Format Selection"
 description: "How Openinary picks AVIF, WebP, or JPEG from browser support, what f_auto changes, and how to force a format with the f parameter."
 ---
 
-When you request no output format, Openinary picks one from what the requesting browser supports, so a modern browser gets AVIF and an old one still gets something it can render.
+Omit `f` and Openinary picks the format from what the browser accepts: AVIF where possible, WebP next, JPEG or PNG otherwise.
+
+```http
+GET /t/w_1200/photo.jpg
+```
+
+That one URL serves a different format to each browser, and each one is cached separately.
 
 ## How it works
 
@@ -28,11 +34,7 @@ PNG originals stay PNG when neither AVIF nor WebP is available, so transparency 
 </Step>
 </Steps>
 
-<Note>
-  The choice is made from browser support alone. Openinary does not encode
-  several candidates and compare their sizes unless you ask for `f_auto`
-  explicitly, and it does not inspect the image content to pick a codec.
-</Note>
+The choice comes from browser support alone. Openinary does not encode several candidates and compare their sizes unless you ask for `f_auto`, and it does not inspect image content to pick a codec.
 
 ## Comparing candidates with `f_auto`
 
@@ -64,9 +66,7 @@ Large files shift this by a few points, and the result is clamped to the 70 to 9
 | JPEG            | 40-50% smaller | 25-35% smaller |
 | PNG             | 50-70% smaller | 25-40% smaller |
 
-<Note>
-  Actual savings depend on image content and original compression level.
-</Note>
+Actual savings depend on the image and how well it was already compressed.
 
 ## Manual format override
 
