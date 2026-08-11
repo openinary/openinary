@@ -1,9 +1,9 @@
 # Demo sources
 
-Drop the source media here, then run — from the repo root:
+Drop the source media here, then run, from the repo root:
 
 ```bash
-node apps/web/scripts/build-demo-assets.mjs
+node apps/cloud/web/scripts/build-demo-assets.mjs
 ```
 
 The script resolves its own paths, so it works from any directory; only the

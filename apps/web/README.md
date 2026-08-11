@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# web
 
-## Getting Started
+The self-hosted Openinary dashboard: a Next.js 15 app for browsing media,
+managing API keys and watching the video queue. It talks to `apps/api` over
+HTTP and shares auth configuration with it through `packages/shared`, so both
+read the same SQLite database.
 
-First, run the development server:
+Most of the interface comes from [`@openinary/ui`](../../packages/ui). Fix a
+component there and it lands here and in the Cloud dashboard at once.
+
+## Develop
+
+From the repo root, which starts the API on 3000 and this app on 3001:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Or this app alone, assuming an API is already running:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm dev:web
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then open <http://localhost:3001>. Port 3000 is the API, not the dashboard.
 
-## Learn More
+On a fresh database the app redirects to `/setup` to create the first admin
+account. See [Local Development](https://docs.openinary.dev/local-development)
+for the full setup.
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+src/app/
+├── (dashboard)/      # Protected routes: media browser, API keys, queue inspector
+├── login/
+├── setup/            # First-run admin account creation
+├── uploader-demo/    # File uploader playground
+└── api/
+    ├── auth/         # Better Auth handler
+    ├── check-setup/  # Whether first-run setup is still pending
+    ├── upload-token/ # Mints presigned upload signatures for the demo
+    └── version/      # Running version, used by the update banner
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The dashboard needs `NEXT_PUBLIC_API_BASE_URL` and the auth variables it shares
+with the API. In the bundled `full` Docker image that base URL is baked in as
+`/api`, since nginx proxies the API under that path. See
+[Server Configuration](https://docs.openinary.dev/configuration/server).

@@ -83,10 +83,11 @@ package's components render identically to your own.
 - `@openinary/ui` — the full client surface (components, hooks, provider).
   Carries a `"use client"` boundary; safe to import from Server Components,
   but the imported bindings are client references.
-- `@openinary/ui/server` — pure, stateless exports only (types, `cn`,
-  `getMediaType`, `formatFileSize`/`formatDate`/`getFileType`, `Spinner`). RSC
-  Server Components can import from here directly without crossing a client
-  boundary at all.
+- `@openinary/ui/server` — pure, stateless exports only: the types, `cn`,
+  `isMac`, `toAbsoluteUrl`, `getMediaType` and `Spinner`. RSC Server Components
+  can import from here directly without crossing a client boundary at all.
+  `formatFileSize`, `formatDate` and `getFileType` live on the main entry point
+  only.
 
 ## What's included
 

@@ -5,18 +5,26 @@ Cloudflare Worker that receives anonymous usage pings from self-hosted
 against a strict whitelist, rate-limits per instance and per IP, then
 forwards accepted events to PostHog.
 
-This repo is private: the public Openinary codebase only knows the public
-`/collect` endpoint URL, never the PostHog project key or the rate-limit
-thresholds. What Openinary instances send is documented publicly in
-[`docs/configuration/telemetry.mdx`](https://github.com/openinary/openinary/blob/main/docs/configuration/telemetry.mdx)
-in the main repo — keep the event schema in `src/index.ts` in sync with
-`apps/api/src/utils/telemetry.ts` over there.
+This Worker lives in the public Openinary monorepo. The only secret is the
+PostHog project key, held as a Wrangler secret and never committed. Everything
+else, including the rate-limit thresholds in `wrangler.jsonc`, is public by
+design: the whitelist is the contract, and it is worth more reviewed than
+hidden.
+
+What Openinary instances send is documented in
+[`apps/docs/configuration/telemetry.mdx`](https://github.com/openinary/openinary/blob/main/apps/docs/configuration/telemetry.mdx).
+Keep the event schema in `src/index.ts` in sync with
+[`apps/api/src/utils/telemetry.ts`](https://github.com/openinary/openinary/blob/main/apps/api/src/utils/telemetry.ts):
+a property the instance sends and this whitelist does not accept is dropped
+silently.
 
 ## Develop
 
+From the repo root:
+
 ```bash
-npm install
-npx wrangler dev
+pnpm install
+pnpm dev:telemetry
 ```
 
 ## Deploy
