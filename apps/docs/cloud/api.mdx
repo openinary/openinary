@@ -154,7 +154,7 @@ from your backend only.
 </ParamField>
 
 <ParamField path="expiresIn" type="number" default="300">
-  Lifetime in seconds, clamped to 1–3600. Keep it short, 60–300 is plenty.
+  Lifetime in seconds, clamped to 1-3600. Keep it short, 60-300 is plenty.
 </ParamField>
 
 ```json Response
@@ -173,7 +173,7 @@ Uploader](/cloud/file-uploader) for the full flow.
 ## Storage
 
 <AccordionGroup>
-  <Accordion title="GET /storage?path= — list one folder level">
+  <Accordion title="GET /storage?path=, list one folder level">
     ```bash
     curl "https://cdn.openinary.dev/storage?path=products" \
       -H "x-api-key: $OPENINARY_API_KEY"
@@ -195,12 +195,12 @@ Uploader](/cloud/file-uploader) for the full flow.
     ```
 
   </Accordion>
-  <Accordion title="GET /storage/folders — every folder path in the bucket">
+  <Accordion title="GET /storage/folders, every folder path in the bucket">
     ```json
     { "folders": ["products", "products/2026", "clips"] }
     ```
   </Accordion>
-  <Accordion title="GET /storage/{path}/metadata — size and timestamps">
+  <Accordion title="GET /storage/{path}/metadata, size and timestamps">
     ```json
     {
       "size": 248713,
@@ -209,19 +209,19 @@ Uploader](/cloud/file-uploader) for the full flow.
     }
     ```
   </Accordion>
-  <Accordion title="PATCH /storage/{path} — rename in place">
+  <Accordion title="PATCH /storage/{path}, rename in place">
     Body: `{ "name": "new-name.jpg" }`, a bare name, no slashes. Works on files
     and folders. Returns `{ "success": true, "path": "products/new-name.jpg" }`.
   </Accordion>
-  <Accordion title="POST /storage/{path}/move — move to another folder">
+  <Accordion title="POST /storage/{path}/move, move to another folder">
     Body: `{ "destination": "archive/2025" }`. An empty or missing body moves the
     item to the bucket root. Works on files and folders.
   </Accordion>
-  <Accordion title="POST /storage/{path}/copy — duplicate a file">
+  <Accordion title="POST /storage/{path}/copy, duplicate a file">
     No body. The copy is named `photo copy.jpg`, de-duplicated if that already
     exists. Files only.
   </Accordion>
-  <Accordion title="DELETE /storage/{path} — delete a file or folder">
+  <Accordion title="DELETE /storage/{path}, delete a file or folder">
     Deletes the original **and** its cached transform variants. Deleting a folder
     deletes everything under it. Storage usage is credited back.
 
@@ -230,7 +230,7 @@ Uploader](/cloud/file-uploader) for the full flow.
     ```
 
   </Accordion>
-  <Accordion title="GET /storage/stats — bucket footprint">
+  <Accordion title="GET /storage/stats, bucket footprint">
     ```json
     {
       "storage": { "size": 51288331, "fileCount": 214 },
@@ -244,7 +244,7 @@ Uploader](/cloud/file-uploader) for the full flow.
     (`204`), after which variants are regenerated on demand.
 
   </Accordion>
-  <Accordion title="GET /download/{path} — fetch the stored original">
+  <Accordion title="GET /download/{path}, fetch the stored original">
     Authenticated download of the untransformed file, with `Range` support.
     Public delivery goes through `/b/{bucketId}/t/…` instead.
   </Accordion>

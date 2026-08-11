@@ -48,7 +48,7 @@ GET /t/{transformations}/{path}
 | [`g`](#g)       | gravity       | Focal point for cropping                    |
 | [`b`](#b)       | background    | Background color (hex)                      |
 | [`r`](#r)       | round corners | Radius in pixels, per-corner list, or `max` |
-| [`q`](#q-image) | quality       | Compression level (1–100)                   |
+| [`q`](#q-image) | quality       | Compression level (1-100)                   |
 | [`f`](#f-image) | format        | Output format                               |
 
 ### Parameter reference
@@ -93,7 +93,7 @@ GET /t/{transformations}/{path}
 
 <a id="a"></a>
 <ParamField path="a" type="string | number">
-  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format, orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0–360) for a fixed angle.
+  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format, orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0-360) for a fixed angle.
 
 `a_auto` · `a_90` · `a_180`
 
@@ -156,10 +156,10 @@ By default, cut corners are transparent, use `f_png`, `f_webp`, or `f_avif`. Add
 
 | Range  | Trade-off                                 |
 | ------ | ----------------------------------------- |
-| 90–100 | High quality, larger file                 |
-| 80–89  | Recommended sweet spot                    |
-| 60–79  | Smaller file, slight quality loss         |
-| 1–59   | Aggressive compression, visible artifacts |
+| 90-100 | High quality, larger file                 |
+| 80-89  | Recommended sweet spot                    |
+| 60-79  | Smaller file, slight quality loss         |
+| 1-59   | Aggressive compression, visible artifacts |
 
 </ParamField>
 
@@ -306,7 +306,7 @@ Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
 ## Video parameters
 
 <Warning>
-  Video processing is resource-intensive (5–30s per file). For high-traffic
+  Video processing is resource-intensive (5-30s per file). For high-traffic
   assets, [prewarm](/media-transformations/upload-and-prewarm) transformed
   variants at upload time so the first request is served from cache.
 </Warning>
@@ -319,7 +319,7 @@ Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
 While a video transformation is still being processed, the endpoint answers
 `202 Accepted` instead of the original, so a request never returns content whose
 transformations have not been applied yet. Poll the `statusUrl` from the
-response body — see [video status](/api-reference/video/status) — and retry once
+response body (see [video status](/api-reference/video/status)) and retry once
 it reports `completed`. That URL keeps the transformation segment, since the job
 is keyed on the path *and* its parameters.
 
@@ -332,7 +332,7 @@ is keyed on the path *and* its parameters.
 | [`w`](#w-video)   | width          | Width in pixels                                                 |
 | [`h`](#h-video)   | height         | Height in pixels                                                |
 | [`c`](#c-video)   | crop           | Crop/resize mode                                                |
-| [`q`](#q-video)   | quality        | CRF quality (1–100)                                             |
+| [`q`](#q-video)   | quality        | CRF quality (1-100)                                             |
 | [`so`](#so)       | start offset   | Start time in seconds                                           |
 | [`eo`](#eo)       | end offset     | End time in seconds (trim)                                      |
 | [`f`](#f-video)   | format         | Output format                                                   |
@@ -395,7 +395,7 @@ is keyed on the path *and* its parameters.
 
 <a id="q-video"></a>
 <ParamField path="q" type="integer | auto" default="60">
-  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100, or `auto` to opt a video into the default optimization without picking a CRF yourself.
+  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1-100, or `auto` to opt a video into the default optimization without picking a CRF yourself.
 
   CRF is derived as `round(51 - q / 100 * 33)`.
 
