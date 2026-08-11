@@ -110,16 +110,16 @@ GET /t/{transformations}/{path}
 | `south`  | Bottom edge                                      |
 | `east`   | Right edge                                       |
 | `west`   | Left edge                                        |
-| `face`   | Face detection, keeps the detected face in frame |
+| `face`   | Saliency crop: keeps the region Sharp scores as most interesting. Usually the face in a portrait, but it is not a face detector and has no notion of faces. |
 | `auto`   | Entropy-based region of interest detection       |
 
 </ParamField>
 
 <a id="b"></a>
 <ParamField path="b" type="string">
-  Background color for `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Use `rgb:` followed by a 6-digit hex value.
+  Background color for `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Accepts `rgb:` plus a 6-digit hex value, a bare `#hex`, or one of the keywords `transparent`, `white` and `black`. Also aliased as `bg`.
 
-`b_rgb:ffffff` (white) · `b_rgb:000000` (black) · `b_rgb:f5f5f5` (light gray)
+`b_rgb:ffffff` (white) · `b_rgb:f5f5f5` (light gray) · `b_transparent` · `b_black`
 
 </ParamField>
 
@@ -167,12 +167,14 @@ By default, cut corners are transparent, use `f_png`, `f_webp`, or `f_avif`. Add
 <ParamField path="f" type="string">
   Force a specific output format. When omitted, the [best format is chosen automatically](/media-transformations/intelligent-compression) based on the browser's `Accept` header.
 
-| Value          | Notes                                 |
-| -------------- | ------------------------------------- |
-| `avif`         | Best compression (up to 50% vs JPEG)  |
-| `webp`         | Excellent compatibility, ~30% vs JPEG |
-| `jpeg` / `jpg` | Universal fallback                    |
-| `png`          | Lossless, supports transparency       |
+| Value          | Notes                                                                        |
+| -------------- | ---------------------------------------------------------------------------- |
+| `avif`         | Best compression (up to 50% vs JPEG)                                         |
+| `webp`         | Excellent compatibility, ~30% vs JPEG                                        |
+| `jpeg` / `jpg` | Universal fallback                                                           |
+| `png`          | Lossless, supports transparency                                              |
+| `gif`          | Animated or legacy assets                                                    |
+| `auto`         | Encode every supported candidate, compare byte counts, serve the smallest    |
 
 </ParamField>
 
@@ -193,7 +195,7 @@ GET /t/w_800,h_600/image.jpg
 GET /t/w_400,h_400,c_fill,g_face/portrait.jpg
 ```
 
-Square thumbnail cropped around the detected face.
+Square thumbnail cropped around the most visually salient region, which on a portrait is normally the face.
 
 </Tab>
 

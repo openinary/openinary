@@ -22,8 +22,10 @@ curl -X POST "http://localhost:3000/upload" \
   An upload never processes a video on its own, not even for a thumbnail. To
   prewarm one, request it like any other variant:
   `t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80`. Thumbnails are queued ahead of
-  other video work. Without it, the first request to a thumbnail URL extracts
-  the frame on demand (~1s) and caches it.
+  other video work. Without it, every request to a thumbnail URL
+  extracts the frame again (~1s): the on-demand path returns the frame without
+  writing it to the variant cache, so only queued thumbnails are cached. That
+  makes prewarming the difference between paying once and paying every time.
 </Note>
 
 ## TypeScript examples
