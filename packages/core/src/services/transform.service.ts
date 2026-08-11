@@ -313,7 +313,34 @@ export class TransformService {
       );
     }
 
-    // Prepare source file
+    const isTransformableImage = !!ext?.match(/jpe?g|png|webp|avif|gif|psd/);
+
+    // Reached only when effectiveParams is non-empty - the bare-URL case
+    // short-circuits to streamOriginal above. A transform was requested on a
+    // type nothing here knows how to transform (audio, 3D, or any other
+    // stored-original type, e.g. /t/w_500/doc.pdf). Reject before staging the
+    // source file rather than downloading it only to throw the params away:
+    // silently dropping the params and serving the original would also hide
+    // a bug in whatever built this URL, so this fails loud and points at the
+    // URL that actually works.
+    if (!isTransformableImage && !isVideo(ext)) {
+      const message =
+        (ext ? "." + ext : "This file type") +
+        " can't be transformed. Request /t/" +
+        filePath +
+        " for the original.";
+      return {
+        buffer: Buffer.from(message),
+        contentType: "text/plain",
+        status: 400,
+        headers: {
+          "Content-Length": Buffer.byteLength(message).toString(),
+          "Cache-Control": "no-store",
+        },
+      };
+    }
+
+// Prepare source file
     const sourcePath = await prepareSourceFile(
       this.storage,
       filePath,
@@ -330,8 +357,10 @@ export class TransformService {
       let contentType: string;
       let optimizationResult: any;
 
-      // Process based on file type
-      if (ext?.match(/jpe?g|png|webp|avif|gif|psd/)) {
+      // Process based on file type. isTransformableImage / isVideo(ext) are
+      // the only two possibilities here: anything else already returned a
+      // 400 above, before this file was staged.
+      if (isTransformableImage) {
         const result = await this.processImageFile(
           sourcePath,
           effectiveParams,
@@ -341,7 +370,7 @@ export class TransformService {
         buffer = result.buffer;
         contentType = result.contentType;
         optimizationResult = result.optimizationResult;
-      } else if (isVideo(ext)) {
+      } else {
         // Only thumbnail requests reach this point (non-thumbnail video
         // transformations are intercepted before prepareSourceFile above);
         // thumbnails are extracted synchronously like images
@@ -354,8 +383,6 @@ export class TransformService {
             "Cache-Control": "public, max-age=31536000, must-revalidate",
           },
         };
-      } else {
-        throw new Error("Unsupported file type");
       }
 
       // Save to caches
