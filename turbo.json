@@ -27,7 +27,14 @@
     },
     "deploy": {
       "cache": false,
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      // turbo 2 runs tasks in strict env mode: a task only sees the variables
+      // declared for it. wrangler reads its credentials from the environment,
+      // so without this it is handed none and fails as if the secret were
+      // missing - which is how the first deploy-marketing run on main died.
+      // passThroughEnv rather than env: these reach the task without entering
+      // the cache hash, which is what a credential wants.
+      "passThroughEnv": ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]
     },
     "lint": {
       "outputs": []
