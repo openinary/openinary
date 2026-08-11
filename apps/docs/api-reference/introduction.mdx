@@ -12,7 +12,7 @@ Authorization: Bearer <your_api_key>
 
 Create keys from the dashboard at `/api-keys` or through the [API Keys API](/api-reference/api-keys/create). In API-only mode the first key is printed to the server logs at startup. Every API-key endpoint also accepts a dashboard session cookie, which is how the dashboard calls storage and upload without minting a key for itself.
 
-Running Openinary Cloud? It has its own base URL, auth and endpoint set: see the [Cloud API Reference](/cloud/api).
+**These endpoints work on both Cloud and self-hosted**, with the same request and response shapes. The pages that do not are marked **Self-hosted only** at the top. On Cloud the delivery URL carries a bucket prefix and keys travel as `x-api-key` or `Authorization`, see [what differs on Cloud](/cloud/api).
 
 ## Endpoints
 

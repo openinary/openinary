@@ -6,13 +6,24 @@ description: "URL structure for on-the-fly image and video transformations, cach
 Transformations live in the URL. Nothing is pre-processed, and there is no build step.
 
 ```http
-GET /t/{transformations}/{path}
-GET /t/w_800,h_600,c_fill,f_webp/photos/portrait.jpg
+{base}/t/{transformations}/{path}
+{base}/t/w_800,h_600,c_fill,f_webp/photos/portrait.jpg
 ```
 
 The first request for a given URL renders the variant and caches it. Every later request is served from that cache, so a URL costs work once no matter how often it is hit. Images render inline and come back as bytes; videos are queued and answer `202` until they are ready.
 
 Deleting or re-uploading a file [invalidates its variants](/api-reference/cache/invalidate). The full endpoint and parameter reference is in [Transform Media](/api-reference/media/transform).
+
+## Your base URL
+
+Every example in these docs uses `{base}`. It is the only thing that differs between the two ways of running Openinary, so substitute it once and every URL here is literally correct.
+
+| Running on | `{base}` |
+| --- | --- |
+| Cloud | `https://cdn.openinary.dev/b/{bucketId}` |
+| Self-hosted | your instance origin, e.g. `https://media.example.com` |
+
+On Cloud, the `bucketId` is the `/b/.../` segment of the `url` returned by an upload, and it appears in every public URL you serve. Everything after `{base}` is identical on both: same transformation syntax, same upload and storage endpoints.
 
 ## Explore transformations
 

@@ -1,6 +1,6 @@
 ---
 title: "Openinary"
-description: "Self-hosted, open-source alternative to Cloudinary. Resize, crop, convert, and deliver images and videos on-the-fly via URL parameters."
+description: "Open-source alternative to Cloudinary. Resize, crop, convert and deliver images and video on the fly, from a URL. Hosted or self-hosted."
 ---
 
 Openinary is an open-source alternative to Cloudinary. Upload a file once, then change the URL to change the file.
@@ -13,16 +13,16 @@ GET /t/w_400,h_400,c_fill,f_avif/photos/portrait.jpg    the same, as AVIF
 
 Each variant renders on first request and is cached from then on. Nothing is pre-processed, and you never write a resizing pipeline.
 
-Run it yourself with Docker, or use [Openinary Cloud](/cloud/overview), the hosted version with the same API. Cloud is in public alpha and sign-up is open at [app.openinary.dev](https://app.openinary.dev).
+Two ways to run it, one API. [Openinary Cloud](/cloud/overview) is the hosted version: create an account and start uploading, nothing to operate. Sign-up is open at [app.openinary.dev](https://app.openinary.dev). Or [self-host](/quickstart) it with Docker and keep your infrastructure and data entirely yours.
 
 ## Get started
 
 <CardGroup cols={2}>
-  <Card title="Quick Start" icon="bolt" href="/quickstart">
-    Run Openinary locally with Docker in a few commands.
+  <Card title="Start on Cloud" icon="cloud" href="/cloud/quickstart">
+    Create an account, mint a key, upload. Nothing to operate.
   </Card>
-  <Card title="Openinary Cloud" icon="cloud" href="/cloud/overview">
-    Use the hosted version, create an account, an API key, and ship.
+  <Card title="Self-host it" icon="bolt" href="/quickstart">
+    One command scaffolds and starts a Docker deployment.
   </Card>
   <Card
     title="Media Transformations"

@@ -25,7 +25,7 @@ curl -X POST http://localhost:3000/upload \
 | `files`           | `file[]`   | Required. One or more files, each validated for type and size                                                     |
 | `folder`          | `string`   | Destination folder within storage, nested paths supported (`uploads/2024/january`). Files go to the root if omitted |
 | `names`           | `string[]` | Custom filenames, in the same order as `files`. Must include the extension. Defaults to the original filename      |
-| `transformations` | `string[]` | Transformation segments to prewarm immediately after upload (`w_800,h_600,c_fill`), up to 20 variants              |
+| `transformations` | `string[]` | Transformation segments to prewarm immediately after upload (`w_800,h_600,c_fill`), up to 20 variants. Self-hosted only: Cloud ignores this field and generates variants on first request |
 
 **Allowed types:** JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM, WAV, MP3, OGG, GLB, glTF
 

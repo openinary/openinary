@@ -15,7 +15,9 @@ GET /t/w_800,h_600,c_fill,f_webp/photos/portrait.jpg
 
 Drop the parameters to get the stored original back untouched: `GET /t/photos/portrait.jpg`.
 
-**Auth:** public, rate limited. For URLs that cannot be guessed or edited, use [signed URLs](/api-reference/media/authenticated-transform).
+**Auth:** public, rate limited. For URLs that cannot be guessed or edited, use [signed URLs](/api-reference/media/authenticated-transform), which are self-hosted only.
+
+On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [your base URL](/media-transformations/overview#your-base-url). Everything after it is identical.
 
 ## Recipes
 

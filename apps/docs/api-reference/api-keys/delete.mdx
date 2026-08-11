@@ -3,6 +3,8 @@ title: "Delete API Key"
 description: "Permanently revoke an API key"
 ---
 
+**Self-hosted only.** Cloud keys are managed in the dashboard, not through the API.
+
 Deletes a key by its ID. This is irreversible, and any service using that key loses access immediately. To block access temporarily instead, [update the key](/api-reference/api-keys/update) with `"enabled": false`.
 
 ```bash

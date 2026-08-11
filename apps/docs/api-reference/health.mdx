@@ -3,6 +3,8 @@ title: "Health"
 description: "Check server and database availability"
 ---
 
+**Self-hosted only.** Not available on Cloud.
+
 Two probes. `GET /health` is a public liveness check, `GET /health/database` needs an API key and reports on the SQLite file.
 
 ```bash

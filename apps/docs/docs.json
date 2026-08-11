@@ -7,84 +7,81 @@
     "light": "#FFFFFF"
   },
   "contextual": {
-    "options": ["copy", "chatgpt", "claude", "cursor"]
+    "options": [
+      "copy",
+      "chatgpt",
+      "claude",
+      "cursor"
+    ]
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Self-hosted",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting Started",
+            "group": "Get started",
             "icon": "rocket",
-            "pages": ["index", "quickstart"]
+            "pages": [
+              "index",
+              "cloud/quickstart",
+              "quickstart"
+            ]
           },
           {
-            "group": "Configuration",
-            "icon": "gear",
+            "group": "Transformations",
+            "icon": "wand-magic-sparkles",
+            "pages": [
+              "media-transformations/overview",
+              "media-transformations/image-transformations",
+              "media-transformations/video-transformations",
+              "media-transformations/intelligent-compression",
+              "media-transformations/upload-and-prewarm",
+              "media-transformations/signed-urls"
+            ]
+          },
+          {
+            "group": "Upload & storage",
+            "icon": "upload",
+            "pages": [
+              "guides/file-uploader",
+              "cloud/file-uploader",
+              "guides/integrate/nextjs",
+              "guides/integrate/react"
+            ]
+          },
+          {
+            "group": "Cloud",
+            "icon": "cloud",
+            "pages": [
+              "cloud/overview",
+              "cloud/api"
+            ]
+          },
+          {
+            "group": "Self-hosting",
+            "icon": "server",
             "pages": [
               "configuration/server",
               "configuration/storage",
               "configuration/video-processing",
               "configuration/docker-resources",
-              "configuration/telemetry"
-            ]
-          },
-          {
-            "group": "Media Transformations",
-            "icon": "wand-magic-sparkles",
-            "pages": [
-              "media-transformations/overview",
-              "media-transformations/upload-and-prewarm",
-              "media-transformations/image-transformations",
-              "media-transformations/video-transformations",
-              "media-transformations/intelligent-compression",
-              "media-transformations/signed-urls"
+              "configuration/telemetry",
+              "guides/coolify-deployment",
+              "guides/dokploy-deployment",
+              "guides/railway-deployment",
+              "local-development",
+              "security"
             ]
           },
           {
             "group": "Resources",
             "icon": "toolbox",
             "pages": [
-              "local-development",
-              "project-structure",
-              "security",
-              "cloudinary-comparison"
+              "cloudinary-comparison",
+              "project-structure"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Cloud Managed",
-        "pages": [
-          "cloud/overview",
-          "cloud/quickstart",
-          "cloud/api",
-          "cloud/file-uploader"
-        ]
-      },
-      {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Deployment",
-            "icon": "rocket",
-            "pages": [
-              "guides/coolify-deployment",
-              "guides/dokploy-deployment",
-              "guides/railway-deployment"
-            ]
-          },
-          {
-            "group": "Integrate",
-            "icon": "plug",
-            "pages": ["guides/integrate/nextjs", "guides/integrate/react"]
-          },
-          {
-            "group": "Components",
-            "icon": "puzzle-piece",
-            "pages": ["guides/file-uploader"]
           }
         ]
       },
@@ -94,7 +91,9 @@
           {
             "group": "Overview",
             "icon": "code",
-            "pages": ["api-reference/introduction"]
+            "pages": [
+              "api-reference/introduction"
+            ]
           },
           {
             "group": "Media",
@@ -133,7 +132,9 @@
           {
             "group": "Cache",
             "icon": "rotate",
-            "pages": ["api-reference/cache/invalidate"]
+            "pages": [
+              "api-reference/cache/invalidate"
+            ]
           },
           {
             "group": "Video Processing",
@@ -159,13 +160,17 @@
           {
             "group": "System",
             "icon": "server",
-            "pages": ["api-reference/health"]
+            "pages": [
+              "api-reference/health"
+            ]
           }
         ]
       },
       {
         "tab": "Changelog",
-        "pages": ["changelog"]
+        "pages": [
+          "changelog"
+        ]
       }
     ]
   },

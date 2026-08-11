@@ -3,6 +3,8 @@ title: "Invalidate Cache"
 description: "Clear cached transformation variants without deleting originals"
 ---
 
+**`DELETE /invalidate/{path}` is self-hosted only.** On Cloud, clear a single asset by deleting and re-uploading it, or purge everything with `POST /storage/cache/clear`, which works on both.
+
 Clears the cached transformation variants of one file. The original is not touched.
 
 ```
