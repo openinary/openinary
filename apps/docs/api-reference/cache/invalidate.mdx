@@ -1,6 +1,6 @@
 ---
 title: "Invalidate Cache"
-description: "Clear all cached transformation variants for a file without deleting the original"
+description: "Clear cached transformation variants, for one file or for the whole instance, without deleting originals"
 ---
 
 ## Endpoint
@@ -27,6 +27,42 @@ DELETE /invalidate/{path}
 - **In-memory cache**, cached metadata entries for the file
 
 The original file is not touched.
+
+## Clear the entire cache
+
+```
+POST /storage/cache/clear
+```
+
+**Auth:** API key required. A dashboard session cookie also works.
+
+Removes every cached transformation variant on the instance, local and cloud, for every file. Takes no parameters and no body.
+
+<Warning>
+  This purges the whole cache, not one file's variants. Every transformation is
+  regenerated on its next request, so the first hit on each URL pays full
+  processing cost again. On an instance serving many variants that is a
+  significant, self-inflicted load spike. Reach for
+  `DELETE /invalidate/{path}` unless you genuinely mean all of it.
+</Warning>
+
+```json
+{
+  "success": true,
+  "message": "Cache cleared successfully",
+  "details": {
+    "localCacheFilesDeleted": 128,
+    "cloudCacheFilesDeleted": 64
+  }
+}
+```
+
+**Status codes:** `200` success · `500` a cache backend failed
+
+```bash
+curl -X POST http://localhost:3000/storage/cache/clear \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ## Response
 

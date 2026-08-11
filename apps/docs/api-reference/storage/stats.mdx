@@ -1,0 +1,158 @@
+---
+title: "Stats & Folder Summaries"
+description: "Aggregate storage and cache usage, and per-folder item counts with preview thumbnails"
+---
+
+Three endpoints that answer "how much is in there" without listing everything: aggregate totals for the whole bucket, and bounded per-folder summaries for the folders a client is currently showing.
+
+## Folder summaries
+
+```
+GET /storage/folder-summaries
+```
+
+**Auth:** API key required. A dashboard session cookie also works.
+
+Returns an item count and up to four preview items per folder. Call it only for the folders you are actually rendering, such as the rows currently on screen, so a level with many subfolders does not pay for every summary up front. [List Storage](/api-reference/storage/list) deliberately leaves this data out for the same reason.
+
+### Query parameters
+
+<ParamField query="paths" type="string" required>
+  Comma-separated folder paths, relative to the storage root. Maximum 200 per
+  request. An empty or missing value returns an empty `summaries` object rather
+  than an error.
+
+`photos,videos` · `photos/2026,archive`
+
+</ParamField>
+
+### Response
+
+```json
+{
+  "summaries": {
+    "photos": {
+      "itemCount": 42,
+      "truncated": false,
+      "previewItems": [
+        { "path": "photos/portrait.jpg", "type": "image" },
+        { "path": "photos/clip.mp4", "type": "video" }
+      ]
+    }
+  }
+}
+```
+
+<ResponseField name="summaries" type="object">
+  Keyed by the folder path you asked for.
+  <Expandable title="Summary object">
+    <ResponseField name="itemCount" type="number">
+      Items counted in the folder, up to the scan ceiling.
+    </ResponseField>
+    <ResponseField name="truncated" type="boolean">
+      `true` when the folder holds more items than the scan looked at, which
+      means `itemCount` is a floor rather than an exact total. Render it as
+      "99+" rather than as a count.
+    </ResponseField>
+    <ResponseField name="previewItems" type="array">
+      Up to four items for a folder thumbnail, each `{ path, type }` where
+      `type` is `image` or `video`. Files that are neither are skipped.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Status codes:** `200` success · `400` more than 200 paths, or a path that escapes the storage root · `500` storage backend failed
+
+### Example
+
+```bash
+curl "http://localhost:3000/storage/folder-summaries?paths=photos,videos" \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Storage stats
+
+```
+GET /storage/stats
+```
+
+**Auth:** API key required. A dashboard session cookie also works.
+
+Aggregate size and file count for stored originals, and for cached transformation variants.
+
+### Response
+
+```json
+{
+  "storage": { "size": 5242880, "fileCount": 128 },
+  "cache": { "size": 1048576, "fileCount": 64 },
+  "updatedAt": "2026-03-15T10:30:00.000Z"
+}
+```
+
+<ResponseField name="storage" type="object">
+  Stored originals: `size` in bytes and `fileCount`.
+</ResponseField>
+
+<ResponseField name="cache" type="object">
+  Cached transformation variants. On a cloud backend this combines the local
+  disk cache with the cache stored in the bucket, so it is one number for both.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of the counters these figures came from. On local storage
+  the tree is walked per request, so this is always now.
+</ResponseField>
+
+<Note>
+  On a cloud backend the figures come from incremental counters rather than a
+  live bucket listing, which is what keeps this endpoint cheap. They can drift
+  if the bucket is changed outside Openinary. Use the recalculate endpoint below
+  to reconcile.
+</Note>
+
+**Status codes:** `200` success · `500` storage backend failed
+
+## Recalculate stats
+
+```
+POST /storage/stats/recalculate
+```
+
+**Auth:** API key required. A dashboard session cookie also works.
+
+Recomputes the aggregates from a full bucket listing and returns the same shape as `GET /storage/stats`. Use it when the counters have drifted, typically after objects were added or removed outside Openinary.
+
+<Warning>
+  This lists the entire bucket. On a large bucket it is slow and it costs list
+  operations at your storage provider. Run it when you have reason to think the
+  counters are wrong, not on a schedule.
+</Warning>
+
+**Status codes:** `200` success · `500` storage backend failed
+
+### Example
+
+```bash
+curl -X POST http://localhost:3000/storage/stats/recalculate \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card
+    title="List Storage"
+    icon="folder-open"
+    href="/api-reference/storage/list"
+  >
+    Browse folders and files one level at a time.
+  </Card>
+  <Card
+    title="List Folders"
+    icon="folder-tree"
+    href="/api-reference/storage/folders"
+  >
+    Every folder path, for building a folder picker.
+  </Card>
+</CardGroup>

@@ -25,7 +25,7 @@ GET /storage
 
 ## Response
 
-Returns one level. Folders carry only their name and path: to get item counts or preview thumbnails for them, call [folder summaries](/api-reference/storage/folders) for the folders you actually render. That split keeps this endpoint's latency independent of how many subfolders a level holds.
+Returns one level. Folders carry only their name and path: to get item counts or preview thumbnails for them, call [folder summaries](/api-reference/storage/stats#folder-summaries) for the folders you actually render. That split keeps this endpoint's latency independent of how many subfolders a level holds.
 
 ```json
 {
@@ -114,11 +114,11 @@ curl "http://localhost:3000/storage?path=photos/2026" \
 
 <CardGroup cols={2}>
   <Card
-    title="Folder Summaries"
-    icon="folder-open"
-    href="/api-reference/storage/folders"
+    title="Stats & Folder Summaries"
+    icon="chart-simple"
+    href="/api-reference/storage/stats"
   >
-    Item counts and preview thumbnails for the folders you render.
+    Item counts and preview thumbnails, plus aggregate usage.
   </Card>
   <Card
     title="File Metadata"
