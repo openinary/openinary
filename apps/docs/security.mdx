@@ -7,7 +7,7 @@ Openinary uses [Better Auth](https://www.better-auth.com) v1.5 with a SQLite bac
 
 ## Database
 
-All auth data is stored in a single SQLite file at `/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
+All auth data is stored in a single SQLite file at `/app/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
 
 On startup, `scripts/secure-db.sh` automatically sets the file permissions to `600` (owner read/write only).
 
