@@ -3,6 +3,12 @@ title: "Health"
 description: "Check server and database availability"
 ---
 
+Two probes. `GET /health` is a public liveness check, `GET /health/database` needs an API key and reports on the SQLite file.
+
+```bash
+curl http://localhost:3000/health
+```
+
 ## Server health
 
 ```
@@ -12,8 +18,6 @@ GET /health
 **Auth:** Public (rate limited)
 
 Quick liveness check, use this for load balancer health probes or uptime monitoring.
-
-### Response
 
 ```json
 {
@@ -25,25 +29,20 @@ Quick liveness check, use this for load balancer health probes or uptime monitor
 
 **Status codes:** `200` healthy
 
-### Example
-
-```bash
-curl http://localhost:3000/health
-```
-
----
-
 ## Database health
 
 ```
 GET /health/database
 ```
 
+```bash
+curl http://localhost:3000/health/database \
+  -H "Authorization: Bearer <api_key>"
+```
+
 **Auth:** API Key required
 
 Detailed diagnostic, checks the SQLite database connection, file permissions, and table record counts.
-
-### Response
 
 ```json
 {
@@ -65,50 +64,16 @@ Detailed diagnostic, checks the SQLite database connection, file permissions, an
 }
 ```
 
-<ResponseField name="database.connected" type="boolean">
-  Whether the database connection is active.
-</ResponseField>
-
-<ResponseField name="database.path" type="string">
-  Absolute path to the database file.
-</ResponseField>
-
-<ResponseField name="database.size" type="string">
-  Database file size.
-</ResponseField>
-
-<ResponseField name="database.permissions" type="string">
-  Octal file permissions, three digits with no leading zero (for example `600` or `644`).
-</ResponseField>
-
-<ResponseField name="database.tables" type="object">
-  Record counts per table. Useful for verifying migrations applied correctly.
-</ResponseField>
-
-<ResponseField name="database.warning" type="string">
-  Present only when the database file is larger than 1 GB. Permission problems are reported in `security_warning` instead.
-</ResponseField>
-
-<ResponseField name="database.security_warning" type="string">
-  Optional warning when the database file's permissions are less restrictive
-  than `600`.
-</ResponseField>
-
-<ResponseField name="database.file_error" type="string">
-  Optional error message if the database file's permissions or size couldn't be
-  read.
-</ResponseField>
-
-<ResponseField name="database.table_error" type="string">
-  Optional error message if table record counts couldn't be retrieved.
-</ResponseField>
+| Field                        | Type      | Description                                                                             |
+| ---------------------------- | --------- | ----------------------------------------------------------------------------------------- |
+| `database.connected`         | `boolean` | Whether the database connection is active                                               |
+| `database.path`              | `string`  | Absolute path to the database file                                                      |
+| `database.size`              | `string`  | Database file size                                                                      |
+| `database.permissions`       | `string`  | Octal file permissions, three digits with no leading zero (for example `600` or `644`)  |
+| `database.tables`            | `object`  | Record counts per table. Useful for verifying migrations applied correctly              |
+| `database.warning`           | `string`  | Present only when the database file is larger than 1 GB. Permission problems are reported in `security_warning` instead |
+| `database.security_warning`  | `string`  | Present when the database file's permissions are less restrictive than `600`             |
+| `database.file_error`        | `string`  | Present if the database file's permissions or size couldn't be read                     |
+| `database.table_error`       | `string`  | Present if table record counts couldn't be retrieved                                    |
 
 **Status codes:** `200` healthy · `503` database connection failed
-
-### Example
-
-```bash
-curl http://localhost:3000/health/database \
-  -H "Authorization: Bearer <api_key>"
-```
-

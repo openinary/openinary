@@ -1,18 +1,25 @@
 ---
 title: "Storage"
-description: "Configure local or S3-compatible cloud storage"
+description: "Point Openinary at S3, R2, MinIO or any S3-compatible bucket"
 ---
 
-By default Openinary stores files on local disk. Set the `STORAGE_*` variables to switch to any S3-compatible provider.
+Openinary writes to local disk by default. Set these five variables and it writes to your bucket instead.
+
+```bash
+STORAGE_REGION=us-east-1
+STORAGE_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+STORAGE_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+STORAGE_BUCKET_NAME=my-openinary-bucket
+STORAGE_PUBLIC_URL=https://my-openinary-bucket.s3.us-east-1.amazonaws.com
+```
+
+The provider is detected from `STORAGE_ENDPOINT`: set it for anything that is not AWS S3, leave it unset for AWS. Only these exact names are read, there is no fallback to `S3_`-prefixed ones.
 
 <Warning>
-  **The bundled Docker Compose file does not pass these variables through.** Its
-  service definitions list no `STORAGE_*` entries and declare no `env_file`, so
-  putting them in the root `.env` has no effect: the container starts without
-  them and silently falls back to local disk.
-
-  For a Compose deployment, add them to the service's `environment:` block
-  yourself:
+  **The bundled Docker Compose file does not pass these through.** Its services
+  declare no `STORAGE_*` entries and no `env_file`, so putting them in the root
+  `.env` does nothing and the container silently falls back to local disk. Add
+  them to the service's `environment:` block yourself:
 
 ```yaml
 services:
@@ -25,190 +32,49 @@ services:
       - STORAGE_PUBLIC_URL=${STORAGE_PUBLIC_URL}
 ```
 
-  On a platform that injects environment variables directly (Railway, Coolify,
-  Dokploy), set them there and nothing else is needed. Running from source, they
-  are read from `apps/api/.env`.
+  Platforms that inject environment variables directly (Railway, Coolify,
+  Dokploy) need nothing extra. From source, they are read from `apps/api/.env`.
 </Warning>
 
-<Note>
-  There is no fallback to `S3_`-prefixed names. Only the exact `STORAGE_*` names
-  below are read.
-</Note>
+## Variables
 
-## Parameters
+| Variable | Default | Description |
+| --- | --- | --- |
+| `STORAGE_ACCESS_KEY_ID` | | Access key ID. Never commit it |
+| `STORAGE_SECRET_ACCESS_KEY` | | Secret access key. Keep it out of logs and client code |
+| `STORAGE_BUCKET_NAME` | | Bucket files are stored in |
+| `STORAGE_REGION` | `auto` | Region identifier. `auto` is what R2 expects, so AWS and other region-bound providers must set it explicitly |
+| `STORAGE_ENDPOINT` | | Endpoint for non-AWS providers. Omit for AWS S3 |
+| `STORAGE_PUBLIC_URL` | | Base URL used to build file URLs. Point it at your CDN or custom domain to avoid exposing raw S3 URLs |
+| `STORAGE_MAX_SOCKETS` | `50` | Simultaneous connections to the provider. Raise it if you hit connection pool exhaustion |
+| `STORAGE_CONNECTION_TIMEOUT` | `0` | Connection timeout in ms. `0` means no timeout |
+| `STORAGE_REQUEST_TIMEOUT` | `0` | Request timeout in ms. Use `300000` or more for large uploads |
+| `STORAGE_SOCKET_TIMEOUT` | `0` | TCP socket timeout in ms |
 
-| Parameter | Description |
-|-----------|-------------|
-| [`STORAGE_REGION`](#storage-region) | S3 region |
-| [`STORAGE_ACCESS_KEY_ID`](#storage-access-key-id) | Access key ID |
-| [`STORAGE_SECRET_ACCESS_KEY`](#storage-secret-access-key) | Secret access key |
-| [`STORAGE_BUCKET_NAME`](#storage-bucket-name) | Bucket name |
-| [`STORAGE_ENDPOINT`](#storage-endpoint) | Custom endpoint (non-AWS providers) |
-| [`STORAGE_PUBLIC_URL`](#storage-public-url) | Public URL or CDN domain |
-| [`STORAGE_MAX_SOCKETS`](#storage-max-sockets) | Max concurrent HTTP connections |
-| [`STORAGE_CONNECTION_TIMEOUT`](#storage-connection-timeout) | Connection timeout (ms) |
-| [`STORAGE_REQUEST_TIMEOUT`](#storage-request-timeout) | Request timeout (ms) |
-| [`STORAGE_SOCKET_TIMEOUT`](#storage-socket-timeout) | Socket timeout (ms) |
+## Endpoints by provider
 
-## Quick-start configs
+| Provider | `STORAGE_ENDPOINT` | `STORAGE_REGION` |
+| --- | --- | --- |
+| AWS S3 | omit | your region, e.g. `us-east-1` |
+| Cloudflare R2 | `https://<account-id>.r2.cloudflarestorage.com` | `auto` |
+| MinIO | `http://minio.example.com:9000` | `us-east-1` |
+| DigitalOcean Spaces | `https://nyc3.digitaloceanspaces.com` | region of the space |
+| Wasabi | `https://s3.wasabisys.com` | your region |
 
-<Tabs>
-<Tab title="AWS S3">
+Backblaze B2 and other S3-compatible services work the same way: set their endpoint and a region.
 
-```bash
-STORAGE_REGION=us-east-1
-STORAGE_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-STORAGE_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-STORAGE_BUCKET_NAME=my-openinary-bucket
-STORAGE_PUBLIC_URL=https://my-openinary-bucket.s3.us-east-1.amazonaws.com
-```
+## Production timeouts
 
-No `STORAGE_ENDPOINT` needed for AWS S3.
-
-</Tab>
-
-<Tab title="Cloudflare R2">
+Defaults leave every timeout off, which is fine on a fast link and unhelpful when the provider stalls. A reasonable production set:
 
 ```bash
-STORAGE_REGION=auto
-STORAGE_ACCESS_KEY_ID=your_r2_access_key
-STORAGE_SECRET_ACCESS_KEY=your_r2_secret_key
-STORAGE_BUCKET_NAME=my-r2-bucket
-STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
-STORAGE_PUBLIC_URL=https://cdn.example.com
-```
-
-</Tab>
-
-<Tab title="MinIO (self-hosted)">
-
-```bash
-STORAGE_REGION=us-east-1
-STORAGE_ACCESS_KEY_ID=minioadmin
-STORAGE_SECRET_ACCESS_KEY=minioadmin
-STORAGE_BUCKET_NAME=openinary
-STORAGE_ENDPOINT=http://minio.example.com:9000
-STORAGE_PUBLIC_URL=http://minio.example.com:9000
-```
-
-</Tab>
-
-<Tab title="Other S3-compatible">
-
-Works with DigitalOcean Spaces, Wasabi, Backblaze B2, and any S3-compatible service:
-
-```bash
-STORAGE_REGION=us-east-1
-STORAGE_ACCESS_KEY_ID=your_access_key
-STORAGE_SECRET_ACCESS_KEY=your_secret_key
-STORAGE_BUCKET_NAME=your-bucket-name
-STORAGE_ENDPOINT=https://your-s3-compatible-endpoint.com
-STORAGE_PUBLIC_URL=https://your-cdn-domain.com
-```
-
-</Tab>
-
-<Tab title="Production (with timeouts)">
-
-```bash
-STORAGE_REGION=us-east-1
-STORAGE_ACCESS_KEY_ID=your_access_key
-STORAGE_SECRET_ACCESS_KEY=your_secret_key
-STORAGE_BUCKET_NAME=my-bucket
 STORAGE_MAX_SOCKETS=100
 STORAGE_CONNECTION_TIMEOUT=5000
 STORAGE_REQUEST_TIMEOUT=30000
 STORAGE_SOCKET_TIMEOUT=60000
 ```
 
-</Tab>
-</Tabs>
-
-<Tip>
-The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS provider. Leave it unset for standard AWS S3.
-</Tip>
-
-## Parameter reference
-
-<a id="storage-region"></a>
-<ParamField path="STORAGE_REGION" type="string" default="auto">
-  S3 region identifier. Defaults to `auto`, which is what Cloudflare R2 expects,
-  so AWS and other region-bound providers need this set explicitly.
-
-  `us-east-1` · `eu-west-1` · `auto` (Cloudflare R2)
-
-</ParamField>
-
-<a id="storage-access-key-id"></a>
-<ParamField path="STORAGE_ACCESS_KEY_ID" type="string" required>
-  Access key ID for your storage provider.
-
-  <Warning>Never commit credentials to version control.</Warning>
-</ParamField>
-
-<a id="storage-secret-access-key"></a>
-<ParamField path="STORAGE_SECRET_ACCESS_KEY" type="string" required>
-  Secret access key for your storage provider.
-
-  <Warning>Never expose in logs or client-side code.</Warning>
-</ParamField>
-
-<a id="storage-bucket-name"></a>
-<ParamField path="STORAGE_BUCKET_NAME" type="string" required>
-  Name of the bucket where files are stored.
-
-</ParamField>
-
-<a id="storage-endpoint"></a>
-<ParamField path="STORAGE_ENDPOINT" type="string">
-  Custom endpoint for non-AWS S3-compatible providers. Omit for standard AWS S3.
-
-  | Provider | Endpoint format |
-  |----------|----------------|
-  | Cloudflare R2 | `https://<account-id>.r2.cloudflarestorage.com` |
-  | MinIO | `http://minio.example.com:9000` |
-  | DigitalOcean Spaces | `https://nyc3.digitaloceanspaces.com` |
-  | Wasabi | `https://s3.wasabisys.com` |
-
-</ParamField>
-
-<a id="storage-public-url"></a>
-<ParamField path="STORAGE_PUBLIC_URL" type="string">
-  Public base URL used to construct file URLs. Set this to your CDN or custom domain when you don't want to expose raw S3 URLs.
-
-  `https://cdn.example.com` · `https://my-bucket.s3.us-east-1.amazonaws.com`
-
-</ParamField>
-
-## Advanced parameters
-
-<a id="storage-max-sockets"></a>
-<ParamField path="STORAGE_MAX_SOCKETS" type="integer" default="50">
-  Max simultaneous HTTP connections to the storage provider. Increase if you see connection pool exhaustion under load.
-
-  `50` (default) · `100` (high traffic) · `25` (low resource)
-</ParamField>
-
-<a id="storage-connection-timeout"></a>
-<ParamField path="STORAGE_CONNECTION_TIMEOUT" type="integer" default="0">
-  Connection timeout in ms. `0` = no timeout.
-
-  `0` · `5000` (5 s) · `10000` (10 s)
-</ParamField>
-
-<a id="storage-request-timeout"></a>
-<ParamField path="STORAGE_REQUEST_TIMEOUT" type="integer" default="0">
-  Request timeout in ms. `0` = no timeout. For large uploads, use `300000` (5 min) or higher.
-
-  `0` · `30000` (30 s) · `300000` (5 min)
-</ParamField>
-
-<a id="storage-socket-timeout"></a>
-<ParamField path="STORAGE_SOCKET_TIMEOUT" type="integer" default="0">
-  TCP socket timeout in ms. `0` = no timeout.
-
-  `0` · `60000` (1 min) · `120000` (2 min)
-</ParamField>
+Raise `STORAGE_REQUEST_TIMEOUT` well past `30000` if you accept large video uploads.
 
 ## Related
 
@@ -216,7 +82,11 @@ The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS p
   <Card title="Quick Start" icon="bolt" href="/quickstart">
     Run Openinary with local or S3 storage.
   </Card>
-  <Card title="Upload & Cache Warming" icon="upload" href="/media-transformations/upload-and-prewarm">
-    Upload files and prewarm transformation cache.
+  <Card
+    title="Upload & Cache Warming"
+    icon="upload"
+    href="/media-transformations/upload-and-prewarm"
+  >
+    Upload files and prewarm the transformation cache.
   </Card>
 </CardGroup>

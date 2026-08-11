@@ -3,29 +3,28 @@ title: "List Storage"
 description: "List the folders and files in one storage level"
 ---
 
-Use this endpoint to browse storage one level at a time. It returns the folders and files directly inside the path you ask for, and does not descend into subfolders.
-
-## Endpoint
+Browse storage one level at a time. The response holds the folders and files directly inside the path you ask for, and never descends into subfolders.
 
 ```
 GET /storage
 ```
 
+```bash
+curl "http://localhost:3000/storage?path=photos/2026" \
+  -H "Authorization: Bearer <api_key>"
+```
+
+Omit `path`, or pass an empty string, to list the root. No endpoint returns the whole tree: walk it by calling this one once per folder, using each folder's `path`.
+
 **Auth:** API key required. A dashboard session cookie also works.
 
 ## Query parameters
 
-<ParamField query="path" type="string" default="">
-  Folder to list, relative to the storage root. Omit it or pass an empty string
-  to list the root.
-
-`photos` · `photos/2026/spring`
-
-</ParamField>
+| Param  | Type   | Default | Description                                                       |
+| ------ | ------ | ------- | ----------------------------------------------------------------- |
+| `path` | string | `""`    | Folder to list, relative to the storage root, e.g. `photos/2026`. |
 
 ## Response
-
-Returns one level. Folders carry only their name and path: to get item counts or preview thumbnails for them, call [folder summaries](/api-reference/storage/stats#folder-summaries) for the folders you actually render. That split keeps this endpoint's latency independent of how many subfolders a level holds.
 
 ```json
 {
@@ -42,73 +41,31 @@ Returns one level. Folders carry only their name and path: to get item counts or
 }
 ```
 
-<ResponseField name="path" type="string">
-  The normalized folder that was listed. Empty string for the root.
-</ResponseField>
+| Field     | Type   | Description                                              |
+| --------- | ------ | -------------------------------------------------------- |
+| `path`    | string | The normalized folder that was listed. Empty for the root |
+| `folders` | array  | Subfolders of this level, sorted by name                  |
+| `files`   | array  | Files in this level, sorted by name                       |
 
-<ResponseField name="folders" type="array">
-  Subfolders of this level, sorted by name.
-  <Expandable title="Folder object">
-    <ResponseField name="name" type="string">
-      Folder name, without any parent path.
-    </ResponseField>
-    <ResponseField name="path" type="string">
-      Full path relative to the storage root. Pass this back as `path` to
-      descend into it, or as the `{path}` segment of the other storage
-      endpoints.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+Folder object:
 
-<ResponseField name="files" type="array">
-  Files in this level, sorted by name.
-  <Expandable title="File object">
-    <ResponseField name="name" type="string">
-      File name, without any parent path.
-    </ResponseField>
-    <ResponseField name="path" type="string">
-      Full path relative to the storage root. Use it as the `{path}` segment of
-      the other storage endpoints, and after `/t/` to deliver the file.
-    </ResponseField>
-    <ResponseField name="size" type="number">
-      Size in bytes. May be absent on cloud storage backends that do not report
-      it for a given object.
-    </ResponseField>
-    <ResponseField name="mtime" type="string">
-      ISO 8601 last-modified timestamp. May be absent for the same reason as
-      `size`.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+- `name`, string: folder name, without any parent path
+- `path`, string: full path relative to the storage root. Pass it back as `path` to descend into it, or as the `{path}` segment of the other storage endpoints
 
-**Status codes:**
+File object:
 
-| Code  | Meaning                                          |
-| ----- | ------------------------------------------------ |
-| `200` | Level returned                                   |
-| `400` | `path` escapes the storage root or is malformed  |
-| `500` | Storage backend failed to list                   |
+- `name`, string: file name, without any parent path
+- `path`, string: full path relative to the storage root. Use it as the `{path}` segment of the other storage endpoints, and after `/t/` to deliver the file
+- `size`, number: size in bytes. May be absent on cloud storage backends that do not report it for a given object
+- `mtime`, string: ISO 8601 last-modified timestamp. May be absent for the same reason as `size`
 
-## Examples
+Folders carry only their name and path. For item counts or preview thumbnails, call [folder summaries](/api-reference/storage/stats#folder-summaries) for the folders you actually render, which keeps this endpoint's latency independent of how many subfolders a level holds.
 
-List the root:
-
-```bash
-curl http://localhost:3000/storage \
-  -H "Authorization: Bearer <api_key>"
-```
-
-List one folder:
-
-```bash
-curl "http://localhost:3000/storage?path=photos/2026" \
-  -H "Authorization: Bearer <api_key>"
-```
-
-<Note>
-  There is no endpoint that returns the whole tree in one call. Walk the tree by
-  calling this endpoint once per folder, using each folder's `path`.
-</Note>
+| Code  | Meaning                                         |
+| ----- | ----------------------------------------------- |
+| `200` | Level returned                                  |
+| `400` | `path` escapes the storage root or is malformed |
+| `500` | Storage backend failed to list                  |
 
 ## Related
 

@@ -1,141 +1,56 @@
 ---
 title: "Video Processing"
-description: "Configure the video job queue: concurrency, retries, and cleanup"
+description: "Worker concurrency, retries, cleanup and the fixed encode limits"
 ---
 
-## Parameters
-
-| Parameter                                                         | Description                            |
-| ----------------------------------------------------------------- | -------------------------------------- |
-| [`VIDEO_MAX_CONCURRENT`](#video-max-concurrent)                   | Max simultaneous video jobs            |
-| [`VIDEO_JOB_RETRY_MAX`](#video-job-retry-max)                     | Max retry attempts per job             |
-| [`VIDEO_JOB_CLEANUP_HOURS`](#video-job-cleanup-hours)             | Hours before completed jobs are purged |
-| [`VIDEO_WORKER_POLL_INTERVAL_MS`](#video-worker-poll-interval-ms) | Worker polling interval                |
-| [`VIDEO_FFMPEG_THREADS`](#video-ffmpeg-threads)                   | Threads per FFmpeg process             |
-| [`VIDEO_FFMPEG_NICENESS`](#video-ffmpeg-niceness)                 | FFmpeg process priority                |
-
-## Parameter reference
-
-<a id="video-max-concurrent"></a>
-<ParamField path="VIDEO_MAX_CONCURRENT" type="integer">
-  Maximum number of video jobs processed at the same time.
-
-When unset, auto-detected as `min(RAM / 2 GB, effective CPUs, 16)`, with a floor of 1. Both inputs are cgroup-aware, so in a container they are the limits you set, not the host's hardware.
-
-**The CPU term usually decides.** The bundled Docker Compose file defaults `DOCKER_CPU_LIMIT` to `2.0`, which caps auto-detection at 2 workers no matter how much RAM the machine has.
-
-| RAM   | Effective CPUs | Auto-detected workers |
-| ----- | -------------- | --------------------- |
-| 4 GB  | 2 (default)    | 2                     |
-| 8 GB  | 2 (default)    | 2                     |
-| 16 GB | 2 (default)    | 2                     |
-| 8 GB  | 4              | 4                     |
-| 16 GB | 8              | 8                     |
-
-To get more workers, raise [`DOCKER_CPU_LIMIT`](/configuration/docker-resources) alongside the memory limit, or set `VIDEO_MAX_CONCURRENT` explicitly.
-
-  <Warning>
-  Each worker spawns an FFmpeg process. Setting this too high will exhaust CPU and memory.
-  </Warning>
-</ParamField>
-
-<a id="video-job-retry-max"></a>
-<ParamField path="VIDEO_JOB_RETRY_MAX" type="integer" default="3">
-  Maximum retry attempts for a failed job before it is marked as permanently failed.
-
-`3` (default) · `5` (unreliable network) · `1` (fail fast)
-
-</ParamField>
-
-<a id="video-job-cleanup-hours"></a>
-<ParamField path="VIDEO_JOB_CLEANUP_HOURS" type="integer" default="24">
-  Hours after which completed and failed jobs are deleted from the database.
-
-`24` (default) · `168` (1 week, for debugging) · `1` (aggressive)
-
-</ParamField>
-
-<a id="video-worker-poll-interval-ms"></a>
-<ParamField path="VIDEO_WORKER_POLL_INTERVAL_MS" type="integer" default="1000">
-  How often the worker checks for new jobs, in milliseconds. Lower = faster pickup, higher CPU. Higher = slower pickup, lower CPU.
-
-`1000` (default) · `500` (faster) · `2000` (lower resource use)
-
-</ParamField>
-
-<a id="video-ffmpeg-threads"></a>
-<ParamField path="VIDEO_FFMPEG_THREADS" type="integer">
-  Threads each FFmpeg process may use. Defaults to effective CPUs minus one, with a floor of 1, which leaves a core for the HTTP event loop so encoding never starves the API.
-
-`3` · `1` (leave the most headroom)
-
-</ParamField>
-
-<a id="video-ffmpeg-niceness"></a>
-<ParamField path="VIDEO_FFMPEG_NICENESS" type="integer" default="15">
-  Niceness applied to spawned FFmpeg processes, from 0 to 19. Higher means lower priority. The default keeps the API responsive while encoding saturates the CPU.
-
-</ParamField>
-
-## Defaults and limits
-
-These are fixed in code rather than configurable, and they explain most surprises around video output.
-
-| Behavior              | Value                     | Notes                                                                                                                    |
-| --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Automatic downscale   | 720p maximum              | Applied when you request no explicit `w` or `h`. Cuts an 8K source by about 98% of its pixels, which is what makes it viable to process at all. Ask for a specific size to override. |
-| Synchronous size cap  | 200 MB                    | A larger source fails the request rather than blocking a worker.                                                          |
-| FFmpeg timeout        | 5 minutes                 | The process is killed past this, and the job is retried up to `VIDEO_JOB_RETRY_MAX`.                                       |
-| Encoder preset        | `ultrafast`               | Chosen for throughput over compression ratio.                                                                             |
-| Audio                 | Copied, never re-encoded  | Audio quality is always that of the source.                                                                                |
-
-## Configuration examples
-
-<Tabs>
-<Tab title="Development">
+Video transformations run as background jobs. Everything here is optional: left alone, the worker sizes itself to the container.
 
 ```bash
-VIDEO_MAX_CONCURRENT=2
-VIDEO_JOB_RETRY_MAX=3
-VIDEO_JOB_CLEANUP_HOURS=1
-VIDEO_WORKER_POLL_INTERVAL_MS=1000
-```
-
-</Tab>
-
-<Tab title="Production (high performance)">
-
-```bash
-VIDEO_MAX_CONCURRENT=8
-VIDEO_JOB_RETRY_MAX=5
-VIDEO_JOB_CLEANUP_HOURS=48
-VIDEO_WORKER_POLL_INTERVAL_MS=500
-```
-
-</Tab>
-
-<Tab title="Resource constrained">
-
-```bash
-VIDEO_MAX_CONCURRENT=1
-VIDEO_JOB_RETRY_MAX=2
-VIDEO_JOB_CLEANUP_HOURS=12
-VIDEO_WORKER_POLL_INTERVAL_MS=2000
-```
-
-</Tab>
-
-<Tab title="Auto-detected concurrency">
-
-```bash
-# VIDEO_MAX_CONCURRENT omitted, auto-detected from RAM and effective CPUs
+VIDEO_MAX_CONCURRENT=4        # omit to auto-detect
 VIDEO_JOB_RETRY_MAX=3
 VIDEO_JOB_CLEANUP_HOURS=24
-VIDEO_WORKER_POLL_INTERVAL_MS=1000
 ```
 
-</Tab>
-</Tabs>
+## Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `VIDEO_MAX_CONCURRENT` | auto | Jobs processed at once. See [auto-detection](#auto-detection) |
+| `VIDEO_JOB_RETRY_MAX` | `3` | Attempts before a job is marked permanently failed |
+| `VIDEO_JOB_CLEANUP_HOURS` | `24` | Age at which completed and failed jobs are purged from the database |
+| `VIDEO_WORKER_POLL_INTERVAL_MS` | `1000` | How often the worker checks for new jobs. Lower picks up faster and costs CPU |
+| `VIDEO_FFMPEG_THREADS` | CPUs minus 1 | Threads per FFmpeg process. The default leaves a core for the HTTP loop so encoding never starves the API |
+| `VIDEO_FFMPEG_NICENESS` | `15` | Process priority, 0 to 19. Higher means lower priority |
+
+Each worker spawns an FFmpeg process, so raising `VIDEO_MAX_CONCURRENT` past what the container can feed will exhaust CPU and memory rather than going faster.
+
+## Auto-detection
+
+Unset, concurrency is `min(RAM / 2 GB, effective CPUs, 16)`, with a floor of 1. Both inputs are cgroup-aware, so inside a container they are the limits you set, not the host's hardware.
+
+**The CPU term usually decides.** The bundled Compose file defaults `DOCKER_CPU_LIMIT` to `2.0`, which caps auto-detection at 2 workers no matter how much RAM the machine has.
+
+| RAM | Effective CPUs | Workers |
+| --- | --- | --- |
+| 4 GB | 2 (default) | 2 |
+| 8 GB | 2 (default) | 2 |
+| 16 GB | 2 (default) | 2 |
+| 8 GB | 4 | 4 |
+| 16 GB | 8 | 8 |
+
+For more workers, raise [`DOCKER_CPU_LIMIT`](/configuration/docker-resources) alongside memory, or set `VIDEO_MAX_CONCURRENT` explicitly.
+
+## Fixed limits
+
+These are in code, not configurable, and they explain most surprises about video output.
+
+| Behavior | Value | Notes |
+| --- | --- | --- |
+| Automatic downscale | 720p max | Applies when the URL requests no explicit `w` or `h`. Cuts an 8K source by about 98% of its pixels, which is what makes it processable at all |
+| Source size cap | 200 MB | A larger source fails the request rather than occupying a worker |
+| FFmpeg timeout | 5 minutes | The process is killed past this and the job retries up to `VIDEO_JOB_RETRY_MAX` |
+| Encoder preset | `ultrafast` | Throughput over compression ratio |
+| Audio | Copied, never re-encoded | Audio quality always matches the source |
 
 ## Related
 
@@ -145,7 +60,7 @@ VIDEO_WORKER_POLL_INTERVAL_MS=1000
     icon="video"
     href="/media-transformations/video-transformations"
   >
-    URL parameters for resizing, trimming, and encoding videos.
+    URL parameters for resizing, trimming and encoding.
   </Card>
   <Card
     title="Upload & Cache Warming"
@@ -154,5 +69,14 @@ VIDEO_WORKER_POLL_INTERVAL_MS=1000
   >
     Pre-generate video variants at upload time.
   </Card>
+  <Card
+    title="Docker Resources"
+    icon="gauge"
+    href="/configuration/docker-resources"
+  >
+    The CPU limit that caps worker auto-detection.
+  </Card>
+  <Card title="Queue Jobs" icon="list" href="/api-reference/queue/jobs">
+    Inspect, retry and cancel jobs through the API.
+  </Card>
 </CardGroup>
-

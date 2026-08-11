@@ -3,23 +3,26 @@ title: "Get File Metadata"
 description: "Retrieve size and timestamps for a specific file"
 ---
 
-## Endpoint
+Returns the size and timestamps of one file.
 
 ```
 GET /storage/{path}/metadata
+```
+
+```bash
+curl http://localhost:3000/storage/photos/portrait.jpg/metadata \
+  -H "Authorization: Bearer <api_key>"
 ```
 
 **Auth:** API Key required
 
 ## Path parameters
 
-<ParamField path="path" type="string" required>
-  Path to the file relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+| Param  | Type   | Required | Description                                                                                                    |
+| ------ | ------ | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `path` | string | yes      | Path to the file relative to the storage root, e.g. `photos/portrait.jpg`. Use the `path` from [List Storage](/api-reference/storage/list). |
 
-  `photo.jpg` · `photos/portrait.jpg`
-
-  <Warning>This endpoint returns an error if `path` points to a directory rather than a file.</Warning>
-</ParamField>
+The path must point to a file. A folder path returns `400` on local disk storage but `404` on a cloud storage backend, which has no directory to stat. Treat both as "not a file" rather than branching on the code.
 
 ## Response
 
@@ -31,32 +34,13 @@ GET /storage/{path}/metadata
 }
 ```
 
-<ResponseField name="size" type="number">
-  File size in bytes.
-</ResponseField>
-
-<ResponseField name="createdAt" type="string">
-  ISO 8601 timestamp of when the file was created.
-</ResponseField>
-
-<ResponseField name="updatedAt" type="string">
-  ISO 8601 timestamp of the last modification.
-</ResponseField>
+| Field       | Type   | Description                             |
+| ----------- | ------ | --------------------------------------- |
+| `size`      | number | File size in bytes                      |
+| `createdAt` | string | ISO 8601 timestamp of file creation     |
+| `updatedAt` | string | ISO 8601 timestamp of last modification |
 
 **Status codes:** `200` success · `400` path is a directory (local storage only) · `404` not found · `500` error
-
-<Note>
-  A folder path returns `400` on local disk storage but `404` on a cloud
-  storage backend, which has no directory to stat. Treat both as "not a file"
-  rather than branching on the code.
-</Note>
-
-## Example
-
-```bash
-curl http://localhost:3000/storage/photos/portrait.jpg/metadata \
-  -H "Authorization: Bearer <api_key>"
-```
 
 ## Related
 

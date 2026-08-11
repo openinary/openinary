@@ -1,9 +1,28 @@
 ---
 title: "Queue Events (SSE)"
-description: "Subscribe to real-time video processing job updates via Server-Sent Events"
+description: "Stream video processing job updates over Server-Sent Events"
 ---
 
-## Endpoint
+Open a persistent connection and job lifecycle events arrive as they happen. Use it for live progress in your UI instead of polling.
+
+```javascript
+const source = new EventSource("http://localhost:3000/queue/events");
+
+source.addEventListener("job:progress", (e) => {
+  const { jobId, progress } = JSON.parse(e.data);
+  updateProgressBar(jobId, progress);
+});
+
+source.addEventListener("job:completed", (e) => {
+  const { jobId } = JSON.parse(e.data);
+  markDone(jobId);
+});
+
+source.addEventListener("job:error", (e) => {
+  const { jobId, error } = JSON.parse(e.data);
+  console.error(`Job ${jobId} failed:`, error);
+});
+```
 
 ```
 GET /queue/events
@@ -11,147 +30,32 @@ GET /queue/events
 
 **Auth:** Public (rate limited)
 
-This endpoint opens a persistent HTTP connection and streams job lifecycle events as they happen. Use this to show real-time upload/processing progress in your UI without polling.
-
-## Response headers
-
-| Header | Value |
-|--------|-------|
-| `Content-Type` | `text/event-stream` |
-| `Cache-Control` | `no-cache` |
-| `Connection` | `keep-alive` |
-| `X-Accel-Buffering` | `no` |
+Read the raw stream with `curl -N http://localhost:3000/queue/events`.
 
 ## Events
 
 Each event follows the SSE format: `event: <type>\ndata: <json>\n\n`
 
-### `connected`
+| Event | Fires when | `data` |
+| --- | --- | --- |
+| `connected` | The connection opens | `{"clientId": "client_abc123"}` |
+| `job:created` | A job is added to the queue | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "pending", "priority": 1}` |
+| `job:started` | A job begins processing | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "processing"}` |
+| `job:progress` | Progress advances, 0 to 100 | `{"jobId": "job_xyz", "progress": 47}` |
+| `job:completed` | A job finishes successfully | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "completed"}` |
+| `job:error` | A job fails | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "error", "error": "FFmpeg process exited with code 1"}` |
+| `heartbeat` | Periodically, to keep the connection alive | `{"timestamp": 1710498600000}` |
 
-Sent immediately on connection.
+The heartbeat `timestamp` is Unix epoch milliseconds (`Date.now()`), not an ISO string.
 
-```
-event: connected
-data: {"clientId": "client_abc123"}
-```
+## Response headers
 
-### `job:created`
-
-A new transformation job was added to the queue.
-
-```
-event: job:created
-data: {
-  "jobId": "job_xyz",
-  "filePath": "videos/clip.mp4",
-  "status": "pending",
-  "priority": 1
-}
-```
-
-### `job:started`
-
-A job began processing.
-
-```
-event: job:started
-data: {
-  "jobId": "job_xyz",
-  "filePath": "videos/clip.mp4",
-  "status": "processing"
-}
-```
-
-### `job:progress`
-
-Processing progress update (0-100).
-
-```
-event: job:progress
-data: {
-  "jobId": "job_xyz",
-  "progress": 47
-}
-```
-
-### `job:completed`
-
-Job finished successfully.
-
-```
-event: job:completed
-data: {
-  "jobId": "job_xyz",
-  "filePath": "videos/clip.mp4",
-  "status": "completed"
-}
-```
-
-### `job:error`
-
-Job failed.
-
-```
-event: job:error
-data: {
-  "jobId": "job_xyz",
-  "filePath": "videos/clip.mp4",
-  "status": "error",
-  "error": "FFmpeg process exited with code 1"
-}
-```
-
-### `heartbeat`
-
-Periodic keep-alive event to prevent connection timeouts.
-
-```
-event: heartbeat
-data: {"timestamp": 1710498600000}
-```
-
-`timestamp` is a Unix epoch time in milliseconds (`Date.now()`), not an ISO string.
-
-## Usage example
-
-<Tabs>
-<Tab title="JavaScript (browser)">
-
-```javascript
-const source = new EventSource('http://localhost:3000/queue/events');
-
-source.addEventListener('connected', (e) => {
-  const { clientId } = JSON.parse(e.data);
-  console.log('Connected:', clientId);
-});
-
-source.addEventListener('job:progress', (e) => {
-  const { jobId, progress } = JSON.parse(e.data);
-  console.log(`Job ${jobId}: ${progress}%`);
-  updateProgressBar(jobId, progress);
-});
-
-source.addEventListener('job:completed', (e) => {
-  const { jobId } = JSON.parse(e.data);
-  console.log('Done:', jobId);
-});
-
-source.addEventListener('job:error', (e) => {
-  const { jobId, error } = JSON.parse(e.data);
-  console.error(`Job ${jobId} failed:`, error);
-});
-```
-
-</Tab>
-
-<Tab title="curl">
-
-```bash
-curl -N http://localhost:3000/queue/events
-```
-
-</Tab>
-</Tabs>
+| Header | Value |
+| --- | --- |
+| `Content-Type` | `text/event-stream` |
+| `Cache-Control` | `no-cache` |
+| `Connection` | `keep-alive` |
+| `X-Accel-Buffering` | `no` |
 
 ## Related
 

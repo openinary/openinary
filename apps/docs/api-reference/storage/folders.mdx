@@ -3,10 +3,15 @@ title: "List Folders"
 description: "Get every folder path in storage, for building a folder picker"
 ---
 
-## Endpoint
+Returns every folder path in storage in one call, which is what powers "Move to" folder pickers.
 
 ```
 GET /storage/folders
+```
+
+```bash
+curl http://localhost:3000/storage/folders \
+  -H "Authorization: Bearer <api_key>"
 ```
 
 **Auth:** API Key required
@@ -19,16 +24,9 @@ GET /storage/folders
 }
 ```
 
-<ResponseField name="folders" type="string[]">
-  Every folder path in storage, relative to the storage root, sorted alphabetically. Used to power "Move to" folder pickers.
-</ResponseField>
-
-## Example
-
-```bash
-curl http://localhost:3000/storage/folders \
-  -H "Authorization: Bearer <api_key>"
-```
+| Field     | Type       | Description                                                             |
+| --------- | ---------- | ----------------------------------------------------------------------- |
+| `folders` | `string[]` | Every folder path, relative to the storage root, sorted alphabetically. |
 
 ## Related
 

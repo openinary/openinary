@@ -3,27 +3,27 @@ title: "Rename File or Folder"
 description: "Rename a file or folder in place, without changing its parent location"
 ---
 
-## Endpoint
+Renames a file or folder in place. Send the new name only, never a full path.
 
 ```
 PATCH /storage/{path}
 ```
 
+```bash
+curl -X PATCH http://localhost:3000/storage/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "headshot.jpg"}'
+```
+
 **Auth:** API Key required
 
-## Path parameters
+## Parameters
 
-<ParamField path="path" type="string" required>
-  Path to the file or folder relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
-
-  `photo.jpg` · `photos/portrait.jpg` · `photos`
-</ParamField>
-
-## Body parameters
-
-<ParamField body="name" type="string" required>
-  The new name (not a full path). Must not contain `/` or `\`.
-</ParamField>
+| Param  | In   | Type   | Required | Description                                                                                                        |
+| ------ | ---- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `path` | path | string | yes      | Path to the file or folder relative to the storage root, e.g. `photos/portrait.jpg`. Use the `path` from [List Storage](/api-reference/storage/list). |
+| `name` | body | string | yes      | The new name, not a full path. Must not contain `/` or `\`.                                                          |
 
 ## Response
 
@@ -34,24 +34,12 @@ PATCH /storage/{path}
 }
 ```
 
-<ResponseField name="success" type="boolean">
-  `true` if the rename succeeded.
-</ResponseField>
-
-<ResponseField name="path" type="string">
-  The new full path of the file or folder.
-</ResponseField>
+| Field     | Type    | Description                                |
+| --------- | ------- | ------------------------------------------ |
+| `success` | boolean | `true` if the rename succeeded             |
+| `path`    | string  | The new full path of the file or folder    |
 
 **Status codes:** `200` success · `400` invalid name · `404` not found · `409` a file or folder with that name already exists · `500` error
-
-## Example
-
-```bash
-curl -X PATCH http://localhost:3000/storage/photos/portrait.jpg \
-  -H "Authorization: Bearer <api_key>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "headshot.jpg"}'
-```
 
 ## Related
 

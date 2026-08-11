@@ -3,6 +3,13 @@ title: "Queue Jobs"
 description: "List, retry, cancel, and delete video processing jobs"
 ---
 
+Four endpoints over the video job queue: list jobs, then retry, cancel or delete one by ID. All of them need an API key.
+
+```bash
+curl "http://localhost:3000/queue/jobs?status=error&limit=20" \
+  -H "Authorization: Bearer <api_key>"
+```
+
 ## List jobs
 
 ```
@@ -11,26 +18,13 @@ GET /queue/jobs
 
 **Auth:** API Key required
 
-### Query parameters
+| Param | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `limit` | number | `50` | Maximum number of jobs to return |
+| `offset` | number | `0` | Number of jobs to skip. Ignored whenever `status` is set |
+| `status` | string | | One of `pending` `processing` `completed` `error` `cancelled` |
 
-<ParamField query="limit" type="number" default="50">
-  Maximum number of jobs to return (pagination).
-</ParamField>
-
-<ParamField query="offset" type="number" default="0">
-  Number of jobs to skip (pagination offset).
-
-  <Warning>
-    `offset` is ignored whenever `status` is set. The filtered path calls
-    `getJobsByStatus(status, limit)`, which takes no offset, so paginating a
-    filtered list re-returns the same first page. `offset` is echoed back in the
-    response either way.
-  </Warning>
-</ParamField>
-
-<ParamField query="status" type="string">
-  Filter by job status. One of: `pending`, `processing`, `completed`, `error`, `cancelled`.
-</ParamField>
+The filtered path calls `getJobsByStatus(status, limit)`, which takes no offset. Paginating a filtered list re-returns the same first page. `offset` is echoed back in the response either way.
 
 ### Response
 
@@ -61,42 +55,27 @@ This endpoint serves database rows as they are stored. Field names are `snake_ca
 }
 ```
 
-<ResponseField name="jobs" type="array">
-  <Expandable title="Job object">
-    <ResponseField name="id" type="string">Unique job identifier.</ResponseField>
-    <ResponseField name="file_path" type="string">Storage path of the video being processed.</ResponseField>
-    <ResponseField name="params_json" type="string">The transformation parameters the job was queued with, as a JSON string. Together with `file_path` this is the key a job is looked up by.</ResponseField>
-    <ResponseField name="cache_path" type="string">Where the finished variant is written.</ResponseField>
-    <ResponseField name="status" type="string">`pending` · `processing` · `completed` · `error` · `cancelled`</ResponseField>
-    <ResponseField name="priority" type="number">Processing priority, lower runs first. Thumbnails are queued at `1` and transformations at `2`.</ResponseField>
-    <ResponseField name="progress" type="number">Progress percentage, 0 to 100.</ResponseField>
-    <ResponseField name="error" type="string">Error message when `status` is `error`, `null` otherwise.</ResponseField>
-    <ResponseField name="retry_count" type="number">Attempts made so far.</ResponseField>
-    <ResponseField name="max_retries" type="number">Attempt ceiling, from `VIDEO_JOB_RETRY_MAX`.</ResponseField>
-    <ResponseField name="created_at" type="number">Epoch milliseconds when the job was queued.</ResponseField>
-    <ResponseField name="started_at" type="number">Epoch milliseconds when processing started, `null` while pending.</ResponseField>
-    <ResponseField name="completed_at" type="number">Epoch milliseconds when processing finished, `null` until then.</ResponseField>
-  </Expandable>
-</ResponseField>
+`count` is the number of jobs in this response, not the total matching the filter.
 
-<ResponseField name="count" type="number">Number of jobs in this response, not the total matching the filter.</ResponseField>
+Each entry in `jobs`:
 
-<Note>
-  [Video Status](/api-reference/video/status) returns the same jobs in a
-  converted shape: `camelCase` keys and ISO 8601 timestamps. The two endpoints
-  do not agree on field names by design, one serves rows and the other serves a
-  view model.
-</Note>
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | string | Unique job identifier |
+| `file_path` | string | Storage path of the video being processed |
+| `params_json` | string | Transformation parameters the job was queued with, as a JSON string. With `file_path`, this is the key a job is looked up by |
+| `cache_path` | string | Where the finished variant is written |
+| `status` | string | `pending` `processing` `completed` `error` `cancelled` |
+| `priority` | number | Lower runs first. Thumbnails are queued at `1`, transformations at `2` |
+| `progress` | number | Progress percentage, 0 to 100 |
+| `error` | string | Error message when `status` is `error`, `null` otherwise |
+| `retry_count` | number | Attempts made so far |
+| `max_retries` | number | Attempt ceiling, from `VIDEO_JOB_RETRY_MAX` |
+| `created_at` | number | Epoch milliseconds when the job was queued |
+| `started_at` | number | Epoch milliseconds when processing started, `null` while pending |
+| `completed_at` | number | Epoch milliseconds when processing finished, `null` until then |
 
-### Example
-
-```bash
-# List all failed jobs
-curl "http://localhost:3000/queue/jobs?status=error&limit=20" \
-  -H "Authorization: Bearer <api_key>"
-```
-
----
+[Video Status](/api-reference/video/status) returns the same jobs in a converted shape: `camelCase` keys and ISO 8601 timestamps. The two endpoints disagree on field names by design. One serves rows, the other serves a view model.
 
 ## Retry job
 
@@ -104,17 +83,12 @@ curl "http://localhost:3000/queue/jobs?status=error&limit=20" \
 POST /queue/jobs/{jobId}/retry
 ```
 
-Re-queues a failed job for processing.
+Re-queues a failed job. `jobId` must have `error` status.
 
-**Auth:** API Key required
-
-### Path parameters
-
-<ParamField path="jobId" type="string" required>
-  ID of the job to retry. Must have `error` status.
-</ParamField>
-
-### Response
+```bash
+curl -X POST http://localhost:3000/queue/jobs/job_abc123/retry \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ```json
 {
@@ -125,32 +99,18 @@ Re-queues a failed job for processing.
 
 **Status codes:** `200` success · `400` job not in error state · `500` error
 
-### Example
-
-```bash
-curl -X POST http://localhost:3000/queue/jobs/job_abc123/retry \
-  -H "Authorization: Bearer <api_key>"
-```
-
----
-
 ## Cancel job
 
 ```
 POST /queue/jobs/{jobId}/cancel
 ```
 
-Cancels a pending job before it starts processing.
+Cancels a job before it starts processing. `jobId` must have `pending` status.
 
-**Auth:** API Key required
-
-### Path parameters
-
-<ParamField path="jobId" type="string" required>
-  ID of the job to cancel. Must have `pending` status.
-</ParamField>
-
-### Response
+```bash
+curl -X POST http://localhost:3000/queue/jobs/job_abc123/cancel \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ```json
 {
@@ -161,15 +121,6 @@ Cancels a pending job before it starts processing.
 
 **Status codes:** `200` success · `400` job not pending · `500` error
 
-### Example
-
-```bash
-curl -X POST http://localhost:3000/queue/jobs/job_abc123/cancel \
-  -H "Authorization: Bearer <api_key>"
-```
-
----
-
 ## Delete job
 
 ```
@@ -178,15 +129,10 @@ DELETE /queue/jobs/{jobId}
 
 Permanently removes a job record from the queue.
 
-**Auth:** API Key required
-
-### Path parameters
-
-<ParamField path="jobId" type="string" required>
-  ID of the job to delete.
-</ParamField>
-
-### Response
+```bash
+curl -X DELETE http://localhost:3000/queue/jobs/job_abc123 \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ```json
 {
@@ -196,15 +142,6 @@ Permanently removes a job record from the queue.
 ```
 
 **Status codes:** `200` success · `400` failed · `500` error
-
-### Example
-
-```bash
-curl -X DELETE http://localhost:3000/queue/jobs/job_abc123 \
-  -H "Authorization: Bearer <api_key>"
-```
-
----
 
 ## Related
 

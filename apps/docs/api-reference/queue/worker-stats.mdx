@@ -1,9 +1,14 @@
 ---
 title: "Worker Statistics"
-description: "Retrieve the current state of the background video processing worker"
+description: "Current state of the background video processing worker"
 ---
 
-## Endpoint
+Reports what the background worker is doing right now: its limits, and how many jobs it is running.
+
+```bash
+curl http://localhost:3000/queue/worker/stats \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ```
 GET /queue/worker/stats
@@ -22,28 +27,12 @@ GET /queue/worker/stats
 }
 ```
 
-<ResponseField name="maxConcurrent" type="number">
-  Maximum number of jobs the worker processes at once.
-</ResponseField>
-
-<ResponseField name="pollInterval" type="number">
-  How often, in milliseconds, the worker polls for new jobs.
-</ResponseField>
-
-<ResponseField name="isRunning" type="boolean">
-  Whether the worker's polling loop is currently active.
-</ResponseField>
-
-<ResponseField name="processingCount" type="number">
-  Number of jobs currently being processed.
-</ResponseField>
-
-## Example
-
-```bash
-curl http://localhost:3000/queue/worker/stats \
-  -H "Authorization: Bearer <api_key>"
-```
+| Field | Type | Notes |
+| --- | --- | --- |
+| `maxConcurrent` | number | Maximum number of jobs the worker processes at once |
+| `pollInterval` | number | How often, in milliseconds, the worker polls for new jobs |
+| `isRunning` | boolean | Whether the worker's polling loop is currently active |
+| `processingCount` | number | Number of jobs currently being processed |
 
 ## Related
 
