@@ -5,8 +5,34 @@ description: "Configure local or S3-compatible cloud storage"
 
 By default Openinary stores files on local disk. Set the `STORAGE_*` variables to switch to any S3-compatible provider.
 
+<Warning>
+  **The bundled Docker Compose file does not pass these variables through.** Its
+  service definitions list no `STORAGE_*` entries and declare no `env_file`, so
+  putting them in the root `.env` has no effect: the container starts without
+  them and silently falls back to local disk.
+
+  For a Compose deployment, add them to the service's `environment:` block
+  yourself:
+
+```yaml
+services:
+  openinary:
+    environment:
+      - STORAGE_REGION=${STORAGE_REGION}
+      - STORAGE_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY_ID}
+      - STORAGE_SECRET_ACCESS_KEY=${STORAGE_SECRET_ACCESS_KEY}
+      - STORAGE_BUCKET_NAME=${STORAGE_BUCKET_NAME}
+      - STORAGE_PUBLIC_URL=${STORAGE_PUBLIC_URL}
+```
+
+  On a platform that injects environment variables directly (Railway, Coolify,
+  Dokploy), set them there and nothing else is needed. Running from source, they
+  are read from `apps/api/.env`.
+</Warning>
+
 <Note>
-All `STORAGE_*` variables also accept the `S3_*` prefix (e.g. `S3_REGION` = `STORAGE_REGION`).
+  There is no fallback to `S3_`-prefixed names. Only the exact `STORAGE_*` names
+  below are read.
 </Note>
 
 ## Parameters
@@ -105,19 +131,17 @@ The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS p
 ## Parameter reference
 
 <a id="storage-region"></a>
-<ParamField path="STORAGE_REGION" type="string">
-  S3 region identifier.
+<ParamField path="STORAGE_REGION" type="string" default="auto">
+  S3 region identifier. Defaults to `auto`, which is what Cloudflare R2 expects,
+  so AWS and other region-bound providers need this set explicitly.
 
   `us-east-1` · `eu-west-1` · `auto` (Cloudflare R2)
 
-  **Alternative:** `S3_REGION`
 </ParamField>
 
 <a id="storage-access-key-id"></a>
 <ParamField path="STORAGE_ACCESS_KEY_ID" type="string" required>
   Access key ID for your storage provider.
-
-  **Alternative:** `S3_ACCESS_KEY_ID`
 
   <Warning>Never commit credentials to version control.</Warning>
 </ParamField>
@@ -126,8 +150,6 @@ The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS p
 <ParamField path="STORAGE_SECRET_ACCESS_KEY" type="string" required>
   Secret access key for your storage provider.
 
-  **Alternative:** `S3_SECRET_ACCESS_KEY`
-
   <Warning>Never expose in logs or client-side code.</Warning>
 </ParamField>
 
@@ -135,7 +157,6 @@ The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS p
 <ParamField path="STORAGE_BUCKET_NAME" type="string" required>
   Name of the bucket where files are stored.
 
-  **Alternative:** `S3_BUCKET_NAME`
 </ParamField>
 
 <a id="storage-endpoint"></a>
@@ -149,7 +170,6 @@ The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS p
   | DigitalOcean Spaces | `https://nyc3.digitaloceanspaces.com` |
   | Wasabi | `https://s3.wasabisys.com` |
 
-  **Alternative:** `S3_ENDPOINT`
 </ParamField>
 
 <a id="storage-public-url"></a>
@@ -158,7 +178,6 @@ The provider is detected automatically: set `STORAGE_ENDPOINT` for any non-AWS p
 
   `https://cdn.example.com` · `https://my-bucket.s3.us-east-1.amazonaws.com`
 
-  **Alternative:** `S3_PUBLIC_URL`
 </ParamField>
 
 ## Advanced parameters

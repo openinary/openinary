@@ -11,6 +11,8 @@ description: "Configure the video job queue: concurrency, retries, and cleanup"
 | [`VIDEO_JOB_RETRY_MAX`](#video-job-retry-max)                     | Max retry attempts per job             |
 | [`VIDEO_JOB_CLEANUP_HOURS`](#video-job-cleanup-hours)             | Hours before completed jobs are purged |
 | [`VIDEO_WORKER_POLL_INTERVAL_MS`](#video-worker-poll-interval-ms) | Worker polling interval                |
+| [`VIDEO_FFMPEG_THREADS`](#video-ffmpeg-threads)                   | Threads per FFmpeg process             |
+| [`VIDEO_FFMPEG_NICENESS`](#video-ffmpeg-niceness)                 | FFmpeg process priority                |
 
 ## Parameter reference
 
@@ -18,13 +20,19 @@ description: "Configure the video job queue: concurrency, retries, and cleanup"
 <ParamField path="VIDEO_MAX_CONCURRENT" type="integer">
   Maximum number of video jobs processed at the same time.
 
-When unset, auto-detected from available RAM (1 worker per 2 GB, max 16).
+When unset, auto-detected as `min(RAM / 2 GB, effective CPUs, 16)`, with a floor of 1. Both inputs are cgroup-aware, so in a container they are the limits you set, not the host's hardware.
 
-| RAM   | Auto-detected workers |
-| ----- | --------------------- |
-| 4 GB  | 2                     |
-| 8 GB  | 4                     |
-| 16 GB | 8                     |
+**The CPU term usually decides.** The bundled Docker Compose file defaults `DOCKER_CPU_LIMIT` to `2.0`, which caps auto-detection at 2 workers no matter how much RAM the machine has.
+
+| RAM   | Effective CPUs | Auto-detected workers |
+| ----- | -------------- | --------------------- |
+| 4 GB  | 2 (default)    | 2                     |
+| 8 GB  | 2 (default)    | 2                     |
+| 16 GB | 2 (default)    | 2                     |
+| 8 GB  | 4              | 4                     |
+| 16 GB | 8              | 8                     |
+
+To get more workers, raise [`DOCKER_CPU_LIMIT`](/configuration/docker-resources) alongside the memory limit, or set `VIDEO_MAX_CONCURRENT` explicitly.
 
   <Warning>
   Each worker spawns an FFmpeg process. Setting this too high will exhaust CPU and memory.
@@ -54,6 +62,32 @@ When unset, auto-detected from available RAM (1 worker per 2 GB, max 16).
 `1000` (default) · `500` (faster) · `2000` (lower resource use)
 
 </ParamField>
+
+<a id="video-ffmpeg-threads"></a>
+<ParamField path="VIDEO_FFMPEG_THREADS" type="integer">
+  Threads each FFmpeg process may use. Defaults to effective CPUs minus one, with a floor of 1, which leaves a core for the HTTP event loop so encoding never starves the API.
+
+`3` · `1` (leave the most headroom)
+
+</ParamField>
+
+<a id="video-ffmpeg-niceness"></a>
+<ParamField path="VIDEO_FFMPEG_NICENESS" type="integer" default="15">
+  Niceness applied to spawned FFmpeg processes, from 0 to 19. Higher means lower priority. The default keeps the API responsive while encoding saturates the CPU.
+
+</ParamField>
+
+## Defaults and limits
+
+These are fixed in code rather than configurable, and they explain most surprises around video output.
+
+| Behavior              | Value                     | Notes                                                                                                                    |
+| --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Automatic downscale   | 720p maximum              | Applied when you request no explicit `w` or `h`. Cuts an 8K source by about 98% of its pixels, which is what makes it viable to process at all. Ask for a specific size to override. |
+| Synchronous size cap  | 200 MB                    | A larger source fails the request rather than blocking a worker.                                                          |
+| FFmpeg timeout        | 5 minutes                 | The process is killed past this, and the job is retried up to `VIDEO_JOB_RETRY_MAX`.                                       |
+| Encoder preset        | `ultrafast`               | Chosen for throughput over compression ratio.                                                                             |
+| Audio                 | Copied, never re-encoded  | Audio quality is always that of the source.                                                                                |
 
 ## Configuration examples
 
@@ -94,7 +128,7 @@ VIDEO_WORKER_POLL_INTERVAL_MS=2000
 <Tab title="Auto-detected concurrency">
 
 ```bash
-# VIDEO_MAX_CONCURRENT omitted, auto-detected from RAM
+# VIDEO_MAX_CONCURRENT omitted, auto-detected from RAM and effective CPUs
 VIDEO_JOB_RETRY_MAX=3
 VIDEO_JOB_CLEANUP_HOURS=24
 VIDEO_WORKER_POLL_INTERVAL_MS=1000

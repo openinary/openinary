@@ -38,11 +38,18 @@ description: "Environment variables for Openinary server mode, authentication se
 
 `3000` (default) · `8080`
 
+  <Note>
+  This applies when running from source. Both Docker Compose profiles publish
+  `3000:3000` without passing `PORT` through, and in the `full` image the API is
+  pinned to an internal port behind nginx, so setting `PORT` there either does
+  nothing or breaks the published mapping. To change the exposed port in Docker,
+  edit the port mapping instead.
+  </Note>
 </ParamField>
 
 <a id="better-auth-secret"></a>
 <ParamField path="BETTER_AUTH_SECRET" type="string" required>
-  Secret used by Better Auth to sign sessions and tokens. Must be at least 32 characters.
+  Secret used by Better Auth to sign sessions and tokens. Use at least 32 characters. Startup fails only when it is unset or left at the build placeholder; a shorter value logs a warning and keeps running, so treat the length as your responsibility rather than an enforced check.
 
 ```bash
 openssl rand -base64 32
@@ -74,12 +81,12 @@ openssl rand -base64 32
 
 <a id="cors-origin"></a>
 <ParamField path="CORS_ORIGIN" type="string">
-  Allowed origin when Openinary is called from a separate frontend. Only set this in production, by default `localhost:3001` (Next.js dev) is allowed automatically.
+  Allowed origins when Openinary is called from a separate frontend. Accepts several, separated by commas. Only set this in production: `http://localhost:3001` (the dashboard in dev) and `http://localhost:3000` are always allowed on top of whatever you set here.
 
-`https://yourapp.com`
+`https://yourapp.com` · `https://app.example.com,https://admin.example.com`
 
   <Warning>
-  Avoid `*`. Set the exact origin of your frontend.
+  Avoid `*`. Set the exact origins of your frontends.
   </Warning>
 </ParamField>
 
@@ -113,7 +120,7 @@ openssl rand -hex 32
 `50` (default) · `500` · `2048`
 
   <Note>
-  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment, no image rebuild required.
+  Useful for self-hosted setups where users need to upload large video files. Set it in your `.env` file or Docker environment, no image rebuild required. This is the only upload ceiling: the `full` image's nginx passes bodies through without a limit of its own, so whatever you set here is what applies.
   </Note>
 </ParamField>
 
