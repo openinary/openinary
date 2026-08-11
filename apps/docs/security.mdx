@@ -7,7 +7,7 @@ Openinary uses [Better Auth](https://www.better-auth.com) 1.6 with a SQLite back
 
 ## Database
 
-All auth data is stored in a single SQLite file at `/app/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
+All auth data is stored in a single SQLite file at `/app/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#core)).
 
 On startup, `scripts/secure-db.js` automatically sets the file permissions to `600` (owner read/write only). It runs in both Docker images, before the server starts.
 
