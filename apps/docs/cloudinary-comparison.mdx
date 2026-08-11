@@ -5,11 +5,13 @@ description: "An honest, feature-by-feature comparison of what Cloudinary offers
 
 Openinary covers core transformation and delivery well: resize, crop, format conversion, quality, video trimming, upload, caching and signed URLs. It does not cover image effects, AI and generative features, adaptive streaming, overlays, or an enterprise DAM layer.
 
-Cloudinary is a mature commercial product with years of development behind it. Openinary is early-stage open source, built for teams that want to self-host. This page is the honest version of that gap.
+Cloudinary is a mature commercial product with years of development behind it. Openinary is early-stage open source. This page is the honest version of that gap.
 
-**Openinary fits when** you want control over your infrastructure and data, your use case is core image and video delivery, you are comfortable running Docker somewhere, and you would rather not pay per transformation.
+The **Openinary** column below is [Openinary Cloud](/cloud/overview), the managed version, since that is the like-for-like comparison. Where self-hosting differs, the cell says so.
 
-**Cloudinary is the better choice today when** you need AI or generative transformations, adaptive streaming, image effects and overlays, a managed CDN with no infrastructure of your own, team roles or SSO, a full DAM with search and workflows, official SDKs in your language, or webhooks.
+**Openinary fits when** your use case is core image and video delivery, you would rather not pay per transformation, and you want the option to run the whole thing yourself. That last one is the structural difference: self-hosting is a first-class path on any plan, under AGPL, where Cloudinary reserves it for Enterprise.
+
+**Cloudinary is the better choice today when** you need AI or generative transformations, adaptive streaming, image effects and overlays, team roles or SSO, a full DAM with search and workflows, official SDKs in your language, or webhooks.
 
 The tables below are the detail behind that summary.
 
@@ -107,7 +109,7 @@ The tables below are the detail behind that summary.
 | Multiple files per request           | ✓              | ✓         |
 | Custom filename                      | ✓              | ✓         |
 | Folder management                    | ✓              | ✓         |
-| Eager transformations (prewarm)      | ✓              | ✓         |
+| Eager transformations (prewarm)      | ✓              | ✓ (self-hosted only) |
 | Upload presets                       | ✓              | ✗         |
 | Upload via remote URL (fetch)        | ✓              | ✗         |
 | Client-side upload (direct to cloud) | ✓              | ✓ (presigned) |
@@ -118,7 +120,7 @@ The tables below are the detail behind that summary.
 | File metadata (size, timestamps)     | ✓              | ✓         |
 | Custom metadata fields               | ✓              | ✗         |
 | Tags                                 | ✓              | ✗         |
-| Archive / ZIP creation               | ✓              | ✓         |
+| Archive / ZIP creation               | ✓              | ✓ (self-hosted only) |
 | Sprite generation                    | ✓              | ✗         |
 | PDF page extraction                  | ✓              | ✗         |
 
@@ -126,9 +128,9 @@ The tables below are the detail behind that summary.
 
 | Feature                     | Cloudinary     | Openinary        |
 | --------------------------- | -------------- | ---------------- |
-| Global CDN                  | ✓ (included)   | ✗ (self-managed) |
+| Global CDN                  | ✓ (included)   | ✓ (included on Cloud, yours to run when self-hosting) |
 | Cache invalidation          | ✓              | ✓                |
-| Signed / authenticated URLs | ✓              | ✓                |
+| Signed / authenticated URLs | ✓              | ✓ (self-hosted only for now) |
 | Custom domain               | ✓ (paid plans) | ✓ (self-hosted)  |
 | Rate limiting               | ✓ (plan-based) | ✓ (configurable) |
 | Download original           | ✓              | ✓                |
@@ -140,7 +142,7 @@ The tables below are the detail behind that summary.
 | API keys                       | ✓              | ✓                |
 | Session-based auth (dashboard) | ✓              | ✓                |
 | API key expiration             | ✓              | ✓                |
-| Multiple users                 | ✓              | ✗ (single admin) |
+| Multiple users / teams         | ✓              | ✗ (one account, one admin)         |
 | Role-based access control      | ✓              | ✗                |
 | OAuth / SSO                    | ✓ (Enterprise) | ✗                |
 | IP allowlist                   | ✓ (Enterprise) | ✗                |
@@ -185,13 +187,13 @@ The tables below are the detail behind that summary.
 
 | Feature               | Cloudinary          | Openinary           |
 | --------------------- | ------------------- | ------------------- |
-| Managed SaaS          | ✓                   | ✗                   |
-| Self-hosted / Docker  | ✓ (Enterprise only) | ✓                   |
+| Managed SaaS          | ✓                   | ✓                   |
+| Self-hosted / Docker  | ✓ (Enterprise only) | ✓ (any plan, AGPL)  |
 | S3-compatible storage | ✓                   | ✓                   |
 | SQLite database       | ✗                   | ✓                   |
-| Multi-region          | ✓                   | ✗ (single instance) |
+| Multi-region          | ✓                   | ✓ (edge-cached delivery on Cloud), single instance when self-hosting |
 | Open source           | ✗                   | ✓                   |
-| Free tier             | ✓ (limited)         | ✓ (self-hosted)     |
+| Free tier             | ✓ (limited)         | ✓ (Free plan, or self-host at no cost) |
 
 ---
 
