@@ -8,14 +8,14 @@ on:
       - 'packages/registry/**'
       - 'packages/ui/src/file-uploader/**'
       - 'packages/core/src/utils/upload-signature.ts'
-      - 'r/**'
+      - 'apps/marketing/public/r/**'
       - '.github/workflows/registry.yml'
   pull_request:
     paths:
       - 'packages/registry/**'
       - 'packages/ui/src/file-uploader/**'
       - 'packages/core/src/utils/upload-signature.ts'
-      - 'r/**'
+      - 'apps/marketing/public/r/**'
       - '.github/workflows/registry.yml'
   workflow_dispatch: {}
 
@@ -57,9 +57,9 @@ jobs:
       - name: Rebuild registry
         run: pnpm --filter registry registry:build
 
-      - name: Fail if built registry (/r) is stale
+      - name: Fail if built registry (apps/marketing/public/r) is stale
         run: |
-          if ! git diff --exit-code -- r/; then
-            echo "::error::The built registry in /r is out of date. Run 'pnpm --filter registry registry:build' and commit the result."
+          if ! git diff --exit-code -- apps/marketing/public/r/; then
+            echo "::error::The built registry in apps/marketing/public/r is out of date. Run 'pnpm --filter registry registry:build' and commit the result."
             exit 1
           fi

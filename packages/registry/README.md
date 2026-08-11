@@ -1,7 +1,8 @@
 # @openinary registry
 
 The shadcn/ui registry for Openinary components. Source lives here; the built
-JSON in [`/r`](../../r) is published to `https://openinary.dev/r/{name}.json`.
+JSON in [`apps/marketing/public/r`](../../apps/marketing/public/r) is served at
+`https://openinary.dev/r/{name}.json`.
 
 ## Items
 
@@ -33,7 +34,7 @@ Full guide: <https://openinary.dev/docs/guides/file-uploader>
 
 ```bash
 pnpm --filter registry type-check    # type-check the source (uses local stubs)
-pnpm --filter registry registry:build # rebuild ../../r from registry.json
+pnpm --filter registry registry:build # rebuild apps/marketing/public/r from registry.json
 ```
 
 - `src/file-uploader/`, the component (`file-uploader.tsx`) and upload engine
@@ -46,4 +47,5 @@ pnpm --filter registry registry:build # rebuild ../../r from registry.json
 - `src/stubs/`, type-check-only stand-ins for the consumer's shadcn components;
   **not** part of the registry output.
 
-After changing any source file, rebuild and commit `/r`, CI fails if it is stale.
+After changing any source file, rebuild and commit `apps/marketing/public/r`,
+CI fails if it is stale.
