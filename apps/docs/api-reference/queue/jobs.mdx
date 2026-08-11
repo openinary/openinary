@@ -22,7 +22,7 @@ GET /queue/jobs
 </ParamField>
 
 <ParamField query="status" type="string">
-  Filter by job status. One of: `pending`, `running`, `completed`, `error`, `cancelled`.
+  Filter by job status. One of: `pending`, `processing`, `completed`, `error`, `cancelled`.
 </ParamField>
 
 ### Response
@@ -51,7 +51,7 @@ GET /queue/jobs
   <Expandable title="Job object">
     <ResponseField name="id" type="string">Unique job identifier.</ResponseField>
     <ResponseField name="filePath" type="string">Storage path of the video being processed.</ResponseField>
-    <ResponseField name="status" type="string">`pending` · `running` · `completed` · `error` · `cancelled`</ResponseField>
+    <ResponseField name="status" type="string">`pending` · `processing` · `completed` · `error` · `cancelled`</ResponseField>
     <ResponseField name="priority" type="number">Processing priority (lower = higher priority).</ResponseField>
     <ResponseField name="progress" type="number">Progress percentage (0–100).</ResponseField>
     <ResponseField name="startedAt" type="string">ISO 8601 timestamp when processing started.</ResponseField>

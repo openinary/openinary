@@ -273,11 +273,11 @@ curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
 ```
 
 ```json
-{ "status": "running", "progress": 62, "startedAt": "2026-07-26T18:02:11.000Z" }
+{ "status": "processing", "progress": 62, "startedAt": "2026-07-26T18:02:11.000Z" }
 ```
 
 <ResponseField name="status" type="string">
-  One of `pending` · `running` · `completed` · `error` · `not_found`.
+  One of `pending` · `processing` · `completed` · `error` · `cancelled` · `not_found`.
 </ResponseField>
 
 <ResponseField name="progress" type="number">

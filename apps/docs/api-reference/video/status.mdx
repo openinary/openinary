@@ -23,7 +23,7 @@ GET /video-status/{path}
 
 ```json
 {
-  "status": "running",
+  "status": "processing",
   "progress": 62,
   "startedAt": "2024-03-15T10:30:00.000Z",
   "completedAt": null,
@@ -33,7 +33,7 @@ GET /video-status/{path}
 ```
 
 <ResponseField name="status" type="string">
-  One of: `not_found` · `pending` · `running` · `completed` · `error`
+  One of: `not_found` · `pending` · `processing` · `completed` · `error` · `cancelled`
 </ResponseField>
 
 <ResponseField name="progress" type="number">
