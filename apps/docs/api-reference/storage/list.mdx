@@ -1,7 +1,9 @@
 ---
 title: "List Storage"
-description: "Retrieve the full folder and file tree from storage"
+description: "List the folders and files in one storage level"
 ---
+
+Use this endpoint to browse storage one level at a time. It returns the folders and files directly inside the path you ask for, and does not descend into subfolders.
 
 ## Endpoint
 
@@ -9,61 +11,115 @@ description: "Retrieve the full folder and file tree from storage"
 GET /storage
 ```
 
-**Auth:** API Key required
+**Auth:** API key required. A dashboard session cookie also works.
+
+## Query parameters
+
+<ParamField query="path" type="string" default="">
+  Folder to list, relative to the storage root. Omit it or pass an empty string
+  to list the root.
+
+`photos` · `photos/2026/spring`
+
+</ParamField>
 
 ## Response
 
-Returns the storage tree as a nested array. Each node is either a folder (with `children`) or a file (no `children`).
+Returns one level. Folders carry only their name and path: to get item counts or preview thumbnails for them, call [folder summaries](/api-reference/storage/folders) for the folders you actually render. That split keeps this endpoint's latency independent of how many subfolders a level holds.
 
 ```json
-[
-  {
-    "id": "photos",
-    "name": "photos",
-    "children": [
-      {
-        "id": "photos/portrait.jpg",
-        "name": "portrait.jpg",
-        "children": []
-      },
-      {
-        "id": "photos/banner.png",
-        "name": "banner.png",
-        "children": []
-      }
-    ]
-  },
-  {
-    "id": "video.mp4",
-    "name": "video.mp4",
-    "children": []
-  }
-]
+{
+  "path": "photos",
+  "folders": [{ "name": "2026", "path": "photos/2026" }],
+  "files": [
+    {
+      "name": "portrait.jpg",
+      "path": "photos/portrait.jpg",
+      "size": 248192,
+      "mtime": "2026-03-15T10:30:00.000Z"
+    }
+  ]
+}
 ```
 
-<ResponseField name="id" type="string">
-  Unique identifier, full path relative to storage root. Use this as the `{path}
-  ` parameter in other storage endpoints.
+<ResponseField name="path" type="string">
+  The normalized folder that was listed. Empty string for the root.
 </ResponseField>
 
-<ResponseField name="name" type="string">
-  Display name of the file or folder.
+<ResponseField name="folders" type="array">
+  Subfolders of this level, sorted by name.
+  <Expandable title="Folder object">
+    <ResponseField name="name" type="string">
+      Folder name, without any parent path.
+    </ResponseField>
+    <ResponseField name="path" type="string">
+      Full path relative to the storage root. Pass this back as `path` to
+      descend into it, or as the `{path}` segment of the other storage
+      endpoints.
+    </ResponseField>
+  </Expandable>
 </ResponseField>
 
-<ResponseField name="children" type="array">
-  Nested files and folders. Empty array `[]` for files or empty folders.
+<ResponseField name="files" type="array">
+  Files in this level, sorted by name.
+  <Expandable title="File object">
+    <ResponseField name="name" type="string">
+      File name, without any parent path.
+    </ResponseField>
+    <ResponseField name="path" type="string">
+      Full path relative to the storage root. Use it as the `{path}` segment of
+      the other storage endpoints, and after `/t/` to deliver the file.
+    </ResponseField>
+    <ResponseField name="size" type="number">
+      Size in bytes. May be absent on cloud storage backends that do not report
+      it for a given object.
+    </ResponseField>
+    <ResponseField name="mtime" type="string">
+      ISO 8601 last-modified timestamp. May be absent for the same reason as
+      `size`.
+    </ResponseField>
+  </Expandable>
 </ResponseField>
 
-## Example
+**Status codes:**
+
+| Code  | Meaning                                          |
+| ----- | ------------------------------------------------ |
+| `200` | Level returned                                   |
+| `400` | `path` escapes the storage root or is malformed  |
+| `500` | Storage backend failed to list                   |
+
+## Examples
+
+List the root:
 
 ```bash
 curl http://localhost:3000/storage \
   -H "Authorization: Bearer <api_key>"
 ```
 
+List one folder:
+
+```bash
+curl "http://localhost:3000/storage?path=photos/2026" \
+  -H "Authorization: Bearer <api_key>"
+```
+
+<Note>
+  There is no endpoint that returns the whole tree in one call. Walk the tree by
+  calling this endpoint once per folder, using each folder's `path`.
+</Note>
+
 ## Related
 
 <CardGroup cols={2}>
+  <Card
+    title="Folder Summaries"
+    icon="folder-open"
+    href="/api-reference/storage/folders"
+  >
+    Item counts and preview thumbnails for the folders you render.
+  </Card>
   <Card
     title="File Metadata"
     icon="circle-info"
@@ -78,15 +134,7 @@ curl http://localhost:3000/storage \
   >
     Move a file or folder into a different parent folder.
   </Card>
-  <Card
-    title="Rename File or Folder"
-    icon="pen"
-    href="/api-reference/storage/rename"
-  >
-    Rename a file or folder in place.
-  </Card>
-  <Card title="Delete File" icon="trash" href="/api-reference/storage/delete">
-    Remove a file and its cached variants.
+  <Card title="Delete" icon="trash" href="/api-reference/storage/delete">
+    Remove a file or a folder and its cached variants.
   </Card>
 </CardGroup>
-

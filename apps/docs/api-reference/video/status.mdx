@@ -1,74 +1,118 @@
 ---
 title: "Video Processing Status"
-description: "Check the processing status of a video file by its storage path"
+description: "Poll the processing status of a queued video transformation"
 ---
+
+When a video transformation is not cached yet, `/t/` answers `202` and returns a `statusUrl`. Poll that URL until the status is `completed`, then request the `/t/` URL again to get the bytes.
+
+<Warning>
+  Include the transformation segment in the path. Jobs are keyed on the file
+  path **and** the exact transformation parameters, and a bare file path parses
+  as empty parameters, which never matches a queued job. Polling
+  `/video-status/clip.mp4` returns `404` even while that video is actively
+  processing. Use the `statusUrl` from the `202` response verbatim.
+</Warning>
 
 ## Check status
 
 ```
-GET /video-status/{path}
+GET /video-status/{transformations}/{path}
 ```
 
 **Auth:** Public (rate limited)
 
 ### Path parameters
 
+<ParamField path="transformations" type="string" required>
+  The same transformation segment as the `/t/` URL you are waiting on.
+
+`w_640` · `w_1280,h_720,c_fill`
+
+</ParamField>
+
 <ParamField path="path" type="string" required>
   Storage path of the video file.
 
-  `videos/clip.mp4` · `clip.mp4`
+`videos/clip.mp4` · `clip.mp4`
+
 </ParamField>
 
 ### Response
+
+While a job exists. Note that `completedAt` and `error` are absent here rather than `null`:
 
 ```json
 {
   "status": "processing",
   "progress": 62,
-  "startedAt": "2024-03-15T10:30:00.000Z",
-  "completedAt": null,
-  "error": null,
-  "message": "Processing in progress"
+  "startedAt": "2026-03-15T10:30:00.000Z"
 }
 ```
 
 <ResponseField name="status" type="string">
-  One of: `not_found` · `pending` · `processing` · `completed` · `error` · `cancelled`
+  One of `pending` · `processing` · `completed` · `error` · `cancelled`, or
+  `not_found` on the `404` response.
 </ResponseField>
 
 <ResponseField name="progress" type="number">
-  Processing progress from 0 to 100.
+  Processing progress from 0 to 100. `0` when the job has not started.
 </ResponseField>
 
 <ResponseField name="startedAt" type="string">
-  ISO 8601 timestamp when processing started. `null` if not yet started.
+  ISO 8601 timestamp when processing started. The key is omitted while the job
+  is still queued.
 </ResponseField>
 
 <ResponseField name="completedAt" type="string">
-  ISO 8601 timestamp when processing finished. `null` if still in progress.
+  ISO 8601 timestamp when processing finished. The key is omitted until then.
 </ResponseField>
 
 <ResponseField name="error" type="string">
-  Error message if `status` is `error`.
+  Error message when `status` is `error`. The key is omitted otherwise.
 </ResponseField>
 
-**Status codes:** `200` success · `404` file not found
+<Note>
+  Absent values are omitted from the JSON rather than sent as `null`. Test with
+  `"startedAt" in response`, not `response.startedAt !== null`. This endpoint
+  returns ISO 8601 strings; [Queue Jobs](/api-reference/queue/jobs) serves raw
+  database rows and returns the same instants as epoch milliseconds.
+</Note>
+
+When the variant is already cached, the endpoint short-circuits and returns only the two fields it can prove:
+
+```json
+{ "status": "completed", "progress": 100 }
+```
+
+When no job and no cached variant match:
+
+```json
+{
+  "status": "not_found",
+  "message": "No processing job found for this video"
+}
+```
+
+**Status codes:**
+
+| Code  | Meaning                                          |
+| ----- | ------------------------------------------------ |
+| `200` | Job or cached variant found                      |
+| `404` | No job and no cached variant for this exact URL  |
 
 ### Example
 
 ```bash
-curl http://localhost:3000/video-status/videos/clip.mp4
+curl http://localhost:3000/video-status/w_640/videos/clip.mp4
 ```
-
----
 
 ## Get optimized video size
 
 ```
-GET /video-status/{path}/size
+GET /video-status/{transformations}/{path}/size
 ```
 
-Returns the file size of the optimized (processed) video variant. Returns `404` if the optimized version is not yet ready.
+Returns the byte size of the processed variant. Returns `404` if that variant is not ready yet.
 
 **Auth:** Public (rate limited)
 
@@ -94,21 +138,27 @@ Returns the file size of the optimized (processed) video variant. Returns `404` 
 ### Example
 
 ```bash
-curl http://localhost:3000/video-status/videos/clip.mp4/size
+curl http://localhost:3000/video-status/w_640/videos/clip.mp4/size
 ```
-
----
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Queue Events (SSE)" icon="satellite-dish" href="/api-reference/queue/events">
+  <Card
+    title="Queue Events (SSE)"
+    icon="satellite-dish"
+    href="/api-reference/queue/events"
+  >
     Real-time updates without polling.
   </Card>
   <Card title="Queue Jobs" icon="list" href="/api-reference/queue/jobs">
     Manage jobs by ID.
   </Card>
-  <Card title="Transform Media" icon="film" href="/api-reference/media/transform">
+  <Card
+    title="Transform Media"
+    icon="film"
+    href="/api-reference/media/transform"
+  >
     Apply transformations to videos.
   </Card>
 </CardGroup>
