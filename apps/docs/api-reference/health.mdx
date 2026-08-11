@@ -53,7 +53,7 @@ Detailed diagnostic, checks the SQLite database connection, file permissions, an
     "connected": true,
     "path": "/app/data/openinary.db",
     "size": "2.4 MB",
-    "permissions": "0644",
+    "permissions": "644",
     "tables": {
       "user": 1,
       "session": 3,
@@ -78,7 +78,7 @@ Detailed diagnostic, checks the SQLite database connection, file permissions, an
 </ResponseField>
 
 <ResponseField name="database.permissions" type="string">
-  Octal file permissions.
+  Octal file permissions, three digits with no leading zero (for example `600` or `644`).
 </ResponseField>
 
 <ResponseField name="database.tables" type="object">
@@ -86,7 +86,7 @@ Detailed diagnostic, checks the SQLite database connection, file permissions, an
 </ResponseField>
 
 <ResponseField name="database.warning" type="string">
-  Optional warning (e.g. unusual permissions).
+  Present only when the database file is larger than 1 GB. Permission problems are reported in `security_warning` instead.
 </ResponseField>
 
 <ResponseField name="database.security_warning" type="string">

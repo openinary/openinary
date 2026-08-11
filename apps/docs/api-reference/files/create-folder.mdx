@@ -28,7 +28,8 @@ POST /upload/createfolder
 ```json
 {
   "success": true,
-  "folder": "uploads/2024"
+  "folder": "uploads/2024",
+  "error": null
 }
 ```
 
@@ -39,10 +40,15 @@ POST /upload/createfolder
 ```json
 {
   "success": false,
-  "folder": "uploads/2024",
+  "folder": null,
   "error": "Folder already exists"
 }
 ```
+
+<Note>
+  `folder` is `null` on the `409`, not the path you asked for. Read the path you
+  sent from your own request, not from this response.
+</Note>
 
 ## Example
 

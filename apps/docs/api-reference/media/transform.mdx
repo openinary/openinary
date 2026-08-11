@@ -48,7 +48,7 @@ GET /t/{transformations}/{path}
 | [`g`](#g)       | gravity       | Focal point for cropping                    |
 | [`b`](#b)       | background    | Background color (hex)                      |
 | [`r`](#r)       | round corners | Radius in pixels, per-corner list, or `max` |
-| [`q`](#q-image) | quality       | Compression level (1–100)                   |
+| [`q`](#q-image) | quality       | Compression level (1-100)                   |
 | [`f`](#f-image) | format        | Output format                               |
 
 ### Parameter reference
@@ -93,7 +93,7 @@ GET /t/{transformations}/{path}
 
 <a id="a"></a>
 <ParamField path="a" type="string | number">
-  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format, orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0–360) for a fixed angle.
+  Rotate the image. Use `auto` to rotate based on <Tooltip tip="Exchangeable Image File Format, orientation metadata stored in image files">EXIF</Tooltip> data, or a number (0-360) for a fixed angle.
 
 `a_auto` · `a_90` · `a_180`
 
@@ -110,16 +110,16 @@ GET /t/{transformations}/{path}
 | `south`  | Bottom edge                                      |
 | `east`   | Right edge                                       |
 | `west`   | Left edge                                        |
-| `face`   | Face detection, keeps the detected face in frame |
+| `face`   | Saliency crop: keeps the region Sharp scores as most interesting. Usually the face in a portrait, but it is not a face detector and has no notion of faces. |
 | `auto`   | Entropy-based region of interest detection       |
 
 </ParamField>
 
 <a id="b"></a>
 <ParamField path="b" type="string">
-  Background color for `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Use `rgb:` followed by a 6-digit hex value.
+  Background color for `c_pad` (padding fill), `a_<angle>` (rotation fill), and `r_<radius>` (corner fill). Accepts `rgb:` plus a 6-digit hex value, a bare `#hex`, or one of the keywords `transparent`, `white` and `black`. Also aliased as `bg`.
 
-`b_rgb:ffffff` (white) · `b_rgb:000000` (black) · `b_rgb:f5f5f5` (light gray)
+`b_rgb:ffffff` (white) · `b_rgb:f5f5f5` (light gray) · `b_transparent` · `b_black`
 
 </ParamField>
 
@@ -145,15 +145,21 @@ By default, cut corners are transparent, use `f_png`, `f_webp`, or `f_avif`. Add
 </ParamField>
 
 <a id="q-image"></a>
-<ParamField path="q" type="integer" default="85">
-  Compression quality from 1 (smallest file) to 100 (highest quality).
+<ParamField path="q" type="integer" default="auto">
+  Compression quality from 1 (smallest file) to 100 (highest quality), or `auto`.
+
+  Left unset, quality is chosen per output format rather than from one fixed
+  number: 80 for AVIF, 85 for WebP, 90 for JPEG, and 100 for PNG since it is
+  lossless. Large files shift that by a few points, and the result is clamped to
+  the 70 to 95 range. An explicit value between 1 and 100 is used as given, with
+  no clamping.
 
 | Range  | Trade-off                                 |
 | ------ | ----------------------------------------- |
-| 90–100 | High quality, larger file                 |
-| 80–89  | Recommended sweet spot                    |
-| 60–79  | Smaller file, slight quality loss         |
-| 1–59   | Aggressive compression, visible artifacts |
+| 90-100 | High quality, larger file                 |
+| 80-89  | Recommended sweet spot                    |
+| 60-79  | Smaller file, slight quality loss         |
+| 1-59   | Aggressive compression, visible artifacts |
 
 </ParamField>
 
@@ -161,14 +167,39 @@ By default, cut corners are transparent, use `f_png`, `f_webp`, or `f_avif`. Add
 <ParamField path="f" type="string">
   Force a specific output format. When omitted, the [best format is chosen automatically](/media-transformations/intelligent-compression) based on the browser's `Accept` header.
 
-| Value          | Notes                                 |
-| -------------- | ------------------------------------- |
-| `avif`         | Best compression (up to 50% vs JPEG)  |
-| `webp`         | Excellent compatibility, ~30% vs JPEG |
-| `jpeg` / `jpg` | Universal fallback                    |
-| `png`          | Lossless, supports transparency       |
+| Value          | Notes                                                                        |
+| -------------- | ---------------------------------------------------------------------------- |
+| `avif`         | Best compression (up to 50% vs JPEG)                                         |
+| `webp`         | Excellent compatibility, ~30% vs JPEG                                        |
+| `jpeg` / `jpg` | Universal fallback                                                           |
+| `png`          | Lossless, supports transparency                                              |
+| `gif`          | Animated or legacy assets                                                    |
+| `auto`         | Encode every supported candidate, compare byte counts, serve the smallest    |
 
 </ParamField>
+
+### Parameter aliases
+
+The URL parser accepts more spellings than the tables above list. They are here so a URL written against Cloudinary's vocabulary still parses.
+
+| Parameter | Also accepts                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------ |
+| `c`       | `lfill`, `fill_pad`, `limit`, `mfit`, `thumb`, `lpad`                                            |
+| `g`       | `c`, `n`, `s`, `e`, `w`, `faces`, `face_center`, `faces_center`, `north_center`, `south_center`   |
+| `b`       | `bg`                                                                                              |
+
+<Warning>
+  Only the short key works. The parser splits a segment at its first underscore
+  and matches the result against a fixed key list, so a long-form name such as
+  `thumbnail_time_5` is read as the key `thumbnail`, fails to match, and the
+  whole segment is then treated as a folder name, which ends in a `404`.
+</Warning>
+
+<Note>
+  Video URLs silently ignore the image-only parameters `a`, `ar`, `r` and `b`.
+  They parse, so the URL still works, but the output is re-encoded without them
+  applied.
+</Note>
 
 ### Image examples
 
@@ -187,7 +218,7 @@ GET /t/w_800,h_600/image.jpg
 GET /t/w_400,h_400,c_fill,g_face/portrait.jpg
 ```
 
-Square thumbnail cropped around the detected face.
+Square thumbnail cropped around the most visually salient region, which on a portrait is normally the face.
 
 </Tab>
 
@@ -275,7 +306,7 @@ Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
 ## Video parameters
 
 <Warning>
-  Video processing is resource-intensive (5–30s per file). For high-traffic
+  Video processing is resource-intensive (5-30s per file). For high-traffic
   assets, [prewarm](/media-transformations/upload-and-prewarm) transformed
   variants at upload time so the first request is served from cache.
 </Warning>
@@ -288,7 +319,7 @@ Uniform 16 px radius with white corners, safe to serve as JPEG on a white page.
 While a video transformation is still being processed, the endpoint answers
 `202 Accepted` instead of the original, so a request never returns content whose
 transformations have not been applied yet. Poll the `statusUrl` from the
-response body — see [video status](/api-reference/video/status) — and retry once
+response body (see [video status](/api-reference/video/status)) and retry once
 it reports `completed`. That URL keeps the transformation segment, since the job
 is keyed on the path *and* its parameters.
 
@@ -301,7 +332,7 @@ is keyed on the path *and* its parameters.
 | [`w`](#w-video)   | width          | Width in pixels                                                 |
 | [`h`](#h-video)   | height         | Height in pixels                                                |
 | [`c`](#c-video)   | crop           | Crop/resize mode                                                |
-| [`q`](#q-video)   | quality        | CRF quality (1–100)                                             |
+| [`q`](#q-video)   | quality        | CRF quality (1-100)                                             |
 | [`so`](#so)       | start offset   | Start time in seconds                                           |
 | [`eo`](#eo)       | end offset     | End time in seconds (trim)                                      |
 | [`f`](#f-video)   | format         | Output format                                                   |
@@ -351,21 +382,35 @@ is keyed on the path *and* its parameters.
 <ParamField path="tt" type="number" default="0">
   Time in seconds to extract the thumbnail frame from. Only applies when `t` is enabled.
 
-`tt_5.5` · alias: `thumbnail_time`
+`tt_5.5`
+
+  <Warning>
+    Only the short key works in a URL. The URL parser splits a segment at its
+    first underscore and matches the result against a fixed key list, so
+    `thumbnail_time_5` parses as the key `thumbnail`, fails, and is then treated
+    as a folder name, which ends in a `404`.
+  </Warning>
 
 </ParamField>
 
 <a id="q-video"></a>
-<ParamField path="q" type="integer | auto" default="75">
-  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100, or `auto` to opt a video into the default optimization without picking a CRF yourself.
+<ParamField path="q" type="integer | auto" default="60">
+  Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1-100, or `auto` to opt a video into the default optimization without picking a CRF yourself.
+
+  CRF is derived as `round(51 - q / 100 * 33)`.
 
 | `q` value | CRF | Notes                         |
 | --------- | --- | ----------------------------- |
 | 100       | 18  | Very high quality             |
-| 85        | 23  | High quality, recommended     |
-| 75        | 28  | Balanced (default)            |
+| 85        | 23  | High quality                  |
+| 75        | 26  | Balanced                      |
+| 60        | 31  | Default                       |
 | 50        | 35  | Smaller file, noticeable loss |
-| 10        | 45  | Low quality, minimum size     |
+| 10        | 48  | Low quality, minimum size     |
+
+  The default favors encoding speed over size, which matters most on large
+  source videos. Raise `q` when output quality matters more than how long the
+  job takes.
 
 </ParamField>
 
@@ -475,7 +520,44 @@ GET /t/w_1920,h_1080,q_95/presentation.mp4
 
 **Input:** MP4 (H.264/H.265), MOV, WebM (VP8/VP9)
 
-**Output:** MP4 (H.264), standardized for maximum device and browser compatibility
+**Output:** MP4 (H.264) by default. `f_webm` and `f_mov` are also accepted.
+
+---
+
+## Pass-through formats
+
+Audio and 3D files are stored and delivered, but never transformed. Request them through `/t/` with no transformation segment and the stored bytes are streamed back untouched, with the right `Content-Type`.
+
+| Kind | Extensions            |
+| ---- | --------------------- |
+| Audio | `wav`, `mp3`, `ogg`   |
+| 3D    | `glb`, `gltf`         |
+
+```http
+GET /t/audio/podcast.mp3
+GET /t/models/duck.glb
+```
+
+<Warning>
+  Adding transformation parameters to one of these returns `400`, not the
+  original:
+
+```
+GET /t/w_500/audio/podcast.mp3
+→ 400  audio/podcast.mp3 can't be transformed. Request /t/audio/podcast.mp3 for the original.
+```
+
+  This is deliberate. Silently ignoring the parameters would cache a "resized"
+  variant that is really the untouched file.
+</Warning>
+
+## Input validation
+
+Uploads are validated by content, not by the extension or the declared MIME type: the first bytes of the body must match the format the file claims to be. A `.jpg` holding an HTML document is rejected at upload rather than stored.
+
+Because delivery serves stored bytes as they are, this is what keeps a stored file from being served as something it is not. Responses also carry `X-Content-Type-Options: nosniff`, and the content type comes from the shared media table rather than from sniffing the body.
+
+HEIC and HEIF uploads are the one exception to bytes-in-bytes-out: they are converted to JPEG at upload time and stored with a `.jpg` path, since browsers cannot display HEIC. PSD files are accepted as a transformable input, and always come out as one of the standard image formats.
 
 ---
 
@@ -483,12 +565,13 @@ GET /t/w_1920,h_1080,q_95/presentation.mp4
 
 Returns the binary content of the transformed file.
 
-| Header          | Value                                                        |
-| --------------- | ------------------------------------------------------------ |
-| `Content-Type`  | Detected from output format (e.g. `image/webp`, `video/mp4`) |
-| `Cache-Control` | Set for browser caching                                      |
+| Header                   | Value                                                        |
+| ------------------------ | ------------------------------------------------------------ |
+| `Content-Type`           | Detected from output format (e.g. `image/webp`, `video/mp4`) |
+| `Cache-Control`          | Set for browser caching                                      |
+| `X-Content-Type-Options` | `nosniff`                                                    |
 
-**Status codes:** `200` success · `202` video transformation still processing · `404` file not found · `500` processing error
+**Status codes:** `200` success · `202` video transformation still processing · `400` transformation parameters on a non-transformable type · `404` file not found · `500` processing error
 
 A `202` carries a JSON body instead of media, and a `Retry-After` header:
 

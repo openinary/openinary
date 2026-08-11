@@ -15,13 +15,13 @@ openinary/
 │   ├── telemetry/    # Anonymous self-host telemetry worker (AGPL-3.0)
 │   ├── marketing/    # openinary.dev                        (MIT)
 │   ├── docs/         # This documentation
-│   └── cloud/        # Openinary Cloud — see apps/cloud/LICENSE
+│   └── cloud/        # Openinary Cloud, see apps/cloud/LICENSE
 │       ├── server/   #   API worker + media container
 │       ├── web/      #   Customer dashboard
 │       └── admin/    #   Back office
 ├── packages/         # core, ui, cli, registry, shared      (AGPL-3.0)
-├── r/                # Built shadcn registry (generated)
 ├── docker/           # Optimized Dockerfiles
+├── scripts/          # Release, env bootstrap, database hardening
 └── docker-compose.yml
 ```
 
@@ -38,33 +38,48 @@ openinary/
 | `@openinary/core` | The transformation engine: image and video pipelines, storage clients, the job queue. Used by `apps/api` and by the Cloud's media container. |
 | `@openinary/ui` | React components, including the file uploader. |
 | `create-openinary` | The CLI (`npx create-openinary`), published to npm. |
-| `registry` | shadcn/ui registry source; its build output is `r/`. |
+| `registry` | shadcn/ui registry source. Builds into `apps/marketing/public/r`, which is what serves `openinary.dev/r`. The output is generated, not committed. |
 | `shared` | Auth config, database instance and shared types for the self-hosted apps. |
 
-`core` and `ui` are workspace packages rather than npm releases: the apps
-consume them through `workspace:*`, so nothing has to be published between
-fixing one and shipping it. To use them in your own app, go through the
-[shadcn registry](/guides/file-uploader).
+The apps consume `core` and `ui` through `workspace:*`, so nothing has to be
+published between fixing one and shipping it. Both were published to npm up to
+`@openinary/core` 1.6.0 and `@openinary/ui` 0.8.1, and both are marked
+`private` now, so those versions are frozen. To use them in your own app, go
+through the [shadcn registry](/guides/file-uploader).
+
+## packages/core
+
+The transformation engine. Nearly all media, storage and queue logic lives here rather than in `apps/api`, which is what lets the self-hosted API and the Cloud's media container share one implementation.
+
+```bash
+packages/core/src/
+├── routes/           # transform, authenticated, storage, queue, download, invalidate, video-status
+├── services/         # TransformService, the entry point for every delivery request
+└── utils/
+    ├── image/        # Sharp-based image pipeline
+    ├── video/        # FFmpeg pipeline, job queue and SQLite job store
+    ├── storage/      # S3-compatible client (AWS, R2, MinIO…)
+    ├── cache.ts      # Cache path resolution and lookups
+    ├── parser.ts     # URL transformation parameter parser
+    ├── signature.ts  # HMAC-SHA256 signed URL generation and verification
+    └── upload-validation.ts  # Accepted types and magic-byte checks
+```
+
+**Key dependencies:** `sharp`, `fluent-ffmpeg`, `@aws-sdk/client-s3`, `@webtoon/psd`, `fflate`, `hono`, `better-sqlite3`, `pino`
 
 ## apps/api
 
-The core API server. All media transformation, upload, and storage logic lives here.
+The self-hosted server. It wires the engine to HTTP: it owns startup, auth, rate limiting and the routes that are specific to a self-hosted instance, and mounts everything else from `@openinary/core`.
 
 ```bash
 apps/api/src/
-├── routes/           # Hono route handlers (transform, upload, storage, queue…)
-├── services/         # Business logic (TransformService)
-├── middleware/       # Auth (apiKeyAuth), rate limiting
-└── utils/
-    ├── image/        # Sharp-based image processing pipeline
-    ├── video/        # FFmpeg-based video processing + job queue
-    ├── storage/      # S3-compatible client (AWS, R2, MinIO…)
-    ├── cache/        # Local filesystem cache helpers
-    ├── parser.ts     # URL transformation parameter parser
-    └── signature.ts  # HMAC-SHA256 signed URL generation/verification
+├── routes/           # api-keys, health, upload
+├── middleware/       # apiKeyAuth, rate limiting, presigned upload auth
+├── config/           # STORAGE_* resolution, queue wiring
+└── utils/            # Database init, telemetry
 ```
 
-**Key dependencies:** `hono`, `sharp`, `fluent-ffmpeg`, `@aws-sdk/client-s3`, `better-sqlite3`, `better-auth`
+**Key dependencies:** `hono`, `@openinary/core`, `shared`, `better-sqlite3`, `heic-convert`, `zod`
 
 ## apps/web
 
@@ -78,7 +93,12 @@ apps/web/src/app/
 │   └── debug/queue/  # Video queue inspector
 ├── login/            # Login page
 ├── setup/            # First-run admin account creation
-└── api/auth/         # Better Auth handler
+├── uploader-demo/    # File uploader playground
+└── api/
+    ├── auth/         # Better Auth handler
+    ├── check-setup/  # Whether first-run setup is still pending
+    ├── upload-token/ # Mints presigned upload signatures for the demo
+    └── version/      # Running version, used by the update banner
 ```
 
 **Key dependencies:** `next`, `react`, `@tanstack/react-query`, `better-auth`, Radix UI, Tailwind CSS v4
@@ -89,16 +109,22 @@ Shared code consumed by both `api` and `web`. Keeps auth configuration and the S
 
 ```bash
 packages/shared/src/
-├── auth.ts           # Better Auth config (API key plugin, SQLite adapter)
-├── db.ts             # better-sqlite3 instance
-└── types/            # Shared TypeScript types and Zod schemas
+├── auth.ts             # Better Auth config, API key plugin, and the SQLite instance
+├── auth-client.ts      # Client-side auth helpers
+├── auth-client-only.ts # Browser-only entry point
+├── types.ts            # Shared TypeScript types
+└── index.ts
 ```
+
+The SQLite instance is created inside `auth.ts`; there is no separate `db.ts`.
 
 ## Dependency flow
 
 ```
-web  →  shared  →  better-sqlite3, better-auth, zod
-api  →  shared
+api  →  @openinary/core  →  sharp, fluent-ffmpeg, @aws-sdk/client-s3
+api  →  shared           →  better-auth, @better-auth/api-key, better-sqlite3
+web  →  @openinary/ui
+web  →  shared
 ```
 
 Both apps import from `shared` via the `"shared"` and `"shared/*"` path aliases defined in `packages/shared/package.json`.

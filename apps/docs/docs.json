@@ -126,7 +126,8 @@
               "api-reference/storage/rename",
               "api-reference/storage/move",
               "api-reference/storage/copy",
-              "api-reference/storage/delete"
+              "api-reference/storage/delete",
+              "api-reference/storage/stats"
             ]
           },
           {

@@ -594,19 +594,6 @@ export function createStorageRoute(deps: RouteDeps) {
           );
         }
 
-        // Check if trying to delete a directory
-        if (
-          result.errors.some((err) => err.includes("Cannot delete directories"))
-        ) {
-          return c.json(
-            {
-              error: "Bad request",
-              message: "Cannot delete directories",
-            },
-            400,
-          );
-        }
-
         // Other errors
         return c.json(
           {

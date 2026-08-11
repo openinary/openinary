@@ -136,3 +136,38 @@ test("the authenticated content-type fallback uses the shared media table", asyn
   assert.equal(headers.get("x-content-type-options"), "nosniff");
   assert.equal(headers.get("content-type"), "audio/wav");
 });
+
+// Transform params on a stored type that can't be transformed are a 400 on /t/.
+// A signature only decides who may request a URL, so the same request has to
+// fail the same way once signed. Without the status check the error text falls
+// through as a 200 body labelled with the file extension's own content type,
+// i.e. an error string served as audio/wav.
+
+const NOT_TRANSFORMABLE = {
+  buffer: Buffer.from(
+    "audio/sfx.wav can't be transformed. Request /t/audio/sfx.wav for the original.",
+  ),
+  contentType: "text/plain",
+  status: 400,
+  headers: {},
+};
+
+test("transform params on a non-transformable type are a 400 on both routes", async () => {
+  const original = TransformService.prototype.transform;
+  TransformService.prototype.transform = async () => NOT_TRANSFORMABLE as any;
+  try {
+    const plain = new Hono();
+    plain.route("/t", createTransformRoute(deps()));
+    assert.equal((await plain.request("/t/w_500/audio/sfx.wav")).status, 400);
+
+    const signed = new Hono();
+    signed.route("/authenticated", createAuthenticatedRoute(deps()));
+    const signature = generateSignature("w_500", "audio/sfx.wav", "test-secret");
+    const response = await signed.request(
+      `/authenticated/s--${signature}/w_500/audio/sfx.wav`,
+    );
+    assert.equal(response.status, 400);
+  } finally {
+    TransformService.prototype.transform = original;
+  }
+});

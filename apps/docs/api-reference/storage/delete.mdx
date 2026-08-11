@@ -1,10 +1,13 @@
 ---
-title: "Delete File"
-description: "Permanently delete a file from storage along with all its cached transformation variants"
+title: "Delete File or Folder"
+description: "Permanently delete a file or an entire folder from storage along with all cached transformation variants"
 ---
 
 <Warning>
-  This action is irreversible. The file and all its cached variants are permanently removed.
+  This action is irreversible, and it deletes folders recursively. Pointing this
+  endpoint at a folder removes that folder, everything inside it at every depth,
+  and all their cached variants, in one call and with no confirmation step.
+  Check the path before you send it.
 </Warning>
 
 ## Endpoint
@@ -13,14 +16,16 @@ description: "Permanently delete a file from storage along with all its cached t
 DELETE /storage/{path}
 ```
 
-**Auth:** API Key required
+**Auth:** API key required. A dashboard session cookie also works.
 
 ## Path parameters
 
 <ParamField path="path" type="string" required>
-  Path to the file relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+  Path to the file or folder relative to the storage root. Use the `path` of a
+  file or folder returned by [List Storage](/api-reference/storage/list).
 
-  `photo.jpg` · `photos/portrait.jpg`
+`photo.jpg` · `photos/portrait.jpg` · `photos/2026`
+
 </ParamField>
 
 ## Response
@@ -28,18 +33,17 @@ DELETE /storage/{path}
 ```json
 {
   "success": true,
-  "message": "File deleted successfully",
+  "message": "Asset deleted successfully",
   "details": {
     "jobsDeleted": 0,
     "localCacheFilesDeleted": 3,
-    "cloudCacheFilesDeleted": 0,
-    "errors": []
+    "cloudCacheFilesDeleted": 0
   }
 }
 ```
 
 <ResponseField name="success" type="boolean">
-  `true` if the original file was deleted. May be `true` even when some cache cleanup had errors.
+  `true` when the delete completed with no errors.
 </ResponseField>
 
 <ResponseField name="message" type="string">
@@ -57,18 +61,59 @@ DELETE /storage/{path}
     <ResponseField name="cloudCacheFilesDeleted" type="number">
       Number of cached transformation variants removed from cloud storage.
     </ResponseField>
-    <ResponseField name="errors" type="string[]">
-      Non-fatal cleanup errors (e.g. a cache variant that was already missing).
-    </ResponseField>
   </Expandable>
 </ResponseField>
 
-**Status codes:** `200` success (or partial) · `400` path is a directory · `404` not found · `500` error
+### Partial deletion
 
-## Example
+If the original was removed but some cleanup step failed, the response has a
+different shape: no `success` field, and an `errors` array inside `details`.
+
+```json
+{
+  "error": "Partial deletion",
+  "message": "Asset deleted but some cleanup operations failed",
+  "details": {
+    "originalFileDeleted": true,
+    "jobsDeleted": 0,
+    "localCacheFilesDeleted": 2,
+    "cloudCacheFilesDeleted": 0,
+    "errors": ["Failed to delete cached variant w_200/photo.jpg"]
+  }
+}
+```
+
+The status is `200` when `originalFileDeleted` is `true` and `500` when it is
+`false`. Branch on the presence of `error`, not on `success`.
+
+**Status codes:**
+
+| Code  | Meaning                                                       |
+| ----- | ------------------------------------------------------------- |
+| `200` | Deleted, or deleted with non-fatal cleanup errors             |
+| `400` | Path is missing                                               |
+| `404` | Nothing exists at that path                                   |
+| `500` | The original could not be deleted                             |
+
+<Note>
+  Deleting a folder on cloud storage returns early once the folder is removed,
+  so `jobsDeleted` and the cache counters stay at `0` even though the folder's
+  objects are gone.
+</Note>
+
+## Examples
+
+Delete one file:
 
 ```bash
 curl -X DELETE http://localhost:3000/storage/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>"
+```
+
+Delete a folder and everything under it:
+
+```bash
+curl -X DELETE http://localhost:3000/storage/photos/2026 \
   -H "Authorization: Bearer <api_key>"
 ```
 
@@ -79,13 +124,25 @@ To clear cached variants without deleting the original file, use [Invalidate Cac
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Invalidate Cache" icon="rotate" href="/api-reference/cache/invalidate">
+  <Card
+    title="Invalidate Cache"
+    icon="rotate"
+    href="/api-reference/cache/invalidate"
+  >
     Clear cached variants while keeping the original.
   </Card>
-  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
-    Browse all files before deleting.
+  <Card
+    title="List Storage"
+    icon="folder-open"
+    href="/api-reference/storage/list"
+  >
+    Browse folders and files before deleting.
   </Card>
-  <Card title="Move File or Folder" icon="folder-tree" href="/api-reference/storage/move">
+  <Card
+    title="Move File or Folder"
+    icon="folder-tree"
+    href="/api-reference/storage/move"
+  >
     Move instead of deleting.
   </Card>
 </CardGroup>

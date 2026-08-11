@@ -1,19 +1,19 @@
 ---
 title: "Security"
-description: "Openinary authentication model: Better Auth sessions, API key management, rate limiting on public routes, Docker non-root containers, and incident response."
+description: "Openinary authentication model: Better Auth sessions, API key management, rate limiting on public routes, upload validation, Docker container users, and incident response."
 ---
 
-Openinary uses [Better Auth](https://www.better-auth.com) v1.5 with a SQLite backend. The API supports two authentication methods: **session-based login** for the web dashboard and **API key authentication** for programmatic access.
+Openinary uses [Better Auth](https://www.better-auth.com) 1.6 with a SQLite backend. The API supports two authentication methods: **session-based login** for the web dashboard and **API key authentication** for programmatic access.
 
 ## Database
 
-All auth data is stored in a single SQLite file at `/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
+All auth data is stored in a single SQLite file at `/app/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
 
-On startup, `scripts/secure-db.sh` automatically sets the file permissions to `600` (owner read/write only).
+On startup, `scripts/secure-db.js` automatically sets the file permissions to `600` (owner read/write only). It runs in both Docker images, before the server starts.
 
 | Table          | Contents                          |
 | -------------- | --------------------------------- |
-| `user`         | Accounts, passwords bcrypt-hashed |
+| `user`         | Accounts, passwords scrypt-hashed |
 | `session`      | Web sessions                      |
 | `apiKey`       | API keys, hashed before storage   |
 | `account`      | OAuth providers                   |
@@ -66,10 +66,25 @@ curl -H "Authorization: Bearer sk_your_key_here" \
 
 For the full list of routes and their auth requirements, see the [API Reference](/api-reference/introduction). Rate limiting defaults and configuration options are also documented there.
 
+## Upload and delivery
+
+[Uploads are validated by content](/api-reference/files/upload), not by extension or declared MIME type: the leading bytes must match the format the file claims to be, so a `.jpg` carrying an HTML document never reaches storage. Delivery then serves those bytes as they are, with `X-Content-Type-Options: nosniff` and a content type taken from the shared media table rather than sniffed from the body.
+
+That pairing is what closes the stored-XSS path on the public `/t/*` route, which returns uploaded bytes untouched. Both halves are load-bearing: strict at the door, no sniffing on the way out.
+
 ## Docker security
 
-- Containers run as the `node` user (non-root) to limit blast radius.
-- The `/data` volume should be mounted with appropriate host permissions.
+The two images differ here, and the difference matters when you pick one.
+
+| Image                        | Runs as                    |
+| ---------------------------- | -------------------------- |
+| `openinary/openinary-api`    | `node`, non-root           |
+| `openinary/openinary` (full) | `root`                     |
+
+The `full` image bundles nginx and supervisord alongside the app and sets no `USER`, so every process in it runs as root. Application directories are owned by `node`, but that does not change which user the processes run under. If running non-root is a requirement for you, deploy the `api` image and put your own reverse proxy in front of it.
+
+- Mount the `/app/data` volume with appropriate host permissions.
+- Neither image needs a privileged container or extra capabilities.
 
 ## Incident response
 
@@ -82,7 +97,7 @@ Go to `/api-keys` in the dashboard and disable or delete the key immediately.
 </Step>
 
 <Step title="Review logs">
-  ```bash docker logs openinary_api | grep "api_key.success" ```
+  ```bash docker compose logs api | grep "api_key.success" ```
 </Step>
 
 <Step title="Issue a replacement">
@@ -95,7 +110,7 @@ Create a new key and update all services that used the compromised one.
 <Accordion title="Database integrity check">
 
 ```bash
-docker exec openinary_api sqlite3 /app/data/auth.db "PRAGMA integrity_check;"
+docker compose exec api sqlite3 /app/data/auth.db "PRAGMA integrity_check;"
 ```
 
 A healthy database returns `ok`. If it reports errors, restore from your most recent backup and restart.

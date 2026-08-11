@@ -1,6 +1,6 @@
 ---
 title: "Copy File"
-description: "Duplicate a file, optionally into a different folder"
+description: "Duplicate a file inside its own folder"
 ---
 
 ## Endpoint
@@ -9,26 +9,28 @@ description: "Duplicate a file, optionally into a different folder"
 POST /storage/{path}/copy
 ```
 
-**Auth:** API Key required
+**Auth:** API key required. A dashboard session cookie also works.
 
 <Note>
-  Folders cannot be copied, only files. To copy a folder, copy its files individually.
+  A copy always lands in the source file's own folder. This endpoint takes no
+  request body, and there is no way to copy into a different folder in one call.
+  To place a duplicate elsewhere, copy it and then
+  [move](/api-reference/storage/move) it.
+</Note>
+
+<Note>
+  Only files can be copied. A folder path returns `404`. To copy a folder, copy
+  its files one by one.
 </Note>
 
 ## Path parameters
 
 <ParamField path="path" type="string" required>
-  Path to the file relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
+  Path to the file relative to the storage root. Use the `path` of a file
+  returned by [List Storage](/api-reference/storage/list).
 
-  `photo.jpg` · `photos/portrait.jpg`
-</ParamField>
+`photo.jpg` · `photos/portrait.jpg`
 
-## Body parameters
-
-<ParamField body="destination" type="string">
-  Path to the destination folder, relative to the storage root. Omit or leave empty to copy into the same folder as the source.
-
-  `archive` · `photos/2024`
 </ParamField>
 
 ## Response
@@ -45,27 +47,47 @@ POST /storage/{path}/copy
 </ResponseField>
 
 <ResponseField name="path" type="string">
-  The path of the new copy. If a file already exists at the target name, a unique name is generated automatically (e.g. `portrait copy.jpg`, `portrait copy (1).jpg`).
+  Path of the new copy. The name is the source name with ` copy` appended before
+  the extension. If that name is taken, a counter is added: `portrait copy.jpg`,
+  then `portrait copy (1).jpg`, `portrait copy (2).jpg`, and so on.
 </ResponseField>
 
-**Status codes:** `200` success · `404` not found · `500` error
+**Status codes:**
+
+| Code  | Meaning                                        |
+| ----- | ---------------------------------------------- |
+| `200` | Copy created                                   |
+| `400` | Path is missing                                |
+| `404` | File not found, or the path is a folder        |
+| `500` | Storage backend failed to copy                 |
 
 ## Example
 
 ```bash
 curl -X POST http://localhost:3000/storage/photos/portrait.jpg/copy \
-  -H "Authorization: Bearer <api_key>" \
-  -H "Content-Type: application/json" \
-  -d '{"destination": "archive"}'
+  -H "Authorization: Bearer <api_key>"
+```
+
+```json
+{ "success": true, "path": "photos/portrait copy.jpg" }
 ```
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Move File or Folder" icon="folder-tree" href="/api-reference/storage/move">
-    Move instead of duplicating.
+  <Card
+    title="Move File or Folder"
+    icon="folder-tree"
+    href="/api-reference/storage/move"
+  >
+    Move instead of duplicating, and the one endpoint that does take a
+    `destination`.
   </Card>
-  <Card title="List Storage" icon="folder-open" href="/api-reference/storage/list">
-    Browse all files and folders.
+  <Card
+    title="List Storage"
+    icon="folder-open"
+    href="/api-reference/storage/list"
+  >
+    Browse folders and files one level at a time.
   </Card>
 </CardGroup>

@@ -156,6 +156,10 @@ export function createAuthenticatedRoute(deps: RouteDeps) {
         return c.body(new Uint8Array(result.buffer!), 202);
       }
 
+      // Transform params requested on a type that can't be transformed
+      if (result.status === 400) {
+        return c.text(result.buffer!.toString(), 400);
+      }
       // Check if this is an error response
       if (
         result.contentType === "text/plain" &&

@@ -7,19 +7,22 @@ This module has been refactored to improve code maintainability by dividing func
 ```
 src/utils/image/
 ├── index.ts           # Main entry point and orchestration
-├── types.ts           # TypeScript types and interfaces
+├── types.ts           # Re-exports the shared transformation types
 ├── gravity.ts         # Position and gravity management
 ├── background.ts      # Background color management
 ├── aspect-ratio.ts    # Aspect ratio transformation
 ├── resize.ts          # Resizing and crop modes
 ├── rotation.ts        # Image rotation
-└── quality.ts         # Quality management
+├── quality.ts         # Quality management
+├── compression.ts     # Format selection and encoding
+├── round-corners.ts   # Corner radius
+└── param-registry.ts  # Parameter metadata
 ```
 
 ## Modules
 
 ### `types.ts`
-Defines all TypeScript types used in the module:
+Re-exports the transformation types from `packages/core/src/types.ts`, where they are defined:
 - `CropMode`: Crop modes ('fill', 'fit', 'scale', 'crop', 'pad')
 - `GravityMode`: Positioning modes ('center', 'north', 'south', etc.)
 - `BackgroundColor`: Interface for background colors
@@ -54,10 +57,6 @@ Main entry point that:
 - Orchestrates all transformations
 - Maintains compatibility with the existing API
 - Re-exports all types for compatibility
-
-## Compatibility
-
-The original `image.ts` file now re-exports all functionality from the new modular module, ensuring full compatibility with existing code.
 
 ## Benefits
 

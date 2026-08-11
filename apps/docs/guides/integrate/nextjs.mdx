@@ -25,7 +25,7 @@ Both deployments need a project set up for shadcn/ui (`components.json` present)
 
   <Tab title="Self-hosted">
     - A running instance, see [Quickstart](/quickstart).
-    - `API_SECRET` set on the instance (**64 characters**, `openssl rand -hex 32`). It computes the HMAC signature, and is the same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+    - `API_SECRET` set on the instance (**at least 16 characters**; `openssl rand -hex 32` gives you a strong 64-character one). It computes the HMAC signature, and is the same secret used for [signed delivery URLs](/media-transformations/signed-urls).
     - An **API key** for your backend to sign with, see [API Keys](/api-reference/api-keys/create).
     - `CORS_ORIGIN` including the origin of the app that embeds the uploader, comma-separated for several: `CORS_ORIGIN=https://app.example.com,https://admin.example.com`.
     - `MAX_FILE_SIZE_MB` if you need to raise the default 50 MB limit.
@@ -117,7 +117,9 @@ Two things this route has to do, and `signUpload()` does neither for you:
 </Warning>
 
 <Note>
-  Deploying to Cloudflare Workers, Deno or Bun? Add a `User-Agent` header to `signUpload`'s fetch. Those runtimes send none on outbound requests, and a request without one comes back as an HTML block page instead of JSON.
+  `signUpload` sends its own `User-Agent`, so Cloudflare Workers, Deno and Bun
+  work without extra setup. Pass a `userAgent` option if you want to identify
+  your app specifically.
 </Note>
 
 The route returns `{ signature, expires, folder }`. Those are opaque values that expire in minutes, so they are safe to hand to the browser. Keep `expiresIn` short, 60 to 300 seconds is plenty; the server clamps it to 3600 anyway, and it only has to live long enough to start the upload.
@@ -181,7 +183,7 @@ For the full props table and styling, see [`<FileUploader />`](/guides/file-uplo
 
 Render it once and never swap it for another URL. That form is served straight from storage, so it decodes on the first try, every time.
 
-A sized transformation can't promise the same, because it's generated on demand: the first request for one returns `202 {"status":"processing"}` rather than bytes, and an `<img>` can't decode a JSON body, it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame.
+A sized transformation can't promise the same, because it's generated on demand. On Openinary Cloud the first request for one returns `202 {"status":"processing"}` rather than bytes; self-hosted, that applies to video, while images are processed inline and come back as bytes on the first request. Where the `202` happens, an `<img>` can't decode a JSON body: it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame.
 
 Transformed URLs are for the next page load, once the file is at rest. Insert the transformation right after `/t/` in the `url` you stored, and you don't need to know which deployment shape it has:
 
@@ -224,7 +226,7 @@ Run the app, upload a real file through the new UI, and confirm three things:
     The API key is missing, disabled, expired, or the call is coming from the browser, where the key shouldn't be at all. Check `OPENINARY_API_KEY` on your backend.
   </Accordion>
 
-  <Accordion title="401 'Invalid or expired upload signature' on POST /upload">
+  <Accordion title="401 on POST /upload after signing">
     The signature's `expires` passed before the upload started, or the folder used to sign doesn't match the one submitted. The component always uses the folder `sign()` returned and re-signs on retry, so this normally means the signing route and the instance disagree. On self-hosted, also check for clock skew and for an `API_SECRET` that changed after the signature was minted.
   </Accordion>
 

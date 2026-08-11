@@ -13,17 +13,44 @@ GET /queue/stats
 
 ## Response
 
-Returns queue statistics including counts per status and throughput metrics.
+Counts of jobs currently in the queue table, per status.
 
 ```json
 {
+  "total": 154,
   "pending": 2,
-  "running": 1,
+  "processing": 1,
   "completed": 148,
-  "error": 3,
-  "cancelled": 0
+  "error": 3
 }
 ```
+
+<ResponseField name="total" type="number">
+  Every job row in the table, including cancelled ones.
+</ResponseField>
+
+<ResponseField name="pending" type="number">
+  Jobs queued and waiting for a worker.
+</ResponseField>
+
+<ResponseField name="processing" type="number">
+  Jobs a worker is running right now.
+</ResponseField>
+
+<ResponseField name="completed" type="number">
+  Jobs that finished successfully.
+</ResponseField>
+
+<ResponseField name="error" type="number">
+  Jobs that exhausted their retries.
+</ResponseField>
+
+<Note>
+  There is no `cancelled` key. Cancelled jobs are counted in `total` only, so
+  `total` is not the sum of the other four. Completed and errored jobs are
+  purged after `VIDEO_JOB_CLEANUP_HOURS`, which makes these counts a snapshot of
+  the retention window rather than a lifetime tally.
+</Note>
 
 ## Example
 

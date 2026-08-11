@@ -30,7 +30,7 @@ pnpm dlx shadcn@latest add @openinary/file-uploader
 
 ## Security model
 
-The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload#presigned-uploads), the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
+The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload-sign), the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
 
 <Steps>
   <Step title="Your backend requests a signature">
@@ -51,7 +51,7 @@ The component never holds an API key. Instead it uses **presigned upload signatu
 ## Prerequisites
 
 - A running Openinary instance (see [Quickstart](/quickstart)).
-- `API_SECRET` set on the instance (**64 characters**, `openssl rand -hex 32`), used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+- `API_SECRET` set on the instance (**at least 16 characters**; `openssl rand -hex 32` gives you a strong 64-character one), used internally to compute the HMAC signature. Same secret used for [signed delivery URLs](/media-transformations/signed-urls).
 - An **API key** for your backend to call `POST /upload/sign` with (see [API Keys](/api-reference/api-keys/create)).
 - `CORS_ORIGIN` set to include the origin(s) of the app embedding the uploader. Multiple origins are comma-separated:
   ```bash
@@ -168,7 +168,7 @@ The component needs a `sign()` function that returns a presigned signature. Back
 </Tabs>
 
 <Note>
-  Keep `expiresIn` short, **60–300 seconds** is plenty (the server clamps it to at most 3600). It only needs to live long enough to start the upload.
+  Keep `expiresIn` short, **60-300 seconds** is plenty (the server clamps it to at most 3600). It only needs to live long enough to start the upload.
 </Note>
 
 ## Usage
@@ -245,6 +245,11 @@ The component needs a `sign()` function that returns a presigned signature. Back
   Allow selecting more than one file.
 </ParamField>
 
+<ParamField path="disabled" default="false" type="boolean">
+  Blocks file selection and drag and drop. Use it while a parent form is
+  submitting, or before the user is allowed to upload.
+</ParamField>
+
 <ParamField path="accept" type="Record<string, string[]>">
   MIME types mapped to allowed extensions. Defaults to the Openinary media types (JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM).
 </ParamField>
@@ -279,7 +284,7 @@ The component needs a `sign()` function that returns a presigned signature. Back
 </ParamField>
 
 <ParamField path="onProgress" type="(file: FileUploadState, progress: number) => void">
-  Called with upload progress (0–100) for each file.
+  Called with upload progress (0-100) for each file.
 </ParamField>
 
 ## Styling & theming

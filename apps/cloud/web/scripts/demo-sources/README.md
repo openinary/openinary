@@ -1,9 +1,9 @@
 # Demo sources
 
-Drop the source media here, then run — from the repo root:
+Drop the source media here, then run, from the repo root:
 
 ```bash
-node apps/web/scripts/build-demo-assets.mjs
+node apps/cloud/web/scripts/build-demo-assets.mjs
 ```
 
 The script resolves its own paths, so it works from any directory; only the
@@ -11,7 +11,7 @@ path you give it has to be right.
 
 That writes every variant into `public/demo/` and rewrites
 `src/components/playground/demo-manifest.json` with the real byte counts the
-playgrounds display. Commit both — the script is never run at build time.
+playgrounds display. Commit both, the script is never run at build time.
 
 Needs `ffmpeg`, `cwebp` and `avifenc`:
 
@@ -21,7 +21,7 @@ brew install ffmpeg webp libavif
 
 ## What to provide
 
-Filenames are fixed (the extension is free — `.jpg`, `.jpeg` or `.png`), because
+Filenames are fixed (the extension is free: `.jpg`, `.jpeg` or `.png`), because
 the transform catalog picks its source by role: a smart-crop card needs the
 portrait, not the product shot.
 
@@ -32,7 +32,7 @@ portrait, not the product shot.
 | `images/landscape.jpg` | Responsive + aspect ratio | Wide framing (landscape or architecture), ≥3000px wide. |
 | `videos/*.mp4` | Video playground | ~10s, 1080p source. One is enough for v1; each extra one adds ~3 renditions to the repo. Filename becomes the slug. |
 
-**Video sources are not kept.** They are tens of MB and nothing renders them —
+**Video sources are not kept.** They are tens of MB and nothing renders them,
 only the three renditions in `public/demo/videos/` do. Once a video is built,
 its source is deleted; all that survives is its byte count in the manifest, for
 the "x% smaller" badge. The consequence: re-running this script without the
@@ -47,7 +47,7 @@ that is unambiguously CC0.
 - Anything missing is skipped with a warning rather than failing the run, and
   the playgrounds simply don't offer that source. An empty manifest is valid:
   the pages fall back to "upload your own file".
-- Originals are copied through untouched — they're the "before" side of the
+- Originals are copied through untouched, they're the "before" side of the
   comparison, so re-encoding them would distort the saving.
 - The smart-crop card approximates `g_face` with a fixed upper-biased crop
   (server-side it is sharp's `attention` strategy, which ffmpeg can't

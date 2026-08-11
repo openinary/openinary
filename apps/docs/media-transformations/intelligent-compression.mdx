@@ -1,36 +1,68 @@
 ---
 title: "Automatic Format Selection"
-description: "How Openinary automatically picks AVIF, WebP, or JPEG based on browser support, and how to override it with the f parameter."
+description: "How Openinary picks AVIF, WebP, or JPEG from browser support, what f_auto changes, and how to force a format with the f parameter."
 ---
 
-When no output format is specified, Openinary automatically selects the smallest format the requesting browser supports.
+When you request no output format, Openinary picks one from what the requesting browser supports, so a modern browser gets AVIF and an old one still gets something it can render.
 
 ## How it works
 
 <Steps>
 <Step title="Detect browser support">
-  Reads the `Accept` header and `User-Agent` to determine which modern formats are supported.
+  Reads the `Accept` header and `User-Agent` to determine which modern formats
+  the client accepts.
 </Step>
 
-<Step title="Analyze content">
-  Evaluates whether the image is a photo, graphic, or contains transparency to
-  pick the best codec.
+<Step title="Pick the best supported format">
+  Takes the first format the browser supports, in this order:
+
+**AVIF → WebP → JPEG / PNG**
+
+PNG originals stay PNG when neither AVIF nor WebP is available, so transparency survives.
+
 </Step>
 
-<Step title="Pick the smallest result">
-  Encodes in candidate formats, compares sizes, and serves the winner.
-
-**Priority:** AVIF → WebP → JPEG / PNG
-
+<Step title="Encode once and cache">
+  Encodes to that single format at a quality chosen for it, then stores the
+  result. Every later request for the same URL is served from cache.
 </Step>
 </Steps>
 
+<Note>
+  The choice is made from browser support alone. Openinary does not encode
+  several candidates and compare their sizes unless you ask for `f_auto`
+  explicitly, and it does not inspect the image content to pick a codec.
+</Note>
+
+## Comparing candidates with `f_auto`
+
+`f_auto` opts into the slower, thorough path: Openinary encodes the image in every format the browser supports, compares the actual byte counts, and serves the smallest.
+
+```http
+GET /t/f_auto/image.jpg
+```
+
+It costs more CPU on the first request for a URL, so it earns its keep on images served at high volume, where the cached winner is reused indefinitely. For everything else the default path is the better trade.
+
+## Quality defaults
+
+With no `q`, quality follows the chosen format rather than a single fixed number:
+
+| Format | Default quality       |
+| ------ | --------------------- |
+| AVIF   | 80                    |
+| WebP   | 85                    |
+| JPEG   | 90                    |
+| PNG    | 100 (lossless)        |
+
+Large files shift this by a few points, and the result is clamped to the 70 to 95 range. An explicit `q` between 1 and 100 is used exactly as given.
+
 ## Typical size reductions
 
-| Original format | → AVIF         | → WebP         |
+| Original format | To AVIF        | To WebP        |
 | --------------- | -------------- | -------------- |
-| JPEG            | 40–50% smaller | 25–35% smaller |
-| PNG             | 50–70% smaller | 25–40% smaller |
+| JPEG            | 40-50% smaller | 25-35% smaller |
+| PNG             | 50-70% smaller | 25-40% smaller |
 
 <Note>
   Actual savings depend on image content and original compression level.
@@ -38,7 +70,7 @@ When no output format is specified, Openinary automatically selects the smallest
 
 ## Manual format override
 
-Use the [`f` parameter](/media-transformations/image-transformations#f) to force a specific format regardless of browser support.
+Use the [`f` parameter](/api-reference/media/transform#image-parameters) to force a specific format regardless of browser support.
 
 ```http
 GET /t/f_avif,q_80/image.jpg
@@ -64,4 +96,3 @@ GET /t/f_jpeg,q_90/image.jpg
     Pre-generate optimized variants at upload time.
   </Card>
 </CardGroup>
-

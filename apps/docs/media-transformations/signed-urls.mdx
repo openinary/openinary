@@ -5,7 +5,7 @@ description: "Restrict transformation access with HMAC-signed URLs that cannot b
 
 ## Overview
 
-By default, the `/t/*` route is public, anyone who knows the URL can request a transformation. **Signed URLs** let you lock that down. Each signed URL carries a cryptographic signature that the server verifies before serving the asset. Requests with a missing or invalid signature are rejected with `401 Unauthorized`.
+By default, the `/t/*` route is public, anyone who knows the URL can request a transformation. **Signed URLs** let you lock that down. Each signed URL carries a cryptographic signature that the server verifies before serving the asset. A signature that does not verify is rejected with `401 Unauthorized`. One that is missing or the wrong length is rejected earlier, with `400 Bad Request`, before any comparison happens.
 
 This is useful when you want to:
 

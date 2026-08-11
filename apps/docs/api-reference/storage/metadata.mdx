@@ -43,7 +43,13 @@ GET /storage/{path}/metadata
   ISO 8601 timestamp of the last modification.
 </ResponseField>
 
-**Status codes:** `200` success · `400` path is a directory · `404` not found · `500` error
+**Status codes:** `200` success · `400` path is a directory (local storage only) · `404` not found · `500` error
+
+<Note>
+  A folder path returns `400` on local disk storage but `404` on a cloud
+  storage backend, which has no directory to stat. Treat both as "not a file"
+  rather than branching on the code.
+</Note>
 
 ## Example
 

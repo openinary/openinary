@@ -11,7 +11,7 @@ Openinary is self-hosted and the entire codebase is public, so there is no way t
 
 ## What is sent
 
-Two events, both with a fixed, whitelisted set of properties. No file names, media content, URLs, user data, or IP addresses are ever included.
+Two events, both with a fixed, whitelisted set of properties. No file names, media content, URLs, or user data are ever included.
 
 | Event              | When                                    | Properties                                                                                |
 | ------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -20,11 +20,28 @@ Two events, both with a fixed, whitelisted set of properties. No file names, med
 
 Counts are never sent as raw numbers, they're bucketed into ranges (`0`, `1-10`, `11-100`, `101-1000`, `1000+`).
 
-Each instance has a random UUID (`instance_id`) generated on first boot and stored in the local database. It cannot be linked back to you or your data.
+### The instance identifier
+
+Each instance sends an `instance_id`, a UUID that cannot be reversed into anything about you or your data. How it is produced depends on your configuration:
+
+- **Derived**, when `BETTER_AUTH_SECRET` is set to at least 32 characters and is not the known placeholder. The id is a salted SHA-256 of that secret, truncated and formatted as a UUID. This is the normal case for a configured instance. Because it is derived rather than stored, it survives a database wipe or a redeploy, which keeps one instance from being counted as many. It is one-way: the id cannot be turned back into your secret.
+- **Random**, as a fallback when no usable secret is available. Generated once and stored in the local database.
+
+Rotating `BETTER_AUTH_SECRET` produces a new id, and the old instance simply stops reporting.
 
 ## Where it goes
 
-Events are sent to `telemetry.openinary.dev`, a small proxy maintained by the Openinary project. The proxy validates the payload against the same whitelist, rate-limits per instance, and forwards accepted events to a PostHog project. Your instance never talks to PostHog directly, and never holds a PostHog key.
+Events are sent to `telemetry.openinary.dev`, a small proxy maintained by the Openinary project. The proxy validates the payload against the same whitelist, rate-limits per instance and per IP, and forwards accepted events to a PostHog project. Your instance never talks to PostHog directly, and never holds a PostHog key.
+
+### About your IP address
+
+The payload your instance sends contains no IP address. The proxy, however, does attach one.
+
+Your instance's IP reaches the proxy the way it reaches any HTTP server, and the proxy passes it on to PostHog as the `$ip` property so the event geolocates to your instance's country rather than to the proxy's own datacenter. PostHog therefore receives the IP that sent the event, and it is used for coarse geographic aggregation.
+
+If that is not acceptable for your deployment, turn telemetry off. There is no setting that keeps the events while dropping the IP.
+
+The proxy source is in [`apps/telemetry`](https://github.com/openinary/openinary/blob/main/apps/telemetry/src/index.ts) if you want to check this yourself.
 
 ## Disabling it
 
@@ -35,6 +52,13 @@ Events are sent to `telemetry.openinary.dev`, a small proxy maintained by the Op
 ```bash
 OPENINARY_TELEMETRY=false
 ```
+
+Any value other than the exact string `false` leaves telemetry on.
+
+<ParamField path="TELEMETRY_ENDPOINT" type="string" default="https://telemetry.openinary.dev/collect">
+  Collector the events are posted to. Point it at your own endpoint to inspect
+  what your instance sends, or to keep the data inside your own infrastructure.
+</ParamField>
 
 The code that generates and sends these events lives in [`apps/api/src/utils/telemetry.ts`](https://github.com/openinary/openinary/blob/main/apps/api/src/utils/telemetry.ts), read it if you want to verify this page is accurate.
 
