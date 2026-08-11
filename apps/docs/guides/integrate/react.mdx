@@ -41,7 +41,7 @@ Both deployments need a project set up for shadcn/ui (`components.json` present)
     ```json components.json
     {
       "registries": {
-        "@openinary": "https://raw.githubusercontent.com/openinary/openinary/main/r/{name}.json"
+        "@openinary": "https://openinary.dev/r/{name}.json"
       }
     }
     ```
@@ -60,7 +60,7 @@ Both deployments need a project set up for shadcn/ui (`components.json` present)
     </Warning>
 
     <Note>
-      No shadcn in this project? Don't run `shadcn init` for it, that would restructure a project that never asked for it. Take `use-file-upload.ts` alone, verbatim, from [the registry JSON](https://raw.githubusercontent.com/openinary/openinary/main/r/file-uploader.json), which carries each file's target and full content. The hook holds all the logic and no styling, so you can write the markup your codebase would have written anyway.
+      No shadcn in this project? Don't run `shadcn init` for it, that would restructure a project that never asked for it. Take `use-file-upload.ts` alone, verbatim, from [the registry JSON](https://openinary.dev/r/file-uploader.json), which carries each file's target and full content. The hook holds all the logic and no styling, so you can write the markup your codebase would have written anyway.
     </Note>
   </Step>
 

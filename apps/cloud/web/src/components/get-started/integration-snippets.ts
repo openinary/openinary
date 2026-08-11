@@ -72,7 +72,7 @@ lucide-react either. No new dependency. Take use-file-upload.ts ALONE,
 verbatim, from the registry JSON, which carries each file's target and its
 full content:
 
-  https://raw.githubusercontent.com/openinary/openinary/main/r/file-uploader.json
+  https://openinary.dev/r/file-uploader.json
 
 Then build the UI this codebase would have written anyway on the hook alone,
 and skip file-uploader.tsx. The hook returns \`files\` - each entry carrying
