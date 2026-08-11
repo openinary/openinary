@@ -47,5 +47,6 @@ pnpm --filter registry registry:build # rebuild apps/marketing/public/r from reg
 - `src/stubs/`, type-check-only stand-ins for the consumer's shadcn components;
   **not** part of the registry output.
 
-After changing any source file, rebuild and commit `apps/marketing/public/r`,
-CI fails if it is stale.
+The built output is not committed: `apps/marketing`'s `prebuild` runs
+`registry:build`, so `public/r` is regenerated from source on every build
+and deploy.
