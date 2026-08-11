@@ -29,8 +29,9 @@ Authorization: Bearer <your_api_key>
 Generate API keys from the dashboard (`/api-keys`) or via the [API Keys API](/api-reference/api-keys/create). In API-only mode, the first key is printed to the server logs on startup.
 
 <Note>
-  Some endpoints (API key management) also accept a session cookie, used
-  internally by the dashboard.
+  Every API-key endpoint also accepts a dashboard session cookie, not just the
+  API key management ones. That is how the dashboard calls storage, queue and
+  upload without minting a key for itself.
 </Note>
 
 ## Rate limiting
@@ -49,7 +50,7 @@ Rate limit headers are included in every response:
 | `X-RateLimit-Remaining` | Requests remaining in the current window       |
 | `X-RateLimit-Reset`     | Unix timestamp when the window resets          |
 
-Protected endpoints (API key required) are not subject to public rate limiting.
+Most API-key endpoints sit outside the public rate limiter, but not all: `POST /upload` and `GET /health/database` are behind it as well, so a burst of uploads can be throttled even with a valid key.
 
 ## Endpoints overview
 
@@ -87,14 +88,22 @@ Protected endpoints (API key required) are not subject to public rate limiting.
 
 ## Error responses
 
-All errors follow a consistent shape:
+JSON errors carry a short `error` label and a `message` explaining it:
 
 ```json
 {
-  "error": "Human-readable error message",
-  "details": "Optional additional context"
+  "error": "Bad request",
+  "message": "Human-readable explanation"
 }
 ```
+
+<Warning>
+  The media delivery routes (`/t/*` and `/authenticated/*`) return **plain
+  text**, not JSON. Parsing every error body as JSON will throw on exactly the
+  routes your users hit most. Check the response `Content-Type` first.
+</Warning>
+
+A few endpoints add fields on top of that pair. [Delete](/api-reference/storage/delete) returns a `details` object listing what was cleaned up, and [Invalidate Cache](/api-reference/cache/invalidate) returns an `errors` array. Neither is a general envelope.
 
 | Status | Meaning                                                    |
 | ------ | ---------------------------------------------------------- |

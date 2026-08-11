@@ -145,8 +145,14 @@ By default, cut corners are transparent, use `f_png`, `f_webp`, or `f_avif`. Add
 </ParamField>
 
 <a id="q-image"></a>
-<ParamField path="q" type="integer" default="85">
-  Compression quality from 1 (smallest file) to 100 (highest quality).
+<ParamField path="q" type="integer" default="auto">
+  Compression quality from 1 (smallest file) to 100 (highest quality), or `auto`.
+
+  Left unset, quality is chosen per output format rather than from one fixed
+  number: 80 for AVIF, 85 for WebP, 90 for JPEG, and 100 for PNG since it is
+  lossless. Large files shift that by a few points, and the result is clamped to
+  the 70 to 95 range. An explicit value between 1 and 100 is used as given, with
+  no clamping.
 
 | Range  | Trade-off                                 |
 | ------ | ----------------------------------------- |
@@ -351,21 +357,35 @@ is keyed on the path *and* its parameters.
 <ParamField path="tt" type="number" default="0">
   Time in seconds to extract the thumbnail frame from. Only applies when `t` is enabled.
 
-`tt_5.5` · alias: `thumbnail_time`
+`tt_5.5`
+
+  <Warning>
+    Only the short key works in a URL. The URL parser splits a segment at its
+    first underscore and matches the result against a fixed key list, so
+    `thumbnail_time_5` parses as the key `thumbnail`, fails, and is then treated
+    as a folder name, which ends in a `404`.
+  </Warning>
 
 </ParamField>
 
 <a id="q-video"></a>
-<ParamField path="q" type="integer | auto" default="75">
+<ParamField path="q" type="integer | auto" default="60">
   Video quality via <Tooltip tip="Constant Rate Factor, lower CRF = better quality, larger file">CRF</Tooltip> encoding. Range: 1–100, or `auto` to opt a video into the default optimization without picking a CRF yourself.
+
+  CRF is derived as `round(51 - q / 100 * 33)`.
 
 | `q` value | CRF | Notes                         |
 | --------- | --- | ----------------------------- |
 | 100       | 18  | Very high quality             |
-| 85        | 23  | High quality, recommended     |
-| 75        | 28  | Balanced (default)            |
+| 85        | 23  | High quality                  |
+| 75        | 26  | Balanced                      |
+| 60        | 31  | Default                       |
 | 50        | 35  | Smaller file, noticeable loss |
-| 10        | 45  | Low quality, minimum size     |
+| 10        | 48  | Low quality, minimum size     |
+
+  The default favors encoding speed over size, which matters most on large
+  source videos. Raise `q` when output quality matters more than how long the
+  job takes.
 
 </ParamField>
 

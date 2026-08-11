@@ -42,8 +42,10 @@ The original file is not touched.
 ```
 
 <ResponseField name="success" type="boolean">
-  `true` if invalidation completed without errors. May be `true` even when some
-  steps had non-fatal errors (see `details.errors`).
+  `true` only when nothing failed. It is computed as `errors.length === 0`, so a
+  single non-fatal cleanup error makes it `false` even though the variants that
+  could be removed were removed. Read `details.errors` to see what actually
+  happened.
 </ResponseField>
 
 <ResponseField name="message" type="string">

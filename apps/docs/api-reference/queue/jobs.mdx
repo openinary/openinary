@@ -19,6 +19,13 @@ GET /queue/jobs
 
 <ParamField query="offset" type="number" default="0">
   Number of jobs to skip (pagination offset).
+
+  <Warning>
+    `offset` is ignored whenever `status` is set. The filtered path calls
+    `getJobsByStatus(status, limit)`, which takes no offset, so paginating a
+    filtered list re-returns the same first page. `offset` is echoed back in the
+    response either way.
+  </Warning>
 </ParamField>
 
 <ParamField query="status" type="string">
@@ -27,18 +34,25 @@ GET /queue/jobs
 
 ### Response
 
+This endpoint serves database rows as they are stored. Field names are `snake_case`, not `camelCase`, and timestamps are epoch milliseconds, not ISO 8601 strings.
+
 ```json
 {
   "jobs": [
     {
       "id": "job_abc123",
-      "filePath": "videos/clip.mp4",
+      "file_path": "videos/clip.mp4",
+      "params_json": "{\"width\":640}",
+      "cache_path": "cache/w_640/videos/clip.mp4",
       "status": "completed",
-      "priority": 1,
+      "priority": 2,
       "progress": 100,
-      "startedAt": "2024-03-15T10:30:00.000Z",
-      "completedAt": "2024-03-15T10:31:45.000Z",
-      "error": null
+      "error": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "created_at": 1773567000000,
+      "started_at": 1773568200000,
+      "completed_at": 1773568305000
     }
   ],
   "limit": 50,
@@ -50,17 +64,29 @@ GET /queue/jobs
 <ResponseField name="jobs" type="array">
   <Expandable title="Job object">
     <ResponseField name="id" type="string">Unique job identifier.</ResponseField>
-    <ResponseField name="filePath" type="string">Storage path of the video being processed.</ResponseField>
+    <ResponseField name="file_path" type="string">Storage path of the video being processed.</ResponseField>
+    <ResponseField name="params_json" type="string">The transformation parameters the job was queued with, as a JSON string. Together with `file_path` this is the key a job is looked up by.</ResponseField>
+    <ResponseField name="cache_path" type="string">Where the finished variant is written.</ResponseField>
     <ResponseField name="status" type="string">`pending` · `processing` · `completed` · `error` · `cancelled`</ResponseField>
-    <ResponseField name="priority" type="number">Processing priority (lower = higher priority).</ResponseField>
-    <ResponseField name="progress" type="number">Progress percentage (0–100).</ResponseField>
-    <ResponseField name="startedAt" type="string">ISO 8601 timestamp when processing started.</ResponseField>
-    <ResponseField name="completedAt" type="string">ISO 8601 timestamp when processing finished.</ResponseField>
-    <ResponseField name="error" type="string">Error message if `status` is `error`.</ResponseField>
+    <ResponseField name="priority" type="number">Processing priority, lower runs first. Thumbnails are queued at `1` and transformations at `2`.</ResponseField>
+    <ResponseField name="progress" type="number">Progress percentage, 0 to 100.</ResponseField>
+    <ResponseField name="error" type="string">Error message when `status` is `error`, `null` otherwise.</ResponseField>
+    <ResponseField name="retry_count" type="number">Attempts made so far.</ResponseField>
+    <ResponseField name="max_retries" type="number">Attempt ceiling, from `VIDEO_JOB_RETRY_MAX`.</ResponseField>
+    <ResponseField name="created_at" type="number">Epoch milliseconds when the job was queued.</ResponseField>
+    <ResponseField name="started_at" type="number">Epoch milliseconds when processing started, `null` while pending.</ResponseField>
+    <ResponseField name="completed_at" type="number">Epoch milliseconds when processing finished, `null` until then.</ResponseField>
   </Expandable>
 </ResponseField>
 
-<ResponseField name="count" type="number">Total jobs in the current result set.</ResponseField>
+<ResponseField name="count" type="number">Number of jobs in this response, not the total matching the filter.</ResponseField>
+
+<Note>
+  [Video Status](/api-reference/video/status) returns the same jobs in a
+  converted shape: `camelCase` keys and ISO 8601 timestamps. The two endpoints
+  do not agree on field names by design, one serves rows and the other serves a
+  view model.
+</Note>
 
 ### Example
 
@@ -93,7 +119,7 @@ Re-queues a failed job for processing.
 ```json
 {
   "success": true,
-  "message": "Job queued for retry"
+  "message": "Job scheduled for retry"
 }
 ```
 

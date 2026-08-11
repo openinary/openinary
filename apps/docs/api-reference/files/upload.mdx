@@ -59,6 +59,8 @@ Pre-warming ensures the first user request is served from cache without any proc
 
 **`400`**, Validation error (invalid type, size exceeded, etc.)
 
+A fully successful upload returns only `success` and `files`. There is no `errors` key, and the optional per-file arrays appear only when they have something in them:
+
 ```json
 {
   "success": true,
@@ -67,40 +69,35 @@ Pre-warming ensures the first user request is served from cache without any proc
       "filename": "photo.jpg",
       "path": "photos/photo.jpg",
       "size": 204800,
-      "url": "http://localhost:3000/t/photos/photo.jpg",
-      "prewarmedUrls": [
-        "http://localhost:3000/t/w_800,h_600,c_fill/photos/photo.jpg"
-      ],
-      "prewarmErrors": [],
-      "queuedTransformationUrls": [],
-      "queueErrors": []
+      "url": "/t/photos/photo.jpg",
+      "prewarmedUrls": ["/t/w_800,h_600,c_fill/photos/photo.jpg"]
     }
-  ],
-  "errors": []
+  ]
 }
 ```
 
 <ResponseField name="success" type="boolean">
-  `true` if all files were processed without error.
+  `true` if at least one file was processed. On a `207` this is still `true`,
+  so check `errors` rather than `success` to detect partial failure.
 </ResponseField>
 
 <ResponseField name="files" type="array">
   Successfully uploaded files.
 
   <Expandable title="File object">
-    <ResponseField name="filename" type="string">Original or custom filename.</ResponseField>
+    <ResponseField name="filename" type="string">Original or custom filename. A HEIC or HEIF upload is converted to JPEG, so this comes back with a `.jpg` extension.</ResponseField>
     <ResponseField name="path" type="string">Storage path relative to root.</ResponseField>
-    <ResponseField name="size" type="number">File size in bytes.</ResponseField>
-    <ResponseField name="url" type="string">Public URL to access the file.</ResponseField>
-    <ResponseField name="prewarmedUrls" type="string[]">URLs that were successfully pre-generated and cached.</ResponseField>
-    <ResponseField name="prewarmErrors" type="string[]">Prewarm failures (file still uploaded successfully).</ResponseField>
-    <ResponseField name="queuedTransformationUrls" type="string[]">Video transformation URLs queued for background processing.</ResponseField>
-    <ResponseField name="queueErrors" type="string[]">Queue submission errors.</ResponseField>
+    <ResponseField name="size" type="number">File size in bytes, after any conversion.</ResponseField>
+    <ResponseField name="url" type="string">Root-relative delivery path, always starting with `/t/`. Prefix it with your instance origin to get an absolute URL.</ResponseField>
+    <ResponseField name="prewarmedUrls" type="string[]">Image transformation paths that were generated and cached during the upload. Omitted when empty.</ResponseField>
+    <ResponseField name="prewarmErrors" type="string[]">Prewarm failures. The file still uploaded successfully. Omitted when empty.</ResponseField>
+    <ResponseField name="queuedTransformationUrls" type="string[]">Video transformation paths queued for background processing. Omitted when empty.</ResponseField>
+    <ResponseField name="queueErrors" type="string[]">Queue submission errors. Omitted when empty.</ResponseField>
   </Expandable>
 </ResponseField>
 
 <ResponseField name="errors" type="array">
-  Files that failed to upload.
+  Files that failed to upload. Present only on a `207` or a `400`.
 
   <Expandable title="Error object">
     <ResponseField name="filename" type="string">Name of the failed file.</ResponseField>
