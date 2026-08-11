@@ -3,17 +3,15 @@ title: "Integrate with Next.js"
 description: "Add secure file uploads and media delivery to a Next.js App Router project, on Openinary Cloud or your own instance: a route handler mints a short-lived signature, the browser uploads with it, and your API key never leaves the server."
 ---
 
-You end up with a `<FileUploader />` in a client component, a route handler that mints a short-lived upload signature, and an API key that never leaves the server. Two shadcn commands install both pieces as source you own. The flow is identical on Openinary Cloud and on a self-hosted instance, and the few steps that differ say which is which.
+You end up with a `<FileUploader />` in a client component, a route handler that mints a short-lived upload signature, and an API key that never leaves the server. Two shadcn commands install both pieces as source you own. The flow is identical on Openinary Cloud and on a self-hosted instance, and the steps that differ say which is which.
 
 Using Vite, Remix, or any React app whose backend isn't Next.js? See [Integrate with React](/guides/integrate/react).
 
 ## Install
 
-Every snippet below is complete. Copy each file into your project as you go.
-
 <Steps>
   <Step title="Register the Openinary registry">
-    The uploader installs as source you own, not as a package. Point shadcn at the namespace once. You need a project already set up for shadcn/ui (`components.json` present) and the shadcn CLI **v3 or newer**, which is what resolves namespaced registries.
+    The uploader installs as source you own, not as a package. You need a shadcn/ui project (`components.json` present) and the shadcn CLI **v3 or newer**, which resolves namespaced registries.
 
     ```json components.json
     {
@@ -32,7 +30,7 @@ Every snippet below is complete. Copy each file into your project as you go.
 
     The first writes `components/openinary/file-uploader.tsx` and its hook, with drag & drop, per-file progress, previews, retry, cancel and client-side validation. The second writes `lib/upload-token.ts`, a thin client for `POST /upload/sign`.
 
-    No shadcn in this project? Don't run `shadcn init` for it, that would restructure a project that never asked for it. Take `use-file-upload.ts` alone, verbatim, from [the registry JSON](https://openinary.dev/r/file-uploader.json), which carries each file's target and full content. The hook holds all the logic and no styling, so you write the markup your codebase would have written anyway.
+    No shadcn here? Don't run `shadcn init`, it restructures a project that never asked for it. Take `use-file-upload.ts` verbatim from [the registry JSON](https://openinary.dev/r/file-uploader.json), which carries each file's target and content. The hook is all logic and no styling, so write your own markup.
   </Step>
 
   <Step title="Set your environment">
@@ -46,7 +44,7 @@ Every snippet below is complete. Copy each file into your project as you go.
 
     `YOUR_OPENINARY_URL` is `https://cdn.openinary.dev` on Cloud. Self-hosted, it's your own domain, plus `/api` in full stack mode where nginx reserves the root for the dashboard.
 
-    The API key mints upload signatures, so it is a secret. Keep it in the backend environment only, never in a `NEXT_PUBLIC_*` variable, never in client code, never in the repository. Confirm `.env.local` is gitignored.
+    The API key mints upload signatures, so it is a secret. Keep it out of `NEXT_PUBLIC_*`, out of client code, out of the repository. Confirm `.env.local` is gitignored.
   </Step>
 </Steps>
 
@@ -99,14 +97,14 @@ export async function POST() {
 ```
 
 <Warning>
-  **Derive `folder` server-side, from the authenticated user.** A folder read from the request body is a folder any visitor can choose, including someone else's. Authenticate the route too, with whatever this app already uses: it hands out an upload grant. `signUpload()` does neither for you.
+  **Derive `folder` server-side, from the authenticated user.** A folder read from the request body is a folder any visitor can choose, including someone else's. Authenticate the route too, with whatever this app already uses. `signUpload()` does neither for you.
 </Warning>
 
 If your frontend and API are separate deployments, the route belongs in the API, not in the app that renders the uploader.
 
 `signUpload` sends its own `User-Agent`, so Cloudflare Workers, Deno and Bun work without extra setup. Pass a `userAgent` option if you want to identify your app specifically.
 
-The route returns `{ signature, expires, folder }`. Those are opaque values that expire in minutes, so they are safe to hand to the browser. Keep `expiresIn` short, 60 to 300 seconds is plenty. The server clamps it to 3600 anyway, and it only has to live long enough to start the upload.
+The route returns `{ signature, expires, folder }`, opaque values that expire in minutes and are safe to hand to the browser. Keep `expiresIn` short, 60 to 300 seconds is plenty. The server clamps it to 3600 anyway.
 
 ## Drop in the uploader
 
@@ -145,7 +143,7 @@ export function Uploader() {
 
 `baseUrl` is optional here: the component falls back to `NEXT_PUBLIC_OPENINARY_URL`.
 
-`sign()` runs right before each upload batch and again on every retry, so an expired signature never survives a retry. The destination folder is whatever the signature is scoped to, and a `folder` prop on the component is ignored when a signature is used.
+`sign()` runs before each upload batch and again on every retry, so an expired signature never survives a retry. The folder is whatever the signature is scoped to, and a `folder` prop is ignored when a signature is used.
 
 The `transformations` prop pre-warms variants at upload time on a self-hosted instance, see [Upload & Pre-warm](/media-transformations/upload-and-prewarm). **On Cloud it is ignored**, along with the `prewarmedUrls` and `queuedTransformationUrls` fields, because variants are generated on the first request instead.
 
@@ -162,9 +160,9 @@ For the full props table and styling, see [`<FileUploader />`](/guides/file-uplo
 
 Render `url` once and never swap it for another URL. That form is served straight from storage, so it decodes on the first try, every time.
 
-A sized transformation can't promise the same, because it's generated on demand. On Openinary Cloud the first request for one returns `202 {"status":"processing"}` rather than bytes. Self-hosted, that applies to video, while images are processed inline and come back as bytes on the first request. Where the `202` happens, an `<img>` can't decode a JSON body: it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame.
+A sized transformation can't promise that, because it's generated on demand. On Openinary Cloud the first request for one returns `202 {"status":"processing"}` rather than bytes. Self-hosted, that applies to video, while images are processed inline and come back as bytes on the first request. Where the `202` happens, an `<img>` can't decode a JSON body: it fires `onerror` once and never retries. For a file uploaded seconds ago that request is yours, so the picture arrives after a broken-image frame.
 
-Transformed URLs are for the next page load, once the file is at rest. Insert the transformation right after `/t/` in the `url` you stored, and you don't need to know which deployment shape it has:
+Transformed URLs are for the next page load, once the file is at rest. Insert the transformation right after `/t/` in the stored `url`, whatever the deployment shape:
 
 ```tsx
 // The first `/t/` is always the delimiter, whatever the deployment.
@@ -174,7 +172,7 @@ const thumbnail = `${process.env.NEXT_PUBLIC_OPENINARY_URL}${url.replace(
 )}`;
 ```
 
-Treat the original as a confirmation, not a gallery. It is full-size bytes and one CDN request, which is right for the single file that just arrived and wrong for a grid of fifty, use transformations there. Only jpg, png, webp, avif and gif decode in a browser, anything else is a link. Drop the component's local preview once the upload finishes rather than showing both.
+Treat the original as a confirmation, not a gallery. It is full-size bytes and one CDN request, right for the file that just arrived and wrong for a grid of fifty, where you use transformations. Only jpg, png, webp, avif and gif decode in a browser, anything else is a link. Drop the component's local preview once the upload finishes rather than showing both.
 
 ## Verify
 
@@ -204,7 +202,7 @@ Run the app, upload a real file through the new UI, and confirm three things.
   </Accordion>
 
   <Accordion title="401 on POST /upload after signing">
-    The signature's `expires` passed before the upload started, or the folder used to sign doesn't match the one submitted. The component re-signs on retry, so this normally means the signing route and the instance disagree. On self-hosted, also check for clock skew and for an `API_SECRET` that changed after the signature was minted.
+    The signature's `expires` passed before the upload started, or the folder used to sign doesn't match the one submitted. The component re-signs on retry, so this usually means the signing route and the instance disagree. Self-hosted, also check clock skew and an `API_SECRET` that changed after the signature was minted.
   </Accordion>
 
   <Accordion title="CORS error in the console">
@@ -212,11 +210,11 @@ Run the app, upload a real file through the new UI, and confirm three things.
   </Accordion>
 
   <Accordion title="402 quota_exceeded (Cloud only)">
-    An upload that would push the account past its storage allowance is refused with `402` and a body naming the feature. Surface it, don't retry it, the retry fails identically until the plan or the usage changes. See [Plans and limits](/cloud/overview#plans-and-limits).
+    An upload that would push the account past its storage allowance is refused with `402` and a body naming the feature. Surface it, don't retry, the retry fails identically until the plan or the usage changes. See [Plans and limits](/cloud/overview#plans-and-limits).
   </Accordion>
 
   <Accordion title="The image appears late, or flashes broken first">
-    You're rendering a transformation of a file that was just uploaded, so your own request is the one generating it. Show the original instead, see [Render it once, as the original](#render-it-once-as-the-original).
+    You're rendering a transformation of a file just uploaded, so your own request is generating it. Show the original instead, see [Render it once, as the original](#render-it-once-as-the-original).
   </Accordion>
 </AccordionGroup>
 
