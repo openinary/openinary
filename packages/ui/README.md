@@ -11,6 +11,12 @@ SaaS built on top of Openinary).
 npm install @openinary/ui
 ```
 
+> **The npm package is frozen at 0.8.1.** This package is marked `private` in
+> the monorepo, so 0.8.1 is the last version published and no new ones ship.
+> For current code, install the components through the shadcn registry
+> (`packages/registry`), which is built from this source on every release. See
+> the [File Uploader guide](https://docs.openinary.dev/guides/file-uploader).
+
 Peer dependencies (install alongside, matching versions your app already uses):
 
 ```bash

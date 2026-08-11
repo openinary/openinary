@@ -65,8 +65,10 @@ The shared engine lives in `packages/core` and `packages/ui`, and both the
 self-hosted apps and the Cloud consume it through `workspace:*`. That is the
 point of the single tree: a fix in `packages/core` reaches `apps/api` and
 `apps/cloud/server` in the same commit, with nothing published in between.
-Neither package is released to npm — to use them in your own app, go through the
-shadcn registry in `packages/registry`.
+Both were published to npm up to `@openinary/core` 1.6.0 and `@openinary/ui`
+0.8.1. Both are marked `private` now, so those versions are frozen and no new
+ones ship. To use them in your own app, go through the shadcn registry in
+`packages/registry`.
 
 The dev servers are on separate ports so the self-hosted and Cloud stacks can run
 side by side: `pnpm dev` (3000/3001), `pnpm dev:cloud` (3100/3101),

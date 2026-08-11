@@ -41,10 +41,11 @@ openinary/
 | `registry` | shadcn/ui registry source; its build output is `r/`. |
 | `shared` | Auth config, database instance and shared types for the self-hosted apps. |
 
-`core` and `ui` are workspace packages rather than npm releases: the apps
-consume them through `workspace:*`, so nothing has to be published between
-fixing one and shipping it. To use them in your own app, go through the
-[shadcn registry](/guides/file-uploader).
+The apps consume `core` and `ui` through `workspace:*`, so nothing has to be
+published between fixing one and shipping it. Both were published to npm up to
+`@openinary/core` 1.6.0 and `@openinary/ui` 0.8.1, and both are marked
+`private` now, so those versions are frozen. To use them in your own app, go
+through the [shadcn registry](/guides/file-uploader).
 
 ## apps/api
 
