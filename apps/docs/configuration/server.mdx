@@ -18,6 +18,16 @@ description: "Environment variables for Openinary server mode, authentication se
 | [`PUBLIC_RATE_LIMIT_MAX`](#public-rate-limit-max)             | Max requests per window                          |
 | [`PUBLIC_RATE_LIMIT_WINDOW_MS`](#public-rate-limit-window-ms) | Rate limit window (ms)                           |
 | [`MAX_FILE_SIZE_MB`](#max-file-size-mb)                       | Maximum upload file size in MB                   |
+| [`OPENINARY_ADMIN_EMAIL`](#openinary-admin-email)             | Admin account created on first boot              |
+| [`OPENINARY_ADMIN_PASSWORD`](#openinary-admin-password)       | Password for that account                        |
+| [`OPENINARY_ADMIN_NAME`](#openinary-admin-name)               | Display name for that account                    |
+| [`OPENINARY_GENERATE_API_KEY`](#openinary-generate-api-key)   | Print an API key on first boot                   |
+| [`LOG_LEVEL`](#log-level)                                     | Log verbosity                                    |
+| [`ALLOW_REMOTE_SOURCE`](#allow-remote-source)                 | Allow an HTTPS source URL per request            |
+| [`BETTER_AUTH_INTERNAL_URL`](#better-auth-internal-url)       | Internal base URL for server-side auth calls     |
+| [`NEXT_PUBLIC_TRANSFORM_BASE_URL`](#next-public-transform-base-url) | CDN origin for delivery URLs               |
+| [`NEXT_PUBLIC_LOG_LEVEL`](#next-public-log-level)             | Dashboard log verbosity                          |
+| [`IMAGE_TAG`](#image-tag)                                     | Docker image tag to pull                         |
 
 ## Parameter reference
 
@@ -109,6 +119,102 @@ openssl rand -hex 32
 
 `/app/data/auth.db` · `/mnt/volume/openinary.db`
 
+</ParamField>
+
+## Admin bootstrap
+
+These run **only on the very first boot**, while the user table is still empty. Once an account exists they are ignored, so you cannot use them to reset a password or add a second admin.
+
+Without them, a `fullstack` instance logs a line telling you to visit `/setup` and waits for you to create the account in the browser. Set them when you need an unattended deployment.
+
+<a id="openinary-admin-email"></a>
+<ParamField path="OPENINARY_ADMIN_EMAIL" type="string">
+  Email of the admin account to create on first boot.
+</ParamField>
+
+<a id="openinary-admin-password"></a>
+<ParamField path="OPENINARY_ADMIN_PASSWORD" type="string">
+  Password for that account.
+
+  <Warning>
+  Email and password go together. Setting one without the other stops startup
+  with "You have to configure both admin email and password or none."
+  </Warning>
+</ParamField>
+
+<a id="openinary-admin-name"></a>
+<ParamField path="OPENINARY_ADMIN_NAME" type="string" default="Admin">
+  Display name for the account.
+</ParamField>
+
+<a id="openinary-generate-api-key"></a>
+<ParamField path="OPENINARY_GENERATE_API_KEY" type="boolean" default="false">
+  Create an API key alongside the admin account and print it to the container
+  logs. Must be the exact string `true`.
+
+  In `fullstack` mode this requires the admin credentials above, otherwise
+  startup stops with a message saying so. In `api` mode a key is generated on
+  first boot regardless of this setting, since an API-only instance would
+  otherwise have no way in.
+</ParamField>
+
+```bash
+OPENINARY_ADMIN_NAME=Florian
+OPENINARY_ADMIN_EMAIL=admin@example.com
+OPENINARY_ADMIN_PASSWORD=a-long-random-password
+OPENINARY_GENERATE_API_KEY=true
+```
+
+<Warning>
+  The key is printed to the logs once and cannot be retrieved afterwards.
+  Capture it on first boot, and remove the password from your environment once
+  the account exists, since it is no longer read.
+</Warning>
+
+## Logging and advanced
+
+<a id="log-level"></a>
+<ParamField path="LOG_LEVEL" type="string" default="info in production, debug in development">
+  Log verbosity: `trace`, `debug`, `info`, `warn`, `error` or `fatal`.
+</ParamField>
+
+<a id="allow-remote-source"></a>
+<ParamField path="ALLOW_REMOTE_SOURCE" type="boolean" default="false">
+  Lets a request supply its source bytes from an HTTPS URL via the
+  `x-openinary-source-url` header, instead of from this instance's storage.
+  Must be the exact string `true`.
+
+  <Warning>
+  This is a security boundary, not a convenience. `/t/*` is a public route, so
+  an instance with this enabled will fetch any HTTPS URL it can reach on behalf
+  of whoever asks, which makes it a fetch proxy into your network. Enable it
+  only when the transform route is not publicly reachable and every caller is
+  trusted.
+  </Warning>
+</ParamField>
+
+<a id="better-auth-internal-url"></a>
+<ParamField path="BETTER_AUTH_INTERNAL_URL" type="string">
+  Base URL used for server-to-server auth calls inside the container, so they
+  skip the public hostname and the proxy in front of it. The bundled `full`
+  profile sets this for you.
+</ParamField>
+
+<a id="next-public-transform-base-url"></a>
+<ParamField path="NEXT_PUBLIC_TRANSFORM_BASE_URL" type="string">
+  Origin the dashboard builds delivery URLs against, when media is served from a
+  CDN domain that differs from the API.
+</ParamField>
+
+<a id="next-public-log-level"></a>
+<ParamField path="NEXT_PUBLIC_LOG_LEVEL" type="string">
+  Log verbosity for the dashboard's browser-side logger.
+</ParamField>
+
+<a id="image-tag"></a>
+<ParamField path="IMAGE_TAG" type="string" default="latest">
+  Docker image tag the Compose file pulls. Pin it to a release such as `v0.3.1`
+  to keep deployments reproducible.
 </ParamField>
 
 ## Upload

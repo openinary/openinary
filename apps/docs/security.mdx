@@ -66,6 +66,12 @@ curl -H "Authorization: Bearer sk_your_key_here" \
 
 For the full list of routes and their auth requirements, see the [API Reference](/api-reference/introduction). Rate limiting defaults and configuration options are also documented there.
 
+## Upload and delivery
+
+[Uploads are validated by content](/api-reference/files/upload), not by extension or declared MIME type: the leading bytes must match the format the file claims to be, so a `.jpg` carrying an HTML document never reaches storage. Delivery then serves those bytes as they are, with `X-Content-Type-Options: nosniff` and a content type taken from the shared media table rather than sniffed from the body.
+
+That pairing is what closes the stored-XSS path on the public `/t/*` route, which returns uploaded bytes untouched. Both halves are load-bearing: strict at the door, no sniffing on the way out.
+
 ## Docker security
 
 The two images differ here, and the difference matters when you pick one.

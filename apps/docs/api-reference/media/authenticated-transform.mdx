@@ -47,12 +47,12 @@ Same as the [public transform endpoint](/api-reference/media/transform), returns
 
 **Status codes:**
 
-| Code  | Meaning                                            |
-| ----- | -------------------------------------------------- |
-| `200` | Transformed file returned                          |
-| `400` | Invalid URL format or signature structure          |
-| `401` | Signature does not match, tampered or wrong secret |
-| `404` | File not found                                     |
+| Code  | Meaning                                                                   |
+| ----- | ------------------------------------------------------------------------- |
+| `200` | Transformed file returned                                                 |
+| `400` | Invalid URL format, wrong signature length, or transformation parameters on a [non-transformable type](/api-reference/media/transform#pass-through-formats) |
+| `401` | Signature does not match, tampered or wrong secret                        |
+| `404` | File not found                                                            |
 
 ## Example
 

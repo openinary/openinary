@@ -24,6 +24,18 @@ POST /upload
   <Note>
     HEIC/HEIF files are transcoded to JPEG on upload. The returned `filename`, `path`, and `url` will have a `.jpg` extension instead of the original `.heic`/`.heif`.
   </Note>
+
+  <Warning>
+    **Content is checked, not just the extension.** The first bytes of each file
+    must match the format it claims to be, so a `.jpg` holding an HTML document
+    or a `.glb` holding an arbitrary binary is rejected here rather than stored.
+    A mismatch fails that one file with `File content does not match its .jpg
+    type` and the rest of the batch still uploads.
+
+    This matters because delivery serves stored bytes as they are, with
+    `nosniff` and no content sniffing. Upload is where the type is decided,
+    which is why it is strict.
+  </Warning>
 </ParamField>
 
 <ParamField body="folder" type="string">

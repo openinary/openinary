@@ -178,6 +178,29 @@ By default, cut corners are transparent, use `f_png`, `f_webp`, or `f_avif`. Add
 
 </ParamField>
 
+### Parameter aliases
+
+The URL parser accepts more spellings than the tables above list. They are here so a URL written against Cloudinary's vocabulary still parses.
+
+| Parameter | Also accepts                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------ |
+| `c`       | `lfill`, `fill_pad`, `limit`, `mfit`, `thumb`, `lpad`                                            |
+| `g`       | `c`, `n`, `s`, `e`, `w`, `faces`, `face_center`, `faces_center`, `north_center`, `south_center`   |
+| `b`       | `bg`                                                                                              |
+
+<Warning>
+  Only the short key works. The parser splits a segment at its first underscore
+  and matches the result against a fixed key list, so a long-form name such as
+  `thumbnail_time_5` is read as the key `thumbnail`, fails to match, and the
+  whole segment is then treated as a folder name, which ends in a `404`.
+</Warning>
+
+<Note>
+  Video URLs silently ignore the image-only parameters `a`, `ar`, `r` and `b`.
+  They parse, so the URL still works, but the output is re-encoded without them
+  applied.
+</Note>
+
 ### Image examples
 
 <Tabs>
@@ -497,7 +520,44 @@ GET /t/w_1920,h_1080,q_95/presentation.mp4
 
 **Input:** MP4 (H.264/H.265), MOV, WebM (VP8/VP9)
 
-**Output:** MP4 (H.264), standardized for maximum device and browser compatibility
+**Output:** MP4 (H.264) by default. `f_webm` and `f_mov` are also accepted.
+
+---
+
+## Pass-through formats
+
+Audio and 3D files are stored and delivered, but never transformed. Request them through `/t/` with no transformation segment and the stored bytes are streamed back untouched, with the right `Content-Type`.
+
+| Kind | Extensions            |
+| ---- | --------------------- |
+| Audio | `wav`, `mp3`, `ogg`   |
+| 3D    | `glb`, `gltf`         |
+
+```http
+GET /t/audio/podcast.mp3
+GET /t/models/duck.glb
+```
+
+<Warning>
+  Adding transformation parameters to one of these returns `400`, not the
+  original:
+
+```
+GET /t/w_500/audio/podcast.mp3
+→ 400  audio/podcast.mp3 can't be transformed. Request /t/audio/podcast.mp3 for the original.
+```
+
+  This is deliberate. Silently ignoring the parameters would cache a "resized"
+  variant that is really the untouched file.
+</Warning>
+
+## Input validation
+
+Uploads are validated by content, not by the extension or the declared MIME type: the first bytes of the body must match the format the file claims to be. A `.jpg` holding an HTML document is rejected at upload rather than stored.
+
+Because delivery serves stored bytes as they are, this is what keeps a stored file from being served as something it is not. Responses also carry `X-Content-Type-Options: nosniff`, and the content type comes from the shared media table rather than from sniffing the body.
+
+HEIC and HEIF uploads are the one exception to bytes-in-bytes-out: they are converted to JPEG at upload time and stored with a `.jpg` path, since browsers cannot display HEIC. PSD files are accepted as a transformable input, and always come out as one of the standard image formats.
 
 ---
 
@@ -505,12 +565,13 @@ GET /t/w_1920,h_1080,q_95/presentation.mp4
 
 Returns the binary content of the transformed file.
 
-| Header          | Value                                                        |
-| --------------- | ------------------------------------------------------------ |
-| `Content-Type`  | Detected from output format (e.g. `image/webp`, `video/mp4`) |
-| `Cache-Control` | Set for browser caching                                      |
+| Header                   | Value                                                        |
+| ------------------------ | ------------------------------------------------------------ |
+| `Content-Type`           | Detected from output format (e.g. `image/webp`, `video/mp4`) |
+| `Cache-Control`          | Set for browser caching                                      |
+| `X-Content-Type-Options` | `nosniff`                                                    |
 
-**Status codes:** `200` success · `202` video transformation still processing · `404` file not found · `500` processing error
+**Status codes:** `200` success · `202` video transformation still processing · `400` transformation parameters on a non-transformable type · `404` file not found · `500` processing error
 
 A `202` carries a JSON body instead of media, and a `Retry-After` header:
 
