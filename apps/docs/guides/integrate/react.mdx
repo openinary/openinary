@@ -25,7 +25,7 @@ Both deployments need a project set up for shadcn/ui (`components.json` present)
 
   <Tab title="Self-hosted">
     - A running instance, see [Quickstart](/quickstart).
-    - `API_SECRET` set on the instance (**64 characters**, `openssl rand -hex 32`). It computes the HMAC signature, and is the same secret used for [signed delivery URLs](/media-transformations/signed-urls).
+    - `API_SECRET` set on the instance (**at least 16 characters**; `openssl rand -hex 32` gives you a strong 64-character one). It computes the HMAC signature, and is the same secret used for [signed delivery URLs](/media-transformations/signed-urls).
     - An **API key** for your backend to sign with, see [API Keys](/api-reference/api-keys/create).
     - `CORS_ORIGIN` including the origin of the app that embeds the uploader, comma-separated for several: `CORS_ORIGIN=https://app.example.com,https://admin.example.com`.
     - `MAX_FILE_SIZE_MB` if you need to raise the default 50 MB limit.

@@ -16,9 +16,11 @@ GET /authenticated/s--{signature}/{transformations}/{path}
 ## Path parameters
 
 <ParamField path="signature" type="string" required>
-  64-character HMAC-SHA256 signature. Computed server-side when generating the signed URL using your `API_SECRET`.
+  16-character HMAC-SHA256 signature, truncated from the full digest. Computed server-side when generating the signed URL using your `API_SECRET`.
 
-`s--a1b2c3d4e5f6...` (64 hex chars)
+`s--a1b2c3d4e5f6a7b8` (16 hex chars)
+
+The server rejects any other length with `400` before it even checks the value.
 
 </ParamField>
 
@@ -55,7 +57,7 @@ Same as the [public transform endpoint](/api-reference/media/transform), returns
 ## Example
 
 ```http
-GET /authenticated/s--a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2/w_400,h_400,c_fill/private/photo.jpg
+GET /authenticated/s--a1b2c3d4e5f6a7b8/w_400,h_400,c_fill/private/photo.jpg
 ```
 
 ## Related

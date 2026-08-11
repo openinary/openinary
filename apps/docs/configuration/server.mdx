@@ -85,7 +85,7 @@ openssl rand -base64 32
 
 <a id="api-secret"></a>
 <ParamField path="API_SECRET" type="string">
-  Secret used to sign and verify [signed URLs](/media-transformations/signed-urls) and presigned, authenticated uploads (see the [File Uploader](/guides/file-uploader)). Required if you use the `/authenticated/*` route or presigned uploads. Must be 64 characters.
+  Secret used to sign and verify [signed URLs](/media-transformations/signed-urls) and presigned, authenticated uploads (see the [File Uploader](/guides/file-uploader)). Required if you use the `/authenticated/*` route or presigned uploads. Must be at least 16 characters. `openssl rand -hex 32` gives you a strong 64-character secret.
 
 ```bash
 openssl rand -hex 32
