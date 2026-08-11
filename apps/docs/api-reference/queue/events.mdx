@@ -39,7 +39,7 @@ Each event follows the SSE format: `event: <type>\ndata: <json>\n\n`
 | Event | Fires when | `data` |
 | --- | --- | --- |
 | `connected` | The connection opens | `{"clientId": "client_abc123"}` |
-| `job:created` | A job is added to the queue | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "pending", "priority": 1}` |
+| `job:created` | A job is added to the queue | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "pending", "priority": 2}` |
 | `job:started` | A job begins processing | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "processing"}` |
 | `job:progress` | Progress advances, 0 to 100 | `{"jobId": "job_xyz", "progress": 47}` |
 | `job:completed` | A job finishes successfully | `{"jobId": "job_xyz", "filePath": "videos/clip.mp4", "status": "completed"}` |
@@ -47,6 +47,8 @@ Each event follows the SSE format: `event: <type>\ndata: <json>\n\n`
 | `heartbeat` | Periodically, to keep the connection alive | `{"timestamp": 1710498600000}` |
 
 The heartbeat `timestamp` is Unix epoch milliseconds (`Date.now()`), not an ISO string.
+
+The `priority` on `job:created` is always `2`. The stream builds its payload from a converted job object that drops the stored priority, so a thumbnail queued at `1` still reports `2` here. Read [GET /queue/jobs](/api-reference/queue/jobs) for the real value.
 
 ## Response headers
 
