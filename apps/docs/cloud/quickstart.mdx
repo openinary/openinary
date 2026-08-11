@@ -123,10 +123,12 @@ https://cdn.openinary.dev/b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg
   </Tab>
 </Tabs>
 
-The first request runs the transformation; every later request is served from the CDN cache. The parameter list is exactly the same as the self-hosted version, see [Image transformations](/media-transformations/image-transformations) and [Video transformations](/media-transformations/video-transformations).
+The first request queues the transformation and answers `202 {"status":"processing"}` rather than image bytes. Request it again a moment later and you get the result, served from the CDN cache from then on. The parameter list is exactly the same as the self-hosted version, see [Image transformations](/media-transformations/image-transformations) and [Video transformations](/media-transformations/video-transformations).
 
 <Check>
-  Open that URL in a browser. If you see your resized image, everything is wired up.
+  Open that URL in a browser. The first load may show the `202` JSON instead of
+  the picture: reload once and the resized image appears. That is the pipeline
+  working, not a failure.
 </Check>
 
 ## 5. Use it in a real app

@@ -30,7 +30,7 @@ pnpm dlx shadcn@latest add @openinary/file-uploader
 
 ## Security model
 
-The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload#presigned-uploads), the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
+The component never holds an API key. Instead it uses **presigned upload signatures**, minted by [`POST /upload/sign`](/api-reference/files/upload-sign), the same HMAC-SHA256 pattern Openinary already uses for [signed delivery URLs](/media-transformations/signed-urls).
 
 <Steps>
   <Step title="Your backend requests a signature">
@@ -243,6 +243,11 @@ The component needs a `sign()` function that returns a presigned signature. Back
 
 <ParamField path="multiple" default="true" type="boolean">
   Allow selecting more than one file.
+</ParamField>
+
+<ParamField path="disabled" default="false" type="boolean">
+  Blocks file selection and drag and drop. Use it while a parent form is
+  submitting, or before the user is allowed to upload.
 </ParamField>
 
 <ParamField path="accept" type="Record<string, string[]>">

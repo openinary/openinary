@@ -312,7 +312,7 @@ A `402` tells you which allowance ran out:
 
 ```json
 {
-  "error": "Storage limit reached on the Free plan. Upgrade to lift this limit.",
+  "error": "Storage limit reached on the Free plan. Enable pay as you go to lift this limit.",
   "code": "quota_exceeded",
   "feature": "storage_mb",
   "plan": "Free",
@@ -327,10 +327,12 @@ limits](/cloud/overview#plans-and-limits).
 
 ## Rate limits
 
-| Scope                | Limit                   |
-| -------------------- | ----------------------- |
-| CDN delivery, per IP | 300 requests / 60s      |
-| All traffic, per account | 1,000 requests / 60s |
+| Scope                     | Limit               |
+| ------------------------- | ------------------- |
+| CDN delivery, per IP      | 300 requests / 60s  |
+| CDN delivery, per account | 1,000 requests / 60s |
+
+Both apply to the `/b/*` delivery path only. Upload, signing and storage calls are not rate limited.
 
 Both answer `429`. They exist to stop abuse, not to shape normal traffic, if you
 expect to run against them, get in touch before you do.
