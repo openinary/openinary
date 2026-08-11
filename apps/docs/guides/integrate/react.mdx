@@ -30,7 +30,11 @@ On Next.js the route handler and the uploader live in one project, which changes
 
     The first writes `components/openinary/file-uploader.tsx` and its hook into the frontend, with drag & drop, per-file progress, previews, retry, cancel and client-side validation. The second writes `lib/upload-token.ts`, a thin client for `POST /upload/sign`.
 
-    **Run that second command in the backend project, or move the file there.** `upload-token` reads an API key, and anything the Vite app imports ends up in the bundle.
+    <Warning>
+      Run that second command in the backend project, or move the file there.
+      `upload-token` reads an API key, and anything the Vite app imports ends up
+      in the browser bundle.
+    </Warning>
 
     No shadcn here? Don't run `shadcn init`, it restructures a project that never asked for it. Take `use-file-upload.ts` verbatim from [the registry JSON](https://openinary.dev/r/file-uploader.json), which carries each file's target and content. The hook is all logic and no styling, so write your own markup.
   </Step>

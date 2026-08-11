@@ -235,13 +235,10 @@ curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
 { "status": "processing", "progress": 62, "startedAt": "2026-07-26T18:02:11.000Z" }
 ```
 
-<ResponseField name="status" type="string">
-  One of `pending` · `processing` · `completed` · `error` · `cancelled` · `not_found`.
-</ResponseField>
-
-<ResponseField name="progress" type="number">
-  0 to 100.
-</ResponseField>
+| Field | Description |
+| --- | --- |
+| `status` | One of `pending` `processing` `completed` `error` `cancelled`, or `not_found` |
+| `progress` | 0 to 100 |
 
 `GET /queue/events` is a Server-Sent Events stream of the same job updates, for
 when polling is the wrong shape.
