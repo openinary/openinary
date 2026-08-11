@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack --port 3200",
     "lint": "eslint .",
-    "prebuild": "mkdir -p public/r && cp ../../r/*.json public/r/",
+    "prebuild": "pnpm --filter registry run registry:build",
     "build": "next build --webpack",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
