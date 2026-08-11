@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Search, 
   BookOpen,
@@ -60,7 +60,6 @@ export function ChatbotButton() {
   const [searchQuery, setSearchQuery] = useState("");
   const [docsPages, setDocsPages] = useState<DocsPage[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Load docs.json file on component mount
   useEffect(() => {

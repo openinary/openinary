@@ -4,18 +4,30 @@
 FROM node:20-slim AS api-builder
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg && \
     rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm fetch
+# The root manifest declares a patchedDependencies entry; pnpm reads the patch
+# file even for a filtered install that never applies it.
+COPY patches/ ./patches/
 
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
+COPY apps/web/package.json ./apps/web/
+# --frozen-lockfile compares the lockfile against every workspace project, so
+# the apps this stage never builds still need their manifest present.
+COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/telemetry/package.json ./apps/telemetry/
+COPY apps/cloud/server/package.json ./apps/cloud/server/
+COPY apps/cloud/web/package.json ./apps/cloud/web/
+COPY apps/cloud/admin/package.json ./apps/cloud/admin/
 
-# Install only the workspace dependencies needed for shared + api (dev + prod) for build
-RUN pnpm install --offline --filter shared... --filter api... --frozen-lockfile
+# Install only the workspace dependencies needed for shared + api (dev + prod)
+# for build. No `pnpm fetch` first: it downloads everything the lockfile names,
+# which since the monorepo merge means the Cloud apps and the marketing site.
+RUN pnpm install --filter shared... --filter api... --frozen-lockfile
 RUN mkdir -p apps/api/cache apps/api/public
 
 # Build shared and core packages first (API depends on them)
@@ -32,19 +44,28 @@ ARG NEXT_PUBLIC_API_BASE_URL="/api"
 ARG IMAGE_TAG="latest"
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && \
     rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 WORKDIR /app
 
 COPY pnpm-workspace.yaml ./
 COPY package.json ./
 COPY pnpm-lock.yaml ./
-RUN pnpm fetch
+COPY patches/ ./patches/
 
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
+COPY apps/api/package.json ./apps/api/
+# --frozen-lockfile compares the lockfile against every workspace project, so
+# the apps this stage never builds still need their manifest present.
+COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/telemetry/package.json ./apps/telemetry/
+COPY apps/cloud/server/package.json ./apps/cloud/server/
+COPY apps/cloud/web/package.json ./apps/cloud/web/
+COPY apps/cloud/admin/package.json ./apps/cloud/admin/
 
-RUN pnpm install --offline --frozen-lockfile --prod=false
+# Filtered for the same reason as the API stage above.
+RUN pnpm install --filter web... --frozen-lockfile --prod=false
 
 # Build shared and ui packages first (web depends on them)
 RUN pnpm --filter shared build

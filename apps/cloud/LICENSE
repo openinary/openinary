@@ -1,0 +1,54 @@
+Openinary Commercial License
+
+Copyright (c) 2026 Openinary. All rights reserved.
+
+This directory ("apps/cloud") contains the source code of Openinary Cloud, the
+managed service operated by Openinary. It is NOT covered by the GNU AGPL-3.0
+license that governs the rest of this repository. The AGPL applies to every
+other directory; this one is licensed on the terms below.
+
+1. Source availability, not open source
+
+   The code is published so that anyone can read it, audit it, learn from it,
+   and file issues or pull requests against it. Publication does not grant a
+   license to use it.
+
+2. What you may do
+
+   a. View, read and study the code.
+   b. Fork this repository and modify this directory for the sole purpose of
+      preparing a contribution back to Openinary (see the CLA in CLA.md).
+   c. Run the code locally, unmodified or modified, to develop or test such a
+      contribution.
+
+3. What you may not do without a separate written agreement with Openinary
+
+   a. Use the code, in whole or in part, in production.
+   b. Operate it as a service, hosted or on-premises, for yourself or others.
+   c. Copy, adapt or redistribute it, or incorporate any part of it into
+      another work, including a work licensed under the AGPL.
+   d. Remove or alter this license or any copyright notice.
+
+4. Contributions
+
+   Contributions to this directory are accepted under the Contributor License
+   Agreement in CLA.md at the root of this repository, which grants Openinary
+   the rights it needs to keep offering the Cloud service and commercial
+   licenses. Contributing does not grant you any license to this directory
+   beyond section 2.
+
+5. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+If you want to use this code in production, or you are unsure whether your
+intended use is covered, contact hello@openinary.dev.
+
+Looking for a free, self-hostable Openinary? Everything outside this directory
+is AGPL-3.0 and gives you the whole product: see the repository root.

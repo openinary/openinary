@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openinary-telemetry",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "POSTHOG_HOST": "https://eu.i.posthog.com"
+  },
+  // Native rate limiting, no KV required. Two limiters:
+  // - PER_INSTANCE: one instance shouldn't ping more than a few times/hour
+  // - PER_IP: caps how many distinct fake instance_ids a single IP can spray
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "PER_INSTANCE_LIMITER",
+        "type": "ratelimit",
+        "namespace_id": "1001",
+        "simple": { "limit": 5, "period": 60 }
+      },
+      {
+        "name": "PER_IP_LIMITER",
+        "type": "ratelimit",
+        "namespace_id": "1002",
+        "simple": { "limit": 30, "period": 60 }
+      }
+    ]
+  }
+  // POSTHOG_API_KEY is a secret, not a var:
+  //   wrangler secret put POSTHOG_API_KEY
+}

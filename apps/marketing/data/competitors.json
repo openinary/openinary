@@ -1,0 +1,384 @@
+{
+  "features": [
+    {
+      "category": "Pricing & Licensing",
+      "items": [
+        {
+          "name": "Open Source",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        },
+        {
+          "name": "Self-Hostable",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        },
+        {
+          "name": "Free Tier",
+          "openinary": "Unlimited (self-hosted)",
+          "competitors": {
+            "cloudinary": "25 credits/month",
+            "imagekit": "20 GB bandwidth",
+            "uploadcare": "3,000 uploads/month",
+            "imgix": "No free tier",
+            "thumbor": "Unlimited (self-hosted)",
+            "cloudimage": "25 GB CDN/month",
+            "gumlet": "1 GB bandwidth"
+          }
+        },
+        {
+          "name": "No Vendor Lock-in",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        },
+        {
+          "name": "Starting Price (Paid)",
+          "openinary": "$29/month (Cloud)",
+          "competitors": {
+            "cloudinary": "$89/month",
+            "imagekit": "$49/month",
+            "uploadcare": "$25/month",
+            "imgix": "$100/month",
+            "thumbor": "Free (self-hosted)",
+            "cloudimage": "$49/month",
+            "gumlet": "$21/month"
+          }
+        }
+      ]
+    },
+    {
+      "category": "Storage & Delivery",
+      "items": [
+        {
+          "name": "S3-Compatible Storage",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        },
+        {
+          "name": "Works with R2 / MinIO",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        },
+        {
+          "name": "Built-in CDN",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": false,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "Edge Delivery",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": false,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "Bring Your Own Storage",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": "External origins",
+            "uploadcare": false,
+            "imgix": true,
+            "thumbor": true,
+            "cloudimage": true,
+            "gumlet": "S3 origins"
+          }
+        }
+      ]
+    },
+    {
+      "category": "Image Processing",
+      "items": [
+        {
+          "name": "Image Transformations",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": true,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "Auto Format (WebP, AVIF)",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": true,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "Resize & Crop",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": true,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "URL-based Transformations",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": true,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "AI-Based Transformations",
+          "openinary": "Coming soon",
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": "Limited",
+            "imgix": "Limited",
+            "thumbor": "Smart crop",
+            "cloudimage": "Limited",
+            "gumlet": "Limited"
+          }
+        }
+      ]
+    },
+    {
+      "category": "Video Processing",
+      "items": [
+        {
+          "name": "Video Transformations",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": false,
+            "imgix": "Limited",
+            "thumbor": false,
+            "cloudimage": false,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "Adaptive Streaming",
+          "openinary": "Coming soon",
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": false,
+            "cloudimage": false,
+            "gumlet": true
+          }
+        }
+      ]
+    },
+    {
+      "category": "Developer Experience",
+      "items": [
+        {
+          "name": "REST API",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": true,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "SDK Support",
+          "openinary": "Coming soon",
+          "competitors": {
+            "cloudinary": "15+ SDKs",
+            "imagekit": "10+ SDKs",
+            "uploadcare": "5+ SDKs",
+            "imgix": "10+ SDKs",
+            "thumbor": "Python",
+            "cloudimage": "5+ SDKs",
+            "gumlet": "5+ SDKs"
+          }
+        },
+        {
+          "name": "Docker Deployment",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        },
+        {
+          "name": "Setup in Under 5 Minutes",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": true,
+            "imagekit": true,
+            "uploadcare": true,
+            "imgix": true,
+            "thumbor": false,
+            "cloudimage": true,
+            "gumlet": true
+          }
+        },
+        {
+          "name": "Community-Driven",
+          "openinary": true,
+          "competitors": {
+            "cloudinary": false,
+            "imagekit": false,
+            "uploadcare": false,
+            "imgix": false,
+            "thumbor": true,
+            "cloudimage": false,
+            "gumlet": false
+          }
+        }
+      ]
+    }
+  ],
+  "competitors": {
+    "cloudinary": {
+      "name": "Cloudinary",
+      "slug": "cloudinary",
+      "description": "Cloudinary pioneered cloud media management, but its proprietary model means usage-based pricing starting at $89/month and no way out once you're in. Openinary delivers the same powerful transformations, auto-format, and CDN delivery — fully open source, self-hostable, and designed so you never lose control of your media stack.",
+      "website": "https://cloudinary.com",
+      "founded": "2012",
+      "headquarter": "Santa Clara, CA"
+    },
+    "imagekit": {
+      "name": "ImageKit",
+      "slug": "imagekit",
+      "description": "ImageKit offers solid real-time optimization, but it's a closed platform — no self-hosting, no storage freedom, and $49/month to get started. Openinary gives you the same URL-based transformations and global delivery, with the flexibility to deploy on your own infrastructure using any S3-compatible storage.",
+      "website": "https://imagekit.io",
+      "founded": "2016",
+      "headquarter": "San Francisco, CA"
+    },
+    "uploadcare": {
+      "name": "Uploadcare",
+      "slug": "uploadcare",
+      "description": "Uploadcare keeps things simple, but that simplicity comes with trade-offs — limited upload quotas, fewer transformations, and no path to self-hosting. Openinary offers a more complete image processing pipeline with full storage flexibility, and it's entirely free when you run it on your own infrastructure.",
+      "website": "https://uploadcare.com",
+      "founded": "2011",
+      "headquarter": "Amsterdam, Netherlands"
+    },
+    "imgix": {
+      "name": "imgix",
+      "slug": "imgix",
+      "description": "imgix is known for powerful URL-based processing, but at $100/month with no free tier, it's built for enterprises willing to pay a premium for a closed platform. Openinary matches that transformation power and bring-your-own-storage flexibility — with full open-source transparency and zero extra cost when self-hosted.",
+      "website": "https://imgix.com",
+      "founded": "2011",
+      "headquarter": "San Francisco, CA"
+    },
+    "thumbor": {
+      "name": "Thumbor",
+      "slug": "thumbor",
+      "description": "Thumbor proved that open-source image processing is viable, but it stops there — no built-in CDN, no video support, and a complex setup process. Openinary picks up where Thumbor left off, adding edge delivery, a modern REST API, one-command Docker deployment, and a roadmap that includes video and AI transformations.",
+      "website": "https://www.thumbor.org",
+      "founded": "2011",
+      "headquarter": "Rio de Janeiro, Brazil"
+    },
+    "cloudimage": {
+      "name": "Cloudimage",
+      "slug": "cloudimage",
+      "description": "Cloudimage handles image optimization and CDN delivery well, but as a proprietary SaaS at $49/month, you're renting someone else's pipeline with no visibility into it. Openinary gives you the same capabilities with full source code access, self-hosting freedom, and complete control over your media workflow.",
+      "website": "https://www.cloudimage.io",
+      "founded": "2015",
+      "headquarter": "Paris, France"
+    },
+    "gumlet": {
+      "name": "Gumlet",
+      "slug": "gumlet",
+      "description": "Gumlet supports S3 origins and competitive pricing, but it's still a closed platform where your media pipeline depends on a third party. Openinary takes the same S3-native approach further — fully open source, deployable anywhere with Docker, and unlimited when self-hosted. Your media, your rules.",
+      "website": "https://www.gumlet.com",
+      "founded": "2019",
+      "headquarter": "Singapore"
+    }
+  },
+  "openinary": {
+    "name": "Openinary",
+    "tagline": "Open-source, self-hostable alternative to Cloudinary",
+    "highlights": [
+      "Open source under AGPL-3.0 license",
+      "Self-host on your own infrastructure",
+      "No vendor lock-in, own your data",
+      "Works with S3, R2, MinIO and any S3-compatible storage",
+      "Free forever when self-hosted"
+    ]
+  }
+}

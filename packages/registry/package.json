@@ -12,7 +12,7 @@
     "@types/node": "^24.2.0",
     "@types/react": "^19",
     "lucide-react": "^0.536.0",
-    "react": "^19",
+    "react": "^19.2.7",
     "shadcn": "^3",
     "tsx": "^4.7.0",
     "typescript": "^5.9.2"

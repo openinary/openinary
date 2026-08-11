@@ -1,0 +1,45 @@
+# Three images build from this repo root: docker/api.Dockerfile and
+# docker/full.Dockerfile (the self-host images), and apps/cloud/server's
+# Dockerfile (the Cloud media container, whose wrangler.jsonc points its
+# image_build_context here). What follows must therefore keep apps/api,
+# apps/web, packages/ and scripts/ intact - only the manifests of the apps
+# nobody builds are needed, and only so --frozen-lockfile sees a complete
+# workspace.
+**/node_modules
+.git
+.turbo
+**/.turbo
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build outputs
+**/dist
+**/.next
+**/.open-next
+**/.wrangler
+**/*.tsbuildinfo
+
+# Runtime state and things no image needs
+data/
+apps/docs/
+r/
+.github/
+.claude/
+.agents/
+
+# Manifest-only apps: never built in any image, but the lockfile lists them.
+apps/marketing/**
+!apps/marketing/package.json
+apps/telemetry/**
+!apps/telemetry/package.json
+apps/cloud/web/**
+!apps/cloud/web/package.json
+apps/cloud/admin/**
+!apps/cloud/admin/package.json
+
+# The Cloud container runs api/ only; the worker half is bundled by wrangler.
+apps/cloud/server/cache
+apps/cloud/server/temp
+apps/cloud/server/worker
+apps/cloud/server/wrangler.jsonc

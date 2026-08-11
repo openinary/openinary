@@ -28,6 +28,14 @@ export interface SignedUpload {
 }
 
 /**
+ * What `POST /upload/sign` answers. A success carries the whole signature, a
+ * failure carries a message, so narrowing on `success` is enough to know which.
+ */
+type SignUploadResponse =
+  | ({ success: true } & SignedUpload)
+  | { success?: false; error?: string };
+
+/**
  * Requests a presigned upload signature from your Openinary instance.
  *
  * @param baseUrl Your Openinary API URL, e.g. https://media.example.com.
@@ -47,17 +55,16 @@ export async function signUpload(
     body: JSON.stringify(options),
   });
 
-  let body: any = null;
+  let body: SignUploadResponse | null = null;
   try {
-    body = await res.json();
+    body = (await res.json()) as SignUploadResponse;
   } catch {
     /* non-JSON response */
   }
 
-  if (!res.ok || !body?.success) {
-    throw new Error(
-      body?.error ?? `Failed to sign upload (HTTP ${res.status})`,
-    );
+  if (!res.ok || body?.success !== true) {
+    const error = body && "error" in body ? body.error : undefined;
+    throw new Error(error ?? `Failed to sign upload (HTTP ${res.status})`);
   }
 
   return {

@@ -1,14 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
-  Image as ImageIcon,
-  Package,
-  Video,
-} from "lucide-react";
+import { Image as ImageIcon, Package, Video } from "lucide-react";
 
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
@@ -19,11 +12,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";

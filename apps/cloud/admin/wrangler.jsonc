@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "openinary-admin",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "routes": [{ "pattern": "admin.openinary.dev", "custom_domain": true }],
+  "vars": {
+    // Same API as the customer dashboard: auth and oRPC are shared, and this
+    // origin is listed in the server's ADMIN_ORIGIN so its cookies and CORS
+    // preflights are accepted.
+    "NEXT_PUBLIC_SERVER_URL": "https://cdn.openinary.dev",
+    // Where to send a signed-out visitor. There is no sign-in form here - the
+    // session cookie is scoped to ".openinary.dev", so signing in on the
+    // customer app is signing in here too.
+    "NEXT_PUBLIC_APP_URL": "https://app.openinary.dev"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,6 +1,7 @@
 {
   "name": "@openinary/core",
   "version": "1.6.0",
+  "private": true,
   "description": "Openinary's media transformation engine and route handlers (image/video processing, storage, job queue) as a standalone, embeddable package.",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -21,12 +22,8 @@
       "default": "./dist/index.js"
     }
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "tsc && node scripts/add-js-extensions.cjs",
-    "prepublishOnly": "npm run build",
     "type-check": "tsc --noEmit",
     "test": "node --import tsx --test $(find src -name '*.test.ts')"
   },

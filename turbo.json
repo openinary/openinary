@@ -1,35 +1,69 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "inputs": ["src/**", "templates/**", "package.json", "tsconfig.json"],
-      "env": ["NEXT_PUBLIC_API_BASE_URL", "NEXT_PUBLIC_TRANSFORM_BASE_URL"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "env": [
+        "NEXT_PUBLIC_API_BASE_URL",
+        "NEXT_PUBLIC_TRANSFORM_BASE_URL",
+        "NEXT_PUBLIC_SERVER_URL",
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+        "NEXT_PUBLIC_COSSISTANT_API_KEY",
+        "DATABASE_URL",
+        "DATABASE_URL_POOLER",
+        "CORS_ORIGIN",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true,
       "dependsOn": ["^build"]
     },
+    "deploy": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
     "lint": {
-      "outputs": [],
-      "inputs": ["src/**", "*.js", "*.ts", "*.tsx"]
+      "outputs": []
     },
     "type-check": {
-      "dependsOn": ["^build"],
-      "outputs": [],
-      "inputs": ["src/**", "tsconfig.json"]
+      // Its own build too, not just its dependencies': the Next apps include
+      // .next/types/**/*.ts in tsconfig, and tsc globbing that directory while
+      // next build is rewriting it fails with TS6053 on files that existed a
+      // moment earlier. Ordering the two removes the race.
+      "dependsOn": ["^build", "build"],
+      "outputs": []
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
-      "inputs": ["src/**", "test/**", "*.config.js"]
+      "outputs": ["coverage/**"]
     },
     "start": {
       "cache": false,
       "persistent": true,
       "dependsOn": ["^build"]
+    },
+    "db:push": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:generate": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:migrate": {
+      "cache": false,
+      "persistent": true
     }
   },
   "globalDependencies": [

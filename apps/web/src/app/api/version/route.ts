@@ -18,7 +18,7 @@ export async function GET() {
           imageTag = versionFromFile;
         }
       }
-    } catch (err) {
+    } catch {
       // Fallback to "latest"
     }
   }

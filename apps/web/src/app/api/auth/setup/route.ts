@@ -23,7 +23,7 @@ function hasAdminAccount(): boolean {
     };
     db.close();
     return result.count > 0;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -94,17 +94,18 @@ export async function POST(request: Request) {
 
     logger.info("[Setup] Admin account created successfully", { email });
     return NextResponse.json(authResponse, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
     logger.error("[Setup] Error creating admin account", {
-      error: error.message,
-      stack: error.stack,
+      error: err.message,
+      stack: err.stack,
       betterAuthUrl,
       nodeEnv: process.env.NODE_ENV,
     });
 
     // Provide more helpful error message for auth errors
-    let errorMessage =
-      error.message || "An error occurred while creating the account";
+    const errorMessage =
+      err.message || "An error occurred while creating the account";
 
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

@@ -26,7 +26,7 @@ jobs:
         with:
           path-to-document: 'https://github.com/openinary/openinary/blob/main/CLA.md'
           # Created automatically on first signature — do not commit this file by hand.
-          path-to-signatures: 'signatures/version1/cla.json'
+          path-to-signatures: '.github/signatures/version1/cla.json'
           # Must be an unprotected branch. If main ever gets branch protection,
           # point this at a dedicated unprotected branch instead.
           branch: 'main'
