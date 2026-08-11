@@ -5,10 +5,9 @@ on:
     branches:
       - main
     paths:
+      # apps/marketing/** includes public/r, the committed shadcn registry
+      # build output, so a registry rebuild redeploys the site.
       - 'apps/marketing/**'
-      # The site serves the built shadcn registry from /r (copied in by the
-      # app's prebuild), so a registry change has to redeploy it.
-      - 'r/**'
       - '.github/workflows/deploy-marketing.yml'
   workflow_dispatch: {}
 
