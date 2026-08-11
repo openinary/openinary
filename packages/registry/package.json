@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "registry:build": "shadcn build --output ../../r",
+    "registry:build": "shadcn build --output ../../apps/marketing/public/r",
     "test": "node --import tsx --test $(find src -name '*.test.ts')",
     "type-check": "tsc --noEmit"
   },
