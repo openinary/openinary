@@ -22,7 +22,7 @@ API_SECRET=$(openssl rand -hex 32)
 | `BETTER_AUTH_URL` | `http://localhost:3000` | Public base URL, used for auth callbacks and CORS |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3000` | Base URL the browser uses to reach the API. Baked in as `/api` in the bundled `full` image, since nginx proxies the API there |
 | `CORS_ORIGIN` | | Extra allowed origins, comma-separated. `http://localhost:3001` and `http://localhost:3000` are always allowed. Avoid `*` |
-| `API_SECRET` | | Signs [signed URLs](/media-transformations/signed-urls) and presigned uploads. At least 16 characters; `openssl rand -hex 32` gives a strong one. Required for `/authenticated/*` and presigned uploads |
+| `API_SECRET` | | Signs [signed URLs](/media-transformations/signed-urls) and presigned uploads. At least 16 characters; `openssl rand -hex 32` gives a strong one. Required for `/authenticated/*` and [presigned uploads](/guides/file-uploader) |
 | `DB_PATH` | `/app/data/auth.db` | SQLite database path. Only needed for a non-standard mount |
 
 ## Upload and rate limiting
@@ -31,7 +31,7 @@ API_SECRET=$(openssl rand -hex 32)
 | --- | --- | --- |
 | `MAX_FILE_SIZE_MB` | `50` | Maximum upload size. This is the only ceiling: nginx in the `full` image passes bodies through without a limit of its own |
 | `PUBLIC_RATE_LIMIT_MAX` | `100` | Requests per window on public routes (`/t/*`, `/download/*`, `/health`) |
-| `PUBLIC_RATE_LIMIT_WINDOW_MS` | `60000` | Window length in milliseconds |
+| `PUBLIC_RATE_LIMIT_WINDOW_MS` | `60000` | Window length in milliseconds. `60000` is a minute, `300000` five, `3600000` an hour |
 
 ## Admin bootstrap
 

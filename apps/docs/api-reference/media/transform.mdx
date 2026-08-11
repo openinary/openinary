@@ -5,6 +5,10 @@ description: "Resize, crop, convert and trim media by putting parameters in the 
 
 Put comma-separated parameters between `/t/` and the file path. The first request renders and caches the result, the rest are served from cache.
 
+```
+GET /t/{transformations}/{path}
+```
+
 ```http
 GET /t/w_800,h_600,c_fill,f_webp/photos/portrait.jpg
 ```
@@ -92,7 +96,7 @@ Videos also apply fixed limits: 720p maximum when you request no explicit `w` or
 
 ## Pass-through formats
 
-Audio and 3D files are stored and delivered, never transformed. Request them with no transformation segment and the stored bytes come back untouched.
+Audio and 3D files are stored and delivered, never transformed. Request them with no transformation segment and the stored bytes come back untouched, as in `GET /t/audio/podcast.mp3` or `GET /t/models/duck.glb`.
 
 | Kind | Extensions |
 | --- | --- |
@@ -108,7 +112,7 @@ Returns the binary content, with `Cache-Control` set for browser caching and `X-
 | Code | Meaning |
 | --- | --- |
 | `200` | File returned |
-| `202` | Video transformation still processing, body carries `statusUrl` |
+| `202` | Video transformation still processing. Body carries `statusUrl`, response carries `Retry-After` |
 | `400` | Transformation parameters on a non-transformable type |
 | `404` | File not found |
 | `500` | Processing error |

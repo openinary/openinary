@@ -3,13 +3,13 @@ title: "Quick Start"
 description: "Install Openinary with one command, create an admin account, and make your first image transformation."
 ---
 
-One command scaffolds a project, writes its config, and starts the containers. You need Docker 20.x or higher, and Node 20+ to run the CLI.
+One command scaffolds a project, writes its config, and starts the containers. You need [Docker](https://docs.docker.com/get-docker/) 20.x or higher, and Node 20+ to run the CLI.
 
 ```bash
 npx create-openinary
 ```
 
-Answer the prompts (full stack or API-only, and optionally S3-compatible storage) and your instance is running at **http://localhost:3000**. The container ships with sample media, so you can transform something straight away:
+Answer the prompts (full stack or API-only, and optionally S3-compatible storage). It writes an `openinary/` directory with a `docker-compose.yml` and a `.env` carrying a generated `BETTER_AUTH_SECRET`, then starts the containers on **http://localhost:3000**. The container ships with sample media, so you can transform something straight away:
 
 ```http
 GET http://localhost:3000/t/w_400,h_400,c_fill/example-loan.jpg
@@ -44,7 +44,7 @@ npm i -g create-openinary
 | `upgrade` | Update to the latest compatible version, syncing env vars and showing the changelog |
 | `reset` | Delete local data and recreate the instance. Destructive, asks for confirmation |
 
-Every command also works without the global install: `npx create-openinary start`.
+Every command also works without the global install: `npx create-openinary start`, or `pnpm create openinary start`.
 
 ## Volumes
 
