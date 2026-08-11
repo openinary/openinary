@@ -4,36 +4,22 @@ sidebarTitle: "Overview"
 description: "Managed Openinary, hosted for you. Same transformation API, same upload API, no server to run. Currently in public alpha."
 ---
 
-Openinary Cloud is the hosted version of Openinary. You get the same URL-based
-transformation API and the same upload API as the [self-hosted](/quickstart)
-version, without running Docker, storage, or a video worker yourself.
-
-<Note>
-  Cloud is in **public alpha**. Sign-up is open to everyone, see
-  [Create your account](#create-your-account) below. It's early: expect rough
-  edges, and please report what breaks.
-</Note>
-
-## What you don't have to do
-
-Everything the self-hosted docs ask you to configure, Cloud already runs:
-storage, the transform pipeline, the video processing queue, the CDN cache, and
-the dashboard. There are no environment variables, no `API_SECRET`, no
-`CORS_ORIGIN`, no Docker resources to size. You create an account, create an API
-key, and start uploading.
-
-## Two hostnames
-
-| Host                        | What it is                                                              |
-| --------------------------- | ----------------------------------------------------------------------- |
-| `https://app.openinary.dev` | Dashboard, sign-in, media browser, API keys, buckets, usage and billing |
-| `https://cdn.openinary.dev` | The API you call, and the CDN your assets are delivered from            |
-
-Your public asset URLs always look like this:
+Openinary Cloud is the hosted version. Same transformation syntax and same upload API as [self-hosted](/quickstart), with nothing to run.
 
 ```
 https://cdn.openinary.dev/b/{bucketId}/t/{transformations}/{path}
 ```
+
+Storage, the transform pipeline, the video queue, the CDN and the dashboard are already running. No environment variables, no `API_SECRET`, no `CORS_ORIGIN`, no Docker resources to size. Create an account, create an API key, upload.
+
+Cloud is in public alpha, and sign-up is open to everyone. It is early, so tell us what breaks.
+
+## Two hostnames
+
+| Host | What it is |
+| --- | --- |
+| `https://app.openinary.dev` | Dashboard: sign-in, media browser, API keys, buckets, usage, billing |
+| `https://cdn.openinary.dev` | The API you call, and the CDN your assets come from |
 
 ## Create your account
 
@@ -50,11 +36,7 @@ https://cdn.openinary.dev/b/{bucketId}/t/{transformations}/{path}
   </Step>
 </Steps>
 
-<Warning>
-  There is no password: every sign-in is a fresh emailed code, or Google. If
-  you joined during the invite-only phase and your invite link expired, just
-  request a code from the sign-in page: your account already exists.
-</Warning>
+There are no passwords. Every sign-in is a fresh emailed code, or Google. If you joined during the invite-only phase and your link expired, request a code from the sign-in page, your account already exists.
 
 ## Buckets
 
@@ -85,12 +67,7 @@ checkout so overage can be billed). Upgrade from **Settings → Plan**.
 | CDN requests          | 25,000 | 50,000 | $0.50 / 100,000    |
 | Buckets               | 1      | 2      | n/a                |
 
-<Note>
-  On Free, hitting a limit returns [`402`](/cloud/api#errors) until the monthly
-  allowance resets (storage is cumulative, it doesn't reset). Video processing
-  is metered on how long the transform actually took to run, not on the length
-  of the video. Cached deliveries never count as transformations.
-</Note>
+Hitting a limit on Free returns [`402`](/cloud/api#errors) until the monthly allowance resets. Storage is cumulative and does not reset. Video is metered on how long the transform ran, not on the video's length, and cached deliveries never count as transformations.
 
 Live usage, the deliveries behind each number, and your video jobs are in
 **Settings → Usage** and **Settings → Plan**.
