@@ -152,3 +152,17 @@ test("a bare audio/3D URL streams the original with its real content-type", asyn
   assert.ok(wav.stream, "wav original should be streamed");
   assert.equal(wav.contentType, "audio/wav");
 });
+
+test("transform params on a non-transformable type 400 instead of serving or erroring", async () => {
+  const service = new TransformService(fakeStorage(), fakeQueue());
+
+  const result = await service.transform({
+    path: "/t/w_500/audio/sfx.wav",
+    userAgent: "",
+    context: {} as any,
+  });
+
+  assert.equal(result.status, 400);
+  assert.equal(result.stream, undefined, "must not fall back to the original");
+  assert.match(result.buffer!.toString(), /audio\/sfx\.wav/);
+});
