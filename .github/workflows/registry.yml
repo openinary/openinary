@@ -54,12 +54,7 @@ jobs:
       - name: Test the upload signature the registry helper depends on
         run: pnpm --filter @openinary/core test
 
-      - name: Rebuild registry
+      # The output is not committed: marketing's prebuild regenerates public/r
+      # on every build, so this only proves the registry builds from source.
+      - name: Build registry
         run: pnpm --filter registry registry:build
-
-      - name: Fail if built registry (apps/marketing/public/r) is stale
-        run: |
-          if ! git diff --exit-code -- apps/marketing/public/r/; then
-            echo "::error::The built registry in apps/marketing/public/r is out of date. Run 'pnpm --filter registry registry:build' and commit the result."
-            exit 1
-          fi
