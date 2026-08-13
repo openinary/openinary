@@ -36,15 +36,15 @@ export function createStorageRoute(deps: RouteDeps) {
   const storageRoute = new Hono();
 
   /**
-   * Full recursive listing of public/ objects (keys relative, prefix stripped),
+   * Full recursive listing of media objects (keys relative, prefix stripped),
    * shared between /stats and /folders through a short-lived TTL cache
    */
   async function getPublicObjects(client: StorageClient) {
     const objects = await getCachedFullListing(() =>
-      client.listAllParallel("public/"),
+      client.listAllParallel(client.mediaPrefix),
     );
     return objects
-      .filter((obj) => obj.key.startsWith("public/"))
+      .filter((obj) => obj.key.startsWith(client.mediaPrefix))
       .map((obj) => ({ ...obj, key: obj.key.substring(7) }));
   }
 
