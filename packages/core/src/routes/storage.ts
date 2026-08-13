@@ -45,7 +45,10 @@ export function createStorageRoute(deps: RouteDeps) {
     );
     return objects
       .filter((obj) => obj.key.startsWith(client.mediaPrefix))
-      .map((obj) => ({ ...obj, key: obj.key.substring(7) }));
+      .map((obj) => ({
+        ...obj,
+        key: obj.key.slice(client.mediaPrefix.length),
+      }));
   }
 
   function buildLocalTree(rootDir: string): StorageNode {
