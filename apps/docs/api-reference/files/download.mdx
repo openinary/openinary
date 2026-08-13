@@ -3,26 +3,27 @@ title: "Download Original File"
 description: "Download the original uploaded file without any transformation"
 ---
 
-## Endpoint
+Point at the storage path and the original bytes come back as an attachment.
 
 ```
 GET /download/{path}
+```
+
+```bash
+curl -O -J http://localhost:3000/download/photos/portrait.jpg
 ```
 
 **Auth:** Public (rate limited)
 
 ## Path parameters
 
-<ParamField path="path" type="string" required>
-  Path to the file relative to the storage root, including the file extension.
-
-`photo.jpg` · `videos/clip.mp4` · `assets/logo.png`
-
-</ParamField>
+| Param  | Type     | Description                                                                              |
+| ------ | -------- | ---------------------------------------------------------------------------------------- |
+| `path` | `string` | Required. Path to the file relative to the storage root, including the extension (`videos/clip.mp4`) |
 
 ## Response
 
-Returns the raw binary content of the original file with `Content-Disposition: attachment`, browsers will prompt a download rather than displaying inline.
+Returns the raw binary content of the original file with `Content-Disposition: attachment`, so browsers prompt a download rather than displaying it inline.
 
 | Header                | Value                               |
 | --------------------- | ----------------------------------- |
@@ -32,17 +33,6 @@ Returns the raw binary content of the original file with `Content-Disposition: a
 | `Cache-Control`       | `private, no-store`                 |
 
 **Status codes:** `200` success · `400` invalid path · `404` not found · `500` error
-
-## Example
-
-```bash
-curl -O -J http://localhost:3000/download/photos/portrait.jpg
-```
-
-```http
-GET /download/photos/portrait.jpg HTTP/1.1
-Host: localhost:3000
-```
 
 ## Related
 
@@ -65,4 +55,3 @@ Host: localhost:3000
     Bundle several files/folders into one ZIP.
   </Card>
 </CardGroup>
-

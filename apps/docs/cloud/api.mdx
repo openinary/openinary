@@ -1,314 +1,86 @@
 ---
-title: "Cloud API Reference"
-description: "Base URL, authentication, endpoints, errors and rate limits for the Openinary Cloud API."
+title: "What differs on Cloud"
+description: "The bucket prefix, the endpoints Cloud does not have, quota errors and rate limits. Everything else matches the shared API reference."
 ---
 
-## Base URL
+Cloud runs the same API as self-hosted. One path differs, six endpoints do not exist, and quotas add one status code. Everything else, request and response, is documented once in the [API reference](/api-reference/introduction).
 
-Everything, the API and the CDN, is served from one host:
-
-```
-https://cdn.openinary.dev
-```
-
-The dashboard lives at `https://app.openinary.dev`, and is not an API.
-
-## Authentication
-
-Send your API key on every request, either header works:
+One host serves both the API and the CDN. Send your key on every call, either header works.
 
 ```http
+POST https://cdn.openinary.dev/upload
 x-api-key: oik_your_api_key
 ```
 
-```http
-Authorization: Bearer oik_your_api_key
-```
+Keys are created in the dashboard under **Settings → API keys**, shown once, and pinned to a single bucket. That is why no endpoint takes a bucket ID: the key carries it. See [create an API key](/cloud/quickstart#2-create-an-api-key). The dashboard at `https://app.openinary.dev` is not an API.
 
-Keys are created in the dashboard (**Settings → API keys**), shown once, and
-**pinned to a single bucket**. Every request a key makes reads and writes that
-bucket, so you never pass a bucket ID to these endpoints, it's carried by the
-key. See [Create an API key](/cloud/quickstart#2-create-an-api-key).
+## The bucket prefix
 
-<Warning>
-  API keys are server-side credentials. The only endpoint meant to be called from
-  a browser is `POST /upload`, and only with a
-  [presigned signature](/cloud/file-uploader), never with a key. Every other
-  endpoint's CORS policy is pinned to the dashboard origin, so a browser on your
-  own domain can't call them even if you tried, call them from your backend.
-</Warning>
-
-## Endpoints
-
-| Group      | Endpoint                            | Auth                    |
-| ---------- | ----------------------------------- | ----------------------- |
-| **Media**  | `GET /b/{bucketId}/t/{path}`        | Public                  |
-| **Files**  | `POST /upload`                      | API key **or** presigned |
-|            | `POST /upload/sign`                 | API key                 |
-|            | `POST /upload/createfolder`         | API key                 |
-|            | `GET /download/{path}`              | API key                 |
-| **Storage**| `GET /storage?path=`                | API key                 |
-|            | `GET /storage/folders`              | API key                 |
-|            | `GET /storage/{path}/metadata`      | API key                 |
-|            | `PATCH /storage/{path}`             | API key                 |
-|            | `POST /storage/{path}/move`         | API key                 |
-|            | `POST /storage/{path}/copy`         | API key                 |
-|            | `DELETE /storage/{path}`            | API key                 |
-|            | `GET /storage/stats`                | API key                 |
-|            | `POST /storage/stats/recalculate`   | API key                 |
-|            | `POST /storage/cache/clear`         | API key                 |
-| **Video**  | `GET /video-status/{path}`          | API key                 |
-|            | `GET /queue/events`                 | API key                 |
-
-## Delivery
+Delivery is the one path that differs. It is public and needs no key.
 
 ```
-GET /b/{bucketId}/t/{transformations}/{path}
+https://cdn.openinary.dev/b/{bucketId}/t/{transformations}/{path}
 ```
 
-Public, cached at the edge, no authentication. Omit the transformation segment to
-serve the file as stored.
+Self-hosted, the same URL is `{base}/t/{transformations}/{path}`. Only the prefix changes: the transformation syntax after it is identical, and so is every other endpoint. See [your base URL](/media-transformations/overview#your-base-url).
 
-<ParamField path="bucketId" type="string" required>
-  Your bucket's ID. It's the `/b/…/` segment of the `url` returned by
-  `POST /upload`, and visible on any asset in the dashboard.
-</ParamField>
+The `bucketId` is the `/b/.../` segment of the `url` an upload returns. It appears in every public URL you serve, so it is not a secret.
 
-<ParamField path="transformations" type="string">
-  Comma-separated parameters, e.g. `w_400,h_400,c_fill,f_webp`. Identical syntax
-  to self-hosted, see [Image
-  transformations](/media-transformations/image-transformations) and [Video
-  transformations](/media-transformations/video-transformations).
-</ParamField>
+## What Cloud has
 
-<ParamField path="path" type="string" required>
-  Storage path of the file, e.g. `products/photo.jpg`.
-</ParamField>
+Every endpoint below behaves exactly as the shared reference describes it.
 
-The first request for a given URL runs the transformation and caches the result;
-later requests are served from cache. Cached deliveries count as **CDN requests**
-only. An image request that misses the cache also counts as one **image
-transformation**. Video transformations are queued, see [Video
-processing](#video-processing).
+| Group   | Endpoints                                                                                                                                                                                                                                                                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Files   | [`POST /upload`](/api-reference/files/upload) · [`POST /upload/sign`](/api-reference/files/upload-sign) · [`POST /upload/createfolder`](/api-reference/files/create-folder) · [`GET /download/{path}`](/api-reference/files/download)                                                                                                                         |
+| Storage | [list](/api-reference/storage/list) · [folders](/api-reference/storage/folders) · [summaries, stats, recalculate](/api-reference/storage/stats) · [metadata](/api-reference/storage/metadata) · [rename](/api-reference/storage/rename) · [move](/api-reference/storage/move) · [copy](/api-reference/storage/copy) · [delete](/api-reference/storage/delete) |
+| Cache   | [`POST /storage/cache/clear`](/api-reference/cache/invalidate)                                                                                                                                                                                                                                                                                                |
+| Video   | [`GET /video-status/{path}`](/api-reference/video/status) · [`GET /queue/events`](/api-reference/queue/events)                                                                                                                                                                                                                                                |
 
-## Upload
+## What Cloud does not have (yet)
 
-```
-POST /upload
-```
+| Missing                                              | What to do instead                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| `/authenticated/s--{sig}/…` signed delivery URLs     | Keep genuinely private assets off Cloud for now                |
+| `/api-keys/*`                                        | Manage keys in the dashboard                                   |
+| `/queue/stats`, `/queue/worker/stats`, `/queue/jobs` | Use `/queue/events` for live job updates                       |
+| `DELETE /invalidate/{path}`                          | `POST /storage/cache/clear`, or delete and re-upload the asset |
+| `/download-folder`, `/download-zip`                  | Download files individually                                    |
+| `/health`                                            | Status is reported in the dashboard                            |
 
-`multipart/form-data`.
+The `transformations` field on `POST /upload`, which prewarms variants on self-hosted, is accepted and ignored. Variants are generated on the first request instead.
 
-<ParamField path="files" type="file" required>
-  The file to upload. Repeat the field to send several in one request.
-</ParamField>
-
-<ParamField path="folder" type="string">
-  Destination folder, e.g. `products/2026`. Defaults to the bucket root. Ignored
-  when a `signature` is present, the signature carries its own folder.
-</ParamField>
-
-<ParamField path="signature" type="string">
-  A presigned token from `POST /upload/sign`. Use this instead of an API key for
-  browser uploads.
-</ParamField>
-
-```json Response
-{
-  "success": true,
-  "files": [
-    {
-      "path": "products/photo.jpg",
-      "name": "photo.jpg",
-      "filename": "photo.jpg",
-      "size": 248713,
-      "url": "/b/{bucketId}/t/products/photo.jpg"
-    }
-  ]
-}
-```
-
-Accepted types: JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF, PSD, MP4, MOV, WebM. SVG
-is rejected. HEIC/HEIF is converted to JPEG on upload, so the returned `path` may
-end in `.jpg`. A name that already exists is de-duplicated (`photo (1).jpg`),
-always trust the returned `path` over the one you sent.
-
-<Note>
-  The self-hosted `transformations` field (prewarming variants at upload time) is
-  **not supported on Cloud**. It's ignored, and variants are generated on the
-  first request instead.
-</Note>
+<a id="presigned-uploads"></a>
 
 ## Presigned uploads
 
-```
-POST /upload/sign
-```
+`POST /upload/sign` works as the [shared reference](/api-reference/files/upload-sign) describes. The token names the account, bucket and folder it was minted for, so it cannot be replayed against another bucket. A signature that fails verification returns `401 Invalid or expired upload signature`, a Cloud-specific message.
 
-Mints a short-lived token so a browser can upload without an API key. Call it
-from your backend only.
+See [File Uploader on Cloud](/cloud/file-uploader) for the full browser flow.
 
-<ParamField path="folder" type="string">
-  Folder the upload is scoped to. Derive it from the authenticated user, never
-  from the browser.
-</ParamField>
-
-<ParamField path="expiresIn" type="number" default="300">
-  Lifetime in seconds, clamped to 1-3600. Keep it short, 60-300 is plenty.
-</ParamField>
-
-```json Response
-{
-  "success": true,
-  "signature": "eyJ1IjoiLi4uIn0.9f2c1d4e8a7b6c50",
-  "expires": 1785312000,
-  "folder": "users/42"
-}
-```
-
-The token names the account, bucket, and folder it was minted for, so it can't be
-replayed against another bucket or folder. See [File
-Uploader](/cloud/file-uploader) for the full flow.
-
-## Storage
-
-<AccordionGroup>
-  <Accordion title="GET /storage?path=, list one folder level">
-    ```bash
-    curl "https://cdn.openinary.dev/storage?path=products" \
-      -H "x-api-key: $OPENINARY_API_KEY"
-    ```
-
-    ```json
-    {
-      "path": "products",
-      "folders": [{ "name": "2026", "path": "products/2026" }],
-      "files": [
-        {
-          "name": "photo.jpg",
-          "path": "products/photo.jpg",
-          "size": 248713,
-          "mtime": "2026-07-20T09:12:44.000Z"
-        }
-      ]
-    }
-    ```
-
-  </Accordion>
-  <Accordion title="GET /storage/folders, every folder path in the bucket">
-    ```json
-    { "folders": ["products", "products/2026", "clips"] }
-    ```
-  </Accordion>
-  <Accordion title="GET /storage/{path}/metadata, size and timestamps">
-    ```json
-    {
-      "size": 248713,
-      "createdAt": "2026-07-20T09:12:44.000Z",
-      "updatedAt": "2026-07-20T09:12:44.000Z"
-    }
-    ```
-  </Accordion>
-  <Accordion title="PATCH /storage/{path}, rename in place">
-    Body: `{ "name": "new-name.jpg" }`, a bare name, no slashes. Works on files
-    and folders. Returns `{ "success": true, "path": "products/new-name.jpg" }`.
-  </Accordion>
-  <Accordion title="POST /storage/{path}/move, move to another folder">
-    Body: `{ "destination": "archive/2025" }`. An empty or missing body moves the
-    item to the bucket root. Works on files and folders.
-  </Accordion>
-  <Accordion title="POST /storage/{path}/copy, duplicate a file">
-    No body. The copy is named `photo copy.jpg`, de-duplicated if that already
-    exists. Files only.
-  </Accordion>
-  <Accordion title="DELETE /storage/{path}, delete a file or folder">
-    Deletes the original **and** its cached transform variants. Deleting a folder
-    deletes everything under it. Storage usage is credited back.
-
-    ```json
-    { "success": true, "message": "Asset deleted successfully", "details": { … } }
-    ```
-
-  </Accordion>
-  <Accordion title="GET /storage/stats, bucket footprint">
-    ```json
-    {
-      "storage": { "size": 51288331, "fileCount": 214 },
-      "cache": { "size": 20114882, "fileCount": 619 },
-      "updatedAt": "2026-07-26T18:02:11.000Z"
-    }
-    ```
-
-    Cached figures. `POST /storage/stats/recalculate` recomputes them from
-    storage; `POST /storage/cache/clear` empties the bucket's transform cache
-    (`204`), after which variants are regenerated on demand.
-
-  </Accordion>
-  <Accordion title="GET /download/{path}, fetch the stored original">
-    Authenticated download of the untransformed file, with `Range` support.
-    Public delivery goes through `/b/{bucketId}/t/…` instead.
-  </Accordion>
-</AccordionGroup>
-
-<Note>
-  Paths are URL-encoded in the request and compared as stored, so
-  `products/Marée.jpg` becomes `/storage/products/Mar%C3%A9e.jpg`.
-</Note>
+<a id="video-processing"></a>
 
 ## Video processing
 
-A video transformation is queued rather than run inline. The first request for a
-transformed video returns `202` with a JSON body while it encodes.
+Identical to self-hosted. The first request for a transformed video returns `202`, and you poll [`/video-status`](/api-reference/video/status) or subscribe to [`/queue/events`](/api-reference/queue/events) until it reports `completed`.
 
-```
-GET /video-status/{transformations}/{path}
-```
-
-The transformation segment matters: jobs are tracked per parameter set, so ask
-about the exact URL you requested.
-
-```bash
-curl "https://cdn.openinary.dev/video-status/w_640/clips/demo.mp4" \
-  -H "x-api-key: $OPENINARY_API_KEY"
-```
-
-```json
-{ "status": "processing", "progress": 62, "startedAt": "2026-07-26T18:02:11.000Z" }
-```
-
-<ResponseField name="status" type="string">
-  One of `pending` · `processing` · `completed` · `error` · `cancelled` · `not_found`.
-</ResponseField>
-
-<ResponseField name="progress" type="number">
-  0 to 100.
-</ResponseField>
-
-`GET /queue/events` is a Server-Sent Events stream of the same job updates, for
-when polling is the wrong shape.
-
-<Note>
-  A video URL carrying no parameters is never transcoded, it streams the stored
-  file (with range requests, so seeking works) and costs no processing minutes.
-</Note>
+A video URL carrying no parameters is never transcoded. It streams the stored file with range requests, so seeking works, and costs no processing minutes.
 
 ## Errors
 
-```json
-{ "error": "Human-readable message", "message": "Optional detail" }
-```
+Same error shape as self-hosted, plus one status code of its own.
 
-| Status | Meaning                                                                    |
-| ------ | -------------------------------------------------------------------------- |
-| `400`  | Invalid parameters, unsupported file type, or a malformed path             |
+| Status | Meaning                                                                       |
+| ------ | ----------------------------------------------------------------------------- |
+| `400`  | Invalid parameters, unsupported file type, or a malformed path                |
 | `401`  | Missing, invalid, disabled or expired API key, or an expired upload signature |
-| `402`  | A plan limit was reached, see below                                        |
-| `403`  | Account suspended                                                          |
-| `404`  | No such file, folder, bucket, or job                                       |
-| `429`  | Rate limited                                                               |
-| `500`  | Something broke on our side                                                |
+| `402`  | A plan limit was reached                                                      |
+| `403`  | Account suspended                                                             |
+| `404`  | No such file, folder, bucket, or job                                          |
+| `429`  | Rate limited                                                                  |
+| `500`  | Something broke on our side                                                   |
 
-A `402` tells you which allowance ran out:
+A `402` names the allowance that ran out:
 
 ```json
 {
@@ -320,30 +92,34 @@ A `402` tells you which allowance ran out:
 }
 ```
 
-`feature` is one of `storage_mb` · `image_transformations` ·
-`video_processing_seconds` · `cdn_requests`. Over the transformation quota,
-already-cached assets keep being served, only new work is refused. See [Plans and
-limits](/cloud/overview#plans-and-limits).
+`feature` is one of `storage_mb`, `image_transformations`, `video_processing_seconds` or `cdn_requests`. Past the transformation quota, cached assets keep being served and only new work is refused. See [plans and limits](/cloud/overview#plans-and-limits).
 
 ## Rate limits
 
-| Scope                     | Limit               |
-| ------------------------- | ------------------- |
-| CDN delivery, per IP      | 300 requests / 60s  |
+| Scope                     | Limit                |
+| ------------------------- | -------------------- |
+| CDN delivery, per IP      | 300 requests / 60s   |
 | CDN delivery, per account | 1,000 requests / 60s |
 
-Both apply to the `/b/*` delivery path only. Upload, signing and storage calls are not rate limited.
+Both apply to the `/b/*` delivery path only, and both answer `429`. Upload, signing and storage calls are not rate limited. They exist to stop abuse rather than to shape normal traffic, so get in touch before you expect to run against them.
 
-Both answer `429`. They exist to stop abuse, not to shape normal traffic, if you
-expect to run against them, get in touch before you do.
+## Related
 
-## Not available on Cloud
-
-These self-hosted endpoints have no Cloud equivalent today:
-
-- `/authenticated/s--{sig}/…` signed delivery URLs
-- `/api-keys/*`, keys are managed in the dashboard
-- `/queue/stats`, `/queue/worker/stats`, `/queue/jobs`, job retry/cancel
-- `/invalidate/{path}`, use `POST /storage/cache/clear`, or delete the asset
-- `/download-folder`, `/download-zip`
-- `/health`
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Every endpoint, documented once for both deployments.
+  </Card>
+  <Card title="Cloud Quickstart" icon="bolt" href="/cloud/quickstart">
+    Account, key, first upload, first transformed URL.
+  </Card>
+  <Card title="Account & buckets" icon="cloud" href="/cloud/overview">
+    Buckets, plans, limits and billing.
+  </Card>
+  <Card
+    title="File Uploader on Cloud"
+    icon="upload"
+    href="/cloud/file-uploader"
+  >
+    Browser uploads with no key in the bundle.
+  </Card>
+</CardGroup>

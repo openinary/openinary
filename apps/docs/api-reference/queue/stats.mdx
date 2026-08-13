@@ -1,9 +1,16 @@
 ---
 title: "Queue Statistics"
-description: "Retrieve current video processing queue statistics"
+description: "Job counts per status for the video processing queue"
 ---
 
-## Endpoint
+**Self-hosted only.** Cloud exposes `/queue/events` only.
+
+Counts the job rows currently in the queue table, per status.
+
+```bash
+curl http://localhost:3000/queue/stats \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ```
 GET /queue/stats
@@ -12,8 +19,6 @@ GET /queue/stats
 **Auth:** API Key required
 
 ## Response
-
-Counts of jobs currently in the queue table, per status.
 
 ```json
 {
@@ -25,39 +30,17 @@ Counts of jobs currently in the queue table, per status.
 }
 ```
 
-<ResponseField name="total" type="number">
-  Every job row in the table, including cancelled ones.
-</ResponseField>
+| Field | Type | Notes |
+| --- | --- | --- |
+| `total` | number | Every job row in the table, including cancelled ones |
+| `pending` | number | Jobs queued and waiting for a worker |
+| `processing` | number | Jobs a worker is running right now |
+| `completed` | number | Jobs that finished successfully |
+| `error` | number | Jobs that exhausted their retries |
 
-<ResponseField name="pending" type="number">
-  Jobs queued and waiting for a worker.
-</ResponseField>
+There is no `cancelled` key. Cancelled jobs are counted in `total` only, so `total` is not the sum of the other four.
 
-<ResponseField name="processing" type="number">
-  Jobs a worker is running right now.
-</ResponseField>
-
-<ResponseField name="completed" type="number">
-  Jobs that finished successfully.
-</ResponseField>
-
-<ResponseField name="error" type="number">
-  Jobs that exhausted their retries.
-</ResponseField>
-
-<Note>
-  There is no `cancelled` key. Cancelled jobs are counted in `total` only, so
-  `total` is not the sum of the other four. Completed and errored jobs are
-  purged after `VIDEO_JOB_CLEANUP_HOURS`, which makes these counts a snapshot of
-  the retention window rather than a lifetime tally.
-</Note>
-
-## Example
-
-```bash
-curl http://localhost:3000/queue/stats \
-  -H "Authorization: Bearer <api_key>"
-```
+Completed and errored jobs are purged after `VIDEO_JOB_CLEANUP_HOURS`. These counts are a snapshot of the retention window, not a lifetime tally.
 
 ## Related
 

@@ -3,10 +3,16 @@ title: "Create Folder"
 description: "Create an empty folder in storage"
 ---
 
-## Endpoint
+Post the path you want as a multipart `folder` field. Nested paths are created in one call.
 
 ```
 POST /upload/createfolder
+```
+
+```bash
+curl -X POST http://localhost:3000/upload/createfolder \
+  -H "Authorization: Bearer <api_key>" \
+  -F "folder=products/2024"
 ```
 
 **Auth:** API Key required
@@ -14,16 +20,13 @@ POST /upload/createfolder
 
 ## Form fields
 
-<ParamField body="folder" type="string" required>
-  Path of the folder to create. Nested paths are supported.
-
-`photos` · `uploads/2024/january` · `products/thumbnails`
-
-</ParamField>
+| Field    | Type     | Description                                                                    |
+| -------- | -------- | ------------------------------------------------------------------------------ |
+| `folder` | `string` | Required. Path of the folder to create, nested paths supported (`uploads/2024/january`) |
 
 ## Response
 
-**`201`**, Folder created
+`201` on success:
 
 ```json
 {
@@ -33,9 +36,7 @@ POST /upload/createfolder
 }
 ```
 
-**`400`**, Invalid folder path
-
-**`409`**, Folder already exists
+`409` when the folder already exists:
 
 ```json
 {
@@ -45,18 +46,9 @@ POST /upload/createfolder
 }
 ```
 
-<Note>
-  `folder` is `null` on the `409`, not the path you asked for. Read the path you
-  sent from your own request, not from this response.
-</Note>
+A `400` means the folder path is invalid.
 
-## Example
-
-```bash
-curl -X POST http://localhost:3000/upload/createfolder \
-  -H "Authorization: Bearer <api_key>" \
-  -F "folder=products/2024"
-```
+Note that `folder` is `null` on the `409`, not the path you asked for. Read the path you sent from your own request, not from this response.
 
 ## Related
 
@@ -72,4 +64,3 @@ curl -X POST http://localhost:3000/upload/createfolder \
     Browse the folder tree.
   </Card>
 </CardGroup>
-

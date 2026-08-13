@@ -1,32 +1,30 @@
 ---
 title: "Invalidate Cache"
-description: "Clear cached transformation variants, for one file or for the whole instance, without deleting originals"
+description: "Clear cached transformation variants without deleting originals"
 ---
 
-## Endpoint
+**`DELETE /invalidate/{path}` is self-hosted only.** On Cloud, clear a single asset by deleting and re-uploading it, or purge everything with `POST /storage/cache/clear`, which works on both.
+
+Clears the cached transformation variants of one file. The original is not touched.
 
 ```
 DELETE /invalidate/{path}
 ```
 
+```bash
+curl -X DELETE http://localhost:3000/invalidate/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>"
+```
+
 **Auth:** API Key required
+
+Three caches are cleared for the file: the local cache of variants stored on disk, the cloud cache of variants stored in S3-compatible storage if configured, and the in-memory cache of metadata entries.
 
 ## Path parameters
 
-<ParamField path="path" type="string" required>
-  Path to the file relative to the storage root.
-
-`photo.jpg` · `photos/portrait.jpg`
-
-</ParamField>
-
-## What gets cleared
-
-- **Local cache**, transformation variants stored on disk
-- **Cloud cache**, transformation variants stored in S3-compatible storage (if configured)
-- **In-memory cache**, cached metadata entries for the file
-
-The original file is not touched.
+| Param  | Type   | Required | Description                                                            |
+| ------ | ------ | -------- | ---------------------------------------------------------------------- |
+| `path` | string | yes      | Path to the file relative to the storage root, e.g. `photos/portrait.jpg`. |
 
 ## Response
 
@@ -41,40 +39,19 @@ The original file is not touched.
 }
 ```
 
-<ResponseField name="success" type="boolean">
-  `true` only when nothing failed. It is computed as `errors.length === 0`, so a
-  single non-fatal cleanup error makes it `false` even though the variants that
-  could be removed were removed. Read `details.errors` to see what actually
-  happened.
-</ResponseField>
+| Field     | Type    | Description                     |
+| --------- | ------- | ------------------------------- |
+| `success` | boolean | `true` only when nothing failed |
+| `message` | string  | Human-readable result summary   |
+| `details` | object  | Counters and errors, below      |
 
-<ResponseField name="message" type="string">
-  Human-readable result summary.
-</ResponseField>
+- `localCacheFilesDeleted`, number: cached transformation variants removed from local disk
+- `cloudCacheFilesDeleted`, number: cached transformation variants removed from cloud storage
+- `errors`, string[]: non-fatal errors encountered during cleanup. Only present when some steps failed
 
-<ResponseField name="details" type="object">
-  <Expandable title="Details">
-    <ResponseField name="localCacheFilesDeleted" type="number">
-      Number of cached transformation variants removed from local disk.
-    </ResponseField>
-    <ResponseField name="cloudCacheFilesDeleted" type="number">
-      Number of cached transformation variants removed from cloud storage.
-    </ResponseField>
-    <ResponseField name="errors" type="string[]">
-      Non-fatal errors encountered during cleanup. Only present when some steps
-      failed.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+`success` is computed as `errors.length === 0`, so a single non-fatal cleanup error makes it `false` even though the variants that could be removed were removed. Read `details.errors` to see what actually happened.
 
 **Status codes:** `200` success (or partial) · `400` path missing · `500` error
-
-## Example
-
-```bash
-curl -X DELETE http://localhost:3000/invalidate/photos/portrait.jpg \
-  -H "Authorization: Bearer <api_key>"
-```
 
 ## Clear the entire cache
 
@@ -82,9 +59,12 @@ curl -X DELETE http://localhost:3000/invalidate/photos/portrait.jpg \
 POST /storage/cache/clear
 ```
 
-**Auth:** API key required. A dashboard session cookie also works.
+```bash
+curl -X POST http://localhost:3000/storage/cache/clear \
+  -H "Authorization: Bearer <api_key>"
+```
 
-Removes every cached transformation variant on the instance, local and cloud, for every file. Takes no parameters and no body.
+Removes every cached transformation variant on the instance, local and cloud, for every file. Takes no parameters and no body. Auth is an API key, or a dashboard session cookie.
 
 <Warning>
   This purges the whole cache, not one file's variants. Every transformation is
@@ -107,11 +87,6 @@ Removes every cached transformation variant on the instance, local and cloud, fo
 
 **Status codes:** `200` success · `500` a cache backend failed
 
-```bash
-curl -X POST http://localhost:3000/storage/cache/clear \
-  -H "Authorization: Bearer <api_key>"
-```
-
 ## Related
 
 <CardGroup cols={2}>
@@ -126,4 +101,3 @@ curl -X POST http://localhost:3000/storage/cache/clear \
     Apply transformations, results are cached automatically.
   </Card>
 </CardGroup>
-

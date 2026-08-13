@@ -1,15 +1,47 @@
 ---
 title: "Security"
-description: "Openinary authentication model: Better Auth sessions, API key management, rate limiting on public routes, upload validation, Docker container users, and incident response."
+description: "Auth model, API keys, upload validation, container users and incident response."
 ---
 
-Openinary uses [Better Auth](https://www.better-auth.com) 1.6 with a SQLite backend. The API supports two authentication methods: **session-based login** for the web dashboard and **API key authentication** for programmatic access.
+Openinary authenticates two ways: Better Auth sessions for the web dashboard, and
+API keys for everything programmatic. Both live in one SQLite file. A key travels
+as a bearer token:
+
+```bash
+curl -H "Authorization: Bearer sk_your_key_here" \
+  http://localhost:3000/upload
+```
+
+The auth layer is [Better Auth](https://www.better-auth.com) 1.6 on a SQLite backend.
+
+## API keys
+
+How you get the first one depends on the mode.
+
+In fullstack mode, visit `/setup` to create your admin account, then `/api-keys` in
+the dashboard to create the key.
+
+In API-only mode the server generates a key on first startup and prints it to the
+console. It is shown once and cannot be retrieved later, so copy it now:
+
+```bash
+docker logs <container-id>
+```
+
+After that: store keys in environment variables, never in source code. Create one
+key per service or environment. Set an expiration at creation time (`expiresIn`,
+in seconds). Rotate regularly, and disable unused keys promptly.
+
+Every route and its auth requirement is listed in the
+[API Reference](/api-reference/introduction), along with the rate limiting
+defaults and options.
 
 ## Database
 
-All auth data is stored in a single SQLite file at `/app/data/auth.db` (configurable via [`DB_PATH`](/configuration/server#db-path)).
-
-On startup, `scripts/secure-db.js` automatically sets the file permissions to `600` (owner read/write only). It runs in both Docker images, before the server starts.
+All auth data sits in a single SQLite file at `/app/data/auth.db`, configurable
+via [`DB_PATH`](/configuration/server#core). On startup, `scripts/secure-db.js`
+sets its permissions to `600`, owner read/write only. It runs in both Docker
+images, before the server starts.
 
 | Table          | Contents                          |
 | -------------- | --------------------------------- |
@@ -19,72 +51,35 @@ On startup, `scripts/secure-db.js` automatically sets the file permissions to `6
 | `account`      | OAuth providers                   |
 | `verification` | Email/phone verification tokens   |
 
-## API keys
-
-### Getting your first key
-
-<Tabs>
-<Tab title="Fullstack mode (default)">
-
-1. Visit `/setup` to create your admin account.
-2. Go to `/api-keys` in the dashboard to create your first key.
-
-</Tab>
-
-<Tab title="API-only mode">
-
-On first startup the server generates a key and prints it to the console.
-
-```bash
-docker logs <container-id>
-```
-
-<Warning>
-  Copy the key immediately, it is shown only once and cannot be retrieved later.
-</Warning>
-
-</Tab>
-</Tabs>
-
-### Using a key
-
-Pass it in the `Authorization` header:
-
-```bash
-curl -H "Authorization: Bearer sk_your_key_here" \
-  http://localhost:3000/upload
-```
-
-### Best practices
-
-- Store keys in environment variables, never in source code.
-- Create a separate key per service or environment.
-- Set an expiration when creating keys (`expiresIn` in seconds).
-- Rotate keys regularly; disable unused ones promptly.
-
-## API routes and rate limiting
-
-For the full list of routes and their auth requirements, see the [API Reference](/api-reference/introduction). Rate limiting defaults and configuration options are also documented there.
-
 ## Upload and delivery
 
-[Uploads are validated by content](/api-reference/files/upload), not by extension or declared MIME type: the leading bytes must match the format the file claims to be, so a `.jpg` carrying an HTML document never reaches storage. Delivery then serves those bytes as they are, with `X-Content-Type-Options: nosniff` and a content type taken from the shared media table rather than sniffed from the body.
+[Uploads are validated by content](/api-reference/files/upload), not by extension
+or declared MIME type. The leading bytes must match the format the file claims to
+be, so a `.jpg` carrying an HTML document never reaches storage. Delivery then
+serves those bytes as they are, with `X-Content-Type-Options: nosniff` and a
+content type taken from the shared media table rather than sniffed from the body.
 
-That pairing is what closes the stored-XSS path on the public `/t/*` route, which returns uploaded bytes untouched. Both halves are load-bearing: strict at the door, no sniffing on the way out.
+That pairing is what closes the stored-XSS path on the public `/t/*` route, which
+returns uploaded bytes untouched. Both halves are load-bearing: strict at the
+door, no sniffing on the way out.
 
 ## Docker security
 
 The two images differ here, and the difference matters when you pick one.
 
-| Image                        | Runs as                    |
-| ---------------------------- | -------------------------- |
-| `openinary/openinary-api`    | `node`, non-root           |
-| `openinary/openinary` (full) | `root`                     |
+| Image                        | Runs as          |
+| ---------------------------- | ---------------- |
+| `openinary/openinary-api`    | `node`, non-root |
+| `openinary/openinary` (full) | `root`           |
 
-The `full` image bundles nginx and supervisord alongside the app and sets no `USER`, so every process in it runs as root. Application directories are owned by `node`, but that does not change which user the processes run under. If running non-root is a requirement for you, deploy the `api` image and put your own reverse proxy in front of it.
+The `full` image bundles nginx and supervisord alongside the app and sets no
+`USER`, so every process in it runs as root. Application directories are owned by
+`node`, but that does not change which user the processes run under. If running
+non-root is a requirement for you, deploy the `api` image and put your own reverse
+proxy in front of it.
 
-- Mount the `/app/data` volume with appropriate host permissions.
-- Neither image needs a privileged container or extra capabilities.
+Mount the `/app/data` volume with appropriate host permissions. Neither image
+needs a privileged container or extra capabilities.
 
 ## Incident response
 
@@ -129,4 +124,3 @@ A healthy database returns `ok`. If it reports errors, restore from your most re
   Better Auth API Key plugin reference.
 </Card>
 </CardGroup>
-

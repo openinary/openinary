@@ -1,60 +1,15 @@
 ---
 title: "Docker Resources"
-description: "Set CPU and memory limits and reservations for Docker containers"
+description: "CPU and memory limits for the Openinary container, and what to set them to per server size"
 ---
 
-These variables are read by `docker-compose.yml` to set resource constraints on the Openinary container.
+`docker-compose.yml` reads these four variables to constrain the container. Pick the row that matches your server and move on.
 
-## Parameters
-
-| Parameter                                                 | Description               |
-| --------------------------------------------------------- | ------------------------- |
-| [`DOCKER_CPU_LIMIT`](#docker-cpu-limit)                   | Hard CPU cap (cores)      |
-| [`DOCKER_MEMORY_LIMIT`](#docker-memory-limit)             | Hard memory cap           |
-| [`DOCKER_CPU_RESERVATION`](#docker-cpu-reservation)       | Minimum guaranteed CPU    |
-| [`DOCKER_MEMORY_RESERVATION`](#docker-memory-reservation) | Minimum guaranteed memory |
-
-## Parameter reference
-
-<a id="docker-cpu-limit"></a>
-<ParamField path="DOCKER_CPU_LIMIT" type="number" default="2.0">
-  Hard CPU cap in cores. The container cannot use more than this, even if the host has spare capacity.
-
-`2.0` (default) · `4.0` (video-heavy) · `1.0` (minimal) · `0.5` (bare minimum)
-
-</ParamField>
-
-<a id="docker-memory-limit"></a>
-<ParamField path="DOCKER_MEMORY_LIMIT" type="string" default="4G">
-  Hard memory cap. Use `G` for gigabytes, `M` for megabytes.
-
-`4G` (default) · `8G` (video-heavy) · `2G` (minimal)
-
-  <Warning>
-  If the container exceeds this limit it will be OOM-killed. Video processing is memory-intensive, allocate at least 2 GB, 4 GB recommended.
-  </Warning>
-</ParamField>
-
-<a id="docker-cpu-reservation"></a>
-<ParamField path="DOCKER_CPU_RESERVATION" type="number" default="0.5">
-  Minimum CPU guaranteed to the container under host load.
-
-`0.5` (default) · `1.0` · `2.0`
-
-</ParamField>
-
-<a id="docker-memory-reservation"></a>
-<ParamField path="DOCKER_MEMORY_RESERVATION" type="string" default="1G">
-  Minimum memory guaranteed to the container. Must be lower than `DOCKER_MEMORY_LIMIT`.
-
-`1G` (default) · `2G` · `512M`
-
-</ParamField>
-
-## Configuration examples
-
-<Tabs>
-<Tab title="Default (4 GB server)">
+| Server | CPU limit | Memory limit | CPU reservation | Memory reservation |
+| --- | --- | --- | --- | --- |
+| 1-2 GB, images only | `1.0` | `2G` | `0.25` | `512M` |
+| 4 GB (default) | `2.0` | `4G` | `0.5` | `1G` |
+| 16 GB, video-heavy | `4.0` | `12G` | `1.0` | `2G` |
 
 ```bash
 DOCKER_CPU_LIMIT=2.0
@@ -63,35 +18,22 @@ DOCKER_CPU_RESERVATION=0.5
 DOCKER_MEMORY_RESERVATION=1G
 ```
 
-</Tab>
+<Warning>
+  A container that exceeds `DOCKER_MEMORY_LIMIT` is OOM-killed. Video processing
+  is memory-hungry: give it at least 2 GB, and 4 GB if you encode anything
+  large. Below 2 GB, video jobs fail and the deployment is image-only.
+</Warning>
 
-<Tab title="Production (16 GB server)">
+## What each one does
 
-```bash
-DOCKER_CPU_LIMIT=4.0
-DOCKER_MEMORY_LIMIT=12G
-DOCKER_CPU_RESERVATION=1.0
-DOCKER_MEMORY_RESERVATION=2G
-VIDEO_MAX_CONCURRENT=4
-```
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DOCKER_CPU_LIMIT` | `2.0` | Hard cap in cores. The container never exceeds it, even on an idle host |
+| `DOCKER_MEMORY_LIMIT` | `4G` | Hard cap. `G` for gigabytes, `M` for megabytes |
+| `DOCKER_CPU_RESERVATION` | `0.5` | Cores guaranteed when the host is under load |
+| `DOCKER_MEMORY_RESERVATION` | `1G` | Memory guaranteed. Must be below the limit |
 
-Matches the commented block in `docker.env.example`. The CPU limit is what caps [video worker auto-detection](/configuration/video-processing#video-max-concurrent), so raise it alongside memory or the extra RAM buys you no extra workers.
-
-</Tab>
-
-<Tab title="Minimal (1-2 GB server)">
-
-```bash
-DOCKER_CPU_LIMIT=1.0
-DOCKER_MEMORY_LIMIT=2G
-DOCKER_CPU_RESERVATION=0.25
-DOCKER_MEMORY_RESERVATION=512M
-```
-
-Image-only deployments only, video processing will fail with less than 2 GB.
-
-</Tab>
-</Tabs>
+The 16 GB row matches the commented block in `docker.env.example`, and adds `VIDEO_MAX_CONCURRENT=4`. That pairing matters: `DOCKER_CPU_LIMIT` is what caps [video worker auto-detection](/configuration/video-processing), so raising memory alone buys you no extra workers.
 
 ## Related
 
@@ -101,7 +43,7 @@ Image-only deployments only, video processing will fail with less than 2 GB.
     icon="gear"
     href="/configuration/video-processing"
   >
-    Configure worker concurrency and job queue settings.
+    Worker concurrency, retries and encode limits.
   </Card>
   <Card
     title="Deploy on Coolify"
@@ -111,4 +53,3 @@ Image-only deployments only, video processing will fail with less than 2 GB.
     Full deployment guide with resource configuration.
   </Card>
 </CardGroup>
-

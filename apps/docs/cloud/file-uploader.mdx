@@ -1,5 +1,6 @@
 ---
 title: "<FileUploader /> on Cloud"
+sidebarTitle: "File uploader on Cloud"
 description: "Wire the Openinary React file uploader to Openinary Cloud: drag & drop uploads straight from the browser, with no API key in the bundle."
 ---
 
@@ -36,15 +37,13 @@ The browser never holds your API key. Your backend mints a **short-lived presign
   </Step>
 </Steps>
 
-<Note>
-  Because the token names its own bucket, an upload can't be redirected into another bucket, or another customer's storage, by editing the form fields.
-</Note>
+The token names its own bucket, so editing the form fields cannot redirect an upload into another bucket or another customer's storage.
 
 ## Prerequisites
 
 - A Cloud account, see [Cloud Quickstart](/cloud/quickstart).
 - An **API key** pinned to the bucket you want uploads to land in.
-- A project set up for shadcn/ui (`components.json` present), with the shadcn CLI **v3\+** for namespaced registries.
+- A project set up for shadcn/ui (`components.json` present), with the shadcn CLI **v3 or later** for namespaced registries.
 
 Nothing else. No `API_SECRET`, no `CORS_ORIGIN` allow-list, no `MAX_FILE_SIZE_MB`, Cloud handles all of it, and `POST /upload` accepts token-authenticated uploads from any origin.
 
@@ -80,9 +79,7 @@ Nothing else. No `API_SECRET`, no `CORS_ORIGIN` allow-list, no `MAX_FILE_SIZE_MB
     OPENINARY_API_KEY=oik_your_api_key
     ```
 
-    <Warning>
-      Unlike a self-hosted full-stack instance, there is **no `/api` suffix** on Cloud. The API is served at the root of `cdn.openinary.dev`.
-    </Warning>
+    There is no `/api` suffix on Cloud, unlike a self-hosted full-stack instance. The API is served at the root of `cdn.openinary.dev`.
   </Step>
 </Steps>
 
@@ -183,29 +180,21 @@ export function Uploader() {
 
 ## What comes back
 
-`onSuccess` receives the stored files:
+`onSuccess` receives the stored files.
 
-<ResponseField name="path" type="string">
-  The stored path, e.g. `uploads/photo.jpg`. May be de-duplicated if a file of that name already existed (`photo (1).jpg`), so always use this value rather than the name you sent.
-</ResponseField>
+| Field | Description |
+| --- | --- |
+| `path` | The stored path, e.g. `uploads/photo.jpg`. De-duplicated if the name was taken (`photo (1).jpg`), so always use this rather than the name you sent |
+| `url` | The delivery path, `/b/{bucketId}/t/{path}`. Prefix with `https://cdn.openinary.dev` for a full URL, and insert transformations right after `/t/` |
+| `filename` | The stored filename |
 
-<ResponseField name="url" type="string">
-  The delivery path, `/b/{bucketId}/t/{path}`. Prefix it with `https://cdn.openinary.dev` for a full URL, and insert transformations right after `/t/`:
+```text
+https://cdn.openinary.dev/b/{bucketId}/t/w_600,c_fill,f_webp/uploads/photo.jpg
+```
 
-  ```text
-  https://cdn.openinary.dev/b/{bucketId}/t/w_600,c_fill,f_webp/uploads/photo.jpg
-  ```
+To display the file that was just uploaded, use `url` unchanged: see [showing the file you just uploaded](#showing-the-file-you-just-uploaded).
 
-  To display the file that was just uploaded, use it unchanged, see [Showing the file you just uploaded](#showing-the-file-you-just-uploaded).
-</ResponseField>
-
-<ResponseField name="filename" type="string">
-  The stored filename.
-</ResponseField>
-
-<Note>
-  HEIC/HEIF files are converted to JPEG on upload, so `path` may end in `.jpg`.
-</Note>
+HEIC and HEIF files are converted to JPEG on upload, so `path` may end in `.jpg`.
 
 ## Showing the file you just uploaded
 
@@ -221,9 +210,7 @@ That form is served straight from storage, so it renders on the first try, every
 
 A sized transformation can't promise the same, because it's generated on demand: the first request for one returns `202 {"status":"processing"}` rather than bytes, and an `<img>` can't decode a JSON body, it fires `onerror` once and never retries. For a file uploaded seconds ago that first request is yours, so the picture arrives late, after a broken-image frame. Transformed URLs are for the next page load, once the file is at rest.
 
-<Warning>
-  A confirmation, not a gallery. The original is full-size bytes and one CDN request, which is right for the single file that just arrived and wrong for a grid of fifty, use transformations there. Only jpg, png, webp, avif and gif decode in a browser, anything else is a link. And drop the component's local preview once the upload finishes rather than showing both, that second copy is the same swap.
-</Warning>
+Treat this as a confirmation, not a gallery. The original is full-size bytes and one CDN request, which is right for the one file that just arrived and wrong for a grid of fifty, where transformations belong. Only jpg, png, webp, avif and gif decode in a browser; anything else is a link. Drop the component's local preview once the upload finishes rather than showing both.
 
 ## Cloud-specific behaviour
 

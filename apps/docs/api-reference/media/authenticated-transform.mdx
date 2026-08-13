@@ -3,41 +3,29 @@ title: "Authenticated Transform"
 description: "Apply transformations via a signed URL that cannot be guessed or tampered with"
 ---
 
-Authenticated transforms use HMAC-SHA256 signatures to prevent unauthorized access or URL manipulation. Use this for private media or to restrict which transformations can be applied.
+**Self-hosted only.** Signed delivery URLs are not available on Cloud yet.
 
-## Endpoint
+Same transformations as the public `/t/` endpoint, behind an HMAC-SHA256 signature. Use it for private media, or to restrict which transformations can be applied.
 
 ```
 GET /authenticated/s--{signature}/{transformations}/{path}
+```
+
+```http
+GET /authenticated/s--a1b2c3d4e5f6a7b8/w_400,h_400,c_fill/private/photo.jpg
 ```
 
 **Auth:** Signature verification (no API key needed at request time)
 
 ## Path parameters
 
-<ParamField path="signature" type="string" required>
-  16-character HMAC-SHA256 signature, truncated from the full digest. Computed server-side when generating the signed URL using your `API_SECRET`.
+| Param             | Type     | Description                                                                                   |
+| ----------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `signature`       | `string` | Required. 16 hex characters, truncated from the full HMAC-SHA256 digest                       |
+| `transformations` | `string` | Comma-separated parameters, identical to the public `/t/` endpoint                            |
+| `path`            | `string` | Required. Path to the file, identical to the public `/t/` endpoint                            |
 
-`s--a1b2c3d4e5f6a7b8` (16 hex chars)
-
-The server rejects any other length with `400` before it even checks the value.
-
-</ParamField>
-
-<ParamField path="transformations" type="string">
-  Comma-separated transformation parameters, identical to the public `/t/`
-  endpoint. Must match the transformations used when the signature was
-  generated.
-</ParamField>
-
-<ParamField path="path" type="string" required>
-  Path to the file, identical to the public `/t/` endpoint. Must match the path
-  used when the signature was generated.
-</ParamField>
-
-## How signatures work
-
-The signature is computed over the combination of transformations + file path using `API_SECRET` as the HMAC key. Any change to the URL (different params or path) will invalidate the signature.
+The signature is computed server-side over the transformations plus the file path, using `API_SECRET` as the HMAC key. Both must match what was signed, since any change to the URL invalidates the signature. A signature of any other length is rejected with `400` before the value is even checked.
 
 See [Signed URLs](/media-transformations/signed-urls) for code examples on generating signatures.
 
@@ -45,20 +33,12 @@ See [Signed URLs](/media-transformations/signed-urls) for code examples on gener
 
 Same as the [public transform endpoint](/api-reference/media/transform), returns binary file content.
 
-**Status codes:**
-
-| Code  | Meaning                                                                   |
-| ----- | ------------------------------------------------------------------------- |
-| `200` | Transformed file returned                                                 |
+| Code  | Meaning                                                                                                                                                    |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `200` | Transformed file returned                                                                                                                                  |
 | `400` | Invalid URL format, wrong signature length, or transformation parameters on a [non-transformable type](/api-reference/media/transform#pass-through-formats) |
-| `401` | Signature does not match, tampered or wrong secret                        |
-| `404` | File not found                                                            |
-
-## Example
-
-```http
-GET /authenticated/s--a1b2c3d4e5f6a7b8/w_400,h_400,c_fill/private/photo.jpg
-```
+| `401` | Signature does not match, tampered or wrong secret                                                                                                         |
+| `404` | File not found                                                                                                                                             |
 
 ## Related
 
@@ -78,4 +58,3 @@ GET /authenticated/s--a1b2c3d4e5f6a7b8/w_400,h_400,c_fill/private/photo.jpg
     Unrestricted on-the-fly transformations.
   </Card>
 </CardGroup>
-

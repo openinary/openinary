@@ -3,19 +3,17 @@ title: "Cloudinary vs Openinary"
 description: "An honest, feature-by-feature comparison of what Cloudinary offers versus what Openinary supports today."
 ---
 
-_Last updated: April 16, 2026_
+Openinary covers core transformation and delivery well: resize, crop, format conversion, quality, video trimming, upload, caching and signed URLs. It does not cover image effects, AI and generative features, adaptive streaming, overlays, or an enterprise DAM layer.
 
-<Note>
-  This comparison aims to be factual and straightforward. The goal is to help
-  you make an informed decision about whether Openinary fits your use case
-  today. Cloudinary is a mature, commercial product with years of development.
-  Openinary is an early-stage open-source alternative built for teams that want
-  to self-host.
-</Note>
+Cloudinary is a mature commercial product with years of development behind it. Openinary is early-stage open source. This page is the honest version of that gap.
 
-## Summary
+The **Openinary** column below is [Openinary Cloud](/cloud/overview), the managed version, since that is the like-for-like comparison. Where self-hosting differs, the cell says so.
 
-Openinary covers the **core transformation and delivery** use cases well: resize, crop, format conversion, quality control, video trimming, upload, caching, and signed URLs. It does not yet cover advanced image effects, AI/generative features, adaptive streaming, overlays, or the enterprise DAM layer that Cloudinary provides.
+**Openinary fits when** your use case is core image and video delivery, you would rather not pay per transformation, and you want the option to run the whole thing yourself. That last one is the structural difference: self-hosting is a first-class path on any plan, under AGPL, where Cloudinary reserves it for Enterprise.
+
+**Cloudinary is the better choice today when** you need AI or generative transformations, adaptive streaming, image effects and overlays, team roles or SSO, a full DAM with search and workflows, official SDKs in your language, or webhooks.
+
+The tables below are the detail behind that summary.
 
 ---
 
@@ -111,7 +109,7 @@ Openinary covers the **core transformation and delivery** use cases well: resize
 | Multiple files per request           | ✓              | ✓         |
 | Custom filename                      | ✓              | ✓         |
 | Folder management                    | ✓              | ✓         |
-| Eager transformations (prewarm)      | ✓              | ✓         |
+| Eager transformations (prewarm)      | ✓              | ✓ (self-hosted only) |
 | Upload presets                       | ✓              | ✗         |
 | Upload via remote URL (fetch)        | ✓              | ✗         |
 | Client-side upload (direct to cloud) | ✓              | ✓ (presigned) |
@@ -122,7 +120,7 @@ Openinary covers the **core transformation and delivery** use cases well: resize
 | File metadata (size, timestamps)     | ✓              | ✓         |
 | Custom metadata fields               | ✓              | ✗         |
 | Tags                                 | ✓              | ✗         |
-| Archive / ZIP creation               | ✓              | ✓         |
+| Archive / ZIP creation               | ✓              | ✓ (self-hosted only) |
 | Sprite generation                    | ✓              | ✗         |
 | PDF page extraction                  | ✓              | ✗         |
 
@@ -130,9 +128,9 @@ Openinary covers the **core transformation and delivery** use cases well: resize
 
 | Feature                     | Cloudinary     | Openinary        |
 | --------------------------- | -------------- | ---------------- |
-| Global CDN                  | ✓ (included)   | ✗ (self-managed) |
+| Global CDN                  | ✓ (included)   | ✓ (included on Cloud, yours to run when self-hosting) |
 | Cache invalidation          | ✓              | ✓                |
-| Signed / authenticated URLs | ✓              | ✓                |
+| Signed / authenticated URLs | ✓              | ✓ (self-hosted only for now) |
 | Custom domain               | ✓ (paid plans) | ✓ (self-hosted)  |
 | Rate limiting               | ✓ (plan-based) | ✓ (configurable) |
 | Download original           | ✓              | ✓                |
@@ -144,7 +142,7 @@ Openinary covers the **core transformation and delivery** use cases well: resize
 | API keys                       | ✓              | ✓                |
 | Session-based auth (dashboard) | ✓              | ✓                |
 | API key expiration             | ✓              | ✓                |
-| Multiple users                 | ✓              | ✗ (single admin) |
+| Multiple users / teams         | ✓              | ✗ (one account, one admin)         |
 | Role-based access control      | ✓              | ✗                |
 | OAuth / SSO                    | ✓ (Enterprise) | ✗                |
 | IP allowlist                   | ✓ (Enterprise) | ✗                |
@@ -189,43 +187,16 @@ Openinary covers the **core transformation and delivery** use cases well: resize
 
 | Feature               | Cloudinary          | Openinary           |
 | --------------------- | ------------------- | ------------------- |
-| Managed SaaS          | ✓                   | ✗                   |
-| Self-hosted / Docker  | ✓ (Enterprise only) | ✓                   |
+| Managed SaaS          | ✓                   | ✓                   |
+| Self-hosted / Docker  | ✓ (Enterprise only) | ✓ (any plan, AGPL)  |
 | S3-compatible storage | ✓                   | ✓                   |
 | SQLite database       | ✗                   | ✓                   |
-| Multi-region          | ✓                   | ✗ (single instance) |
+| Multi-region          | ✓                   | ✓ (edge-cached delivery on Cloud), single instance when self-hosting |
 | Open source           | ✗                   | ✓                   |
-| Free tier             | ✓ (limited)         | ✓ (self-hosted)     |
+| Free tier             | ✓ (limited)         | ✓ (Free plan, or self-host at no cost) |
 
 ---
 
-## When Openinary fits
+## Contributing
 
-- You want **full control** over your infrastructure and data.
-- Your use case is **core image/video delivery**: resize, crop, format, quality, signed URLs.
-- You are comfortable **managing your own hosting** (Docker, VPS, Coolify, Railway, …).
-- You want to avoid per-transformation or bandwidth costs from a SaaS vendor.
-- You are happy to trade some features today for open-source transparency and extensibility.
-
-## When Cloudinary is the better choice today
-
-- You need **AI/generative transformations** (background removal, gen fill, object removal).
-- You need **adaptive streaming** (HLS/DASH) for video.
-- You need **image effects** (blur, sharpen, overlays, text, watermarks).
-- You need a **managed CDN** without operating your own infrastructure.
-- You need **team access**, role-based permissions, or SSO.
-- You need a **full DAM** with search, tagging, metadata, and workflows.
-- You need **official SDKs** in your language.
-- You need **webhooks** for upload/transformation events.
-
----
-
-<Note>
-  Openinary is open source and actively looking for contributors. If something
-  on this list matters to you, that's a great starting point, pick a feature,
-  open a discussion, and help shape what gets built next. Every contribution,
-  big or small, moves the project forward. [Join the conversation on
-  GitHub](https://github.com/openinary/openinary/discussions) or [browse open
-  issues](https://github.com/openinary/openinary/issues).
-</Note>
-
+Openinary is open source and looking for contributors. If something on this list matters to you, that is a good place to start: pick a feature, open a discussion, and help shape what gets built. [Join the conversation](https://github.com/openinary/openinary/discussions) or [browse open issues](https://github.com/openinary/openinary/issues).

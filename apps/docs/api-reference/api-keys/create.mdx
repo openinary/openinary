@@ -3,35 +3,29 @@ title: "Create API Key"
 description: "Generate a new API key for authenticating requests"
 ---
 
-## Endpoint
+**Self-hosted only.** Cloud keys are created in the dashboard, not through the API.
+
+Post to `/api-keys/create` and the response carries the full key. That is the only time you see it, so store it immediately.
+
+```bash
+curl -X POST http://localhost:3000/api-keys/create \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production", "expiresIn": 31536000}'
+```
 
 ```
 POST /api-keys/create
 ```
 
-**Auth:** API Key or Session
-**Content-Type:** `application/json`
-
-<Note>
-  The full API key is only returned once at creation time. Store it securely, it
-  cannot be retrieved again.
-</Note>
+**Auth:** API Key or Session · **Content-Type:** `application/json`
 
 ## Body parameters
 
-<ParamField body="name" type="string">
-  A human-readable label to identify this key.
-
-`production` · `staging` · `ci-deploy`
-
-</ParamField>
-
-<ParamField body="expiresIn" type="number">
-  Expiration time in seconds from now. Defaults to 365 days (31536000).
-
-`86400` (1 day) · `2592000` (30 days) · `31536000` (1 year)
-
-</ParamField>
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `name` | string | | Human-readable label for this key |
+| `expiresIn` | number | `31536000` | Expiration in seconds from now, default 365 days |
 
 ## Response
 
@@ -50,43 +44,24 @@ POST /api-keys/create
 }
 ```
 
-<ResponseField name="success" type="boolean">
-  Whether the key was created.
-</ResponseField>
+| Field | Type | Notes |
+| --- | --- | --- |
+| `success` | boolean | Whether the key was created |
+| `apiKey` | object | The new key, fields below |
+| `message` | string | Reminder that the key is shown once |
 
-<ResponseField name="apiKey" type="object">
-  <Expandable title="API key object">
-    <ResponseField name="id" type="string">
-      Unique key identifier. Use this for update/delete operations.
-    </ResponseField>
-    <ResponseField name="key" type="string">
-      The full API key value. Only returned here, save it immediately.
-    </ResponseField>
-    <ResponseField name="name" type="string">
-      The key's display name.
-    </ResponseField>
-    <ResponseField name="start" type="string">
-      Key prefix for identification (safe to display).
-    </ResponseField>
-    <ResponseField name="createdAt" type="string">
-      ISO 8601 creation timestamp.
-    </ResponseField>
-    <ResponseField name="expiresAt" type="string">
-      ISO 8601 expiration timestamp.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+`apiKey` fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | string | Unique key identifier, used for update and delete |
+| `key` | string | The full API key value, only returned here |
+| `name` | string | The key's display name |
+| `start` | string | Key prefix, safe to display |
+| `createdAt` | string | ISO 8601 creation timestamp |
+| `expiresAt` | string | ISO 8601 expiration timestamp |
 
 **Status codes:** `200` success · `401` unauthorized · `500` error
-
-## Example
-
-```bash
-curl -X POST http://localhost:3000/api-keys/create \
-  -H "Authorization: Bearer <api_key>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "production", "expiresIn": 31536000}'
-```
 
 ## Related
 
@@ -102,4 +77,3 @@ curl -X POST http://localhost:3000/api-keys/create \
     Revoke a key.
   </Card>
 </CardGroup>
-

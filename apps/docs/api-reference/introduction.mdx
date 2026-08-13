@@ -1,117 +1,87 @@
 ---
 title: "API Reference"
-description: "Complete reference for the Openinary REST API"
+description: "Base URL, authentication, rate limits and every endpoint of a self-hosted Openinary instance"
 ---
 
-<Note>
-  This reference documents a **self-hosted** instance. Openinary Cloud has its
-  own base URL, authentication and endpoint set, see the [Cloud API
-  Reference](/cloud/api).
-</Note>
-
-## Base URL
-
-All endpoints are relative to your Openinary server URL.
-
-```
-http://localhost:3000   # default local setup
-https://your-domain.com # self-hosted production
-```
-
-## Authentication
-
-Protected endpoints require an API key passed as a Bearer token.
+Everything is relative to your instance URL, and protected endpoints take an API key as a Bearer token.
 
 ```http
+GET http://localhost:3000/storage
 Authorization: Bearer <your_api_key>
 ```
 
-Generate API keys from the dashboard (`/api-keys`) or via the [API Keys API](/api-reference/api-keys/create). In API-only mode, the first key is printed to the server logs on startup.
+Create keys from the dashboard at `/api-keys` or through the [API Keys API](/api-reference/api-keys/create). In API-only mode the first key is printed to the server logs at startup. Every API-key endpoint also accepts a dashboard session cookie, which is how the dashboard calls storage and upload without minting a key for itself.
 
-<Note>
-  Every API-key endpoint also accepts a dashboard session cookie, not just the
-  API key management ones. That is how the dashboard calls storage, queue and
-  upload without minting a key for itself.
-</Note>
+**These endpoints work on both Cloud and self-hosted**, with the same request and response shapes. The pages that do not are marked **Self-hosted only** at the top. On Cloud the delivery URL carries a bucket prefix and keys travel as `x-api-key` or `Authorization`, see [what differs on Cloud](/cloud/api).
+
+## Endpoints
+
+| Group | Endpoint | Auth |
+| --- | --- | --- |
+| **Media** | `GET /t/{transformations}/{path}` | Public |
+| | `GET /authenticated/s--{sig}/{transformations}/{path}` | Signed URL |
+| **Files** | `POST /upload` | API key or presigned |
+| | `POST /upload/sign` | API key |
+| | `POST /upload/createfolder` | API key |
+| | `GET /download/{path}` | Public |
+| | `GET /download-folder/{path}` | Public |
+| | `POST /download-zip` | API key |
+| **Storage** | `GET /storage` | API key |
+| | `GET /storage/folders` | API key |
+| | `GET /storage/folder-summaries` | API key |
+| | `GET /storage/stats` | API key |
+| | `POST /storage/stats/recalculate` | API key |
+| | `GET /storage/{path}/metadata` | API key |
+| | `PATCH /storage/{path}` | API key |
+| | `POST /storage/{path}/move` | API key |
+| | `POST /storage/{path}/copy` | API key |
+| | `DELETE /storage/{path}` | API key |
+| **Cache** | `DELETE /invalidate/{path}` | API key |
+| | `POST /storage/cache/clear` | API key |
+| **Video** | `GET /video-status/{transformations}/{path}` | Public |
+| | `GET /video-status/{transformations}/{path}/size` | Public |
+| **Queue** | `GET /queue/stats` | API key |
+| | `GET /queue/worker/stats` | API key |
+| | `GET /queue/jobs` | API key |
+| | `POST /queue/jobs/{jobId}/retry` | API key |
+| | `POST /queue/jobs/{jobId}/cancel` | API key |
+| | `DELETE /queue/jobs/{jobId}` | API key |
+| | `GET /queue/events` | Public |
+| **API Keys** | `POST /api-keys/create` | API key or session |
+| | `GET /api-keys/list` | API key or session |
+| | `PATCH /api-keys/{keyId}` | API key or session |
+| | `DELETE /api-keys/{keyId}` | API key or session |
+| **Health** | `GET /health` | Public |
+| | `GET /health/database` | API key |
 
 ## Rate limiting
 
-Public endpoints are rate-limited by IP address.
+Public routes are limited by IP: 100 requests per 60 seconds, tunable with `PUBLIC_RATE_LIMIT_MAX` and `PUBLIC_RATE_LIMIT_WINDOW_MS`. Every response carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`.
 
-| Default                   | Configurable via                                       |
-| ------------------------- | ------------------------------------------------------ |
-| 100 requests / 60 seconds | `PUBLIC_RATE_LIMIT_MAX`, `PUBLIC_RATE_LIMIT_WINDOW_MS` |
+Most API-key endpoints sit outside that limiter, but `POST /upload` and `GET /health/database` do not, so a burst of uploads can be throttled even with a valid key.
 
-Rate limit headers are included in every response:
+## Errors
 
-| Header                  | Description                                    |
-| ----------------------- | ---------------------------------------------- |
-| `X-RateLimit-Limit`     | Maximum requests allowed in the current window |
-| `X-RateLimit-Remaining` | Requests remaining in the current window       |
-| `X-RateLimit-Reset`     | Unix timestamp when the window resets          |
-
-Most API-key endpoints sit outside the public rate limiter, but not all: `POST /upload` and `GET /health/database` are behind it as well, so a burst of uploads can be throttled even with a valid key.
-
-## Endpoints overview
-
-| Group        | Endpoint                                               | Auth                |
-| ------------ | ------------------------------------------------------ | ------------------- |
-| **Media**    | `GET /t/{transformations}/{path}`                      | Public              |
-|              | `GET /authenticated/s--{sig}/{transformations}/{path}` | Signed URL          |
-| **Files**    | `POST /upload`                                         | API Key / presigned |
-|              | `POST /upload/sign`                                    | API Key             |
-|              | `POST /upload/createfolder`                            | API Key             |
-|              | `GET /download/{path}`                                 | Public              |
-|              | `GET /download-folder/{path}`                          | Public              |
-|              | `POST /download-zip`                                   | API Key             |
-| **Storage**  | `GET /storage`                                         | API Key             |
-|              | `GET /storage/folders`                                 | API Key             |
-|              | `GET /storage/{path}/metadata`                         | API Key             |
-|              | `PATCH /storage/{path}`                                | API Key             |
-|              | `POST /storage/{path}/move`                            | API Key             |
-|              | `POST /storage/{path}/copy`                            | API Key             |
-|              | `DELETE /storage/{path}`                               | API Key             |
-| **Cache**    | `DELETE /invalidate/{path}`                            | API Key             |
-| **Queue**    | `GET /queue/stats`                                     | API Key             |
-|              | `GET /queue/worker/stats`                              | API Key             |
-|              | `GET /queue/jobs`                                      | API Key             |
-|              | `POST /queue/jobs/{jobId}/retry`                       | API Key             |
-|              | `POST /queue/jobs/{jobId}/cancel`                      | API Key             |
-|              | `DELETE /queue/jobs/{jobId}`                           | API Key             |
-|              | `GET /queue/events`                                    | Public              |
-| **API Keys** | `POST /api-keys/create`                                | API Key / Session   |
-|              | `GET /api-keys/list`                                   | API Key / Session   |
-|              | `PATCH /api-keys/{keyId}`                              | API Key / Session   |
-|              | `DELETE /api-keys/{keyId}`                             | API Key / Session   |
-| **Health**   | `GET /health`                                          | Public              |
-|              | `GET /health/database`                                 | API Key             |
-
-## Error responses
-
-JSON errors carry a short `error` label and a `message` explaining it:
+JSON errors carry a short `error` label and a `message`:
 
 ```json
-{
-  "error": "Bad request",
-  "message": "Human-readable explanation"
-}
+{ "error": "Bad request", "message": "Human-readable explanation" }
 ```
 
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid parameters or missing required fields |
+| `401` | Missing or invalid API key |
+| `403` | Valid key, insufficient permissions |
+| `404` | Not found |
+| `409` | Resource already exists |
+| `429` | Rate limit exceeded |
+| `500` | Internal server error |
+
 <Warning>
-  The media delivery routes (`/t/*` and `/authenticated/*`) return **plain
-  text**, not JSON. Parsing every error body as JSON will throw on exactly the
-  routes your users hit most. Check the response `Content-Type` first.
+  The delivery routes `/t/*` and `/authenticated/*` return **plain text**, not
+  JSON. Parsing every error body as JSON throws on exactly the routes your users
+  hit most. Check `Content-Type` first.
 </Warning>
 
-A few endpoints add fields on top of that pair. [Delete](/api-reference/storage/delete) returns a `details` object listing what was cleaned up, and [Invalidate Cache](/api-reference/cache/invalidate) returns an `errors` array. Neither is a general envelope.
-
-| Status | Meaning                                                    |
-| ------ | ---------------------------------------------------------- |
-| `400`  | Bad request, invalid parameters or missing required fields |
-| `401`  | Unauthorized, missing or invalid API key                   |
-| `403`  | Forbidden, valid key but insufficient permissions          |
-| `404`  | Not found                                                  |
-| `409`  | Conflict, resource already exists                          |
-| `429`  | Rate limit exceeded                                        |
-| `500`  | Internal server error                                      |
-
+Two endpoints add fields on top of that pair: [delete](/api-reference/storage/delete) returns a `details` object, and [invalidate](/api-reference/cache/invalidate) returns an `errors` array. Neither is a general envelope.

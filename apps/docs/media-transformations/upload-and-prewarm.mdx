@@ -3,7 +3,16 @@ title: "Upload & Cache Warming"
 description: "Upload images and videos via the API and pre-generate transformed variants so the first public request is served instantly from cache."
 ---
 
-`POST /upload` accepts one or more files and an optional list of `transformations`. When transformations are provided, Openinary generates and caches each variant immediately, so the first user request is served from cache instead of triggering on-demand processing.
+Send a `transformations` list with an upload and Openinary renders those variants right away, so the first visitor hits a warm cache instead of paying for the processing.
+
+```bash
+curl -X POST http://localhost:3000/upload \
+  -H "Authorization: Bearer <api_key>" \
+  -F "files=@photo.jpg" \
+  -F 'transformations=["w_800,f_webp", "w_400,h_400,c_fill"]'
+```
+
+It matters most for video, where an unwarmed first request answers `202` and makes the visitor wait for an encode.
 
 For the full endpoint reference, all parameters, form fields, and response schema, see the [Upload Files API reference](/api-reference/files/upload).
 
@@ -133,7 +142,7 @@ console.log(data);
 ## Limits
 
 - Max **20 transformations** per upload request.
-- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#max-file-size-mb), useful for large video uploads in self-hosted setups.
+- Max file size defaults to **50 MB**. Configurable via [`MAX_FILE_SIZE_MB`](/configuration/server#upload-and-rate-limiting), useful for large video uploads in self-hosted setups.
 
 ## Tips
 

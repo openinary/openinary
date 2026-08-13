@@ -1,6 +1,6 @@
 ---
 title: "Delete File or Folder"
-description: "Permanently delete a file or an entire folder from storage along with all cached transformation variants"
+description: "Permanently delete a file or folder, with all its cached transformation variants"
 ---
 
 <Warning>
@@ -10,23 +10,26 @@ description: "Permanently delete a file or an entire folder from storage along w
   Check the path before you send it.
 </Warning>
 
-## Endpoint
+Deletes the file or folder at `{path}`, along with its cached transformation variants.
 
 ```
 DELETE /storage/{path}
 ```
 
+```bash
+curl -X DELETE http://localhost:3000/storage/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>"
+```
+
+To clear cached variants and keep the original, use [Invalidate Cache](/api-reference/cache/invalidate) instead.
+
 **Auth:** API key required. A dashboard session cookie also works.
 
 ## Path parameters
 
-<ParamField path="path" type="string" required>
-  Path to the file or folder relative to the storage root. Use the `path` of a
-  file or folder returned by [List Storage](/api-reference/storage/list).
-
-`photo.jpg` · `photos/portrait.jpg` · `photos/2026`
-
-</ParamField>
+| Param  | Type   | Required | Description                                                                                                                                        |
+| ------ | ------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `path` | string | yes      | Path to the file or folder relative to the storage root, e.g. `photos/2026`. Use the `path` of a file or folder returned by [List Storage](/api-reference/storage/list). |
 
 ## Response
 
@@ -42,32 +45,21 @@ DELETE /storage/{path}
 }
 ```
 
-<ResponseField name="success" type="boolean">
-  `true` when the delete completed with no errors.
-</ResponseField>
+| Field     | Type    | Description                                    |
+| --------- | ------- | ---------------------------------------------- |
+| `success` | boolean | `true` when the delete completed with no errors |
+| `message` | string  | Human-readable result summary                   |
+| `details` | object  | Counters, below                                 |
 
-<ResponseField name="message" type="string">
-  Human-readable result summary.
-</ResponseField>
+- `jobsDeleted`, number: queued processing jobs cancelled and removed
+- `localCacheFilesDeleted`, number: cached transformation variants removed from local disk
+- `cloudCacheFilesDeleted`, number: cached transformation variants removed from cloud storage
 
-<ResponseField name="details" type="object">
-  <Expandable title="Details">
-    <ResponseField name="jobsDeleted" type="number">
-      Number of queued processing jobs cancelled and removed.
-    </ResponseField>
-    <ResponseField name="localCacheFilesDeleted" type="number">
-      Number of cached transformation variants removed from local disk.
-    </ResponseField>
-    <ResponseField name="cloudCacheFilesDeleted" type="number">
-      Number of cached transformation variants removed from cloud storage.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+Deleting a folder on cloud storage returns early once the folder is removed, so `jobsDeleted` and the cache counters stay at `0` even though the folder's objects are gone.
 
 ### Partial deletion
 
-If the original was removed but some cleanup step failed, the response has a
-different shape: no `success` field, and an `errors` array inside `details`.
+If the original was removed but some cleanup step failed, the response has a different shape: no `success` field, and an `errors` array inside `details`.
 
 ```json
 {
@@ -83,43 +75,14 @@ different shape: no `success` field, and an `errors` array inside `details`.
 }
 ```
 
-The status is `200` when `originalFileDeleted` is `true` and `500` when it is
-`false`. Branch on the presence of `error`, not on `success`.
+The status is `200` when `originalFileDeleted` is `true` and `500` when it is `false`. Branch on the presence of `error`, not on `success`.
 
-**Status codes:**
-
-| Code  | Meaning                                                       |
-| ----- | ------------------------------------------------------------- |
-| `200` | Deleted, or deleted with non-fatal cleanup errors             |
-| `400` | Path is missing                                               |
-| `404` | Nothing exists at that path                                   |
-| `500` | The original could not be deleted                             |
-
-<Note>
-  Deleting a folder on cloud storage returns early once the folder is removed,
-  so `jobsDeleted` and the cache counters stay at `0` even though the folder's
-  objects are gone.
-</Note>
-
-## Examples
-
-Delete one file:
-
-```bash
-curl -X DELETE http://localhost:3000/storage/photos/portrait.jpg \
-  -H "Authorization: Bearer <api_key>"
-```
-
-Delete a folder and everything under it:
-
-```bash
-curl -X DELETE http://localhost:3000/storage/photos/2026 \
-  -H "Authorization: Bearer <api_key>"
-```
-
-## Cache-only invalidation
-
-To clear cached variants without deleting the original file, use [Invalidate Cache](/api-reference/cache/invalidate) instead.
+| Code  | Meaning                                           |
+| ----- | ------------------------------------------------- |
+| `200` | Deleted, or deleted with non-fatal cleanup errors |
+| `400` | Path is missing                                   |
+| `404` | Nothing exists at that path                       |
+| `500` | The original could not be deleted                 |
 
 ## Related
 

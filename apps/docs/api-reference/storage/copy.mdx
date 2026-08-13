@@ -3,65 +3,11 @@ title: "Copy File"
 description: "Duplicate a file inside its own folder"
 ---
 
-## Endpoint
+Duplicates a file inside its own folder. The endpoint takes no request body, and there is no way to copy into a different folder in one call: copy the file, then [move](/api-reference/storage/move) it.
 
 ```
 POST /storage/{path}/copy
 ```
-
-**Auth:** API key required. A dashboard session cookie also works.
-
-<Note>
-  A copy always lands in the source file's own folder. This endpoint takes no
-  request body, and there is no way to copy into a different folder in one call.
-  To place a duplicate elsewhere, copy it and then
-  [move](/api-reference/storage/move) it.
-</Note>
-
-<Note>
-  Only files can be copied. A folder path returns `404`. To copy a folder, copy
-  its files one by one.
-</Note>
-
-## Path parameters
-
-<ParamField path="path" type="string" required>
-  Path to the file relative to the storage root. Use the `path` of a file
-  returned by [List Storage](/api-reference/storage/list).
-
-`photo.jpg` · `photos/portrait.jpg`
-
-</ParamField>
-
-## Response
-
-```json
-{
-  "success": true,
-  "path": "photos/portrait copy.jpg"
-}
-```
-
-<ResponseField name="success" type="boolean">
-  `true` if the copy succeeded.
-</ResponseField>
-
-<ResponseField name="path" type="string">
-  Path of the new copy. The name is the source name with ` copy` appended before
-  the extension. If that name is taken, a counter is added: `portrait copy.jpg`,
-  then `portrait copy (1).jpg`, `portrait copy (2).jpg`, and so on.
-</ResponseField>
-
-**Status codes:**
-
-| Code  | Meaning                                        |
-| ----- | ---------------------------------------------- |
-| `200` | Copy created                                   |
-| `400` | Path is missing                                |
-| `404` | File not found, or the path is a folder        |
-| `500` | Storage backend failed to copy                 |
-
-## Example
 
 ```bash
 curl -X POST http://localhost:3000/storage/photos/portrait.jpg/copy \
@@ -71,6 +17,30 @@ curl -X POST http://localhost:3000/storage/photos/portrait.jpg/copy \
 ```json
 { "success": true, "path": "photos/portrait copy.jpg" }
 ```
+
+Only files can be copied. A folder path returns `404`, so copy a folder's files one by one.
+
+**Auth:** API key required. A dashboard session cookie also works.
+
+## Path parameters
+
+| Param  | Type   | Required | Description                                                                                                                       |
+| ------ | ------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `path` | string | yes      | Path to the file relative to the storage root, e.g. `photos/portrait.jpg`. Use the `path` of a file returned by [List Storage](/api-reference/storage/list). |
+
+## Response
+
+| Field     | Type    | Description                                                                                                                                                                          |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `success` | boolean | `true` if the copy succeeded                                                                                                                                                           |
+| `path`    | string  | Path of the new copy. The name is the source name with ` copy` appended before the extension. If that name is taken, a counter is added: `portrait copy.jpg`, then `portrait copy (1).jpg`, `portrait copy (2).jpg`, and so on |
+
+| Code  | Meaning                                 |
+| ----- | --------------------------------------- |
+| `200` | Copy created                            |
+| `400` | Path is missing                         |
+| `404` | File not found, or the path is a folder |
+| `500` | Storage backend failed to copy          |
 
 ## Related
 

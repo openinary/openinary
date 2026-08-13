@@ -1,34 +1,108 @@
 ---
 title: "Image Transformations"
-description: "Resize, crop, rotate, and optimize images with URL-based parameters"
+description: "Common image recipes: thumbnails, avatars, banners, and format conversion"
 ---
 
-All image transformation parameters, accepted values, and examples are documented in the API reference.
+Put parameters after `/t/`, in any order, separated by commas.
 
-<Card
-  title="Image Parameters, API Reference"
-  icon="code"
-  href="/api-reference/media/transform#image-parameters"
->
-  Full reference: `w`, `h`, `c`, `ar`, `a`, `g`, `b`, `r`, `q`, `f`, with crop
-  modes, gravity options, round corners, quality ranges, format table, and
-  examples.
-</Card>
+```http
+GET /t/w_800,h_600,c_fill/photos/portrait.jpg
+```
+
+The full parameter table lives in the [API reference](/api-reference/media/transform#image-parameters). This page is the shortest path to the things people actually build.
+
+## Recipes
+
+**A thumbnail that always has the same dimensions**
+
+```http
+GET /t/w_400,h_300,c_fill/photo.jpg
+```
+
+`c_fill` crops the overflow, so every thumbnail comes out exactly 400x300 whatever the source ratio. Use `c_pad,b_rgb:f5f5f5` instead if you would rather letterbox than crop.
+
+**An avatar cropped on the subject**
+
+```http
+GET /t/w_400,h_400,c_fill,g_face/portrait.jpg
+```
+
+`g_face` picks the most visually salient region rather than the geometric center, which on a portrait is normally the face. Add `r_max` for a circle:
+
+```http
+GET /t/w_400,h_400,c_fill,g_face,r_max,f_png/portrait.jpg
+```
+
+Rounded corners are cut to transparency, so pair them with `f_png`, `f_webp` or `f_avif`. On a solid background, `b_rgb:ffffff` fills the corners and lets you stay on JPEG.
+
+**A banner at a fixed ratio**
+
+```http
+GET /t/ar_16:9,w_1920/banner.jpg
+```
+
+`ar` crops to the ratio, `w` sets the size. You do not need `h`.
+
+**The smallest file each browser can take**
+
+```http
+GET /t/w_1200/photo.jpg
+```
+
+Request no format and Openinary serves AVIF, WebP or JPEG depending on what the browser accepts. See [automatic format selection](/media-transformations/intelligent-compression).
+
+**A specific format**
+
+```http
+GET /t/w_1200,f_avif,q_80/photo.jpg
+```
+
+## Responsive images
+
+Nothing special is required: build a `srcset` by varying `w`. Each width is rendered once and cached from then on.
+
+```html
+<img
+  src="https://media.example.com/t/w_800/photo.jpg"
+  srcset="
+    https://media.example.com/t/w_400/photo.jpg   400w,
+    https://media.example.com/t/w_800/photo.jpg   800w,
+    https://media.example.com/t/w_1600/photo.jpg 1600w
+  "
+  sizes="(max-width: 600px) 400px, 800px"
+  alt=""
+/>
+```
+
+## Related
 
 <CardGroup cols={2}>
+  <Card
+    title="All image parameters"
+    icon="code"
+    href="/api-reference/media/transform#image-parameters"
+  >
+    The full table: crop modes, gravity, corners, quality, formats.
+  </Card>
   <Card
     title="Automatic Format Selection"
     icon="wand-magic-sparkles"
     href="/media-transformations/intelligent-compression"
   >
-    How Openinary picks AVIF, WebP, or JPEG automatically.
+    How the default format and quality are chosen.
   </Card>
   <Card
     title="Upload & Cache Warming"
     icon="upload"
     href="/media-transformations/upload-and-prewarm"
   >
-    Pre-generate variants at upload time for instant first response.
+    Pre-generate variants so the first visitor hits a warm cache.
+  </Card>
+  <Card
+    title="Signed URLs"
+    icon="lock"
+    href="/media-transformations/signed-urls"
+  >
+    Restrict which transformations can be requested.
   </Card>
 </CardGroup>
-

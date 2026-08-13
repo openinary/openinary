@@ -3,29 +3,27 @@ title: "Move File or Folder"
 description: "Move a file or folder into a different parent folder"
 ---
 
-## Endpoint
+Moves one file or folder into another folder. There is no bulk endpoint, so call it once per item.
 
 ```
 POST /storage/{path}/move
 ```
 
+```bash
+curl -X POST http://localhost:3000/storage/photos/portrait.jpg/move \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"destination": "archive"}'
+```
+
 **Auth:** API Key required
 
-## Path parameters
+## Parameters
 
-<ParamField path="path" type="string" required>
-  Path to the file or folder relative to the storage root. Use the `id` from [List Storage](/api-reference/storage/list).
-
-  `photo.jpg` · `photos/portrait.jpg` · `photos`
-</ParamField>
-
-## Body parameters
-
-<ParamField body="destination" type="string">
-  Path to the destination folder, relative to the storage root. Omit or leave empty to move to the root.
-
-  `archive` · `photos/2024`
-</ParamField>
+| Param         | In   | Type   | Required | Description                                                                                                        |
+| ------------- | ---- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `path`        | path | string | yes      | Path to the file or folder relative to the storage root, e.g. `photos/portrait.jpg`. Use the `path` from [List Storage](/api-reference/storage/list). |
+| `destination` | body | string | no       | Destination folder, relative to the storage root, e.g. `photos/2024`. Omit or leave empty to move to the root.       |
 
 ## Response
 
@@ -36,28 +34,12 @@ POST /storage/{path}/move
 }
 ```
 
-<ResponseField name="success" type="boolean">
-  `true` if the move succeeded.
-</ResponseField>
-
-<ResponseField name="path" type="string">
-  The new full path of the file or folder.
-</ResponseField>
+| Field     | Type    | Description                             |
+| --------- | ------- | --------------------------------------- |
+| `success` | boolean | `true` if the move succeeded            |
+| `path`    | string  | The new full path of the file or folder |
 
 **Status codes:** `200` success · `400` already in that folder · `404` not found · `500` error
-
-<Note>
-  There is no bulk/batch move endpoint. To move multiple items, call this endpoint once per file or folder.
-</Note>
-
-## Example
-
-```bash
-curl -X POST http://localhost:3000/storage/photos/portrait.jpg/move \
-  -H "Authorization: Bearer <api_key>" \
-  -H "Content-Type: application/json" \
-  -d '{"destination": "archive"}'
-```
 
 ## Related
 

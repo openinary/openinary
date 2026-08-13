@@ -1,9 +1,16 @@
 ---
 title: "List API Keys"
-description: "Retrieve all API keys for the account"
+description: "Retrieve every API key on the account"
 ---
 
-## Endpoint
+**Self-hosted only.** Cloud keys are managed in the dashboard, not through the API.
+
+Returns every key on the account, without the secret values. Use `id` for update and delete calls.
+
+```bash
+curl http://localhost:3000/api-keys/list \
+  -H "Authorization: Bearer <api_key>"
+```
 
 ```
 GET /api-keys/list
@@ -33,50 +40,22 @@ GET /api-keys/list
 }
 ```
 
-<ResponseField name="keys" type="array">
-  <Expandable title="Key object">
-    <ResponseField name="id" type="string">
-      Unique identifier. Used for update/delete.
-    </ResponseField>
-    <ResponseField name="name" type="string">
-      Display name.
-    </ResponseField>
-    <ResponseField name="start" type="string">
-      Key prefix, safe to display, uniquely identifies the key without exposing
-      the full value.
-    </ResponseField>
-    <ResponseField name="prefix" type="string">
-      Key type prefix. `null` if no prefix is configured.
-    </ResponseField>
-    <ResponseField name="enabled" type="boolean">
-      Whether the key is currently active.
-    </ResponseField>
-    <ResponseField name="expiresAt" type="string">
-      ISO 8601 expiration timestamp.
-    </ResponseField>
-    <ResponseField name="createdAt" type="string">
-      ISO 8601 creation timestamp.
-    </ResponseField>
-    <ResponseField name="updatedAt" type="string">
-      ISO 8601 last-modified timestamp.
-    </ResponseField>
-    <ResponseField name="remaining" type="number">
-      Remaining request quota. `null` if unlimited.
-    </ResponseField>
-    <ResponseField name="rateLimitEnabled" type="boolean">
-      Whether per-key rate limiting is configured.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+Each entry in `keys`:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | string | Unique identifier, used for update and delete |
+| `name` | string | Display name |
+| `start` | string | Key prefix, safe to display. Identifies the key without exposing its value |
+| `prefix` | string | Key type prefix. `null` if none is configured |
+| `enabled` | boolean | Whether the key is currently active |
+| `expiresAt` | string | ISO 8601 expiration timestamp |
+| `createdAt` | string | ISO 8601 creation timestamp |
+| `updatedAt` | string | ISO 8601 last-modified timestamp |
+| `remaining` | number | Remaining request quota. `null` if unlimited |
+| `rateLimitEnabled` | boolean | Whether per-key rate limiting is configured |
 
 **Status codes:** `200` success · `401` unauthorized · `500` error
-
-## Example
-
-```bash
-curl http://localhost:3000/api-keys/list \
-  -H "Authorization: Bearer <api_key>"
-```
 
 ## Related
 
@@ -99,4 +78,3 @@ curl http://localhost:3000/api-keys/list \
     Revoke a key permanently.
   </Card>
 </CardGroup>
-

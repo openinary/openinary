@@ -3,28 +3,15 @@ title: "Signed URLs"
 description: "Restrict transformation access with HMAC-signed URLs that cannot be forged or tampered with"
 ---
 
-## Overview
-
-By default, the `/t/*` route is public, anyone who knows the URL can request a transformation. **Signed URLs** let you lock that down. Each signed URL carries a cryptographic signature that the server verifies before serving the asset. A signature that does not verify is rejected with `401 Unauthorized`. One that is missing or the wrong length is rejected earlier, with `400 Bad Request`, before any comparison happens.
-
-This is useful when you want to:
-
-- Prevent hotlinking or unauthorized transformation of private assets
-- Control which transformations are allowed for a given file
-- Ensure only your backend can generate valid delivery URLs
-
-## How it works
-
-Signed URLs use **HMAC-SHA256** with a shared secret (`API_SECRET`) to produce a 16-character signature. The signature is embedded in the URL path. On every request the server recomputes the expected signature and compares it using a timing-safe operation.
+`/t/*` is public: anyone who knows a URL can request any transformation of it. Signed URLs close that off. Your backend signs the exact URL it wants to allow, and the server refuses anything else.
 
 ```
 /authenticated/s--{signature}/{transformations}/{file-path}
 ```
 
-The signature is computed over:
+The signature is an HMAC-SHA256 of the path, keyed on `API_SECRET`, truncated to 16 hex characters. On every request the server recomputes it and compares in constant time. A signature that does not verify gets `401`. One that is missing or the wrong length gets `400`, before any comparison happens.
 
-- `{transformations}/{file-path}` when a transformation string is present
-- `{file-path}` alone when no transformation is applied
+Sign `{transformations}/{file-path}` when there are transformations, `{file-path}` alone when there are none. Change either part of the URL and the signature stops matching, which is what stops a visitor editing `w_200` into `w_5000`.
 
 ## Setup
 
@@ -32,11 +19,7 @@ The signature is computed over:
 
 Add `API_SECRET` to your environment. It must be at least 16 characters long.
 
-<Note>
-  If you scaffolded or upgraded your project with the [Openinary
-  CLI](/quickstart), a 64-character `API_SECRET` is already generated for you in
-  `.env`, you can skip straight to step 2.
-</Note>
+Scaffolded with the [Openinary CLI](/quickstart)? A 64-character `API_SECRET` is already in your `.env`, so skip to step 2.
 
 ```bash
 # Generate a strong secret
