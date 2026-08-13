@@ -30,23 +30,23 @@ The `bucketId` is the `/b/.../` segment of the `url` an upload returns. It appea
 
 Every endpoint below behaves exactly as the shared reference describes it.
 
-| Group | Endpoints |
-| --- | --- |
-| Files | [`POST /upload`](/api-reference/files/upload) · [`POST /upload/sign`](/api-reference/files/upload-sign) · [`POST /upload/createfolder`](/api-reference/files/create-folder) · [`GET /download/{path}`](/api-reference/files/download) |
+| Group   | Endpoints                                                                                                                                                                                                                                                                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Files   | [`POST /upload`](/api-reference/files/upload) · [`POST /upload/sign`](/api-reference/files/upload-sign) · [`POST /upload/createfolder`](/api-reference/files/create-folder) · [`GET /download/{path}`](/api-reference/files/download)                                                                                                                         |
 | Storage | [list](/api-reference/storage/list) · [folders](/api-reference/storage/folders) · [summaries, stats, recalculate](/api-reference/storage/stats) · [metadata](/api-reference/storage/metadata) · [rename](/api-reference/storage/rename) · [move](/api-reference/storage/move) · [copy](/api-reference/storage/copy) · [delete](/api-reference/storage/delete) |
-| Cache | [`POST /storage/cache/clear`](/api-reference/cache/invalidate) |
-| Video | [`GET /video-status/{path}`](/api-reference/video/status) · [`GET /queue/events`](/api-reference/queue/events) |
+| Cache   | [`POST /storage/cache/clear`](/api-reference/cache/invalidate)                                                                                                                                                                                                                                                                                                |
+| Video   | [`GET /video-status/{path}`](/api-reference/video/status) · [`GET /queue/events`](/api-reference/queue/events)                                                                                                                                                                                                                                                |
 
-## What Cloud does not have
+## What Cloud does not have (yet)
 
-| Missing | What to do instead |
-| --- | --- |
-| `/authenticated/s--{sig}/…` signed delivery URLs | Keep genuinely private assets off Cloud for now |
-| `/api-keys/*` | Manage keys in the dashboard |
-| `/queue/stats`, `/queue/worker/stats`, `/queue/jobs` | Use `/queue/events` for live job updates |
-| `DELETE /invalidate/{path}` | `POST /storage/cache/clear`, or delete and re-upload the asset |
-| `/download-folder`, `/download-zip` | Download files individually |
-| `/health` | Status is reported in the dashboard |
+| Missing                                              | What to do instead                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| `/authenticated/s--{sig}/…` signed delivery URLs     | Keep genuinely private assets off Cloud for now                |
+| `/api-keys/*`                                        | Manage keys in the dashboard                                   |
+| `/queue/stats`, `/queue/worker/stats`, `/queue/jobs` | Use `/queue/events` for live job updates                       |
+| `DELETE /invalidate/{path}`                          | `POST /storage/cache/clear`, or delete and re-upload the asset |
+| `/download-folder`, `/download-zip`                  | Download files individually                                    |
+| `/health`                                            | Status is reported in the dashboard                            |
 
 The `transformations` field on `POST /upload`, which prewarms variants on self-hosted, is accepted and ignored. Variants are generated on the first request instead.
 
@@ -70,15 +70,15 @@ A video URL carrying no parameters is never transcoded. It streams the stored fi
 
 Same error shape as self-hosted, plus one status code of its own.
 
-| Status | Meaning |
-| --- | --- |
-| `400` | Invalid parameters, unsupported file type, or a malformed path |
-| `401` | Missing, invalid, disabled or expired API key, or an expired upload signature |
-| `402` | A plan limit was reached |
-| `403` | Account suspended |
-| `404` | No such file, folder, bucket, or job |
-| `429` | Rate limited |
-| `500` | Something broke on our side |
+| Status | Meaning                                                                       |
+| ------ | ----------------------------------------------------------------------------- |
+| `400`  | Invalid parameters, unsupported file type, or a malformed path                |
+| `401`  | Missing, invalid, disabled or expired API key, or an expired upload signature |
+| `402`  | A plan limit was reached                                                      |
+| `403`  | Account suspended                                                             |
+| `404`  | No such file, folder, bucket, or job                                          |
+| `429`  | Rate limited                                                                  |
+| `500`  | Something broke on our side                                                   |
 
 A `402` names the allowance that ran out:
 
@@ -96,9 +96,9 @@ A `402` names the allowance that ran out:
 
 ## Rate limits
 
-| Scope | Limit |
-| --- | --- |
-| CDN delivery, per IP | 300 requests / 60s |
+| Scope                     | Limit                |
+| ------------------------- | -------------------- |
+| CDN delivery, per IP      | 300 requests / 60s   |
 | CDN delivery, per account | 1,000 requests / 60s |
 
 Both apply to the `/b/*` delivery path only, and both answer `429`. Upload, signing and storage calls are not rate limited. They exist to stop abuse rather than to shape normal traffic, so get in touch before you expect to run against them.
