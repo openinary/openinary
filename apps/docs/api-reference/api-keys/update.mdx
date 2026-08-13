@@ -8,7 +8,7 @@ description: "Rename or enable/disable an existing API key"
 Patch a key by its ID to rename it, or to disable it without deleting it. Send only the fields you want to change.
 
 ```bash
-curl -X PATCH http://localhost:3000/api-keys/key_abc123 \
+curl -X PATCH https://media.example.com/api-keys/key_abc123 \
   -H "Authorization: Bearer <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"name": "production-v2"}'
@@ -33,7 +33,7 @@ Get `keyId` from [List API Keys](/api-reference/api-keys/list).
 ## Disable a key
 
 ```bash
-curl -X PATCH http://localhost:3000/api-keys/key_abc123 \
+curl -X PATCH https://media.example.com/api-keys/key_abc123 \
   -H "Authorization: Bearer <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"enabled": false}'

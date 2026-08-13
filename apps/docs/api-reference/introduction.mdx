@@ -1,18 +1,31 @@
 ---
 title: "API Reference"
-description: "Base URL, authentication, rate limits and every endpoint of a self-hosted Openinary instance"
+description: "Base URL, authentication, rate limits and every endpoint, documented once for Cloud and self-hosted"
 ---
 
-Everything is relative to your instance URL, and protected endpoints take an API key as a Bearer token.
+Every path below is relative to your base URL, and protected endpoints take an API key as a Bearer token.
 
 ```http
-GET http://localhost:3000/storage
+GET https://cdn.openinary.dev/storage
 Authorization: Bearer <your_api_key>
 ```
 
-Create keys from the dashboard at `/api-keys` or through the [API Keys API](/api-reference/api-keys/create). In API-only mode the first key is printed to the server logs at startup. Every API-key endpoint also accepts a dashboard session cookie, which is how the dashboard calls storage and upload without minting a key for itself.
+## Base URL
 
-**These endpoints work on both Cloud and self-hosted**, with the same request and response shapes. The pages that do not are marked **Self-hosted only** at the top. On Cloud the delivery URL carries a bucket prefix and keys travel as `x-api-key` or `Authorization`, see [what differs on Cloud](/cloud/api).
+| Running on | Base URL |
+| --- | --- |
+| Cloud | `https://cdn.openinary.dev` |
+| Self-hosted | your instance origin, e.g. `https://media.example.com`, or `http://localhost:3000` in development |
+
+Examples on these pages use the Cloud host. Self-hosted, swap the origin and every request is otherwise identical. Delivery is the one path that differs: on Cloud it carries a bucket prefix, `/b/{bucketId}/t/...`, see [your base URL](/media-transformations/overview#your-base-url).
+
+## Authentication
+
+On Cloud, create keys in the dashboard at [app.openinary.dev](https://app.openinary.dev) under **Settings → API keys**. A key is shown once and is pinned to a single bucket, which is why no endpoint takes a bucket ID. Either header works, `Authorization: Bearer` or `x-api-key`.
+
+Self-hosted, create them from the dashboard at `/api-keys` or through the [API Keys API](/api-reference/api-keys/create). In API-only mode the first key is printed to the server logs at startup. Every API-key endpoint also accepts a dashboard session cookie, which is how the dashboard calls storage and upload without minting a key for itself.
+
+**These endpoints work on both Cloud and self-hosted**, with the same request and response shapes. The pages that do not are marked **Self-hosted only** at the top and use `https://media.example.com` in their examples. For the full list of what Cloud does not have, see [what differs on Cloud](/cloud/api).
 
 ## Endpoints
 
@@ -23,7 +36,7 @@ Create keys from the dashboard at `/api-keys` or through the [API Keys API](/api
 | **Files** | `POST /upload` | API key or presigned |
 | | `POST /upload/sign` | API key |
 | | `POST /upload/createfolder` | API key |
-| | `GET /download/{path}` | Public |
+| | `GET /download/{path}` | Public self-hosted, API key on Cloud |
 | | `GET /download-folder/{path}` | Public |
 | | `POST /download-zip` | API key |
 | **Storage** | `GET /storage` | API key |
@@ -38,15 +51,15 @@ Create keys from the dashboard at `/api-keys` or through the [API Keys API](/api
 | | `DELETE /storage/{path}` | API key |
 | **Cache** | `DELETE /invalidate/{path}` | API key |
 | | `POST /storage/cache/clear` | API key |
-| **Video** | `GET /video-status/{transformations}/{path}` | Public |
-| | `GET /video-status/{transformations}/{path}/size` | Public |
+| **Video** | `GET /video-status/{transformations}/{path}` | Public self-hosted, API key on Cloud |
+| | `GET /video-status/{transformations}/{path}/size` | Public self-hosted, API key on Cloud |
 | **Queue** | `GET /queue/stats` | API key |
 | | `GET /queue/worker/stats` | API key |
 | | `GET /queue/jobs` | API key |
 | | `POST /queue/jobs/{jobId}/retry` | API key |
 | | `POST /queue/jobs/{jobId}/cancel` | API key |
 | | `DELETE /queue/jobs/{jobId}` | API key |
-| | `GET /queue/events` | Public |
+| | `GET /queue/events` | Public self-hosted, API key on Cloud |
 | **API Keys** | `POST /api-keys/create` | API key or session |
 | | `GET /api-keys/list` | API key or session |
 | | `PATCH /api-keys/{keyId}` | API key or session |
@@ -59,6 +72,8 @@ Create keys from the dashboard at `/api-keys` or through the [API Keys API](/api
 Public routes are limited by IP: 100 requests per 60 seconds, tunable with `PUBLIC_RATE_LIMIT_MAX` and `PUBLIC_RATE_LIMIT_WINDOW_MS`. Every response carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`.
 
 Most API-key endpoints sit outside that limiter, but `POST /upload` and `GET /health/database` do not, so a burst of uploads can be throttled even with a valid key.
+
+Those numbers are self-hosted. Cloud limits delivery only, 300 requests per 60 seconds per IP and 1,000 per account, and leaves upload, signing and storage calls unlimited. See [Cloud rate limits](/cloud/api#rate-limits).
 
 ## Errors
 

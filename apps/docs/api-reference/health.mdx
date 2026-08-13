@@ -8,7 +8,7 @@ description: "Check server and database availability"
 Two probes. `GET /health` is a public liveness check, `GET /health/database` needs an API key and reports on the SQLite file.
 
 ```bash
-curl http://localhost:3000/health
+curl https://media.example.com/health
 ```
 
 ## Server health
@@ -38,7 +38,7 @@ GET /health/database
 ```
 
 ```bash
-curl http://localhost:3000/health/database \
+curl https://media.example.com/health/database \
   -H "Authorization: Bearer <api_key>"
 ```
 
