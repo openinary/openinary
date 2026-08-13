@@ -1,0 +1,30 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports.biome": "explicit"
+  },
+
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/.open-next/**": true,
+    "**/.turbo/**": true,
+    "**/.wrangler/**": true,
+    "**/dist/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.open-next": true,
+    "**/.turbo": true,
+    "**/.wrangler": true,
+    "**/dist": true,
+    "**/pnpm-lock.yaml": true
+  }
+}
