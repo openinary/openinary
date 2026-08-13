@@ -10,10 +10,11 @@ GET /download/{path}
 ```
 
 ```bash
-curl -O -J http://localhost:3000/download/photos/portrait.jpg
+curl -O -J https://cdn.openinary.dev/download/photos/portrait.jpg \
+  -H "Authorization: Bearer <api_key>"
 ```
 
-**Auth:** Public (rate limited)
+**Auth:** API key on Cloud, public and rate limited self-hosted. Drop the header when you call your own instance.
 
 ## Path parameters
 

@@ -6,7 +6,9 @@ description: "Stream video processing job updates over Server-Sent Events"
 Open a persistent connection and job lifecycle events arrive as they happen. Use it for live progress in your UI instead of polling.
 
 ```javascript
-const source = new EventSource("http://localhost:3000/queue/events");
+// Cloud authenticates this stream, so proxy it from your server: EventSource
+// cannot send an Authorization header, and a key does not belong in a bundle.
+const source = new EventSource("/api/openinary/queue/events");
 
 source.addEventListener("job:progress", (e) => {
   const { jobId, progress } = JSON.parse(e.data);
@@ -28,9 +30,9 @@ source.addEventListener("job:error", (e) => {
 GET /queue/events
 ```
 
-**Auth:** Public (rate limited)
+**Auth:** API key on Cloud, public and rate limited self-hosted.
 
-Read the raw stream with `curl -N http://localhost:3000/queue/events`.
+Read the raw stream with `curl -N https://cdn.openinary.dev/queue/events -H "Authorization: Bearer <api_key>"`, or without the header on your own instance.
 
 ## Events
 

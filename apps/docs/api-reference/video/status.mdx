@@ -6,14 +6,15 @@ description: "Poll the processing status of a queued video transformation"
 When a video transformation is not cached yet, `/t/` answers `202` and returns a `statusUrl`. Poll that URL until the status is `completed`, then request the `/t/` URL again to get the bytes.
 
 ```bash
-curl http://localhost:3000/video-status/w_640/videos/clip.mp4
+curl https://cdn.openinary.dev/video-status/w_640/videos/clip.mp4 \
+  -H "Authorization: Bearer <api_key>"
 ```
 
 ```
 GET /video-status/{transformations}/{path}
 ```
 
-**Auth:** Public (rate limited)
+**Auth:** API key on Cloud, public and rate limited self-hosted. Drop the header when you call your own instance.
 
 <Warning>
   Include the transformation segment in the path. Jobs are keyed on the file
@@ -82,10 +83,11 @@ GET /video-status/{transformations}/{path}/size
 
 Returns the byte size of the processed variant, or `404` if that variant is not ready yet.
 
-**Auth:** Public (rate limited)
+**Auth:** API key on Cloud, public and rate limited self-hosted.
 
 ```bash
-curl http://localhost:3000/video-status/w_640/videos/clip.mp4/size
+curl https://cdn.openinary.dev/video-status/w_640/videos/clip.mp4/size \
+  -H "Authorization: Bearer <api_key>"
 ```
 
 ```json

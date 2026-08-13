@@ -8,7 +8,7 @@ description: "Permanently revoke an API key"
 Deletes a key by its ID. This is irreversible, and any service using that key loses access immediately. To block access temporarily instead, [update the key](/api-reference/api-keys/update) with `"enabled": false`.
 
 ```bash
-curl -X DELETE http://localhost:3000/api-keys/key_abc123 \
+curl -X DELETE https://media.example.com/api-keys/key_abc123 \
   -H "Authorization: Bearer <api_key>"
 ```
 

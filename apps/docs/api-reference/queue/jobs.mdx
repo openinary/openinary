@@ -8,7 +8,7 @@ description: "List, retry, cancel, and delete video processing jobs"
 Four endpoints over the video job queue: list jobs, then retry, cancel or delete one by ID. All of them need an API key.
 
 ```bash
-curl "http://localhost:3000/queue/jobs?status=error&limit=20" \
+curl "https://media.example.com/queue/jobs?status=error&limit=20" \
   -H "Authorization: Bearer <api_key>"
 ```
 
@@ -88,7 +88,7 @@ POST /queue/jobs/{jobId}/retry
 Re-queues a failed job. `jobId` must have `error` status.
 
 ```bash
-curl -X POST http://localhost:3000/queue/jobs/job_abc123/retry \
+curl -X POST https://media.example.com/queue/jobs/job_abc123/retry \
   -H "Authorization: Bearer <api_key>"
 ```
 
@@ -110,7 +110,7 @@ POST /queue/jobs/{jobId}/cancel
 Cancels a job before it starts processing. `jobId` must have `pending` status.
 
 ```bash
-curl -X POST http://localhost:3000/queue/jobs/job_abc123/cancel \
+curl -X POST https://media.example.com/queue/jobs/job_abc123/cancel \
   -H "Authorization: Bearer <api_key>"
 ```
 
@@ -132,7 +132,7 @@ DELETE /queue/jobs/{jobId}
 Permanently removes a job record from the queue.
 
 ```bash
-curl -X DELETE http://localhost:3000/queue/jobs/job_abc123 \
+curl -X DELETE https://media.example.com/queue/jobs/job_abc123 \
   -H "Authorization: Bearer <api_key>"
 ```
 
