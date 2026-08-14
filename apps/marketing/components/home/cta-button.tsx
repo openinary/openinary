@@ -4,11 +4,30 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
+ * Interactive states, kept identical to components/ui/button.tsx so every
+ * clickable thing on the page behaves the same.
+ *
+ * The focus ring is wide, soft and flush against the control. The older shadcn
+ * recipe (`ring-2 ring-ring ring-offset-2`) draws a hard, solid ring floating
+ * two pixels off the edge, which reads as a different component next to a
+ * current one.
+ */
+export const focusRing =
+  "outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+/**
+ * Press feedback. `not-aria-[haspopup]` skips the dip for menu triggers, which
+ * stay put while their popover opens.
+ */
+export const pressable =
+  "cursor-pointer select-none active:not-aria-[haspopup]:translate-y-px";
+
+/**
  * The two button shapes used across the marketing pages, straight from the
  * Figma frame: 38px tall, 10px radius, 14/20 medium label.
  */
 export const ctaButton = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[10px] text-sm font-medium leading-5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  `inline-flex shrink-0 items-center justify-center gap-2 rounded-[10px] border border-transparent bg-clip-padding text-sm font-medium leading-5 whitespace-nowrap transition-all ${focusRing} ${pressable}`,
   {
     variants: {
       variant: {

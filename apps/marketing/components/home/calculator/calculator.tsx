@@ -4,7 +4,7 @@ import * as React from "react";
 import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { CtaLink } from "@/components/home/cta-button";
+import { CtaLink, focusRing, pressable } from "@/components/home/cta-button";
 import {
   avgDeliveredAssetKb,
   cloudinaryCost,
@@ -78,7 +78,9 @@ export function Calculator() {
                 onClick={() => selectPlan(plan.id)}
                 aria-pressed={planId === plan.id}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  "rounded-lg border px-3 py-2 text-left text-sm transition-all",
+                  focusRing,
+                  pressable,
                   planId === plan.id
                     ? "border-foreground bg-muted"
                     : "border-border hover:border-foreground/30",
@@ -98,7 +100,11 @@ export function Calculator() {
             type="button"
             onClick={() => setDetailed((open) => !open)}
             aria-expanded={detailed}
-            className="flex w-full items-center justify-between gap-2 border-b border-border pb-2 text-sm font-medium transition-colors hover:text-foreground"
+            className={cn(
+              "flex w-full items-center justify-between gap-2 rounded-sm border-b border-border pb-2 text-sm font-medium transition-all hover:text-foreground",
+              focusRing,
+              pressable,
+            )}
           >
             Or detail your usage
             <ChevronDown
@@ -130,7 +136,10 @@ export function Calculator() {
                         [key]: Math.max(0, Number(event.target.value) || 0),
                       }));
                     }}
-                    className="h-9 rounded-md border border-border bg-background px-2 text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className={cn(
+                      "h-9 rounded-md border border-border bg-background px-2 text-sm tabular-nums transition-all",
+                      focusRing,
+                    )}
                   />
                 </label>
               ))}

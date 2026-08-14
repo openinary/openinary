@@ -8,6 +8,8 @@ import {
   PerspectiveBook,
 } from "@/components/perspective-book";
 import { Section, SectionHeader } from "@/components/home/section";
+import { focusRing } from "@/components/home/cta-button";
+import { cn } from "@/lib/utils";
 
 const docs = [
   {
@@ -64,7 +66,8 @@ export function Docs() {
               rel="noopener noreferrer"
               data-track-event="docs_clicked"
               data-track-prop-location="docs_section"
-              aria-label={`${title} — ${description}`}
+              aria-label={`${title}. ${description}`}
+              className={cn("rounded-lg", focusRing)}
             >
               <PerspectiveBook className="bg-card text-card-foreground">
                 <BookHeader>

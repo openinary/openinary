@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, Copy, RotateCcw } from "lucide-react";
 
 import { FileUploader } from "@/components/openinary/file-uploader";
+import { focusRing, pressable } from "@/components/home/cta-button";
 import { cn } from "@/lib/utils";
 import {
   resolveTokens,
@@ -107,7 +108,10 @@ export function Playground() {
               );
               setOverrides({});
             }}
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              "h-9 rounded-md border border-border bg-background px-2 text-sm transition-all",
+              focusRing,
+            )}
           >
             {themes.map((t) => (
               <option key={t.id} value={t.id}>
@@ -125,7 +129,9 @@ export function Playground() {
               onClick={() => setMode(value)}
               aria-pressed={mode === value}
               className={cn(
-                "h-7 rounded text-xs font-medium capitalize transition-colors",
+                "h-7 rounded border border-transparent text-xs font-medium capitalize transition-all",
+                focusRing,
+                pressable,
                 mode === value
                   ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground",
@@ -198,7 +204,11 @@ export function Playground() {
               setMode("light");
             }}
             disabled={!isDirty && mode === "light"}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-md text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+            className={cn(
+              "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
+              focusRing,
+              pressable,
+            )}
           >
             <RotateCcw className="size-3.5" aria-hidden />
             Reset to default
@@ -222,7 +232,11 @@ function PanelButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border text-xs font-medium transition-colors hover:bg-muted"
+      className={cn(
+        "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border text-xs font-medium transition-all hover:bg-muted",
+        focusRing,
+        pressable,
+      )}
     >
       {done ? (
         <Check className="size-3.5" aria-hidden />

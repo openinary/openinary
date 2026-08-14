@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 
 import { Eyebrow, Section, gutter } from "@/components/home/section";
+import { focusRing, pressable } from "@/components/home/cta-button";
+import { cn } from "@/lib/utils";
 
 const faqs: { question: string; answer: React.ReactNode }[] = [
   {
@@ -77,7 +79,13 @@ export function Faq() {
               key={question}
               className="group border-b border-border py-3 last:border-b-0"
             >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-1 text-[15px] font-medium leading-[1.5] text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
+              <summary
+                className={cn(
+                  "flex list-none items-center justify-between gap-4 rounded-sm py-1 text-[15px] font-medium leading-[1.5] text-foreground marker:hidden [&::-webkit-details-marker]:hidden",
+                  focusRing,
+                  pressable,
+                )}
+              >
                 {question}
                 <ChevronDown
                   className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
