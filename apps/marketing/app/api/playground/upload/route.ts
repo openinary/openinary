@@ -16,16 +16,19 @@
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
- * Simulated link speed. Over localhost the real thing is instant, and the
- * uploader's progress bar is driven by bytes *sent*, so it would jump to 100%
- * and then sit there while the server thought about it, which reads as a stall
- * rather than an upload.
+ * Simulated transfer, for files big enough to be worth simulating.
  *
- * Slowing the reads instead of sleeping at the end makes the bar honest: once
- * the socket buffers fill, the browser can only send as fast as this end
- * drains, so progress advances at roughly this rate.
+ * The uploader's progress bar tracks bytes *sent*, so the only way to animate
+ * it is to make the browser wait on us: pacing our reads fills the socket
+ * buffers and the sender is throttled to match. A sleep before responding
+ * cannot do this, it just parks a full bar.
+ *
+ * Below UNPACED_TAIL_BYTES there is nothing to pace, the whole body lands in
+ * the buffer at once, and those uploads take SMALL_FILE_MS instead so the
+ * uploading state is at least visible.
  */
 const TARGET_UPLOAD_MS = 1800;
+const SMALL_FILE_MS = 900;
 
 /**
  * The browser hands roughly this much to the socket before back-pressure makes
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
 
   // A file small enough to sit entirely in the socket buffer is never throttled,
   // so nothing paced it: give it a brief pause rather than blinking to done.
-  if (pacedBytes === 0) await sleep(700);
+  if (pacedBytes === 0) await sleep(SMALL_FILE_MS);
 
   return json(
     {
