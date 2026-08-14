@@ -70,6 +70,19 @@ for (const plan of plans) {
   );
 }
 
+// The presets are what the calculator opens on, so they have to look like
+// numbers a person would type: leading digit, then zeros.
+for (const plan of plans) {
+  for (const [key, value] of Object.entries(usageForPlan(plan.id))) {
+    const digits = `${value}`;
+    assert.match(
+      digits,
+      /^0$|^[1-9]5?0*$/,
+      `${plan.name}'s ${key} preset is not a round number (${digits})`,
+    );
+  }
+}
+
 // Past the top plan the cost keeps climbing instead of flattening out.
 const huge = {
   storageGb: 2000,
@@ -87,6 +100,26 @@ assert.ok(
   selfHostedCost(huge).monthlyUsd < cloudinaryCost(huge).monthlyUsd,
   "self-hosting must undercut Cloudinary at scale, or the section has no point",
 );
+
+// Self-hosting has to answer to the work. Costing a flat server made these two
+// dimensions free, so a million transformations quoted the same as none, which
+// is the kind of number that reads as a sales pitch rather than a figure.
+const idle = {
+  storageGb: 10,
+  transformations: 0,
+  videoMinutes: 0,
+  cdnRequests: 0,
+};
+for (const [key, busy] of [
+  ["transformations", 5_000_000],
+  ["videoMinutes", 20_000],
+]) {
+  assert.ok(
+    selfHostedCost({ ...idle, [key]: busy }).monthlyUsd >
+      selfHostedCost(idle).monthlyUsd,
+    `self-hosted cost must rise with ${key}`,
+  );
+}
 
 // Monotonic: more usage never costs less. Catches sign errors in the overage maths.
 let previous = -1;

@@ -10,8 +10,20 @@
       "bandwidthGb": 1,
       "videoMinutes": 5
     },
+    "usageComment": "A plan's preset usage is normally its credits split evenly across the four dimensions. Free carries its own instead: an even split spends most of the 25 credits on transformations, which is the dimension our free quota is tightest on, so a workload that costs nothing on Cloudinary came out at $3 a month here. The split is arbitrary either way, so Free uses a mix that reads like a small site. It still has to fit inside 25 credits, and pricing-check asserts every preset quotes its own plan.",
     "plans": [
-      { "id": "free", "name": "Free", "monthlyUsd": 0, "credits": 25 },
+      {
+        "id": "free",
+        "name": "Free",
+        "monthlyUsd": 0,
+        "credits": 25,
+        "usage": {
+          "storageGb": 2,
+          "transformations": 1000,
+          "videoMinutes": 15,
+          "cdnRequests": 25000
+        }
+      },
       { "id": "plus", "name": "Plus", "monthlyUsd": 89, "credits": 225 },
       { "id": "advanced", "name": "Advanced", "monthlyUsd": 224, "credits": 600 }
     ],
@@ -33,10 +45,13 @@
     }
   },
   "selfHosted": {
-    "comment": "A small VPS plus an S3-compatible bucket. R2 egress is free, which is why delivery does not appear here.",
-    "serverUsdMonth": 12,
+    "comment": "A server you run plus an S3-compatible bucket. The box is sized by the work: transformations and video encoding are CPU-bound, so past a point one machine does not do. Capacity figures are per vCPU per month and are sizing numbers, not throughput benchmarks: they leave headroom for peaks and cache misses rather than assuming a core can be pinned at 100% for a month. Egress is priced at a mid-market S3-compatible rate rather than at R2's zero, so the figure does not quietly assume the single cheapest provider. What it still excludes is your own time, which is the real cost of running this and is called out in the copy instead of guessed at here.",
+    "vcpuUsdMonth": 12,
+    "minVcpu": 2,
+    "transformationsPerVcpuMonth": 500000,
+    "videoMinutesPerVcpuMonth": 600,
     "storageGbMonthUsd": 0.015,
-    "egressGbUsd": 0
+    "egressGbUsd": 0.02
   },
   "assumptions": {
     "comment": "Cloudinary meters delivery in GB, Openinary in requests. Converting between them needs an average delivered asset size.",

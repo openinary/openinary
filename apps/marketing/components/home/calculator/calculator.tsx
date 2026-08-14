@@ -1,10 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { CtaLink, focusRing, pressable } from "@/components/home/cta-button";
+import {
+  CtaLink,
+  fieldShell,
+  focusRing,
+  panelSurface,
+  pressable,
+  sliderThumb,
+} from "@/components/home/cta-button";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useSliderWithInput } from "@/hooks/use-slider-with-input";
 import {
   avgDeliveredAssetKb,
   cloudinaryCost,
@@ -17,11 +34,42 @@ import {
   type Usage,
 } from "@/lib/pricing";
 
-const fields: { key: keyof Usage; label: string; unit: string; step: number }[] = [
-  { key: "storageGb", label: "Storage", unit: "GB", step: 1 },
-  { key: "transformations", label: "Image transformations", unit: "/ month", step: 1000 },
-  { key: "videoMinutes", label: "Video processing", unit: "min / month", step: 5 },
-  { key: "cdnRequests", label: "CDN requests", unit: "/ month", step: 10000 },
+/**
+ * Slider ranges. The maximum also clamps what can be typed, so it is set well
+ * past Cloudinary's largest public plan rather than snug around the presets: a
+ * number typed by hand snapping back to a lower one would be worse than a
+ * thumb that opens near the left. Steps are coarse enough that dragging lands
+ * on a number a person would say out loud.
+ */
+const fields: {
+  key: keyof Usage;
+  label: string;
+  unit: string;
+  max: number;
+  step: number;
+}[] = [
+  { key: "storageGb", label: "Storage", unit: "GB", max: 500, step: 10 },
+  {
+    key: "transformations",
+    label: "Transformations",
+    unit: "/ mo",
+    max: 500_000,
+    step: 10_000,
+  },
+  {
+    key: "videoMinutes",
+    label: "Video",
+    unit: "min / mo",
+    max: 2500,
+    step: 50,
+  },
+  {
+    key: "cdnRequests",
+    label: "CDN requests",
+    unit: "/ mo",
+    max: 2_500_000,
+    step: 50_000,
+  },
 ];
 
 const usd = (value: number) =>
@@ -33,47 +81,86 @@ const usd = (value: number) =>
         maximumFractionDigits: value < 100 ? 2 : 0,
       });
 
+const DEFAULT_PLAN = "plus";
+
 export function Calculator() {
   // null once the usage fields are edited by hand: the chips are presets, so
   // leaving one lit while the numbers have moved off it would misread as "this
   // is your plan".
-  const [planId, setPlanId] = React.useState<string | null>("plus");
-  const [usage, setUsage] = React.useState<Usage>(() => usageForPlan("plus"));
+  const [planId, setPlanId] = React.useState<string | null>(DEFAULT_PLAN);
+  const [usage, setUsage] = React.useState<Usage>(() =>
+    usageForPlan(DEFAULT_PLAN),
+  );
+  // The fields fold away on phones, where the panel would otherwise be a long
+  // scroll before the numbers. From lg there is room for them, so they stay
+  // open and this only drives the button that is no longer rendered.
   const [detailed, setDetailed] = React.useState(false);
+  // Bumped on every preset, to remount the fields: each one owns its value, so
+  // a new number has to arrive as a fresh mount.
+  const [presetToken, setPresetToken] = React.useState(0);
+  const fieldsId = React.useId();
 
   const cloudinary = cloudinaryCost(usage);
   const cloud = openinaryCloudCost(usage);
   const selfHosted = selfHostedCost(usage);
 
-  // Compare against whichever way of running Openinary is cheaper, and name it,
-  // so the headline saving is always attributable to a column on screen.
-  const winner =
-    selfHosted.monthlyUsd <= cloud.monthlyUsd
-      ? { name: "self-hosted", monthlyUsd: selfHosted.monthlyUsd }
-      : { name: "Openinary Cloud", monthlyUsd: cloud.monthlyUsd };
-  const savedPerMonth = cloudinary.monthlyUsd - winner.monthlyUsd;
+  // Cloud against cloud. The comparison a visitor is here to make is against
+  // the hosted product they already pay for, and self-hosting is the answer to
+  // a different question, so it gets a line of its own further down rather
+  // than a column competing for the headline.
+  const savedPerMonth = cloudinary.monthlyUsd - cloud.monthlyUsd;
   const savedPercent =
     cloudinary.monthlyUsd > 0
       ? Math.round((savedPerMonth / cloudinary.monthlyUsd) * 100)
       : 0;
+  const bothFree = cloudinary.monthlyUsd === 0 && cloud.monthlyUsd === 0;
 
   const selectPlan = (id: string) => {
     setPlanId(id);
     setUsage(usageForPlan(id));
+    setPresetToken((token) => token + 1);
   };
+
+  // Placed twice, once per column, because the two live in different grid
+  // cells: at the foot of the controls on a wide screen, and after the numbers
+  // and the small print on a narrow one, where the controls sit at the top and
+  // a call to action halfway up the section would be asking before showing.
+  // Only ever one of them is rendered.
+  const startFree = (
+    <CtaLink
+      href="https://app.openinary.dev"
+      target="_blank"
+      rel="noopener noreferrer"
+      data-track-event="cloud_cta_clicked"
+      data-track-prop-location="calculator"
+      className="w-full"
+    >
+      Try Cloud for free
+    </CtaLink>
+  );
 
   return (
     // Hairlines from the 1px gap over a border-coloured ground, matching the
-    // feature grid, so the split reads as part of the page's box structure
-    // rather than two floating panels.
-    <div className="grid gap-px bg-border pt-px lg:grid-cols-[360px_1fr]">
+    // playground and the feature grid, so the split reads as part of the page's
+    // box structure rather than two floating panels.
+    //
+    // Controls first in the markup, which puts them on the left here and above
+    // the numbers once the grid folds to one column. It also leaves the
+    // disclaimer where it belongs on a phone: the last thing on the section.
+    <div className="grid gap-px bg-border pt-px lg:grid-cols-[320px_1fr]">
       {/* Inputs */}
-      <div className="flex flex-col gap-6 bg-background p-6 sm:p-8 lg:p-10">
+      <aside className={cn("flex flex-col gap-5 p-6 sm:p-8 lg:p-6", panelSurface)}>
+        <div>
+          <h3 className="text-sm font-medium">Your usage</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Start from what you pay Cloudinary today, then move the sliders to
+            match what you actually use.
+          </p>
+        </div>
+
         <fieldset>
-          <legend className="text-sm font-medium">
-            What do you pay Cloudinary today?
-          </legend>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <legend className="text-xs font-medium">Cloudinary plan</legend>
+          <div className="mt-2 grid grid-cols-3 gap-2">
             {plans.map((plan) => (
               <button
                 key={plan.id}
@@ -81,16 +168,17 @@ export function Calculator() {
                 onClick={() => selectPlan(plan.id)}
                 aria-pressed={planId === plan.id}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-sm transition-all",
+                  fieldShell,
+                  "px-2 py-1.5 text-left transition-all",
                   focusRing,
                   pressable,
                   planId === plan.id
-                    ? "border-foreground bg-muted"
-                    : "border-border hover:border-foreground/30",
+                    ? "border-foreground"
+                    : "hover:border-foreground/30",
                 )}
               >
-                <span className="block font-medium">{plan.name}</span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="block text-xs font-medium">{plan.name}</span>
+                <span className="block text-[11px] text-muted-foreground">
                   {usd(plan.monthlyUsd)}/mo
                 </span>
               </button>
@@ -98,78 +186,53 @@ export function Calculator() {
           </div>
         </fieldset>
 
-        <div>
-          <button
-            type="button"
-            onClick={() => setDetailed((open) => !open)}
-            aria-expanded={detailed}
-            className={cn(
-              "flex w-full items-center justify-between gap-2 rounded-sm border-b border-border pb-2 text-sm font-medium transition-all hover:text-foreground",
-              focusRing,
-              pressable,
-            )}
-          >
-            Or detail your usage
-            <ChevronDown
-              className={cn(
-                "size-4 text-muted-foreground transition-transform",
-                detailed && "rotate-180",
-              )}
-              aria-hidden
-            />
-          </button>
-
-          {detailed && (
-            <div className="mt-4 flex flex-col gap-4">
-              {fields.map(({ key, label, unit, step }) => (
-                <label key={key} className="flex flex-col gap-1.5">
-                  <span className="flex items-baseline justify-between text-xs">
-                    <span className="font-medium">{label}</span>
-                    <span className="text-muted-foreground">{unit}</span>
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={step}
-                    value={usage[key]}
-                    onChange={(event) => {
-                      setPlanId(null);
-                      setUsage((current) => ({
-                        ...current,
-                        [key]: Math.max(0, Number(event.target.value) || 0),
-                      }));
-                    }}
-                    className={cn(
-                      "h-9 rounded-md border border-border bg-background px-2 text-sm tabular-nums transition-all",
-                      focusRing,
-                    )}
-                  />
-                </label>
-              ))}
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Cloudinary meters delivery in GB and we meter it in requests, so
-                requests are converted at {avgDeliveredAssetKb} KB per delivered
-                asset.
-              </p>
-            </div>
+        <button
+          type="button"
+          onClick={() => setDetailed((open) => !open)}
+          aria-expanded={detailed}
+          aria-controls={fieldsId}
+          className={cn(
+            "flex w-full items-center justify-between gap-2 rounded-sm border-b border-border pb-2 text-xs font-medium transition-all lg:hidden",
+            focusRing,
+            pressable,
           )}
+        >
+          Or detail your usage
+          <ChevronDown
+            className={cn(
+              "size-4 text-muted-foreground transition-transform",
+              detailed && "rotate-180",
+            )}
+            aria-hidden
+          />
+        </button>
+
+        <div
+          id={fieldsId}
+          className={cn(
+            "flex-col gap-5",
+            detailed ? "flex" : "hidden lg:flex",
+          )}
+        >
+          {fields.map((field) => (
+            <UsageField
+              key={`${field.key}-${presetToken}`}
+              field={field}
+              initial={usage[field.key]}
+              onChange={(value) => {
+                setPlanId(null);
+                setUsage((current) => ({ ...current, [field.key]: value }));
+              }}
+            />
+          ))}
         </div>
 
-        <CtaLink
-          href="https://app.openinary.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          data-track-event="cloud_cta_clicked"
-          data-track-prop-location="calculator"
-          className="w-full"
-        >
-          Start free
-        </CtaLink>
-      </div>
+        <div className="mt-auto hidden lg:block">{startFree}</div>
+      </aside>
 
       {/* Results */}
-      <div className="flex flex-col gap-6 bg-background p-6 sm:p-8 lg:p-10">
-        <div>
+      <div className="flex flex-col bg-background">
+        <div className="p-6 sm:p-10">
           <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">
             Your monthly cost
           </p>
@@ -179,35 +242,45 @@ export function Calculator() {
                 You save {usd(savedPerMonth)}
                 <span className="text-muted-foreground"> / month</span>
               </>
-            ) : (
+            ) : bothFree ? (
               "Both are free at this usage"
+            ) : (
+              // Cloudinary's free tier is generous enough to undercut us on a
+              // small workload. Saying so beats quoting a negative saving.
+              <>
+                {usd(cloud.monthlyUsd)}
+                <span className="text-muted-foreground">
+                  {" "}
+                  / month on Openinary Cloud
+                </span>
+              </>
             )}
           </p>
           {savedPerMonth > 0 && (
             <p className="mt-1 text-sm text-muted-foreground">
-              {savedPercent}% less running {winner.name}, {usd(savedPerMonth * 36)}{" "}
-              over three years.
+              {savedPercent}% less than Cloudinary, {usd(savedPerMonth * 36)} over
+              three years.
             </p>
           )}
         </div>
 
-        <div className="grid gap-px bg-border pt-px sm:grid-cols-3">
+        {/* Full bleed, so the hairlines run to both edges of the panel like
+            every other rule on the page instead of stopping short in the
+            padding. */}
+        <div className="grid flex-1 border-y border-border bg-background sm:grid-cols-2">
           <Column name="Cloudinary" cost={cloudinary} tone="rival" />
-          <Column
-            name="Openinary Cloud"
-            cost={cloud}
-            highlighted={winner.name === "Openinary Cloud"}
-          />
-          <Column
-            name="Self-hosted"
-            cost={selfHosted}
-            note="Your own server and bucket"
-            highlighted={winner.name === "self-hosted"}
-          />
+          <Column name="Openinary Cloud" cost={cloud} highlighted />
         </div>
 
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Public list prices, checked on{" "}
+        {/* The third option and the small print, in one block. Running it
+            yourself is cheaper in cash at almost any volume, which is exactly
+            why it reads as a footnote: the sentence has to carry the part of
+            the price that is not on the invoice. */}
+        <p className="p-6 text-xs leading-relaxed text-muted-foreground sm:px-10 sm:py-6">
+          Rather run it yourself? The same workload self-hosted is around{" "}
+          <span className="tabular-nums">{usd(selfHosted.monthlyUsd)}</span>/mo
+          in servers, storage and bandwidth, plus the hours you spend running
+          it. Public list prices, checked on{" "}
           <time dateTime={lastCheckedOn}>
             {new Date(lastCheckedOn).toLocaleDateString("en-GB", {
               day: "numeric",
@@ -216,9 +289,117 @@ export function Calculator() {
             })}
           </time>
           . Cloudinary bills in credits, so its figure is the cheapest plan that
-          covers the same workload. Your own contract may differ.
+          covers the same workload, and it meters delivery in GB where we meter
+          requests, converted here at {avgDeliveredAssetKb} KB per delivered
+          asset. Your own contract may differ.
         </p>
+
+        <div className="px-6 pb-6 lg:hidden">{startFree}</div>
       </div>
+
+    </div>
+  );
+}
+
+/**
+ * One usage number, as a slider with the figure spelled out next to it and a
+ * way back to where the preset put it.
+ *
+ * `initial` is read once, at mount: the hook holds the value from then on. The
+ * caller remounts on a new preset rather than feeding it back down.
+ */
+function UsageField({
+  field,
+  initial,
+  onChange,
+}: {
+  field: (typeof fields)[number];
+  initial: number;
+  onChange: (value: number) => void;
+}) {
+  const { label, unit, max, step } = field;
+  const inputId = React.useId();
+  // Pinned at mount. The prop follows the value up as it is edited, so reading
+  // it live would make "back to where it started" mean "back to where it is",
+  // and the reset would never appear.
+  const [startedAt] = React.useState(initial);
+  const {
+    sliderValue,
+    inputValues,
+    validateAndUpdateValue,
+    handleInputChange,
+    handleSliderChange,
+    resetToDefault,
+    showReset,
+  } = useSliderWithInput({
+    minValue: 0,
+    maxValue: max,
+    initialValue: [startedAt],
+    defaultValue: [startedAt],
+  });
+
+  const commit = (raw: string) => onChange(validateAndUpdateValue(raw, 0));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={inputId} className="text-xs font-medium">
+          {label}{" "}
+          <span className="font-normal text-muted-foreground">{unit}</span>
+        </Label>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-label={`Reset ${label}`}
+                // Hidden through the disabled state rather than a class of its
+                // own: the button's disabled:opacity-50 carries a pseudo-class
+                // and outweighs a plain opacity-0.
+                className="size-6 opacity-100 transition-opacity disabled:opacity-0"
+                disabled={!showReset}
+                onClick={() => {
+                  resetToDefault();
+                  onChange(startedAt);
+                }}
+                size="icon"
+                variant="ghost"
+              >
+                <RotateCcw aria-hidden size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="px-2 py-1 text-xs">
+              Back to {startedAt.toLocaleString("en-US")}
+            </TooltipContent>
+          </Tooltip>
+          <Input
+            className={cn(
+              fieldShell,
+              "h-7 w-20 px-2 py-0 text-right text-xs tabular-nums shadow-none",
+            )}
+            id={inputId}
+            inputMode="numeric"
+            onBlur={() => commit(inputValues[0] ?? "")}
+            onChange={(event) => handleInputChange(event, 0)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") commit(inputValues[0] ?? "");
+            }}
+            type="text"
+            value={inputValues[0]}
+          />
+        </div>
+      </div>
+      <Slider
+        aria-label={label}
+        className={sliderThumb}
+        max={max}
+        min={0}
+        onValueChange={(next) => {
+          handleSliderChange(next);
+          onChange(next[0]);
+        }}
+        step={step}
+        value={sliderValue}
+      />
     </div>
   );
 }
@@ -226,30 +407,28 @@ export function Calculator() {
 function Column({
   name,
   cost,
-  note,
   tone,
   highlighted = false,
 }: {
   name: string;
   cost: Cost;
-  note?: string;
   tone?: "rival";
   highlighted?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 p-4",
-        highlighted ? "bg-muted/60" : "bg-background",
+        "flex flex-col gap-3 p-6 [&:not(:last-child)]:border-b sm:p-6 sm:[&:not(:last-child)]:border-b-0 sm:[&:not(:last-child)]:border-r",
+        highlighted ? panelSurface : "bg-background",
       )}
     >
       <div>
-        <p className="text-sm font-medium">
-          {name}
-          {highlighted && <span className="sr-only"> (cheapest)</span>}
-        </p>
+        {/* No sr-only note on the highlight any more: it used to mark the
+            cheapest column, and now it marks ours, which the name already
+            says. */}
+        <p className="text-sm font-medium">{name}</p>
         <p className="text-xs text-muted-foreground">
-          {cost.planName ?? note ?? " "}
+          {cost.planName ?? " "}
         </p>
       </div>
       <p

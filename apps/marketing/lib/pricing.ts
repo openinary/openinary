@@ -100,9 +100,29 @@ export function openinaryCloudCost(usage: Usage): Cost {
   };
 }
 
+/**
+ * Running it yourself.
+ *
+ * The server has to be sized by the work, not fixed: resizing images and
+ * encoding video are CPU-bound, so a box that serves a small site does not
+ * serve a large one. Costing a flat server made this figure independent of
+ * transformations and video minutes entirely, which quoted the same price for
+ * doing nothing and for half a million transformations a month.
+ *
+ * Storage and egress are metered, and the number still excludes the hours
+ * spent running the thing.
+ */
 export function selfHostedCost(usage: Usage): Cost {
+  const vcpus = Math.max(
+    selfHosted.minVcpu,
+    Math.ceil(
+      usage.transformations / selfHosted.transformationsPerVcpuMonth +
+        usage.videoMinutes / selfHosted.videoMinutesPerVcpuMonth,
+    ),
+  );
+
   const lines = [
-    { label: "Server", usd: selfHosted.serverUsdMonth },
+    { label: `Server, ${vcpus} vCPU`, usd: vcpus * selfHosted.vcpuUsdMonth },
     { label: "Bucket storage", usd: usage.storageGb * selfHosted.storageGbMonthUsd },
     {
       label: "Egress",
@@ -117,22 +137,50 @@ export function selfHostedCost(usage: Usage): Cost {
 }
 
 /**
+ * Down to a round number: the leading digit kept, the rest cut to a 1/2/5 step.
+ * 56 -> 50, 281 -> 250, 235,929 -> 200,000.
+ *
+ * Down and never up, because these numbers seed a Cloudinary plan's own usage.
+ * Rounding up puts the preset a fraction of a credit over the plan it came
+ * from, and picking a plan would then quote that plan "+ overage" instead of
+ * its own price.
+ */
+function roundDown(value: number): number {
+  if (value <= 0) return 0;
+
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const leading = value / magnitude;
+  const step =
+    leading >= 5 ? magnitude : leading >= 2 ? magnitude / 2 : magnitude / 10;
+
+  return Math.round(Math.floor(value / step) * step);
+}
+
+/**
  * Usage a Cloudinary plan's credits buy, split evenly across the four
- * dimensions. Always rounds down: rounding up puts the preset a fraction of a
- * credit over the plan it came from, so picking a plan would quote that plan
- * "+ overage" instead of its own price.
+ * dimensions, then rounded to something a visitor would recognise as a number
+ * rather than the output of a division.
+ *
+ * A plan can carry its own mix instead. Free does, because an even split puts
+ * most of its credits into transformations, the dimension our free quota is
+ * tightest on: a workload Cloudinary hosts for nothing came out at $3 a month
+ * on Openinary Cloud, which is not the comparison that preset exists to show.
  */
 export function usageForPlan(planId: string): Usage {
   const plan = cloudinary.plans.find((p) => p.id === planId) ?? cloudinary.plans[0];
+  if ("usage" in plan && plan.usage) return plan.usage;
+
   const perDimension = plan.credits / 4;
   const buys = cloudinary.creditBuys;
   const gb = perDimension * buys.bandwidthGb;
 
   return {
-    storageGb: Math.floor(perDimension * buys.storageGb),
-    transformations: Math.floor(perDimension * buys.transformations),
-    videoMinutes: Math.floor(perDimension * buys.videoMinutes),
-    cdnRequests: Math.floor((gb * 1024 * 1024) / assumptions.avgDeliveredAssetKb),
+    storageGb: roundDown(perDimension * buys.storageGb),
+    transformations: roundDown(perDimension * buys.transformations),
+    videoMinutes: roundDown(perDimension * buys.videoMinutes),
+    cdnRequests: roundDown(
+      (gb * 1024 * 1024) / assumptions.avgDeliveredAssetKb,
+    ),
   };
 }
 
