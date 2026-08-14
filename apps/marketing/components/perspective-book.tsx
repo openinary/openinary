@@ -22,8 +22,14 @@ export function PerspectiveBook({
   children,
   textured = false,
 }: PerspectiveBookProps) {
-  const defaultColorClasses =
-    'bg-neutral-100 dark:bg-[#1f1f1f] dark:before:content-[""] dark:before:bg-gradient-to-b dark:before:from-[#ffffff1a] dark:before:to-transparent dark:before:absolute dark:before:inset-0 dark:before:rounded-[inherit] text-primary';
+  const defaultColorClasses = "bg-neutral-100 dark:bg-[#1f1f1f] text-primary";
+
+  // Sheen across the top of the cover. Lives in the base classes rather than in
+  // defaultColorClasses so a caller passing its own colours still gets it:
+  // `className` replaces the default colours outright, and the highlight used to
+  // go with them.
+  const coverSheen =
+    'before:content-[""] before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/25 before:to-transparent before:pointer-events-none dark:before:from-white/10';
 
   return (
     <div
@@ -40,6 +46,7 @@ export function PerspectiveBook({
         <div
           className={cn(
             `absolute inset-y-0 overflow-hidden size-full left-0 flex flex-col p-[12%] after:content-[''] after:absolute after:inset-0 after:shadow-[0_1.8px_3.6px_#0000000d,_0_10.8px_21.6px_#00000014,_inset_0_-.9px_#0000001a,_inset_0_1.8px_1.8px_#ffffff1a,_inset_3.6px_0_3.6px_#0000001a] after:pointer-events-none after:rounded-[inherit] after:border-[#00000014] after:border after:border-solid`,
+            coverSheen,
             className || defaultColorClasses,
           )}
           style={{
@@ -47,8 +54,10 @@ export function PerspectiveBook({
             borderRadius: "6px 4px 4px 6px",
           }}
         >
+          {/* Paper edge. Its light stripes are drawn in white, which reads as a
+              glare strip on a dark cover, so it is dialled back in dark mode. */}
           <div
-            className="absolute left-0 top-0 h-full opacity-40"
+            className="absolute left-0 top-0 h-full opacity-40 dark:opacity-20"
             style={{
               minWidth: "8.2%",
               background:
@@ -71,9 +80,11 @@ export function PerspectiveBook({
           )}
         </div>
 
-        {/* Spine */}
+        {/* Spine. The page block is white paper on a light page; left that way
+            in dark mode it renders as a bright slab welded to a dark cover,
+            which is what made these look broken. */}
         <div
-          className="absolute left-0 bg-[linear-gradient(90deg,#eaeaea_0%,#0000_80%),linear-gradient(#fff,#fafafa)]"
+          className="absolute left-0 bg-[linear-gradient(90deg,#eaeaea_0%,#0000_80%),linear-gradient(#fff,#fafafa)] dark:bg-[linear-gradient(90deg,#2f2f31_0%,#0000_80%),linear-gradient(#232326,#1a1a1d)]"
           style={{
             top: "3px",
             bottom: "3px",

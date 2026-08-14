@@ -18,7 +18,7 @@ const reasons = [
   {
     icon: Combine,
     title: "Every format, one API",
-    body: "Images and video go through the same interface. JPEG, PNG, WebP, AVIF, MP4, one place to send them and one place to get them back.",
+    body: "Images and video go through the same interface. PNG, WebP, AVIF, MP4, one place to send them and one place to get them back.",
   },
   {
     icon: Zap,

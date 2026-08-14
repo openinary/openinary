@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 const docs = [
   {
     href: "https://docs.openinary.dev/quickstart",
-    tint: "bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-50",
+    tint: "bg-gradient-to-br from-emerald-100 to-emerald-200/80 text-emerald-950 dark:from-emerald-900 dark:to-emerald-950 dark:text-emerald-50",
     icon: Rocket,
     label: "Get started",
     title: "Quickstart",
@@ -23,7 +23,7 @@ const docs = [
   },
   {
     href: "https://docs.openinary.dev/media-transformations/overview",
-    tint: "bg-sky-50 text-sky-950 dark:bg-sky-950/50 dark:text-sky-50",
+    tint: "bg-gradient-to-br from-sky-100 to-sky-200/80 text-sky-950 dark:from-sky-900 dark:to-sky-950 dark:text-sky-50",
     icon: Layers,
     label: "Transformations",
     title: "Transformations",
@@ -32,7 +32,7 @@ const docs = [
   },
   {
     href: "https://docs.openinary.dev/configuration/storage",
-    tint: "bg-amber-50 text-amber-950 dark:bg-amber-950/50 dark:text-amber-50",
+    tint: "bg-gradient-to-br from-rose-100 to-rose-200/80 text-rose-950 dark:from-rose-900 dark:to-rose-950 dark:text-rose-50",
     icon: Server,
     label: "Configuration",
     title: "Your storage",
@@ -41,7 +41,7 @@ const docs = [
   },
   {
     href: "https://docs.openinary.dev/guides/coolify-deployment",
-    tint: "bg-violet-50 text-violet-950 dark:bg-violet-950/50 dark:text-violet-50",
+    tint: "bg-gradient-to-br from-violet-100 to-violet-200/80 text-violet-950 dark:from-violet-900 dark:to-violet-950 dark:text-violet-50",
     icon: BookOpen,
     label: "Guide",
     title: "Self-hosting",
