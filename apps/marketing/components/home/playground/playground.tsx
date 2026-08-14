@@ -85,9 +85,17 @@ export function Playground() {
     theme.id !== "default" ||
     modeOverride !== null;
 
-  const cssVars = Object.fromEntries(
-    Object.entries(tokens).map(([key, value]) => [`--${key}`, value]),
-  ) as React.CSSProperties;
+  const canvasStyle = {
+    ...Object.fromEntries(
+      Object.entries(tokens).map(([key, value]) => [`--${key}`, value]),
+    ),
+    // Dot grid keyed to the canvas's own --foreground, set just above, so it
+    // tracks the selected preset instead of the site theme. background-image
+    // paints over bg-background, so no extra layer is needed.
+    backgroundImage:
+      "radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 1px, transparent 1px)",
+    backgroundSize: "16px 16px",
+  } as React.CSSProperties;
 
   return (
     // Hairlines drawn by the 1px gap over a border-coloured ground, the same
@@ -96,7 +104,7 @@ export function Playground() {
     <div className="grid gap-px bg-border pt-px lg:grid-cols-[1fr_320px]">
       {/* Canvas */}
       <div
-        style={cssVars}
+        style={canvasStyle}
         className={cn(
           // text-foreground matters: the uploader's labels have no colour class
           // of their own, so without it they inherit the page colour and go
