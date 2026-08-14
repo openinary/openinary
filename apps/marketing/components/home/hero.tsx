@@ -7,7 +7,7 @@ import { CopyCommand } from "@/components/home/copy-command";
 import { gutter } from "@/components/home/section";
 
 const storageProviders = [
-  { src: "/storage/amazon-s3.png", alt: "Amazon S3", width: 18, height: 22 },
+  { src: "/storage/amazon-s3.svg", alt: "Amazon S3", width: 22, height: 22 },
   { src: "/storage/wasabi.svg", alt: "Wasabi", width: 22, height: 22 },
   {
     src: "/storage/cloudflare-r2.svg",
@@ -88,9 +88,15 @@ export function Hero() {
         <p className="text-[11px] uppercase leading-[1.5] tracking-[0.14em] text-muted-foreground/80">
           Built around the storage you already use
         </p>
-        <ul className="mt-4 flex flex-wrap items-center gap-x-7 gap-y-5 opacity-70 grayscale dark:opacity-75 dark:invert">
+        {/* The filter stays on the list, but the opacity has to sit on each
+            item: a parent's opacity caps its children's, so hover could never
+            lift past the list's own value. */}
+        <ul className="mt-4 flex flex-wrap items-center gap-x-7 gap-y-5 grayscale dark:invert">
           {storageProviders.map((provider) => (
-            <li key={provider.alt} className="flex h-6 items-center">
+            <li
+              key={provider.alt}
+              className="flex h-6 items-center opacity-70 transition-opacity duration-200 hover:opacity-100 dark:opacity-75"
+            >
               <Image
                 src={provider.src}
                 alt={provider.alt}
