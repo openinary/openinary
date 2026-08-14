@@ -6,6 +6,7 @@ import { Check, Copy, RotateCcw } from "lucide-react";
 import { FileUploader } from "@/components/openinary/file-uploader";
 import { focusRing, pressable } from "@/components/home/cta-button";
 import { useCopy } from "@/hooks/use-copy";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
   resolveTokens,
@@ -25,6 +26,11 @@ const INSTALL =
  */
 const PLAYGROUND_API = "/api/playground";
 
+/** "Have we hydrated yet" as a store, so it costs no effect and no setState. */
+const subscribeNever = () => () => {};
+const isClient = () => true;
+const isServer = () => false;
+
 const signPlaygroundUpload = () => ({
   signature: "playground",
   expires: Math.floor(Date.now() / 1000) + 600,
@@ -33,19 +39,41 @@ const signPlaygroundUpload = () => ({
 
 export function Playground() {
   const [theme, setTheme] = React.useState<Theme>(themes[0]);
-  const [mode, setMode] = React.useState<"light" | "dark">("light");
   const [overrides, setOverrides] = React.useState<Overrides>({});
   const { copied, copy } = useCopy();
 
+  // The canvas follows the site's own light/dark until the visitor picks a side
+  // for it, then stays where they put it.
+  //
+  // The mounted gate is load-bearing: next-themes resolves the stored theme
+  // synchronously on the first client render, so reading it straight away makes
+  // the client disagree with the server-rendered "light" and React bails out of
+  // hydration. Staying on "light" for one render keeps the two in step, then the
+  // effect swaps in the real theme.
+  const { resolvedTheme } = useTheme();
+  const hydrated = React.useSyncExternalStore(subscribeNever, isClient, isServer);
+
+  const [modeOverride, setModeOverride] = React.useState<"light" | "dark" | null>(
+    null,
+  );
+  const mode =
+    modeOverride ?? (hydrated && resolvedTheme === "dark" ? "dark" : "light");
+
   const tokens = resolveTokens(theme, mode, overrides);
-  const isDirty = Object.keys(overrides).length > 0 || theme.id !== "default";
+  const isDirty =
+    Object.keys(overrides).length > 0 ||
+    theme.id !== "default" ||
+    modeOverride !== null;
 
   const cssVars = Object.fromEntries(
     Object.entries(tokens).map(([key, value]) => [`--${key}`, value]),
   ) as React.CSSProperties;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_300px] lg:gap-6">
+    // Hairlines drawn by the 1px gap over a border-coloured ground, the same
+    // way the feature grid does it, so the split matches the rest of the page
+    // instead of floating as two rounded cards.
+    <div className="grid gap-px bg-border pt-px lg:grid-cols-[1fr_320px]">
       {/* Canvas */}
       <div
         style={cssVars}
@@ -53,7 +81,7 @@ export function Playground() {
           // text-foreground matters: the uploader's labels have no colour class
           // of their own, so without it they inherit the page colour and go
           // black-on-black the moment a dark preset is selected.
-          "flex min-h-[420px] flex-col rounded-xl border border-border bg-background p-4 text-foreground transition-colors sm:p-8",
+          "flex min-h-[420px] flex-col bg-background p-6 text-foreground transition-colors sm:p-10",
           mode === "dark" && "dark",
         )}
       >
@@ -72,7 +100,7 @@ export function Playground() {
       </div>
 
       {/* Controls */}
-      <aside className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5">
+      <aside className="flex flex-col gap-5 bg-background p-6 sm:p-8 lg:p-6">
         <div>
           <h3 className="text-sm font-medium">Theme editor</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -109,7 +137,7 @@ export function Playground() {
             <button
               key={value}
               type="button"
-              onClick={() => setMode(value)}
+              onClick={() => setModeOverride(value)}
               aria-pressed={mode === value}
               className={cn(
                 "h-7 rounded border border-transparent text-xs font-medium capitalize transition-all",
@@ -184,9 +212,9 @@ export function Playground() {
             onClick={() => {
               setTheme(themes[0]);
               setOverrides({});
-              setMode("light");
+              setModeOverride(null);
             }}
-            disabled={!isDirty && mode === "light"}
+            disabled={!isDirty}
             className={cn(
               "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
               focusRing,

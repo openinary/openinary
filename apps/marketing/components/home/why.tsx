@@ -50,8 +50,11 @@ export function Why() {
       </div>
 
       {/* The 1px gap over a muted ground draws the grid hairlines, so cells stay
-          separated at every breakpoint without per-cell border bookkeeping. */}
-      <div className="grid gap-px border-t border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          separated at every breakpoint without per-cell border bookkeeping. The
+          top line is padding, not a border: --border is semi-transparent in dark
+          mode, so a border painted over this same background would stack two
+          layers and read twice as heavy as the gaps below it. */}
+      <div className="grid gap-px bg-border pt-px sm:grid-cols-2 lg:grid-cols-3">
         {reasons.map(({ icon: Icon, title, body }) => (
           <article key={title} className="bg-background px-6 py-8 md:px-8">
             <div className="flex items-center gap-2.5">

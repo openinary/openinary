@@ -63,9 +63,12 @@ export function Calculator() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[340px_1fr] lg:gap-10">
+    // Hairlines from the 1px gap over a border-coloured ground, matching the
+    // feature grid, so the split reads as part of the page's box structure
+    // rather than two floating panels.
+    <div className="grid gap-px bg-border pt-px lg:grid-cols-[360px_1fr]">
       {/* Inputs */}
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 bg-background p-6 sm:p-8 lg:p-10">
         <fieldset>
           <legend className="text-sm font-medium">
             What do you pay Cloudinary today?
@@ -165,7 +168,7 @@ export function Calculator() {
       </div>
 
       {/* Results */}
-      <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-5 sm:p-7">
+      <div className="flex flex-col gap-6 bg-background p-6 sm:p-8 lg:p-10">
         <div>
           <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">
             Your monthly cost
@@ -188,7 +191,7 @@ export function Calculator() {
           )}
         </div>
 
-        <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
+        <div className="grid gap-px bg-border pt-px sm:grid-cols-3">
           <Column name="Cloudinary" cost={cloudinary} tone="rival" />
           <Column
             name="Openinary Cloud"

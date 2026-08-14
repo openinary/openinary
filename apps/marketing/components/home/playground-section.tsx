@@ -1,5 +1,5 @@
 import { Playground } from "@/components/home/playground/playground";
-import { Section, SectionHeader, gutter } from "@/components/home/section";
+import { Section, SectionHeader } from "@/components/home/section";
 
 export function PlaygroundSection() {
   return (
@@ -8,7 +8,9 @@ export function PlaygroundSection() {
         eyebrow="Playground"
         title="Drop the uploader into your stack"
       />
-      <div className={`${gutter} pb-14 pt-10 md:pb-20`}>
+      {/* Full bleed to the column edges, like the feature grid and the docs
+          row: the page's own side borders close the box. */}
+      <div className="mt-11">
         <Playground />
       </div>
     </Section>

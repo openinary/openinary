@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 const docs = [
   {
     href: "https://docs.openinary.dev/quickstart",
+    tint: "bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-50",
     icon: Rocket,
     label: "Get started",
     title: "Quickstart",
@@ -22,6 +23,7 @@ const docs = [
   },
   {
     href: "https://docs.openinary.dev/media-transformations/overview",
+    tint: "bg-sky-50 text-sky-950 dark:bg-sky-950/50 dark:text-sky-50",
     icon: Layers,
     label: "Transformations",
     title: "Transformations",
@@ -30,6 +32,7 @@ const docs = [
   },
   {
     href: "https://docs.openinary.dev/configuration/storage",
+    tint: "bg-amber-50 text-amber-950 dark:bg-amber-950/50 dark:text-amber-50",
     icon: Server,
     label: "Configuration",
     title: "Your storage",
@@ -38,6 +41,7 @@ const docs = [
   },
   {
     href: "https://docs.openinary.dev/guides/coolify-deployment",
+    tint: "bg-violet-50 text-violet-950 dark:bg-violet-950/50 dark:text-violet-50",
     icon: BookOpen,
     label: "Guide",
     title: "Self-hosting",
@@ -55,7 +59,7 @@ export function Docs() {
       />
 
       <ul className="mt-11 grid border-t border-border sm:grid-cols-2 lg:grid-cols-4">
-        {docs.map(({ href, icon: Icon, label, title, description }) => (
+        {docs.map(({ href, tint, icon: Icon, label, title, description }) => (
           <li
             key={href}
             className="flex justify-center border-b border-border px-6 py-9 sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:[&:not(:last-child)]:border-r"
@@ -69,9 +73,9 @@ export function Docs() {
               aria-label={`${title}. ${description}`}
               className={cn("rounded-lg", focusRing)}
             >
-              <PerspectiveBook className="bg-card text-card-foreground">
+              <PerspectiveBook className={tint}>
                 <BookHeader>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/5 px-2 py-1 text-xs font-medium dark:bg-white/10">
                     <Icon className="size-3.5" aria-hidden />
                     {label}
                   </span>
