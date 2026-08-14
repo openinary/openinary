@@ -5,6 +5,14 @@ import { Check, Copy, RotateCcw } from "lucide-react";
 
 import { FileUploader } from "@/components/openinary/file-uploader";
 import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ColorPicker,
   ColorPickerArea,
@@ -52,6 +60,7 @@ export function Playground() {
   const [theme, setTheme] = React.useState<Theme>(themes[0]);
   const [overrides, setOverrides] = React.useState<Overrides>({});
   const { copied, copy } = useCopy();
+  const presetId = React.useId();
 
   // The canvas follows the site's own light/dark until the visitor picks a side
   // for it, then stays where they put it.
@@ -124,28 +133,29 @@ export function Playground() {
           </p>
         </div>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium">Preset</span>
-          <select
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={presetId} className="text-xs font-medium">
+            Preset
+          </Label>
+          <Select
             value={theme.id}
-            onChange={(event) => {
-              setTheme(
-                themes.find((t) => t.id === event.target.value) ?? themes[0],
-              );
+            onValueChange={(id) => {
+              setTheme(themes.find((t) => t.id === id) ?? themes[0]);
               setOverrides({});
             }}
-            className={cn(
-              "h-9 rounded-md border border-border bg-background px-2 text-sm transition-all",
-              focusRing,
-            )}
           >
-            {themes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger id={presetId} className="w-full">
+              <SelectValue placeholder="Pick a preset" />
+            </SelectTrigger>
+            <SelectContent>
+              {themes.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="grid grid-cols-2 gap-1 rounded-md border border-border p-1">
           {(["light", "dark"] as const).map((value) => (
@@ -193,7 +203,7 @@ export function Playground() {
               <button
                 type="button"
                 className={cn(
-                  "flex h-9 w-full items-center gap-2 rounded-md border border-border px-2 text-left transition-all",
+                  "flex h-8 w-full items-center gap-2 rounded-md border border-border px-2 text-left transition-all",
                   focusRing,
                   pressable,
                 )}
@@ -259,7 +269,7 @@ export function Playground() {
             }}
             disabled={!isDirty}
             className={cn(
-              "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
+              "inline-flex h-8 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
               focusRing,
               pressable,
             )}
@@ -287,7 +297,7 @@ function PanelButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border text-xs font-medium transition-all hover:bg-muted",
+        "inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border text-xs font-medium transition-all hover:bg-muted",
         focusRing,
         pressable,
       )}
