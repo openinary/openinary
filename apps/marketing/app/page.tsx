@@ -1,10 +1,11 @@
+import { CalculatorSection } from "@/components/home/calculator-section";
 import { Cta } from "@/components/home/cta";
 import { Docs } from "@/components/home/docs";
 import { Faq } from "@/components/home/faq";
 import { Footer } from "@/components/home/footer";
 import { Header } from "@/components/home/header";
 import { Hero } from "@/components/home/hero";
-import { PlaceholderSection } from "@/components/home/placeholder-section";
+import { PlaygroundSection } from "@/components/home/playground-section";
 import { ProductPreview } from "@/components/home/product-preview";
 import { Why } from "@/components/home/why";
 
@@ -17,17 +18,9 @@ export default function Home() {
           <Hero />
           <ProductPreview />
           <Why />
-          <PlaceholderSection
-            eyebrow="Playground"
-            title="Drop the uploader into your stack"
-            label="[playground]"
-          />
+          <PlaygroundSection />
           <Docs />
-          <PlaceholderSection
-            eyebrow="What it really costs"
-            title="See what open source saves you"
-            label="[openinary vs cloudinary calculator]"
-          />
+          <CalculatorSection />
           <Cta />
           <Faq />
         </main>

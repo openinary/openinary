@@ -1,0 +1,45 @@
+{
+  "lastCheckedOn": "2026-08-14",
+  "note": "Public list prices. Re-check both sources and bump lastCheckedOn before shipping a change; the homepage renders that date so a stale table is visible rather than silent.",
+  "cloudinary": {
+    "source": "https://cloudinary.com/pricing",
+    "comment": "Cloudinary bills in credits. One credit buys any ONE of the amounts below, so total credits is the sum of each dimension converted at its own rate.",
+    "creditBuys": {
+      "transformations": 1000,
+      "storageGb": 1,
+      "bandwidthGb": 1,
+      "videoMinutes": 5
+    },
+    "plans": [
+      { "id": "free", "name": "Free", "monthlyUsd": 0, "credits": 25 },
+      { "id": "plus", "name": "Plus", "monthlyUsd": 89, "credits": 225 },
+      { "id": "advanced", "name": "Advanced", "monthlyUsd": 224, "credits": 600 }
+    ],
+    "extraCreditUsd": 0.45
+  },
+  "openinaryCloud": {
+    "comment": "Free plan quotas are live. The pay-as-you-go rates below are the ones to confirm against billing before this section ships.",
+    "included": {
+      "storageGb": 1,
+      "transformations": 500,
+      "videoMinutes": 15,
+      "cdnRequests": 25000
+    },
+    "rates": {
+      "storageGbMonthUsd": 0.02,
+      "per1kTransformationsUsd": 0.4,
+      "perVideoMinuteUsd": 0.05,
+      "per10kRequestsUsd": 0.05
+    }
+  },
+  "selfHosted": {
+    "comment": "A small VPS plus an S3-compatible bucket. R2 egress is free, which is why delivery does not appear here.",
+    "serverUsdMonth": 12,
+    "storageGbMonthUsd": 0.015,
+    "egressGbUsd": 0
+  },
+  "assumptions": {
+    "comment": "Cloudinary meters delivery in GB, Openinary in requests. Converting between them needs an average delivered asset size.",
+    "avgDeliveredAssetKb": 250
+  }
+}

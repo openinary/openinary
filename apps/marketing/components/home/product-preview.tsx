@@ -15,7 +15,7 @@ export function ProductPreview() {
         alt=""
         aria-hidden
         fill
-        sizes="100vw"
+        sizes="(max-width: 1100px) 100vw, 1100px"
         priority
         className="-z-10 object-cover"
       />
