@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, Copy, RotateCcw } from "lucide-react";
 
 import { FileUploader } from "@/components/openinary/file-uploader";
+import { Slider } from "@/components/ui/slider";
 import { focusRing, pressable } from "@/components/home/cta-button";
 import { useCopy } from "@/hooks/use-copy";
 import { useTheme } from "next-themes";
@@ -100,7 +101,11 @@ export function Playground() {
       </div>
 
       {/* Controls */}
-      <aside className="flex flex-col gap-5 bg-background p-6 sm:p-8 lg:p-6">
+      {/* A fraction of the way from the page toward muted, rather than muted
+          itself, which lands too far from the canvas. Mixed rather than layered
+          at low alpha because the grid's ground is the border colour: a
+          translucent panel would pick that up and come out grey. */}
+      <aside className="flex flex-col gap-5 bg-[color-mix(in_oklch,var(--muted)_35%,var(--background))] p-6 sm:p-8 lg:p-6">
         <div>
           <h3 className="text-sm font-medium">Theme editor</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -171,28 +176,27 @@ export function Playground() {
           </span>
         </label>
 
-        <label className="flex flex-col gap-1.5">
+        {/* Not a <label>: a Radix slider is a composite widget, not a labelable
+            control, so the name goes on aria-label instead. */}
+        <div className="flex flex-col gap-3">
           <span className="flex items-center justify-between text-xs font-medium">
             Radius
             <span className="font-mono text-muted-foreground">
               {tokens.radius}
             </span>
           </span>
-          <input
-            type="range"
+          <Slider
+            aria-label="Corner radius"
             min={0}
             max={1.5}
             step={0.125}
-            value={parseFloat(tokens.radius) || 0}
-            onChange={(event) =>
-              setOverrides((o) => ({
-                ...o,
-                radius: `${event.target.value}rem`,
-              }))
+            value={[parseFloat(tokens.radius) || 0]}
+            onValueChange={([next]) =>
+              setOverrides((o) => ({ ...o, radius: `${next}rem` }))
             }
-            className="h-9 w-full accent-foreground"
+            className="**:data-[slot=slider-thumb]:shadow-none [&>:last-child>span]:h-6 [&>:last-child>span]:w-2.5 [&>:last-child>span]:border-[3px] [&>:last-child>span]:border-background [&>:last-child>span]:bg-primary [&>:last-child>span]:ring-offset-0"
           />
-        </label>
+        </div>
 
         <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
           <PanelButton
