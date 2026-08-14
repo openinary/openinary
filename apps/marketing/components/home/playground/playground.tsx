@@ -51,6 +51,14 @@ const subscribeNever = () => () => {};
 const isClient = () => true;
 const isServer = () => false;
 
+/**
+ * One shell for every control in the panel, so the select, the appearance tabs,
+ * the colour trigger and the action buttons share a radius and a fill. The
+ * select ships rounded-lg and a dark-only tint of its own, both of which this
+ * overrides.
+ */
+const fieldShell = "rounded-md border border-border bg-background dark:bg-background";
+
 const signPlaygroundUpload = () => ({
   signature: "playground",
   expires: Math.floor(Date.now() / 1000) + 600,
@@ -62,6 +70,7 @@ export function Playground() {
   const [overrides, setOverrides] = React.useState<Overrides>({});
   const { copied, copy } = useCopy();
   const presetId = React.useId();
+  const canvasId = React.useId();
   const canvasRef = React.useRef<HTMLDivElement>(null);
   // Bumped by Reset. The uploader owns its file list internally, so remounting
   // it is the only way to clear that from out here; the seeding effect keys off
@@ -130,6 +139,8 @@ export function Playground() {
       {/* Canvas */}
       <div
         ref={canvasRef}
+        id={canvasId}
+        role="tabpanel"
         style={canvasStyle}
         className={cn(
           // text-foreground matters: the uploader's labels have no colour class
@@ -143,18 +154,17 @@ export function Playground() {
           &lt;FileUploader /&gt;
         </p>
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-md">
-            {/* The drop zone ships transparent, which is right on a plain page
-                but lets the dot grid run through it here. Filled from the call
-                site rather than in packages/registry: an opaque default would
-                reach everyone who installs the block, including people who put
-                it on a coloured surface on purpose. */}
+          {/* Opaque wrapper rather than a fill forced onto the drop zone: the
+              zone ships transparent so its own hover and drag highlights show
+              through, and overriding its background from out here beat those
+              states on specificity and killed them. Hiding the dot grid behind
+              the whole block leaves the component's states untouched. */}
+          <div className="w-full max-w-md bg-background">
             <FileUploader
               key={resetToken}
               baseUrl={PLAYGROUND_API}
               sign={signPlaygroundUpload}
               maxSize={10 * 1024 * 1024}
-              className="[&_[role=button]]:bg-background"
             />
           </div>
         </div>
@@ -185,7 +195,7 @@ export function Playground() {
               setOverrides({});
             }}
           >
-            <SelectTrigger id={presetId} className="w-full">
+            <SelectTrigger id={presetId} className={cn(fieldShell, "w-full")}>
               <SelectValue placeholder="Pick a preset" />
             </SelectTrigger>
             <SelectContent>
@@ -198,19 +208,39 @@ export function Playground() {
           </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 rounded-md border border-border p-1">
+        {/* The two tabs sit flush with no gap, so the indicator is exactly one
+            tab wide and translate-x-full lands it precisely on the second one:
+            its width, calc(50% - 4px), equals a tab's width once the 4px
+            padding on each side is taken out. No measuring, no resize listener. */}
+        <div
+          role="tablist"
+          aria-label="Canvas appearance"
+          className={cn(fieldShell, "relative flex p-1")}
+        >
+          {/* Inline transform rather than translate-x-full: that utility drives
+              Tailwind's --tw-translate-x custom property, which resolved to 0%
+              here and left the indicator parked on the first tab. */}
+          <span
+            aria-hidden
+            style={{
+              transform: mode === "dark" ? "translateX(100%)" : "translateX(0)",
+            }}
+            className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded bg-foreground transition-transform duration-300 ease-out motion-reduce:transition-none"
+          />
           {(["light", "dark"] as const).map((value) => (
             <button
               key={value}
               type="button"
+              role="tab"
+              aria-selected={mode === value}
+              aria-controls={canvasId}
               onClick={() => setModeOverride(value)}
-              aria-pressed={mode === value}
               className={cn(
-                "h-7 rounded border border-transparent text-xs font-medium capitalize transition-all",
+                "relative z-10 h-6 flex-1 rounded border border-transparent text-xs font-medium capitalize transition-colors",
                 focusRing,
-                pressable,
+                "cursor-pointer select-none",
                 mode === value
-                  ? "bg-foreground text-background"
+                  ? "text-background"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -244,7 +274,8 @@ export function Playground() {
               <button
                 type="button"
                 className={cn(
-                  "flex h-8 w-full items-center gap-2 rounded-md border border-border px-2 text-left transition-all",
+                  fieldShell,
+                  "flex h-8 w-full items-center gap-2 px-2 text-left transition-all",
                   focusRing,
                   pressable,
                 )}
@@ -310,7 +341,7 @@ export function Playground() {
               setResetToken((n) => n + 1);
             }}
             className={cn(
-              "inline-flex h-8 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
+              "inline-flex h-8 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground",
               focusRing,
               pressable,
             )}
@@ -338,7 +369,8 @@ function PanelButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border text-xs font-medium transition-all hover:bg-muted",
+        fieldShell,
+        "inline-flex h-8 items-center justify-center gap-2 text-xs font-medium transition-all hover:bg-muted",
         focusRing,
         pressable,
       )}
