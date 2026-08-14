@@ -93,7 +93,7 @@ export function Playground() {
     // tracks the selected preset instead of the site theme. background-image
     // paints over bg-background, so no extra layer is needed.
     backgroundImage:
-      "radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 1px, transparent 1px)",
+      "radial-gradient(color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px)",
     backgroundSize: "16px 16px",
   } as React.CSSProperties;
 
@@ -118,10 +118,16 @@ export function Playground() {
         </p>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md">
+            {/* The drop zone ships transparent, which is right on a plain page
+                but lets the dot grid run through it here. Filled from the call
+                site rather than in packages/registry: an opaque default would
+                reach everyone who installs the block, including people who put
+                it on a coloured surface on purpose. */}
             <FileUploader
               baseUrl={PLAYGROUND_API}
               sign={signPlaygroundUpload}
               maxSize={10 * 1024 * 1024}
+              className="[&_[role=button]]:bg-background"
             />
           </div>
         </div>
