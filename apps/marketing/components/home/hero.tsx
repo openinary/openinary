@@ -49,7 +49,7 @@ export function Hero() {
         <ArrowRight className="size-3" aria-hidden />
       </Link>
 
-      <h1 className="mt-11 text-balance text-[2.25rem] font-semibold leading-[1.05] tracking-[-0.03em] text-foreground sm:max-w-[18ch] sm:text-5xl lg:text-[3.4rem]">
+      <h1 className="mt-6 text-balance text-[2.25rem] font-semibold leading-[1.05] tracking-[-0.03em] text-foreground sm:max-w-[18ch] sm:text-5xl lg:text-[3.4rem]">
         Open-source, self-hostable alternative to Cloudinary
       </h1>
 
