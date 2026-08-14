@@ -5,7 +5,8 @@ import Link from "next/link";
 import Logo from "@/components/logo";
 import { useGitHubStars } from "@/hooks/use-github-stars";
 import { gutter } from "@/components/home/section";
-import { CtaLink } from "@/components/home/cta-button";
+import { CtaLink, focusRing, pressable } from "@/components/home/cta-button";
+import { cn } from "@/lib/utils";
 
 export function Header() {
   const { starCount } = useGitHubStars("openinary", "openinary");
@@ -18,7 +19,11 @@ export function Header() {
           aria-label="Openinary home"
           data-track-event="logo_clicked"
           data-track-prop-location="header"
-          className="-ml-1 rounded-md p-1 transition-colors hover:bg-muted"
+          className={cn(
+            "-ml-1 rounded-md border border-transparent p-1 transition-all hover:bg-muted",
+            focusRing,
+            pressable,
+          )}
         >
           <Logo />
         </Link>
@@ -30,7 +35,11 @@ export function Header() {
             rel="noopener noreferrer"
             data-track-event="docs_clicked"
             data-track-prop-location="header"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className={cn(
+              "rounded-sm text-sm font-medium text-muted-foreground transition-all hover:text-foreground",
+              focusRing,
+              pressable,
+            )}
           >
             Docs
           </Link>
@@ -41,7 +50,11 @@ export function Header() {
             rel="noopener noreferrer"
             data-track-event="github_star_clicked"
             data-track-prop-location="header"
-            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className={cn(
+              "flex items-center gap-1.5 rounded-sm text-sm font-medium text-muted-foreground transition-all hover:text-foreground",
+              focusRing,
+              pressable,
+            )}
           >
             <GitHubMark />
             <span className="hidden sm:inline">GitHub</span>
