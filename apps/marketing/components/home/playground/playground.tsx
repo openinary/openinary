@@ -23,7 +23,13 @@ import {
   ColorPickerSwatch,
   ColorPickerTrigger,
 } from "@/components/ui/color-picker";
-import { focusRing, pressable } from "@/components/home/cta-button";
+import {
+  fieldShell,
+  focusRing,
+  panelSurface,
+  pressable,
+  sliderThumb,
+} from "@/components/home/cta-button";
 import { useCopy } from "@/hooks/use-copy";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -50,14 +56,6 @@ const PLAYGROUND_API = "/api/playground";
 const subscribeNever = () => () => {};
 const isClient = () => true;
 const isServer = () => false;
-
-/**
- * One shell for every control in the panel, so the select, the appearance tabs,
- * the colour trigger and the action buttons share a radius and a fill. The
- * select ships rounded-lg and a dark-only tint of its own, both of which this
- * overrides.
- */
-const fieldShell = "rounded-md border border-border bg-background dark:bg-background";
 
 const signPlaygroundUpload = () => ({
   signature: "playground",
@@ -175,7 +173,12 @@ export function Playground() {
           itself, which lands too far from the canvas. Mixed rather than layered
           at low alpha because the grid's ground is the border colour: a
           translucent panel would pick that up and come out grey. */}
-      <aside className="flex flex-col gap-5 bg-[color-mix(in_oklch,var(--muted)_35%,var(--background))] p-6 sm:p-8 lg:p-6">
+      <aside
+        className={cn(
+          "flex flex-col gap-5 p-6 sm:p-8 lg:p-6",
+          panelSurface,
+        )}
+      >
         <div>
           <h3 className="text-sm font-medium">Theme editor</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -315,7 +318,7 @@ export function Playground() {
             onValueChange={([next]) =>
               setOverrides((o) => ({ ...o, radius: `${next}rem` }))
             }
-            className="**:data-[slot=slider-thumb]:shadow-none [&>:last-child>span]:h-6 [&>:last-child>span]:w-2.5 [&>:last-child>span]:border-[3px] [&>:last-child>span]:border-background [&>:last-child>span]:bg-primary [&>:last-child>span]:ring-offset-0"
+            className={sliderThumb}
           />
         </div>
 
