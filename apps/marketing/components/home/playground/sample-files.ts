@@ -1,12 +1,10 @@
 /**
- * Two images generated in the browser, so the playground can open with files
- * already queued: the uploader's file rows, progress bars and Clear/Upload
- * buttons are most of the component, and an empty drop zone hides all of it
- * until the visitor thinks to drag something in.
+ * A sample image generated in the browser, so the playground can open with a
+ * file already queued: the uploader's file row, thumbnail, progress bar and
+ * Clear/Upload actions are most of the component, and an empty drop zone hides
+ * all of it until the visitor thinks to drag something in.
  *
- * Generated rather than shipped as assets to keep them off the page's byte
- * budget, and deliberately different sizes so the simulated upload finishes at
- * visibly different moments.
+ * Generated rather than shipped as an asset so it costs nothing to download.
  */
 
 type Spec = {
@@ -16,9 +14,11 @@ type Spec = {
   hue: number;
 };
 
+// Big enough that the upload cannot slip through the socket buffers in one go:
+// the progress bar is driven by bytes actually sent, so a small file reports
+// 100% before the server has read anything and the bar never animates.
 const SPECS: Spec[] = [
-  { name: "landscape.jpg", width: 1280, height: 860, hue: 205 },
-  { name: "product-shot.jpg", width: 720, height: 900, hue: 25 },
+  { name: "landscape.jpg", width: 3600, height: 2400, hue: 205 },
 ];
 
 function draw({ width, height, hue }: Spec): HTMLCanvasElement {
@@ -53,7 +53,7 @@ function draw({ width, height, hue }: Spec): HTMLCanvasElement {
     }
     noiseCtx.putImageData(pixels, 0, 0);
 
-    ctx.globalAlpha = 0.16;
+    ctx.globalAlpha = 0.34;
     ctx.drawImage(noise, 0, 0, width, height);
     ctx.globalAlpha = 1;
   }
@@ -67,7 +67,7 @@ function toFile(canvas: HTMLCanvasElement, name: string): Promise<File | null> {
       (blob) =>
         resolve(blob ? new File([blob], name, { type: "image/jpeg" }) : null),
       "image/jpeg",
-      0.72,
+      0.92,
     );
   });
 }

@@ -16,23 +16,28 @@
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
- * Over localhost an upload of a few dozen KB completes before the progress bar
- * can render, so the whole queue would blink straight to "Uploaded" and the
- * uploading, cancel and per-file states would never be seen.
+ * Simulated link speed. Over localhost the real thing is instant, and the
+ * uploader's progress bar is driven by bytes *sent*, so it would jump to 100%
+ * and then sit there while the server thought about it, which reads as a stall
+ * rather than an upload.
  *
- * The wait is derived from the request's own size rather than passed in, so it
- * needs no extra field in the protocol and stays plausible: a bigger file takes
- * longer, and files sent together finish at different moments. Capped so this
- * unauthenticated endpoint cannot be made to hold connections open.
+ * Slowing the reads instead of sleeping at the end makes the bar honest: once
+ * the socket buffers fill, the browser can only send as fast as this end
+ * drains, so progress advances at roughly this rate.
  */
-const SIMULATED_BYTES_PER_SECOND = 48 * 1024;
-const BASE_LATENCY_MS = 450;
-const MAX_DELAY_MS = 3000;
+const TARGET_UPLOAD_MS = 1800;
 
-function simulatedTransferMs(bytes: number): number {
-  const transfer = (bytes / SIMULATED_BYTES_PER_SECOND) * 1000;
-  return Math.min(MAX_DELAY_MS, BASE_LATENCY_MS + transfer);
-}
+/**
+ * The browser hands roughly this much to the socket before back-pressure makes
+ * it wait on us, so it reports 100% sent while we still have that much left to
+ * read. Pacing the tail as well would park the bar at 100% for the difference,
+ * which is the stall we are trying to avoid, so the last stretch is drained as
+ * fast as it arrives.
+ */
+const UNPACED_TAIL_BYTES = 1_500_000;
+
+/** Backstop, so an unauthenticated endpoint cannot be held open indefinitely. */
+const MAX_DURATION_MS = 15_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -52,14 +57,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // Drain without buffering: the browser needs to finish sending for the
-  // progress bar to reach 100%, but we never hold the file in memory.
+  // Drain without buffering, pacing the reads so the sender is throttled to
+  // SIMULATED_BYTES_PER_SECOND. Nothing is kept: each chunk is counted and
+  // dropped.
   let received = 0;
+  const startedAt = Date.now();
+  const pacedBytes = Math.max(0, declared - UNPACED_TAIL_BYTES);
   const reader = request.body?.getReader();
+
   if (reader) {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+
       received += value.byteLength;
       if (received > MAX_BYTES) {
         await reader.cancel();
@@ -68,10 +78,20 @@ export async function POST(request: Request) {
           413,
         );
       }
+
+      const elapsed = Date.now() - startedAt;
+      if (elapsed > MAX_DURATION_MS) break;
+
+      if (received < pacedBytes) {
+        const owed = (received / pacedBytes) * TARGET_UPLOAD_MS - elapsed;
+        if (owed > 0) await sleep(Math.min(owed, 200));
+      }
     }
   }
 
-  await sleep(simulatedTransferMs(received));
+  // A file small enough to sit entirely in the socket buffer is never throttled,
+  // so nothing paced it: give it a brief pause rather than blinking to done.
+  if (pacedBytes === 0) await sleep(700);
 
   return json(
     {

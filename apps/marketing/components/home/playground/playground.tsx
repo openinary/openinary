@@ -63,6 +63,10 @@ export function Playground() {
   const { copied, copy } = useCopy();
   const presetId = React.useId();
   const canvasRef = React.useRef<HTMLDivElement>(null);
+  // Bumped by Reset. The uploader owns its file list internally, so remounting
+  // it is the only way to clear that from out here; the seeding effect keys off
+  // the same token, which puts the sample file back.
+  const [resetToken, setResetToken] = React.useState(0);
 
   // Hand the uploader two files on mount by way of its own file input, so it
   // reaches the same state it would from a real drop. Seeding through the
@@ -85,7 +89,7 @@ export function Playground() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [resetToken]);
 
   // The canvas follows the site's own light/dark until the visitor picks a side
   // for it, then stays where they put it.
@@ -105,10 +109,6 @@ export function Playground() {
     modeOverride ?? (hydrated && resolvedTheme === "dark" ? "dark" : "light");
 
   const tokens = resolveTokens(theme, mode, overrides);
-  const isDirty =
-    Object.keys(overrides).length > 0 ||
-    theme.id !== "default" ||
-    modeOverride !== null;
 
   const canvasStyle = {
     ...Object.fromEntries(
@@ -150,6 +150,7 @@ export function Playground() {
                 reach everyone who installs the block, including people who put
                 it on a coloured surface on purpose. */}
             <FileUploader
+              key={resetToken}
               baseUrl={PLAYGROUND_API}
               sign={signPlaygroundUpload}
               maxSize={10 * 1024 * 1024}
@@ -306,8 +307,8 @@ export function Playground() {
               setTheme(themes[0]);
               setOverrides({});
               setModeOverride(null);
+              setResetToken((n) => n + 1);
             }}
-            disabled={!isDirty}
             className={cn(
               "inline-flex h-8 items-center justify-center gap-2 rounded-md border border-transparent text-xs font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
               focusRing,
