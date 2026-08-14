@@ -3,10 +3,13 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
+// Nominal widths. The cover is capped at these rather than fixed to them, so a
+// book in a narrow column (two per row on a phone) shrinks instead of spilling
+// out of it. `aspect-[49/60]` keeps the proportions at any width.
 const sizeMap = {
-  sm: { width: "150px", spineTranslation: "122px" },
-  default: { width: "196px", spineTranslation: "168px" },
-  lg: { width: "300px", spineTranslation: "272px" },
+  sm: "150px",
+  default: "196px",
+  lg: "300px",
 };
 
 interface PerspectiveBookProps {
@@ -33,14 +36,14 @@ export function PerspectiveBook({
 
   return (
     <div
-      className={`z-10 group [perspective:900px] w-min h-min`}
+      className={`z-10 group [perspective:900px] w-full h-min`}
     >
       <div
         style={{
-          width: sizeMap[size].width,
+          width: `min(100%, ${sizeMap[size]})`,
           borderRadius: "6px 4px 4px 6px",
         }}
-        className={`transition-transform duration-300 ease-out relative [transform-style:preserve-3d] [transform:rotateY(0deg)] group-hover:[transform:rotateY(-20deg)] group-hover:scale-[1.066] group-hover:-translate-x-1 aspect-[49/60]`}
+        className={`mx-auto transition-transform duration-300 ease-out relative [transform-style:preserve-3d] [transform:rotateY(0deg)] group-hover:[transform:rotateY(-20deg)] group-hover:scale-[1.066] group-hover:-translate-x-1 aspect-[49/60]`}
       >
         {/* Front Side */}
         <div
@@ -54,10 +57,10 @@ export function PerspectiveBook({
             borderRadius: "6px 4px 4px 6px",
           }}
         >
-          {/* Paper edge. Its light stripes are drawn in white, which reads as a
-              glare strip on a dark cover, so it is dialled back in dark mode. */}
+          {/* Paper edge, the stacked page ends at the opening side. White in
+              both themes for the same reason as the spine. */}
           <div
-            className="absolute left-0 top-0 h-full opacity-40 dark:opacity-20"
+            className="absolute left-0 top-0 h-full opacity-40"
             style={{
               minWidth: "8.2%",
               background:
@@ -80,18 +83,19 @@ export function PerspectiveBook({
           )}
         </div>
 
-        {/* Spine. The page block is white paper on a light page; left that way
-            in dark mode it renders as a bright slab welded to a dark cover,
-            which is what made these look broken. */}
+        {/* Spine: the page block seen edge-on. Paper stays paper in both themes,
+            the same way a real book's pages do not darken with the room. */}
         <div
-          className="absolute left-0 bg-[linear-gradient(90deg,#eaeaea_0%,#0000_80%),linear-gradient(#fff,#fafafa)] dark:bg-[linear-gradient(90deg,#2f2f31_0%,#0000_80%),linear-gradient(#232326,#1a1a1d)]"
+          className="absolute left-0 bg-[linear-gradient(90deg,#eaeaea_0%,#0000_80%),linear-gradient(#fff,#fafafa)]"
           style={{
             top: "3px",
             bottom: "3px",
             width: "48px",
-            transform: `translateX(${
-              sizeMap[size].spineTranslation
-            }) rotateY(90deg)`,
+            // Positioned rather than translated: a translate percentage is
+            // relative to the spine's own 48px, `left` is relative to the
+            // cover, which is what has to be tracked now that it is fluid.
+            left: "calc(100% - 28px)",
+            transform: "rotateY(90deg)",
           }}
         >
         </div>
@@ -155,7 +159,9 @@ export function BookDescription({
   className = "",
 }: BookDescriptionProps) {
   return (
-    <p className={`opacity-80 select-none text-xs/relaxed ${className}`}>
+    <p
+      className={`opacity-80 select-none text-[11px]/relaxed sm:text-xs/relaxed ${className}`}
+    >
       {children}
     </p>
   );
