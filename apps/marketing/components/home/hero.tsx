@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { CtaLink } from "@/components/home/cta-button";
+import { CopyCommand } from "@/components/home/copy-command";
 import { gutter } from "@/components/home/section";
 
 const storageProviders = [
@@ -79,9 +80,9 @@ export function Hero() {
         </CtaLink>
       </div>
 
-      <p className="mt-5 font-mono text-xs text-muted-foreground/90">
-        ~ npx create-openinary@latest
-      </p>
+      <div className="mt-4">
+        <CopyCommand command="npx create-openinary@latest" />
+      </div>
 
       <div className="mt-14 md:mt-20">
         <p className="text-[11px] uppercase leading-[1.5] tracking-[0.14em] text-muted-foreground/80">

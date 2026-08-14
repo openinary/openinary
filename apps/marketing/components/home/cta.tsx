@@ -1,4 +1,5 @@
 import { CtaLink } from "@/components/home/cta-button";
+import { CopyCommand } from "@/components/home/copy-command";
 import { Section, SectionHeader, gutter } from "@/components/home/section";
 
 export function Cta() {
@@ -18,9 +19,7 @@ export function Cta() {
         >
           Try Cloud
         </CtaLink>
-        <p className="font-mono text-xs text-muted-foreground">
-          ~ npx create-openinary@latest
-        </p>
+        <CopyCommand command="npx create-openinary@latest" />
       </div>
     </Section>
   );

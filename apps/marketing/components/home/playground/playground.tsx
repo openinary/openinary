@@ -5,6 +5,7 @@ import { Check, Copy, RotateCcw } from "lucide-react";
 
 import { FileUploader } from "@/components/openinary/file-uploader";
 import { focusRing, pressable } from "@/components/home/cta-button";
+import { useCopy } from "@/hooks/use-copy";
 import { cn } from "@/lib/utils";
 import {
   resolveTokens,
@@ -29,24 +30,6 @@ const signPlaygroundUpload = () => ({
   expires: Math.floor(Date.now() / 1000) + 600,
   folder: "playground",
 });
-
-function useCopy() {
-  const [copied, setCopied] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!copied) return;
-    const id = setTimeout(() => setCopied(null), 1600);
-    return () => clearTimeout(id);
-  }, [copied]);
-
-  return {
-    copied,
-    copy: async (key: string, text: string) => {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-    },
-  };
-}
 
 export function Playground() {
   const [theme, setTheme] = React.useState<Theme>(themes[0]);
@@ -185,13 +168,13 @@ export function Playground() {
 
         <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
           <PanelButton
-            onClick={() => copy("css", toCss(theme, overrides))}
+            onClick={() => copy(toCss(theme, overrides), "css")}
             done={copied === "css"}
           >
             Copy CSS
           </PanelButton>
           <PanelButton
-            onClick={() => copy("install", INSTALL)}
+            onClick={() => copy(INSTALL, "install")}
             done={copied === "install"}
           >
             Copy install command
