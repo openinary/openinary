@@ -27,6 +27,7 @@ import { focusRing, pressable } from "@/components/home/cta-button";
 import { useCopy } from "@/hooks/use-copy";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { createSampleFiles } from "@/components/home/playground/sample-files";
 import {
   resolveTokens,
   themes,
@@ -61,6 +62,30 @@ export function Playground() {
   const [overrides, setOverrides] = React.useState<Overrides>({});
   const { copied, copy } = useCopy();
   const presetId = React.useId();
+  const canvasRef = React.useRef<HTMLDivElement>(null);
+
+  // Hand the uploader two files on mount by way of its own file input, so it
+  // reaches the same state it would from a real drop. Seeding through the
+  // component's public surface rather than adding a demo-only prop keeps
+  // packages/registry free of anything that exists purely for this page.
+  React.useEffect(() => {
+    let cancelled = false;
+    const input =
+      canvasRef.current?.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) return;
+
+    void createSampleFiles().then((files) => {
+      if (cancelled || files.length === 0) return;
+      const transfer = new DataTransfer();
+      for (const file of files) transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // The canvas follows the site's own light/dark until the visitor picks a side
   // for it, then stays where they put it.
@@ -104,6 +129,7 @@ export function Playground() {
     <div className="grid gap-px bg-border pt-px lg:grid-cols-[1fr_320px]">
       {/* Canvas */}
       <div
+        ref={canvasRef}
         style={canvasStyle}
         className={cn(
           // text-foreground matters: the uploader's labels have no colour class

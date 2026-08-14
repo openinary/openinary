@@ -15,6 +15,27 @@
 /** Anything over this is rejected, which also demos the uploader error state. */
 const MAX_BYTES = 10 * 1024 * 1024;
 
+/**
+ * Over localhost an upload of a few dozen KB completes before the progress bar
+ * can render, so the whole queue would blink straight to "Uploaded" and the
+ * uploading, cancel and per-file states would never be seen.
+ *
+ * The wait is derived from the request's own size rather than passed in, so it
+ * needs no extra field in the protocol and stays plausible: a bigger file takes
+ * longer, and files sent together finish at different moments. Capped so this
+ * unauthenticated endpoint cannot be made to hold connections open.
+ */
+const SIMULATED_BYTES_PER_SECOND = 48 * 1024;
+const BASE_LATENCY_MS = 450;
+const MAX_DELAY_MS = 3000;
+
+function simulatedTransferMs(bytes: number): number {
+  const transfer = (bytes / SIMULATED_BYTES_PER_SECOND) * 1000;
+  return Math.min(MAX_DELAY_MS, BASE_LATENCY_MS + transfer);
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
     status,
@@ -49,6 +70,8 @@ export async function POST(request: Request) {
       }
     }
   }
+
+  await sleep(simulatedTransferMs(received));
 
   return json(
     {
