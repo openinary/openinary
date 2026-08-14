@@ -5,6 +5,16 @@ import { Check, Copy, RotateCcw } from "lucide-react";
 
 import { FileUploader } from "@/components/openinary/file-uploader";
 import { Slider } from "@/components/ui/slider";
+import {
+  ColorPicker,
+  ColorPickerArea,
+  ColorPickerContent,
+  ColorPickerEyeDropper,
+  ColorPickerHueSlider,
+  ColorPickerInput,
+  ColorPickerSwatch,
+  ColorPickerTrigger,
+} from "@/components/ui/color-picker";
 import { focusRing, pressable } from "@/components/home/cta-button";
 import { useCopy } from "@/hooks/use-copy";
 import { useTheme } from "next-themes";
@@ -158,23 +168,52 @@ export function Playground() {
           ))}
         </div>
 
-        <label className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium">Primary</span>
-          <span className="flex h-9 items-center gap-2 rounded-md border border-border px-2">
-            <input
-              type="color"
-              value={overrides.primary ?? tokens.primary}
-              onChange={(event) =>
-                setOverrides((o) => ({ ...o, primary: event.target.value }))
-              }
-              aria-label="Primary colour"
-              className="size-5 cursor-pointer rounded border-0 bg-transparent p-0"
-            />
-            <span className="font-mono text-xs uppercase text-muted-foreground">
-              {overrides.primary ?? tokens.primary}
-            </span>
-          </span>
-        </label>
+          {/* No format select on purpose: resolveTokens picks the label colour
+              from this value's luminance, which is read as hex. Letting the
+              picker hand back rgb() or hsl() would silently fall back to a
+              mid-grey guess and could put white text on a pale button. */}
+          {/* Uncontrolled, re-keyed when the preset or mode changes. Driving it
+              with `value` made it echo its own normalisation back on mount
+              (#27272a in, #262629 out), which recorded an override and left the
+              theme dirty before anyone touched it. */}
+          <ColorPicker
+            key={`${theme.id}-${mode}`}
+            defaultValue={overrides.primary ?? tokens.primary}
+            onValueChange={(next) =>
+              setOverrides((o) => ({ ...o, primary: next }))
+            }
+            format="hex"
+          >
+            {/* asChild: the trigger renders a filled shadcn Button by default,
+                which turns the row into a solid bar. This keeps it looking like
+                the other controls in the panel. */}
+            <ColorPickerTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex h-9 w-full items-center gap-2 rounded-md border border-border px-2 text-left transition-all",
+                  focusRing,
+                  pressable,
+                )}
+              >
+                <ColorPickerSwatch className="size-5 shrink-0 rounded" />
+                <span className="font-mono text-xs uppercase text-muted-foreground">
+                  {overrides.primary ?? tokens.primary}
+                </span>
+              </button>
+            </ColorPickerTrigger>
+            <ColorPickerContent className="w-56">
+              <ColorPickerArea />
+              <div className="flex items-center gap-2">
+                <ColorPickerEyeDropper />
+                <ColorPickerHueSlider />
+              </div>
+              <ColorPickerInput />
+            </ColorPickerContent>
+          </ColorPicker>
+        </div>
 
         {/* Not a <label>: a Radix slider is a composite widget, not a labelable
             control, so the name goes on aria-label instead. */}

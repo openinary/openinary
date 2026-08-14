@@ -31,6 +31,7 @@
       }
     },
     "@spell": "https://spell.sh/r/{name}.json",
-    "@openpolicy": "https://www.openpolicy.sh/r/{name}.json"
+    "@openpolicy": "https://www.openpolicy.sh/r/{name}.json",
+    "@diceui": "https://diceui.com/r/{name}.json"
   }
 }
