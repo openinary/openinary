@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useSliderWithInput } from "@/hooks/use-slider-with-input";
 import {
-  avgDeliveredAssetKb,
   cloudinaryCost,
   lastCheckedOn,
   openinaryCloudCost,
@@ -80,6 +79,16 @@ const usd = (value: number) =>
         currency: "USD",
         maximumFractionDigits: value < 100 ? 2 : 0,
       });
+
+/**
+ * The self-hosted figure, to the nearest five dollars.
+ *
+ * The other two columns are arithmetic on published rates, so they are quoted
+ * to the cent. This one rests on how much work a vCPU absorbs, which is an
+ * estimate, and a number carried out to the cent claims a precision the
+ * estimate behind it does not have.
+ */
+const usdRough = (value: number) => `$${Math.max(5, Math.round(value / 5) * 5)}`;
 
 const DEFAULT_PLAN = "plus";
 
@@ -277,10 +286,12 @@ export function Calculator() {
             why it reads as a footnote: the sentence has to carry the part of
             the price that is not on the invoice. */}
         <p className="p-6 text-xs leading-relaxed text-muted-foreground sm:px-10 sm:py-6">
-          Rather run it yourself? The same workload self-hosted is around{" "}
-          <span className="tabular-nums">{usd(selfHosted.monthlyUsd)}</span>/mo
-          in servers, storage and bandwidth, plus the hours you spend running
-          it. Public list prices, checked on{" "}
+          Rather run Openinary yourself? Roughly{" "}
+          <span className="tabular-nums">
+            {usdRough(selfHosted.monthlyUsd)}
+          </span>
+          /mo in servers, storage and bandwidth, plus your time. Every figure
+          here is an estimate, not a quote, from public list prices checked on{" "}
           <time dateTime={lastCheckedOn}>
             {new Date(lastCheckedOn).toLocaleDateString("en-GB", {
               day: "numeric",
@@ -288,10 +299,7 @@ export function Calculator() {
               year: "numeric",
             })}
           </time>
-          . Cloudinary bills in credits, so its figure is the cheapest plan that
-          covers the same workload, and it meters delivery in GB where we meter
-          requests, converted here at {avgDeliveredAssetKb} KB per delivered
-          asset. Your own contract may differ.
+          , and Openinary does not guarantee any saving.
         </p>
 
         <div className="px-6 pb-6 lg:hidden">{startFree}</div>

@@ -21,8 +21,8 @@ export default function Home() {
           <PlaygroundSection />
           <Docs />
           <CalculatorSection />
-          <Cta />
           <Faq />
+          <Cta />
         </main>
         <Footer />
       </div>

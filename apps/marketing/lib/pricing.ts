@@ -187,4 +187,3 @@ export function usageForPlan(planId: string): Usage {
 export const plans = cloudinary.plans;
 export const lastCheckedOn = pricing.lastCheckedOn;
 export const freeQuotas = openinaryCloud.included;
-export const avgDeliveredAssetKb = assumptions.avgDeliveredAssetKb;
