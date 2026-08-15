@@ -33,7 +33,7 @@ const reasons = [
   {
     icon: Database,
     title: "Yours by architecture",
-    body: "Your files live in your own bucket, S3, R2 or MinIO, whatever you already run. Nothing gets locked into a store you have to migrate out of.",
+    body: "Your files live in your own bucket, S3 or R2, whatever you already run. Nothing gets locked into a store you struggle to migrate out of.",
   },
   {
     icon: Unlock,

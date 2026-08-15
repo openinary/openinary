@@ -17,7 +17,7 @@ export function Cta() {
           data-track-event="cloud_cta_clicked"
           data-track-prop-location="footer_cta"
         >
-          Try Cloud
+          Try Cloud Now
         </CtaLink>
         <CopyCommand command="npx create-openinary@latest" />
       </div>
