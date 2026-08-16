@@ -241,7 +241,7 @@ export function Calculator() {
 
       {/* Results */}
       <div className="flex flex-col bg-background">
-        <div className="p-6 sm:p-10">
+        <div className="p-6 sm:px-6 sm:py-10">
           <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">
             Your monthly cost
           </p>
@@ -285,7 +285,7 @@ export function Calculator() {
             yourself is cheaper in cash at almost any volume, which is exactly
             why it reads as a footnote: the sentence has to carry the part of
             the price that is not on the invoice. */}
-        <p className="p-6 text-xs leading-relaxed text-muted-foreground sm:px-10 sm:py-6">
+        <p className="p-6 text-xs leading-relaxed text-muted-foreground">
           Rather run Openinary yourself? Roughly{" "}
           <span className="tabular-nums">
             {usdRough(selfHosted.monthlyUsd)}
