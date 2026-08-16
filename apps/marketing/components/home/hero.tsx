@@ -1,50 +1,11 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { CtaLink } from "@/components/home/cta-button";
 import { CopyCommand } from "@/components/home/copy-command";
 import { gutter } from "@/components/home/section";
+import { StorageStrip } from "@/components/home/storage-strip";
 
-/**
- * Sizing the strip. Every SVG's frame is cut to its drawing, so a mark's box
- * is the mark itself and one number sets its size. Height for the upright
- * ones, but the wide ones get less of it: a cloud that is twice as wide as it
- * is tall drawn to the full height outweighs everything around it, so it is
- * given the same area instead, and its height comes out of that.
- *
- * Every file is the same grey at the same alpha, S3 and Wasabi having been
- * redrawn to match the seven that already were, so the strip's grayscale has
- * nothing left to even out.
- */
-const MARK_HEIGHT = 22;
-const MARK_AREA = MARK_HEIGHT * MARK_HEIGHT;
-
-// Best known first: the three hyperscalers, then Cloudflare, then the
-// S3-compatible independents roughly by how often a developer has heard of
-// them.
-const storageProviders: { src: string; alt: string; ratio: number }[] = [
-  { src: "/storage/amazon-s3.svg", alt: "Amazon S3", ratio: 424 / 512 },
-  { src: "/storage/google-cloud.svg", alt: "Google Cloud Storage", ratio: 1 },
-  { src: "/storage/azure-blob.svg", alt: "Azure Blob Storage", ratio: 1 },
-  {
-    src: "/storage/cloudflare-r2.svg",
-    alt: "Cloudflare R2",
-    ratio: 1059 / 479,
-  },
-  { src: "/storage/backblaze.svg", alt: "Backblaze B2", ratio: 1 },
-  { src: "/storage/wasabi.svg", alt: "Wasabi", ratio: 1 },
-  { src: "/storage/scaleway.svg", alt: "Scaleway Object Storage", ratio: 1 },
-  { src: "/storage/vultr.svg", alt: "Vultr Object Storage", ratio: 29 / 18 },
-  { src: "/storage/storj.svg", alt: "Storj", ratio: 1 },
-];
-
-/** Upright marks take the full height; wide ones take the same area. */
-function markSize(ratio: number) {
-  const height =
-    ratio > 1 ? Math.round(Math.sqrt(MARK_AREA / ratio)) : MARK_HEIGHT;
-  return { height, width: Math.round(height * ratio) };
-}
 
 export function Hero() {
   return (
@@ -101,28 +62,9 @@ export function Hero() {
         <p className="text-[11px] uppercase leading-[1.5] tracking-[0.14em] text-muted-foreground/80">
           Built around the storage you already use
         </p>
-        {/* The filter stays on the list, but the opacity has to sit on each
-            item: a parent's opacity caps its children's, so hover could never
-            lift past the list's own value. */}
-        <ul className="mt-4 flex flex-wrap items-center gap-x-7 gap-y-5 grayscale dark:invert">
-          {storageProviders.map((provider) => {
-            const size = markSize(provider.ratio);
-            return (
-              <li
-                key={provider.alt}
-                className="flex h-6 items-center opacity-70 transition-opacity duration-200 hover:opacity-100 dark:opacity-75"
-              >
-                <Image
-                  src={provider.src}
-                  alt={provider.alt}
-                  width={size.width}
-                  height={size.height}
-                  style={{ height: size.height, width: "auto" }}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <div className="mt-4">
+          <StorageStrip />
+        </div>
       </div>
     </section>
   );
