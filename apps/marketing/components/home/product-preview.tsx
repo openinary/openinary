@@ -11,11 +11,15 @@ export function ProductPreview() {
   return (
     <section>
       <Image
-        src="/product/preview.webp"
+        src="/product/preview.png"
         alt="The Openinary dashboard listing images and videos in a bucket"
         width={2196}
         height={1698}
         sizes="(max-width: 1100px) 100vw, 1100px"
+        // next/image re-encodes on the way out and defaults to 75, which is
+        // where the text in a UI shot starts to smear. The source is a
+        // lossless PNG, so this is the only place quality is decided.
+        quality={88}
         priority
         className="h-auto w-full"
       />
