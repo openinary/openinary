@@ -26,6 +26,13 @@ import {
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
 
+const isRecoverableJpegError = (error: unknown, ext: string | undefined) => {
+  if (!ext?.match(/^jpe?g$/i)) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return /VipsJpeg:\s*Invalid SOS parameters for sequential JPEG/i.test(message);
+};
+
+
 // Types for the service
 export interface TransformRequest {
   path: string;
@@ -340,7 +347,7 @@ export class TransformService {
       };
     }
 
-// Prepare source file
+    // Prepare source file
     const sourcePath = await prepareSourceFile(
       this.storage,
       filePath,
@@ -361,12 +368,34 @@ export class TransformService {
       // the only two possibilities here: anything else already returned a
       // 400 above, before this file was staged.
       if (isTransformableImage) {
-        const result = await this.processImageFile(
-          sourcePath,
-          effectiveParams,
-          userAgent,
-          acceptHeader,
-        );
+        let result: Awaited<ReturnType<TransformService["processImageFile"]>>;
+        try {
+          result = await this.processImageFile(
+            sourcePath,
+            effectiveParams,
+            userAgent,
+            acceptHeader,
+          );
+        } catch (error) {
+          // Some camera JPEGs are browser-readable but rejected by libjpeg's
+          // strict SOS validation. Do not make the uploaded original
+          // unreachable: serve it untouched, without writing it into the
+          // transformed cache under a misleading key.
+          if (!isRecoverableJpegError(error, ext)) throw error;
+          const fallback = await this.streamOriginal(
+            filePath,
+            localPath,
+            ext ?? "jpg",
+            sourceUrl,
+          );
+          fallback.headers["Cache-Control"] = "no-store";
+          fallback.headers["X-Transform-Fallback"] = "original";
+          logger.warn(
+            { error: serializeError(error), filePath },
+            "JPEG transform failed; serving original",
+          );
+          return fallback;
+        }
         buffer = result.buffer;
         contentType = result.contentType;
         optimizationResult = result.optimizationResult;
