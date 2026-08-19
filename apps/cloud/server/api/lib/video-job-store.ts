@@ -205,7 +205,7 @@ export class PgVideoJobStore implements VideoJobStore {
 
   /**
    * Bills the container time this job consumed, now, instead of leaving it to
-   * the Worker's five-minute cron. That cron still runs and still catches
+   * the Worker's hourly cron. That cron still runs and still catches
    * anything this misses (a crash between the two writes below, a job closed
    * by an older build), so this is a latency fix rather than a second billing
    * path: both read the same two timestamps through billableJob, and both

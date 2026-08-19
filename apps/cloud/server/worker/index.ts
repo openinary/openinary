@@ -20,6 +20,7 @@ import {
   isDashboardTraffic,
 } from "../api/lib/delivery-log.js";
 import { syncLifecycle } from "../api/lib/loops.js";
+import { notify } from "../api/lib/push.js";
 import { billableJob } from "../api/lib/video-metering.js";
 import { app, parseRangeHeader } from "./app.js";
 import { MediaContainer } from "./container.js";
@@ -545,7 +546,8 @@ async function checkVideoProcessing(
   return checkFeature(userId, "video_processing_seconds", estimate);
 }
 
-// Runs every 5 minutes (see wrangler.jsonc's triggers.crons). Deduction is
+// Runs hourly (see wrangler.jsonc's triggers.crons - a shorter interval pins
+// Neon's compute awake and burns the whole monthly allowance). Deduction is
 // deferred here rather than done at enqueue time so a job that errors out
 // is never billed - only video_job rows that actually reached completedAt
 // get metered.
@@ -556,6 +558,41 @@ async function checkVideoProcessing(
 // claims the job, updateJobStatus closes it), so no new column was needed.
 // retryFailedJob clears startedAt, so a retried job bills only its final
 // attempt - our retries are not the customer's to pay for.
+/**
+ * Hourly canary on the one request that matters most: the exact call the
+ * dashboard's Google button makes. It exercises DNS and routing, the auth
+ * mount, Postgres (better-auth writes the OAuth state row) and the Google
+ * credentials in a single request - which is the point, because while all of
+ * that was broken /api/auth/ok kept cheerfully answering 200. A plain health
+ * endpoint would have reported everything fine for two days.
+ *
+ * Costs one verification row per hour, expired ten minutes later and never
+ * read again. Cheaper than hearing about an outage from a customer.
+ */
+async function checkSignIn(): Promise<void> {
+  const origin = process.env.CORS_ORIGIN ?? "";
+  const res = await fetch(
+    `${process.env.BETTER_AUTH_URL}/api/auth/sign-in/social`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", origin },
+      // disableRedirect keeps the answer JSON instead of a hop to Google.
+      body: JSON.stringify({
+        provider: "google",
+        callbackURL: origin,
+        disableRedirect: true,
+      }),
+    },
+  );
+  if (res.ok) return;
+  // Body included because better-auth answers an unexpected failure with an
+  // empty 500 - the status alone was what made this one slow to place.
+  await notify(
+    "Openinary Cloud sign-in is down",
+    `POST /api/auth/sign-in/social -> ${res.status} ${(await res.text()).slice(0, 300)}`,
+  );
+}
+
 async function meterCompletedVideoJobs(): Promise<void> {
   const rows = await db
     .select({
@@ -826,14 +863,32 @@ export default {
   ): Promise<void> {
     // Two schedules, one handler (see wrangler.jsonc's triggers.crons). The
     // lifecycle sync scans every account and talks to Autumn and Loops once
-    // per account, so it runs daily and never on the five-minute metering
+    // per account, so it runs daily and never on the hourly metering
     // tick - and syncLifecycle's own "crossed the inactivity threshold today"
     // test assumes exactly one run per day.
+    //
+    // ctx.waitUntil discards a rejection, so both jobs could fail forever in
+    // silence - meterCompletedVideoJobs threw on every tick for two days once
+    // Neon's compute allowance ran out, and the first report was a customer
+    // who couldn't sign in. The hourly tick queries Postgres unconditionally,
+    // which makes it a database health check that already exists; this just
+    // gives it a mouth. Delivery is the same Telegram chat as new signups
+    // (api/lib/push.ts), the one already being watched.
+    //
+    // ponytail: one message per failed tick, no dedup and no cooldown - a
+    // real outage is 24 a day, which is noise worth having at this size. Add
+    // a cooldown (last-alert timestamp in USAGE_METER) if it grates.
+    const alert = (job: string) => (error: unknown) =>
+      notify("Openinary Cloud cron failed", `${job}: ${error}`);
+
     if (controller.cron === DAILY_CRON) {
-      ctx.waitUntil(syncLifecycle());
+      ctx.waitUntil(syncLifecycle().catch(alert("syncLifecycle")));
       return;
     }
-    ctx.waitUntil(meterCompletedVideoJobs());
+    ctx.waitUntil(
+      meterCompletedVideoJobs().catch(alert("meterCompletedVideoJobs")),
+    );
+    ctx.waitUntil(checkSignIn().catch(alert("checkSignIn")));
   },
 };
 

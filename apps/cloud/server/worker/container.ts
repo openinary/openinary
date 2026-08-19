@@ -27,7 +27,7 @@ export class MediaContainer extends Container<Env> {
     // it. DATABASE_URL is still needed for PgVideoJobStore's job mirroring
     // (see api/lib/video-job-store.ts), and AUTUMN_SECRET_KEY because that
     // same store now bills a video job the moment it closes rather than
-    // waiting for the Worker's five-minute cron to notice.
+    // waiting for the Worker's hourly cron to notice.
     this.envVars = {
       DATABASE_URL: env.DATABASE_URL,
       AUTUMN_SECRET_KEY: env.AUTUMN_SECRET_KEY,
