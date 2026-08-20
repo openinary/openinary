@@ -52,3 +52,22 @@ test("keys never gain a doubled or leading slash", () => {
     assert.ok(!composed.startsWith("/"), `leading slash: ${composed}`);
   }
 });
+
+test("a prefix inside a reserved namespace is rejected", () => {
+  // cache/ is swept by cache cleanup, which lists and deletes everything under
+  // it, so media configured in there would be deleted out from under itself.
+  for (const bad of ["cache", "cache/media", "/cache/", "  cache  ", ".openinary", ".openinary/x"]) {
+    assert.throws(
+      () => normalizeMediaPrefix(bad),
+      /reserved/,
+      `expected ${JSON.stringify(bad)} to be rejected`,
+    );
+  }
+});
+
+test("a prefix that merely looks reserved is fine", () => {
+  // Only the first whole segment counts, and S3 keys are case-sensitive.
+  for (const ok of ["caches", "cache-media", "mycache", "Cache", "media/cache"]) {
+    assert.equal(normalizeMediaPrefix(ok), `${ok}/`, `input: ${ok}`);
+  }
+});

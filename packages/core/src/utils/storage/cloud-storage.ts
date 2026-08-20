@@ -25,16 +25,38 @@ const STATS_OBJECT_KEY = ".openinary/stats.json";
 export const DEFAULT_MEDIA_PREFIX = "public";
 
 /**
+ * Namespaces the product owns at the bucket root. Media must not be configured
+ * into either: cache cleanup lists and deletes everything under `cache/`, so a
+ * prefix inside it would have the media deleted out from under it.
+ */
+const RESERVED_PREFIXES = ["cache", ".openinary"];
+
+/**
  * Normalizes a configured prefix into a value that is safe to concatenate: no
  * leading slash, exactly one trailing slash when non-empty.
  *
  * An explicitly empty prefix means "store media at the bucket root" and yields
  * "". Leaving it undefined keeps the historical "public/" layout.
+ *
+ * Throws on a prefix that collides with a reserved namespace. Startup is the
+ * only place this is cheap to catch: the alternative is discovering it when the
+ * cache sweep removes the media.
  */
 export function normalizeMediaPrefix(prefix: string | undefined): string {
   if (prefix === undefined) return `${DEFAULT_MEDIA_PREFIX}/`;
   const trimmed = prefix.trim().replace(/^\/+/, "").replace(/\/+$/, "");
-  return trimmed === "" ? "" : `${trimmed}/`;
+  if (trimmed === "") return "";
+  // Only the first segment matters, and comparison is case-sensitive because S3
+  // keys are: "Cache/" is a different namespace, "cache/media" is not.
+  const head = trimmed.split("/")[0];
+  if (RESERVED_PREFIXES.includes(head)) {
+    throw new Error(
+      `Invalid storage prefix ${JSON.stringify(trimmed)}: "${head}/" is reserved ` +
+        `for Openinary's own use. Pick a prefix outside ` +
+        `${RESERVED_PREFIXES.map((r) => `"${r}/"`).join(" and ")}.`,
+    );
+  }
+  return `${trimmed}/`;
 }
 
 function isAggregateStats(value: unknown): value is AggregateStats {
