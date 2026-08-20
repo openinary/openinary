@@ -46,6 +46,7 @@ services:
 | `STORAGE_REGION` | `auto` | Region identifier. `auto` is what R2 expects, so AWS and other region-bound providers must set it explicitly |
 | `STORAGE_ENDPOINT` | | Endpoint for non-AWS providers. Omit for AWS S3 |
 | `STORAGE_PUBLIC_URL` | | Base URL used to build file URLs. Point it at your CDN or custom domain to avoid exposing raw S3 URLs |
+| `STORAGE_PREFIX` | `public` | Key prefix media is stored under. Set it to serve a bucket whose layout you do not own: an uploader already writing `photos/2024/sunset.jpg` is then delivered at `/t/photos/2024/sunset.jpg` with no object moved. **In a dotenv file `STORAGE_PREFIX=` is not the same as omitting the line** — an empty value is a deliberate choice and means the bucket root, while an absent one keeps the `public/` default. `cache/` and `.openinary/` are reserved and rejected at startup |
 | `STORAGE_MAX_SOCKETS` | `50` | Simultaneous connections to the provider. Raise it if you hit connection pool exhaustion |
 | `STORAGE_CONNECTION_TIMEOUT` | `0` | Connection timeout in ms. `0` means no timeout |
 | `STORAGE_REQUEST_TIMEOUT` | `0` | Request timeout in ms. Use `300000` or more for large uploads |

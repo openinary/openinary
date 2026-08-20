@@ -104,11 +104,11 @@ export function createDownloadZipRoute(deps: RouteDeps) {
       const zipFiles: Record<string, Uint8Array> = {};
 
       const addFolder = async (cleanPath: string) => {
-        const prefix = `public/${cleanPath}/`;
+        const prefix = storage!.mediaKey(`${cleanPath}/`);
         const objects = await storage!.list(prefix);
         await Promise.all(
           objects.map(async (obj) => {
-            const relPath = obj.key.replace(`public/${cleanPath}/`, "");
+            const relPath = obj.key.replace(prefix, "");
             if (!relPath || relPath.endsWith("/")) return;
             const buffer = await storage!.downloadOriginal(
               `${cleanPath}/${relPath}`,
