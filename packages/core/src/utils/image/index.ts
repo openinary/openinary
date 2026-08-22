@@ -8,6 +8,7 @@ import { applyRotation } from './rotation';
 import { applyQuality } from './quality';
 import { applyResizeComposite } from './param-registry';
 import { applyRoundCorners } from './round-corners';
+import { SHARP_INPUT_OPTIONS } from './sharp-options';
 
 /**
  * Decode a PSD file into a Sharp instance via raw RGBA pixel data.
@@ -37,7 +38,7 @@ export * from './param-registry';
 export const transformImage = async (inputPath: string, params: TransformParams): Promise<Buffer> => {
   let image = inputPath.toLowerCase().endsWith('.psd')
     ? await decodePsd(inputPath)
-    : sharp(inputPath);
+    : sharp(inputPath, SHARP_INPUT_OPTIONS);
 
   // Convert TransformParams to a record for easier access
   const paramsRecord: Record<string, string> = {
