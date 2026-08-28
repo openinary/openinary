@@ -47,6 +47,20 @@ function isIgnoredFile(file: File) {
   return name === ".DS_Store";
 }
 
+function displayFilePath(file: File): string {
+  return (
+    (file as File & { webkitRelativePath?: string }).webkitRelativePath ||
+    file.name
+  );
+}
+
+function parseUploadResponseBody(value: unknown): Record<string, unknown> {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
 export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
   const { apiBaseUrl, fetch } = useOpeninary();
   const queryClient = useQueryClient();
@@ -94,33 +108,97 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
     setUploading(true);
     setUploadResult(null);
 
-    const formData = new FormData();
-
-    if (uploadToFolder) formData.append("folder", uploadToFolder);
-
-    selectedFiles.forEach((file) => {
-      formData.append("files", file);
-    });
-
     const fileCount = selectedFiles.length;
+    // Keep each request small. A single multipart request containing hundreds
+    // of files can stay pending in the browser or reverse proxy for longer
+    // than their request timeout. Batches also avoid consuming the public
+    // request-rate budget with one request per file.
+    const batchSize = 20;
 
-    const upload = async () => {
-      const response = await fetch(`${apiBaseUrl}/upload`, {
-        method: "POST",
-        body: formData,
-      });
+    const uploadBatch = async (batch: File[]): Promise<UploadResponse> => {
+      const maxAttempts = 3;
 
-      const data: UploadResponse = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || "Upload failed");
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const formData = new FormData();
+        if (uploadToFolder) formData.append("folder", uploadToFolder);
+        batch.forEach((file) => formData.append("files", file));
+
+        const response = await fetch(`${apiBaseUrl}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        let data: Partial<UploadResponse> & {
+          retryAfter?: number;
+        } = {};
+        try {
+          data = parseUploadResponseBody(await response.json()) as Partial<
+            UploadResponse
+          > & { retryAfter?: number };
+        } catch {
+          // Proxies can return HTML or an empty body for an error response.
+        }
+
+        if (response.status === 429 && attempt < maxAttempts) {
+          const retryAfterHeader = Number(response.headers.get("Retry-After"));
+          const retryAfter = Number.isFinite(retryAfterHeader)
+            ? retryAfterHeader
+            : data.retryAfter;
+          const resetAt = Number(response.headers.get("X-RateLimit-Reset"));
+          const waitSeconds = retryAfter ?? Math.max(1, resetAt - Date.now() / 1000);
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.min(Math.max(waitSeconds, 1), 60) * 1000),
+          );
+          continue;
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.error || data.errors?.[0]?.error || "Upload failed",
+          );
+        }
+        return data as UploadResponse;
       }
-      return data;
+
+      throw new Error("Upload rate limit did not recover after retries");
+    };
+
+    const upload = async (): Promise<UploadResponse> => {
+      const files: UploadResult[] = [];
+      const errors: UploadError[] = [];
+      for (let start = 0; start < selectedFiles.length; start += batchSize) {
+        const batch = selectedFiles.slice(start, start + batchSize);
+        try {
+          const result = await uploadBatch(batch);
+          files.push(...(result.files ?? []));
+          errors.push(...(result.errors ?? []));
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Upload failed";
+          errors.push(
+            ...batch.map((file) => ({
+              filename: displayFilePath(file),
+              error: message,
+            })),
+          );
+        }
+      }
+
+      if (files.length === 0) {
+        throw new Error(errors[0]?.error || "Upload failed");
+      }
+
+      // Treat partial completion as success so the UI shows uploaded files and
+      // failed files together instead of hiding successful results.
+      return { success: files.length > 0, files, errors };
     };
 
     try {
       const data = await toast.promise(upload(), {
         loading: `Uploading ${fileCount} file(s)...`,
-        success: (data) => `Uploaded ${data.files?.length ?? fileCount} file(s)`,
+        success: (data) =>
+          data.errors?.length
+            ? `Uploaded ${data.files?.length ?? 0}/${fileCount} file(s)`
+            : `Uploaded ${data.files?.length ?? fileCount} file(s)`,
         error: (error) => (error instanceof Error ? error.message : "Upload failed"),
       }).unwrap();
 
