@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
 import logger, { serializeError } from '../logger';
+import { SHARP_INPUT_OPTIONS } from './sharp-options';
 
 export class Compression {
   /** Formats applyFormat() can actually encode. Excludes "auto". */
@@ -26,12 +27,12 @@ export class Compression {
     acceptHeader?: string
   ): Promise<OptimizationResult> {
     
-    const originalBuffer = await sharp(inputPath).toBuffer();
+    const originalBuffer = await sharp(inputPath, SHARP_INPUT_OPTIONS).toBuffer();
     const originalSize = originalBuffer.length;
     
     // CONTENT ANALYSIS
     const analysis = await this.analyzeImage(inputPath);
-    const metadata = await sharp(inputPath).metadata();
+    const metadata = await sharp(inputPath, SHARP_INPUT_OPTIONS).metadata();
     
     // If format is explicitly specified, use it directly (no size comparison needed)
     // "auto" is not an explicit format — it falls through to format size comparison below.
@@ -192,7 +193,7 @@ export class Compression {
     metadata: sharp.Metadata,
     originalSize: number
   ): sharp.Sharp {
-    let pipeline = sharp(inputPath);
+    let pipeline = sharp(inputPath, SHARP_INPUT_OPTIONS);
     
     // Resolution reduction only for extremely large files
     if (originalSize > 5 * 1024 * 1024) { // > 5MB
@@ -265,7 +266,7 @@ export class Compression {
    * Analyzes image content to optimize compression (simplified for speed)
    */
   private async analyzeImage(inputPath: string): Promise<ImageAnalysis> {
-    const image = sharp(inputPath);
+    const image = sharp(inputPath, SHARP_INPUT_OPTIONS);
     const metadata = await image.metadata();
     
     // Simplified analysis based only on metadata (no expensive stats calculation)

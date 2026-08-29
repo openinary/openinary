@@ -45,6 +45,75 @@ test("a bare video URL serves the original and queues nothing", async () => {
   assert.equal(result.contentType, "video/mp4");
 });
 
+test("a recoverable JPEG transform failure serves the stored original", async () => {
+  const original = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const storage = {
+    ...fakeStorage(),
+    downloadOriginal: async () => original,
+    downloadOriginalStream: async () => ({
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(original));
+          controller.close();
+        },
+      }),
+      contentLength: original.length,
+    }),
+  };
+  const service = new TransformService(storage, fakeQueue());
+  const prototype = TransformService.prototype as any;
+  const previous = prototype.processImageFile;
+  prototype.processImageFile = async () => {
+    throw new Error("VipsJpeg: Invalid SOS parameters for sequential JPEG");
+  };
+
+  try {
+    const result = await service.transform({
+      path: "/t/w_640/photos/camera.jpg",
+      userAgent: "",
+      context: {} as any,
+    });
+
+    assert.ok(result.stream);
+    assert.deepEqual(
+      Buffer.from(await new Response(result.stream).arrayBuffer()),
+      original,
+    );
+    assert.equal(result.contentType, "image/jpeg");
+    assert.equal(result.headers?.["X-Transform-Fallback"], "original");
+    assert.equal(result.headers?.["Cache-Control"], "no-store");
+  } finally {
+    prototype.processImageFile = previous;
+  }
+});
+
+test("a non-recoverable JPEG error is not hidden by the original fallback", async () => {
+  const storage = {
+    ...fakeStorage(),
+    downloadOriginal: async () => Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+  };
+  const service = new TransformService(storage, fakeQueue());
+  const prototype = TransformService.prototype as any;
+  const previous = prototype.processImageFile;
+  prototype.processImageFile = async () => {
+    throw new Error("JPEG encoder unavailable");
+  };
+
+  try {
+    const result = await service.transform({
+      path: "/t/w_640/photos/camera.jpg",
+      userAgent: "",
+      context: {} as any,
+    });
+
+    assert.equal(result.contentType, "text/plain");
+    assert.match(result.buffer!.toString(), /JPEG encoder unavailable/);
+    assert.equal(result.headers?.["X-Transform-Fallback"], undefined);
+  } finally {
+    prototype.processImageFile = previous;
+  }
+});
+
 test("a pending video transform answers 202 instead of the original", async () => {
   const service = new TransformService(
     fakeStorage(),
