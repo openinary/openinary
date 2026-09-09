@@ -30,7 +30,7 @@
     "extraCreditUsd": 0.45
   },
   "openinaryCloud": {
-    "comment": "Free plan quotas are live. The pay-as-you-go rates below are the ones to confirm against billing before this section ships.",
+    "comment": "Free plan quotas are live, and the pay-as-you-go rates below were confirmed against Cloud billing on 2026-09-09.",
     "included": {
       "storageGb": 1,
       "transformations": 500,
