@@ -1,5 +1,5 @@
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
+import { PageIntro, PageShell } from "@/components/page-shell";
+import { gutter } from "@/components/home/section";
 import { Section, H2, P, Ul, A } from "@/components/legal";
 import type { Metadata } from "next";
 
@@ -11,20 +11,16 @@ export const metadata: Metadata = {
 
 export default function LegalNoticePage() {
   return (
-    <div className="bg-background overflow-x-clip">
-      <div className="relative mx-auto max-w-screen-xl border-x">
-        <Header />
-        <main className="mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-20 min-h-[80vh] [&_strong]:font-semibold">
-          <div className="mb-12">
-            <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl mb-4">
-              Legal Notice
-            </h1>
-            <p className="text-muted-foreground max-w-[600px] leading-relaxed">
-              Last updated July 24, 2026. Publisher and hosting information for openinary.dev,
-              published under article 6 of the French LCEN.
-            </p>
-          </div>
-
+    <PageShell>
+      <PageIntro
+        eyebrow="Last updated July 24, 2026"
+        title="Legal Notice"
+        lede="Publisher and hosting information for openinary.dev, published under article 6 of the French LCEN."
+      />
+      <div
+        className={`${gutter} border-t border-border py-14 [&_strong]:font-semibold md:py-20`}
+      >
+        <div className="max-w-[65ch]">
           <Section>
             <H2>1. Publisher</H2>
             <P>
@@ -105,9 +101,8 @@ export default function LegalNoticePage() {
               <A href="https://ec.europa.eu/consumers/odr">Online Dispute Resolution platform</A>.
             </P>
           </Section>
-        </main>
-        <Footer />
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

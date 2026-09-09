@@ -3,6 +3,7 @@ import Link from "next/link";
 import { gutter } from "@/components/home/section";
 
 const legalLinks = [
+  { href: "/compare", label: "Compare" },
   { href: "/legal", label: "Legal Notice" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy Policy" },

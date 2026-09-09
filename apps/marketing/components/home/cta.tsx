@@ -2,7 +2,8 @@ import { CtaLink } from "@/components/home/cta-button";
 import { CopyCommand } from "@/components/home/copy-command";
 import { Section, SectionHeader, gutter } from "@/components/home/section";
 
-export function Cta() {
+/** `location` lands in the analytics event, so each page names its own. */
+export function Cta({ location = "footer_cta" }: { location?: string }) {
   return (
     <Section>
       <SectionHeader
@@ -15,7 +16,7 @@ export function Cta() {
           target="_blank"
           rel="noopener noreferrer"
           data-track-event="cloud_cta_clicked"
-          data-track-prop-location="footer_cta"
+          data-track-prop-location={location}
         >
           Try Cloud Now
         </CtaLink>

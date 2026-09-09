@@ -1,5 +1,5 @@
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
+import { PageIntro, PageShell } from "@/components/page-shell";
+import { gutter } from "@/components/home/section";
 import { Section, H2, P, Ul, A } from "@/components/legal";
 import type { Metadata } from "next";
 
@@ -11,20 +11,16 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="bg-background overflow-x-clip">
-      <div className="relative mx-auto max-w-screen-xl border-x">
-        <Header />
-        <main className="mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-20 min-h-[80vh] [&_strong]:font-semibold">
-          <div className="mb-12">
-            <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl mb-4">
-              Terms of Service
-            </h1>
-            <p className="text-muted-foreground max-w-[600px] leading-relaxed">
-              Last updated July 24, 2026. These terms govern your use of the Openinary Cloud
-              service.
-            </p>
-          </div>
-
+    <PageShell>
+      <PageIntro
+        eyebrow="Last updated July 24, 2026"
+        title="Terms of Service"
+        lede="These terms govern your use of the Openinary Cloud service."
+      />
+      <div
+        className={`${gutter} border-t border-border py-14 [&_strong]:font-semibold md:py-20`}
+      >
+        <div className="max-w-[65ch]">
           <Section>
             <H2>1. Scope of these terms</H2>
             <P>
@@ -351,9 +347,8 @@ export default function TermsPage() {
               <A href="mailto:legal@openinary.dev">legal@openinary.dev</A>.
             </P>
           </Section>
-        </main>
-        <Footer />
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

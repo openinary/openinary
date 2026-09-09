@@ -1,12 +1,15 @@
 import competitorsData from "@/data/competitors.json";
 import { notFound } from "next/navigation";
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
-import { ComparisonTable } from "./comparison-table";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check, ChevronLeft } from "lucide-react";
+
+import { ComparisonTable } from "./comparison-table";
+import { PageIntro, PageShell } from "@/components/page-shell";
+import { Cta } from "@/components/home/cta";
+import { Eyebrow, gutter } from "@/components/home/section";
+import { focusRing, pressable } from "@/components/home/cta-button";
+import { cn } from "@/lib/utils";
 
 type Params = { slug: string };
 
@@ -48,98 +51,75 @@ export default async function ComparePage({
   }
 
   return (
-    <div className="bg-background overflow-x-clip">
-      <div className="relative mx-auto max-w-screen-xl border-x">
-        <Header />
-        <main className="mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-20">
-          <Link
-            href="/compare"
-            data-track-event="back_to_comparisons_clicked"
-            data-track-prop-location="compare"
-          >
-            <Button variant="ghost" size="sm" className="mb-6 -ml-2 gap-1">
-              <ChevronLeft className="size-4" />
-              All comparisons
-            </Button>
-          </Link>
+    <PageShell>
+      <PageIntro
+        eyebrow="Compare"
+        title={`Openinary vs ${competitor.name}`}
+        lede={competitor.description}
+      >
+        <Link
+          href="/compare"
+          data-track-event="back_to_comparisons_clicked"
+          data-track-prop-location="compare"
+          className={cn(
+            "mb-8 inline-flex items-center gap-1 rounded-sm text-sm font-medium text-muted-foreground transition-all hover:text-foreground",
+            focusRing,
+            pressable,
+          )}
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+          All comparisons
+        </Link>
+      </PageIntro>
 
-          <div className="mb-12">
-            <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl mb-4">
-              Openinary vs {competitor.name}
-            </h1>
-            <p className="text-muted-foreground max-w-[700px] leading-relaxed">
-              {competitor.description}
-            </p>
+      {/* Highlights: same block as the intro, no rule between them, the
+          section's story runs straight from the pitch into the reasons. */}
+      <section>
+        <div className={`${gutter} pb-9`}>
+          <Eyebrow>Why choose Openinary</Eyebrow>
+        </div>
+        <ul className={`${gutter} grid gap-x-8 gap-y-3 pb-14 sm:grid-cols-2 md:pb-20`}>
+          {competitorsData.openinary.highlights.map((highlight) => (
+            <li
+              key={highlight}
+              className="flex items-start gap-2.5 text-sm leading-[1.63] text-muted-foreground"
+            >
+              <Check
+                className="mt-0.5 size-4 shrink-0 text-foreground"
+                aria-hidden
+              />
+              {highlight}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Feature by feature */}
+      <section className="border-t border-border">
+        {/* The eyebrow shares the well's geometry, so from md it sits flush
+            with the table's left rule; below md the well spans the screen and
+            the eyebrow falls back to the page gutter. */}
+        <div className="mx-auto max-w-2xl px-6 pb-9 pt-14 md:px-0 md:pt-20">
+          <Eyebrow>Feature by feature</Eyebrow>
+        </div>
+        {/* The table sits in a centred well, capped at reading width, whose
+            side rules run from the full-width rule above down to the next
+            section's border, the way the calculator's split ties into the
+            page. The well only draws its sides from md, like the page column
+            itself: below that it spans the screen and the rules would sit on
+            the very edge. */}
+        <div className="border-t border-border">
+          <div className="mx-auto max-w-2xl border-border md:border-x">
+            <ComparisonTable
+              features={competitorsData.features}
+              competitorSlug={slug}
+              competitorName={competitor.name}
+            />
           </div>
+        </div>
+      </section>
 
-          {/* Highlights */}
-          <div className="mb-12 rounded-lg border bg-card p-6">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
-              Why choose Openinary?
-            </h2>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {competitorsData.openinary.highlights.map((highlight) => (
-                <li key={highlight} className="flex items-start gap-2 text-sm">
-                  <svg
-                    className="mt-0.5 size-4 shrink-0 text-green-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  {highlight}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Comparison Table */}
-          <ComparisonTable
-            features={competitorsData.features}
-            competitorSlug={slug}
-            competitorName={competitor.name}
-          />
-
-          {/* CTA */}
-          <div className="mt-16 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight mb-3">
-              Ready to switch?
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Get started with Openinary in under 5 minutes. Self-host for free
-              or let us handle the hosting.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <Button
-                asChild
-                data-track-event="quickstart_clicked"
-                data-track-prop-location="compare_cta"
-              >
-                <a href="https://docs.openinary.dev/quickstart" target="_blank">
-                  Self-host in 5 minutes
-                </a>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                data-track-event="cloud_waitlist_clicked"
-                data-track-prop-location="compare_cta"
-              >
-                <a href="https://app.openinary.dev">
-                  Try Openinary Cloud
-                </a>
-              </Button>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    </div>
+      <Cta location="compare_cta" />
+    </PageShell>
   );
 }
