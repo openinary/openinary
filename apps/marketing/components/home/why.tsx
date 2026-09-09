@@ -22,8 +22,8 @@ const reasons = [
   },
   {
     icon: Zap,
-    title: "Fast after the first hit",
-    body: "The first request for a version pays for it, everyone after is served from cache. Replace an original and its old versions go with it.",
+    title: "Super fast after the first hit",
+    body: "Transformed assets are cached at the edge and served as fast as static files. Only the first request does the work, the rest skip it.",
   },
   {
     icon: Terminal,
