@@ -57,7 +57,7 @@
         },
         {
           "name": "Starting Price (Paid)",
-          "openinary": "$29/month (Cloud)",
+          "openinary": "Pay as you go (Cloud)",
           "competitors": {
             "cloudinary": "$89/month",
             "imagekit": "$49/month",
