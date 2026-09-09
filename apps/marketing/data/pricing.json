@@ -30,17 +30,17 @@
     "extraCreditUsd": 0.45
   },
   "openinaryCloud": {
-    "comment": "Free plan quotas are live, and the pay-as-you-go rates below were confirmed against Cloud billing on 2026-09-09.",
+    "comment": "Quotas and rates transcribed from the Autumn Alpha plan on 2026-09-09: 2 GB storage then $0.03/GB-month, 1,000 transformations then $0.40/1,000, 30 video minutes (1,800s) then $0.01/minute ($0.01/60s), 50,000 CDN requests then $0.50/100,000.",
     "included": {
-      "storageGb": 1,
-      "transformations": 500,
-      "videoMinutes": 15,
-      "cdnRequests": 25000
+      "storageGb": 2,
+      "transformations": 1000,
+      "videoMinutes": 30,
+      "cdnRequests": 50000
     },
     "rates": {
-      "storageGbMonthUsd": 0.02,
+      "storageGbMonthUsd": 0.03,
       "per1kTransformationsUsd": 0.4,
-      "perVideoMinuteUsd": 0.05,
+      "perVideoMinuteUsd": 0.01,
       "per10kRequestsUsd": 0.05
     }
   },

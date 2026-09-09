@@ -52,8 +52,8 @@ const faqs: { question: string; answer: React.ReactNode }[] = [
         >
           Create your account
         </Link>{" "}
-        and you are in: the free plan includes 1 GB of storage, 500 image
-        transformations, 15 minutes of video processing and 25,000 CDN requests
+        and you are in: the free plan includes 2 GB of storage, 1,000 image
+        transformations, 30 minutes of video processing and 50,000 CDN requests
         per month, no credit card required. When you outgrow it, the
         pay-as-you-go plan bills only what you use past the included quotas. It
         is still early, so expect rough edges, and tell us what breaks.
