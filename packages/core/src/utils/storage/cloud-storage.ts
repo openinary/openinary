@@ -17,9 +17,47 @@ import {
   type StatsBackend,
 } from "./stats-tracker";
 
-// Lives at the bucket root, outside public/ and cache/, so it never shows up
-// in media listings or cache stats
+// Lives at the bucket root, outside the media prefix and cache/, so it never
+// shows up in media listings or cache stats
 const STATS_OBJECT_KEY = ".openinary/stats.json";
+
+/** The media prefix every deployment used before it became configurable. */
+export const DEFAULT_MEDIA_PREFIX = "public";
+
+/**
+ * Namespaces the product owns at the bucket root. Media must not be configured
+ * into either: cache cleanup lists and deletes everything under `cache/`, so a
+ * prefix inside it would have the media deleted out from under it.
+ */
+const RESERVED_PREFIXES = ["cache", ".openinary"];
+
+/**
+ * Normalizes a configured prefix into a value that is safe to concatenate: no
+ * leading slash, exactly one trailing slash when non-empty.
+ *
+ * An explicitly empty prefix means "store media at the bucket root" and yields
+ * "". Leaving it undefined keeps the historical "public/" layout.
+ *
+ * Throws on a prefix that collides with a reserved namespace. Startup is the
+ * only place this is cheap to catch: the alternative is discovering it when the
+ * cache sweep removes the media.
+ */
+export function normalizeMediaPrefix(prefix: string | undefined): string {
+  if (prefix === undefined) return `${DEFAULT_MEDIA_PREFIX}/`;
+  const trimmed = prefix.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  if (trimmed === "") return "";
+  // Only the first segment matters, and comparison is case-sensitive because S3
+  // keys are: "Cache/" is a different namespace, "cache/media" is not.
+  const head = trimmed.split("/")[0];
+  if (RESERVED_PREFIXES.includes(head)) {
+    throw new Error(
+      `Invalid storage prefix ${JSON.stringify(trimmed)}: "${head}/" is reserved ` +
+        `for Openinary's own use. Pick a prefix outside ` +
+        `${RESERVED_PREFIXES.map((r) => `"${r}/"`).join(" and ")}.`,
+    );
+  }
+  return `${trimmed}/`;
+}
 
 function isAggregateStats(value: unknown): value is AggregateStats {
   return (
@@ -33,10 +71,21 @@ function isAggregateStats(value: unknown): value is AggregateStats {
 export class CloudStorage implements StatsBackend {
   private s3Client: S3ClientWrapper;
   private cache: StorageCache;
+  /** Normalized media prefix, e.g. "public/" or "" for the bucket root. */
+  readonly mediaPrefix: string;
 
   constructor(config: StorageConfig, clientOptions?: StorageClientOptions) {
     this.s3Client = new S3ClientWrapper(config, clientOptions);
     this.cache = new StorageCache();
+    this.mediaPrefix = normalizeMediaPrefix(config.prefix);
+  }
+
+  /**
+   * Storage key for a delivery path. The delivery path is what appears in a
+   * /t/ URL; the key is where the bytes actually live.
+   */
+  mediaKey(path: string): string {
+    return `${this.mediaPrefix}${path}`;
   }
 
   /**
@@ -97,12 +146,12 @@ export class CloudStorage implements StatsBackend {
   }
 
   /**
-   * Lists one directory level of original files (under public/)
+   * Lists one directory level of original files (under the media prefix)
    */
   async listLevel(
     folderPath: string,
   ): Promise<{ folderNames: string[]; files: LevelFile[] }> {
-    const storagePrefix = folderPath ? `public/${folderPath}/` : "public/";
+    const storagePrefix = folderPath ? this.mediaKey(`${folderPath}/`) : this.mediaPrefix;
     const delimited = await this.s3Client.listDelimited(storagePrefix);
     return shapeLevel(storagePrefix, folderPath, delimited);
   }
@@ -115,7 +164,7 @@ export class CloudStorage implements StatsBackend {
     folderPath: string,
     maxKeys = FOLDER_SUMMARY_MAX_KEYS,
   ): Promise<FolderSummary> {
-    const storagePrefix = `public/${folderPath}/`;
+    const storagePrefix = `${this.mediaPrefix}${folderPath}/`;
     const page = await this.s3Client.listDelimitedPage(storagePrefix, maxKeys);
     return shapeFolderSummary(storagePrefix, folderPath, page);
   }
@@ -125,7 +174,7 @@ export class CloudStorage implements StatsBackend {
    */
   async createFolder(folderPath: string): Promise<void> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const storageKey = `public/${normalized}/`;
+    const storageKey = `${this.mediaPrefix}${normalized}/`;
 
     await this.s3Client.createFolderMarker(storageKey);
   }
@@ -135,7 +184,7 @@ export class CloudStorage implements StatsBackend {
    */
   async folderExists(folderPath: string): Promise<boolean> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const markerKey = `public/${normalized}/`;
+    const markerKey = `${this.mediaPrefix}${normalized}/`;
 
     if (await this.s3Client.objectExists(markerKey)) {
       return true;
@@ -151,13 +200,13 @@ export class CloudStorage implements StatsBackend {
   async renameFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
     const normalizedOld = oldFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
     const normalizedNew = newFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const prefix = `public/${normalizedOld}/`;
+    const prefix = `${this.mediaPrefix}${normalizedOld}/`;
 
     const objects = await this.s3Client.listObjects(prefix);
 
     for (const obj of objects) {
       const relativeKey = obj.key.slice(prefix.length);
-      const destKey = `public/${normalizedNew}/${relativeKey}`;
+      const destKey = `${this.mediaPrefix}${normalizedNew}/${relativeKey}`;
       await this.s3Client.copyObject(obj.key, destKey);
       await this.s3Client.deleteObject(obj.key);
     }
@@ -170,7 +219,7 @@ export class CloudStorage implements StatsBackend {
    */
   async deleteFolder(folderPath: string): Promise<number> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const prefix = `public/${normalized}/`;
+    const prefix = `${this.mediaPrefix}${normalized}/`;
 
     const objects = await this.s3Client.listObjects(prefix);
     if (objects.length === 0) {
@@ -248,7 +297,7 @@ export class CloudStorage implements StatsBackend {
    * Used after deletion to ensure we don't serve stale cache data
    */
   async existsOriginalNoCache(originalPath: string): Promise<boolean> {
-    const storageKey = `public/${originalPath}`;
+    const storageKey = `${this.mediaPrefix}${originalPath}`;
     try {
       const exists = await this.s3Client.objectExists(storageKey);
 
@@ -285,7 +334,7 @@ export class CloudStorage implements StatsBackend {
       return cached.exists;
     }
 
-    const storageKey = `public/${filePath}`;
+    const storageKey = `${this.mediaPrefix}${filePath}`;
     try {
       const exists = await this.s3Client.objectExists(storageKey);
 
@@ -315,8 +364,8 @@ export class CloudStorage implements StatsBackend {
    * Retrieves an original (unprocessed) file from the bucket
    */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
-    // Add public/ prefix for storage
-    const storageKey = `public/${originalPath}`;
+    // Delivery path -> storage key
+    const storageKey = `${this.mediaPrefix}${originalPath}`;
     return await this.s3Client.downloadObject(storageKey);
   }
 
@@ -330,7 +379,7 @@ export class CloudStorage implements StatsBackend {
     contentLength?: number;
     contentType?: string;
   }> {
-    const storageKey = `public/${originalPath}`;
+    const storageKey = `${this.mediaPrefix}${originalPath}`;
     return await this.s3Client.downloadObjectStream(storageKey);
   }
 
@@ -342,8 +391,8 @@ export class CloudStorage implements StatsBackend {
     buffer: Buffer,
     contentType: string,
   ): Promise<string> {
-    // Add public/ prefix for storage
-    const storageKey = `public/${filePath}`;
+    // Delivery path -> storage key
+    const storageKey = `${this.mediaPrefix}${filePath}`;
     await this.s3Client.uploadObject(storageKey, buffer, contentType);
 
     adjustBucketStats(this, "storage", { size: buffer.length, fileCount: 1 });
@@ -354,7 +403,7 @@ export class CloudStorage implements StatsBackend {
       timestamp: Date.now(),
     });
 
-    // Returns the public URL (without public/ prefix since it's internal)
+    // Returns the public URL (delivery path, without the storage prefix)
     return this.s3Client.getPublicUrl(storageKey);
   }
 
@@ -413,8 +462,8 @@ export class CloudStorage implements StatsBackend {
    * Deletes an original file from storage
    */
   async deleteOriginal(originalPath: string): Promise<void> {
-    // Add public/ prefix for storage
-    const storageKey = `public/${originalPath}`;
+    // Delivery path -> storage key
+    const storageKey = `${this.mediaPrefix}${originalPath}`;
     // HEAD first: the deleted object's size is needed for stats tracking,
     // and a delete on a missing key succeeds silently
     const metadata = await this.s3Client.getObjectMetadata(storageKey);
@@ -435,8 +484,8 @@ export class CloudStorage implements StatsBackend {
    * Copies an original file to a new path within storage
    */
   async copyOriginal(sourcePath: string, destPath: string): Promise<void> {
-    const sourceKey = `public/${sourcePath}`;
-    const destKey = `public/${destPath}`;
+    const sourceKey = `${this.mediaPrefix}${sourcePath}`;
+    const destKey = `${this.mediaPrefix}${destPath}`;
     await this.s3Client.copyObject(sourceKey, destKey);
 
     const metadata = await this.s3Client.getObjectMetadata(destKey);
@@ -468,7 +517,7 @@ export class CloudStorage implements StatsBackend {
   async getOriginalMetadata(
     originalPath: string,
   ): Promise<{ size: number; createdAt: Date; updatedAt: Date } | null> {
-    const storageKey = `public/${originalPath}`;
+    const storageKey = `${this.mediaPrefix}${originalPath}`;
     const metadata = await this.s3Client.getObjectMetadata(storageKey);
 
     if (!metadata) {
@@ -627,7 +676,7 @@ export class CloudStorage implements StatsBackend {
     cache: AggregateStats;
   }> {
     const [publicObjects, cacheObjects] = await Promise.all([
-      this.listAllParallel("public/"),
+      this.listAllParallel(this.mediaPrefix),
       this.s3Client.listObjects("cache/"),
     ]);
 
