@@ -12,7 +12,7 @@ DELETE /invalidate/{path}
 ```
 
 ```bash
-curl -X DELETE http://localhost:3000/invalidate/photos/portrait.jpg \
+curl -X DELETE https://media.example.com/invalidate/photos/portrait.jpg \
   -H "Authorization: Bearer <api_key>"
 ```
 
@@ -60,7 +60,7 @@ POST /storage/cache/clear
 ```
 
 ```bash
-curl -X POST http://localhost:3000/storage/cache/clear \
+curl -X POST https://cdn.openinary.dev/storage/cache/clear \
   -H "Authorization: Bearer <api_key>"
 ```
 

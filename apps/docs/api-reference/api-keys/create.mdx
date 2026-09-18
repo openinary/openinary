@@ -8,7 +8,7 @@ description: "Generate a new API key for authenticating requests"
 Post to `/api-keys/create` and the response carries the full key. That is the only time you see it, so store it immediately.
 
 ```bash
-curl -X POST http://localhost:3000/api-keys/create \
+curl -X POST https://media.example.com/api-keys/create \
   -H "Authorization: Bearer <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"name": "production", "expiresIn": 31536000}'

@@ -10,7 +10,7 @@ PATCH /storage/{path}
 ```
 
 ```bash
-curl -X PATCH http://localhost:3000/storage/photos/portrait.jpg \
+curl -X PATCH https://cdn.openinary.dev/storage/photos/portrait.jpg \
   -H "Authorization: Bearer <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"name": "headshot.jpg"}'

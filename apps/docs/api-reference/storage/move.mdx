@@ -10,7 +10,7 @@ POST /storage/{path}/move
 ```
 
 ```bash
-curl -X POST http://localhost:3000/storage/photos/portrait.jpg/move \
+curl -X POST https://cdn.openinary.dev/storage/photos/portrait.jpg/move \
   -H "Authorization: Bearer <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"destination": "archive"}'

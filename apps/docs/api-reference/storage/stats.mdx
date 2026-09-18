@@ -6,7 +6,7 @@ description: "Aggregate storage and cache usage, and per-folder item counts with
 Three endpoints that answer "how much is in there" without listing everything: aggregate totals for the whole bucket, bounded per-folder summaries, and a recalculation when the totals drift.
 
 ```bash
-curl "http://localhost:3000/storage/folder-summaries?paths=photos,videos" \
+curl "https://cdn.openinary.dev/storage/folder-summaries?paths=photos,videos" \
   -H "Authorization: Bearer <api_key>"
 ```
 
@@ -82,7 +82,7 @@ POST /storage/stats/recalculate
 ```
 
 ```bash
-curl -X POST http://localhost:3000/storage/stats/recalculate \
+curl -X POST https://cdn.openinary.dev/storage/stats/recalculate \
   -H "Authorization: Bearer <api_key>"
 ```
 
