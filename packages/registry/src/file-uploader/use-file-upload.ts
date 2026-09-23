@@ -169,14 +169,7 @@ function uploadViaXhr({
     };
 
     xhr.onload = () => {
-      // The response is whatever the server sent, so every field below is
-      // optional until it has been checked.
-      let body: {
-        success?: boolean;
-        files?: UploadedFile[];
-        errors?: { error?: string }[];
-        error?: string;
-      } | null = null;
+      let body: any = null;
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
@@ -212,17 +205,18 @@ function uploadViaXhr({
 }
 
 export function useFileUpload(options: UseFileUploadOptions) {
-  // `transformations` and the three callbacks are deliberately not destructured
-  // here: they are read through `optionsRef` at call time so that passing a new
-  // inline function on every render does not rebuild the upload callbacks.
   const {
     baseUrl,
     sign,
+    transformations,
     accept = DEFAULT_ACCEPT,
     maxSize = DEFAULT_MAX_SIZE,
     maxFiles,
     multiple = true,
     concurrency = 3,
+    onSuccess,
+    onError,
+    onProgress,
   } = options;
 
   const resolvedBaseUrl =
@@ -235,15 +229,9 @@ export function useFileUpload(options: UseFileUploadOptions) {
   const [files, setFiles] = React.useState<FileUploadState[]>([]);
   const [isUploading, setIsUploading] = React.useState(false);
 
-  // Keep option callbacks fresh without re-creating upload functions. The write
-  // happens in an effect, not during render: mutating a ref while rendering is
-  // unsafe under concurrent rendering, where React may render a component it
-  // then throws away. Only async callbacks that run after commit read this, so
-  // an effect is soon enough.
+  // Keep option callbacks fresh without re-creating upload functions.
   const optionsRef = React.useRef(options);
-  React.useEffect(() => {
-    optionsRef.current = options;
-  });
+  optionsRef.current = options;
 
   // Track active XHRs by file id for abort.
   const xhrRef = React.useRef<Map<string, XMLHttpRequest>>(new Map());
