@@ -10,7 +10,7 @@ POST /upload
 ```
 
 ```bash
-curl -X POST http://localhost:3000/upload \
+curl -X POST https://cdn.openinary.dev/upload \
   -H "Authorization: Bearer <api_key>" \
   -F "files=@photo.jpg"
 ```
@@ -48,7 +48,7 @@ HEIC and HEIF files are transcoded to JPEG on upload. The returned `filename`, `
 <Tab title="Upload to folder">
 
 ```bash
-curl -X POST http://localhost:3000/upload \
+curl -X POST https://cdn.openinary.dev/upload \
   -H "Authorization: Bearer <api_key>" \
   -F "files=@photo.jpg" \
   -F "folder=products/2024"
@@ -59,7 +59,7 @@ curl -X POST http://localhost:3000/upload \
 <Tab title="Upload with prewarm">
 
 ```bash
-curl -X POST http://localhost:3000/upload \
+curl -X POST https://media.example.com/upload \
   -H "Authorization: Bearer <api_key>" \
   -F "files=@photo.jpg" \
   -F "folder=photos" \
@@ -67,14 +67,14 @@ curl -X POST http://localhost:3000/upload \
   -F "transformations=w_400,h_400,c_fill,g_face"
 ```
 
-Uploads the file and immediately generates two cached variants.
+Uploads the file and immediately generates two cached variants. Self-hosted only: Cloud accepts the field and ignores it.
 
 </Tab>
 
 <Tab title="Multiple files with custom names">
 
 ```bash
-curl -X POST http://localhost:3000/upload \
+curl -X POST https://cdn.openinary.dev/upload \
   -H "Authorization: Bearer <api_key>" \
   -F "files=@IMG_001.jpg" \
   -F "files=@IMG_002.jpg" \
@@ -111,6 +111,8 @@ A fully successful upload returns only `success` and `files`. There is no `error
 }
 ```
 
+That is the self-hosted shape. On Cloud the `url` carries the bucket prefix, `/b/{bucketId}/t/photos/photo.jpg`, and `prewarmedUrls` is absent: variants are generated on the first request instead.
+
 | Field     | Type      | Description                                                                                         |
 | --------- | --------- | --------------------------------------------------------------------------------------------------- |
 | `success` | `boolean` | `true` if at least one file was processed. Still `true` on a `207`, so check `errors` for partial failure |
@@ -124,7 +126,7 @@ Each entry in `files`:
 | `filename`                 | `string`   | Original or custom filename. A HEIC or HEIF upload comes back with a `.jpg` extension       |
 | `path`                     | `string`   | Storage path relative to root                                                              |
 | `size`                     | `number`   | File size in bytes, after any conversion                                                   |
-| `url`                      | `string`   | Root-relative delivery path, always starting with `/t/`. Prefix your instance origin for an absolute URL |
+| `url`                      | `string`   | Root-relative delivery path. Self-hosted it starts with `/t/`, on Cloud with `/b/{bucketId}/t/`. Prefix your base URL for an absolute URL |
 | `prewarmedUrls`            | `string[]` | Image transformation paths generated and cached during the upload. Omitted when empty      |
 | `prewarmErrors`            | `string[]` | Prewarm failures. The file still uploaded successfully. Omitted when empty                 |
 | `queuedTransformationUrls` | `string[]` | Video transformation paths queued for background processing. Omitted when empty            |

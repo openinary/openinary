@@ -12,7 +12,7 @@ POST /download-zip
 ```
 
 ```bash
-curl -X POST http://localhost:3000/download-zip \
+curl -X POST https://media.example.com/download-zip \
   -H "Authorization: Bearer <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"items": [{"path": "photos/portrait.jpg", "kind": "file"}, {"path": "videos", "kind": "folder"}]}' \
