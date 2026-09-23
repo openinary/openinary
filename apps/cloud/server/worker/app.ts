@@ -12,7 +12,7 @@
 
 import { posix as path } from "node:path";
 import { RPCHandler } from "@orpc/server/fetch";
-import { eq, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import type { Context, Next } from "hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -478,6 +478,77 @@ async function adminTenantRoot(c: TenantCtx): Promise<string | null> {
   }
   return tenantRootFor(userId, bucketId);
 }
+
+/**
+ * GET /admin/storage?users=a,b,c - each account's footprint across all of its
+ * buckets, for the user list. The per-bucket snapshot in Postgres is only
+ * ever refreshed by the customer pressing "Recalculate" (see schema/bucket.ts),
+ * which almost nobody does, so the list read 0 B for everyone. This refreshes
+ * any bucket whose snapshot is older than an hour straight from R2 and writes
+ * it back, so the fiche and the customer's own Storage tab agree with it.
+ *
+ * Originals only ("public/{tenantRoot}/" is one prefix per bucket, cheap);
+ * the cache columns are left alone, since "cache/" has no per-tenant prefix.
+ *
+ * ponytail: one R2 list per stale bucket per page of the user list, in
+ * parallel; a tenant with 100k objects is 100 subrequests. Move to a cron if
+ * a page ever brushes the Worker's 1000-subrequest budget.
+ */
+const FOOTPRINT_MAX_AGE_MS = 60 * 60 * 1000;
+app.get("/admin/storage", async (c) => {
+  const ids = (c.req.query("users") ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .slice(0, 200);
+  const footprint: Record<string, { bytes: number; files: number }> = {};
+  for (const id of ids) footprint[id] = { bytes: 0, files: 0 };
+  if (ids.length === 0) return c.json(footprint);
+
+  try {
+    const rows = await db
+      .select({
+        id: bucket.id,
+        userId: bucket.userId,
+        storageBytes: bucket.storageBytes,
+        storageFileCount: bucket.storageFileCount,
+        statsUpdatedAt: bucket.statsUpdatedAt,
+      })
+      .from(bucket)
+      .where(inArray(bucket.userId, ids));
+
+    const now = Date.now();
+    await Promise.all(
+      rows.map(async (row) => {
+        let { storageBytes, storageFileCount } = row;
+        const fresh =
+          row.statsUpdatedAt &&
+          now - row.statsUpdatedAt.getTime() < FOOTPRINT_MAX_AGE_MS;
+        if (!fresh) {
+          const originals = (
+            await r2.listAll(
+              c.env.MEDIA_BUCKET,
+              `public/${tenantRootFor(row.userId, row.id)}/`,
+            )
+          ).filter((o) => !o.key.endsWith("/"));
+          storageBytes = originals.reduce((sum, o) => sum + o.size, 0);
+          storageFileCount = originals.length;
+          await db
+            .update(bucket)
+            .set({ storageBytes, storageFileCount, statsUpdatedAt: new Date() })
+            .where(eq(bucket.id, row.id));
+        }
+        const total = footprint[row.userId];
+        total.bytes += storageBytes;
+        total.files += storageFileCount;
+      }),
+    );
+    return c.json(footprint);
+  } catch (error) {
+    console.error("Failed to compute storage footprint for admin", error);
+    return c.json({ error: "Failed to compute storage footprint" }, 500);
+  }
+});
 
 // GET /admin/users/:userId/buckets/:bucketId/storage?path= - one directory
 // level, same shape as the customer's own GET /storage.

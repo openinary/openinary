@@ -9,11 +9,10 @@
 // reach it.
 
 import { ORPCError } from "@orpc/server";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { apikey, user } from "../db/schema/auth.js";
-import { bucket } from "../db/schema/bucket.js";
 import {
   type AttioPerson,
   findPersonByEmail,
@@ -236,27 +235,6 @@ export const adminRouter = {
             : {}),
         },
       });
-      // The account's footprint across all of its buckets - one grouped query
-      // for the page. Same cached snapshot the fiche shows per bucket (see
-      // schema/bucket.ts), not a live R2 scan.
-      const ids = users.map((account) => account.id);
-      const footprint = ids.length
-        ? await db
-            .select({
-              userId: bucket.userId,
-              bytes: sql<number>`coalesce(sum(${bucket.storageBytes}), 0)::bigint`,
-              files: sql<number>`coalesce(sum(${bucket.storageFileCount}), 0)::int`,
-            })
-            .from(bucket)
-            .where(inArray(bucket.userId, ids))
-            .groupBy(bucket.userId)
-        : [];
-      const footprintByUser = new Map(
-        footprint.map((row) => [
-          row.userId,
-          { bytes: Number(row.bytes), files: Number(row.files) },
-        ]),
-      );
       return {
         total,
         users: users.map((account) => ({
@@ -266,7 +244,6 @@ export const adminRouter = {
           createdAt: new Date(account.createdAt).toISOString(),
           banned: account.banned ?? false,
           suspended: isSuspended(account),
-          storage: footprintByUser.get(account.id) ?? { bytes: 0, files: 0 },
         })),
       };
     }),
