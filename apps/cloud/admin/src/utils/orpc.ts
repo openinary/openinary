@@ -60,16 +60,21 @@ export const client: RouterClient<typeof appRouter> = createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
 
+/** A plain Worker route's URL - what an <img> or <video> is pointed at. */
+export const adminUrl = (path: string) =>
+  `${process.env.NEXT_PUBLIC_SERVER_URL}${path}`;
+
 /**
- * The two destructive operations are plain Worker routes, not oRPC procedures:
- * both sweep R2, and the oRPC router compiles without the Worker's bindings
- * (see the note at the top of api/routers/admin.ts).
+ * The routes that need the R2 binding are plain Worker routes, not oRPC
+ * procedures: the oRPC router compiles without the Worker's bindings (see the
+ * note at the top of api/routers/admin.ts). Answers the JSON body, or nothing
+ * for a 204.
  */
-export async function adminFetch(
+export async function adminFetch<T = void>(
   path: string,
   init?: RequestInit,
-): Promise<void> {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}${path}`, {
+): Promise<T> {
+  const response = await fetch(adminUrl(path), {
     ...init,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...init?.headers },
@@ -80,4 +85,5 @@ export async function adminFetch(
     } | null;
     throw new Error(body?.message ?? `Request failed (${response.status})`);
   }
+  return (response.status === 204 ? undefined : await response.json()) as T;
 }
