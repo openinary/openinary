@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
+import { formatBytes, formatDate } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
 export default function UsersPage() {
@@ -74,7 +74,7 @@ export default function UsersPage() {
           <HugeiconsIcon
             icon={Search01Icon}
             strokeWidth={2}
-            className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 size-4 text-muted-foreground"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             value={search}
@@ -106,6 +106,7 @@ export default function UsersPage() {
                   else. */}
               <TableHead className="hidden md:table-cell">Name</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Storage</TableHead>
               <TableHead className="hidden text-right sm:table-cell">
                 Joined
               </TableHead>
@@ -148,6 +149,12 @@ export default function UsersPage() {
                       <StatusBadge tone="good">active</StatusBadge>
                     ) : null}
                   </div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatBytes(account.storage.bytes)}
+                  <span className="block text-muted-foreground text-xs">
+                    {account.storage.files.toLocaleString()} files
+                  </span>
                 </TableCell>
                 <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">
                   {formatDate(account.createdAt)}

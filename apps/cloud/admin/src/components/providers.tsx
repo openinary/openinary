@@ -35,7 +35,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           account refetched four upstreams behind a blank screen. */}
       <PersistQueryClientProvider
         client={queryClient}
-        persistOptions={{ persister, maxAge: CACHE_MAX_AGE }}
+        // `buster` versions the persisted shape: a page that reads a field
+        // the previous deploy never wrote would otherwise crash on the
+        // restored cache before the refetch could repair it. Bump it whenever
+        // a procedure's answer gains a field a page relies on.
+        persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: "2" }}
       >
         {/* The sidebar's collapsed labels are Tooltips, and this style's
             SidebarProvider no longer supplies the provider itself. */}

@@ -279,8 +279,9 @@ export async function downloadOriginal(
   bucket: R2Bucket,
   tenantRoot: string,
   filePath: string,
+  options?: R2GetOptions,
 ): Promise<R2ObjectBody | null> {
-  return bucket.get(publicKey(tenantRoot, filePath));
+  return bucket.get(publicKey(tenantRoot, filePath), options);
 }
 
 // Partial read for /download/*'s Range support - mediabunny's UrlSource

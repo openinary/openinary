@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/confirm-action";
@@ -376,10 +377,21 @@ export default function UserPage() {
               <Empty>No buckets.</Empty>
             ) : (
               buckets.map((bucket) => (
-                <Field key={bucket.id} label={bucket.name}>
-                  {formatBytes(bucket.storageBytes)} ·{" "}
-                  {bucket.storageFileCount.toLocaleString()} files
-                </Field>
+                // Same row as <Field>, but it opens the bucket's file browser.
+                <Link
+                  key={bucket.id}
+                  href={`/users/${userId}/buckets/${bucket.id}`}
+                  className="flex items-baseline justify-between gap-4 py-1 text-sm hover:underline hover:underline-offset-4"
+                >
+                  <span className="text-muted-foreground">{bucket.name}</span>
+                  <span className="text-right font-medium tabular-nums">
+                    {formatBytes(bucket.storageBytes)} ·{" "}
+                    {bucket.storageFileCount.toLocaleString()} files ·{" "}
+                    <span className="underline underline-offset-4">
+                      Browse files
+                    </span>
+                  </span>
+                </Link>
               ))
             )}
           </CardContent>
