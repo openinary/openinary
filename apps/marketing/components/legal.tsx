@@ -7,7 +7,7 @@ export function Section({ children }: { children: React.ReactNode }) {
 }
 
 export function H2({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-base font-semibold text-foreground mb-2">{children}</h2>;
+  return <h2 className="mb-2 text-sm font-medium text-foreground">{children}</h2>;
 }
 
 export function P({ children }: { children: React.ReactNode }) {

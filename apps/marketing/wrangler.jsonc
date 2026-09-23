@@ -8,6 +8,11 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Production lives on the custom domain only. Left undeclared, a deploy
+  // silently re-enables both of these, which is how a preview URL disabled in
+  // the dashboard came back to life.
+  "workers_dev": false,
+  "preview_urls": false,
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",

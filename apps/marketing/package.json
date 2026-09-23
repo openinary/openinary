@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev --turbopack --port 3200",
     "lint": "eslint .",
-    "prebuild": "pnpm --filter registry run registry:build",
+    "prebuild": "pnpm --filter registry run registry:build && node scripts/sync-registry.mjs",
     "build": "next build --webpack",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "pricing:check": "node --import tsx scripts/pricing-check.mjs"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.6",
@@ -32,7 +33,6 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "shiki": "^4.0.2",
-    "slot-text": "^0.3.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "three": "^0.183.2",
@@ -47,6 +47,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5",
     "wrangler": "^4.114.0"

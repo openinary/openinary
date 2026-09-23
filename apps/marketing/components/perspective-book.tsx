@@ -3,10 +3,13 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
+// Nominal widths. The cover is capped at these rather than fixed to them, so a
+// book in a narrow column (two per row on a phone) shrinks instead of spilling
+// out of it. `aspect-[49/60]` keeps the proportions at any width.
 const sizeMap = {
-  sm: { width: "150px", spineTranslation: "122px" },
-  default: { width: "196px", spineTranslation: "168px" },
-  lg: { width: "300px", spineTranslation: "272px" },
+  sm: "150px",
+  default: "196px",
+  lg: "300px",
 };
 
 interface PerspectiveBookProps {
@@ -22,24 +25,31 @@ export function PerspectiveBook({
   children,
   textured = false,
 }: PerspectiveBookProps) {
-  const defaultColorClasses =
-    'bg-neutral-100 dark:bg-[#1f1f1f] dark:before:content-[""] dark:before:bg-gradient-to-b dark:before:from-[#ffffff1a] dark:before:to-transparent dark:before:absolute dark:before:inset-0 dark:before:rounded-[inherit] text-primary';
+  const defaultColorClasses = "bg-neutral-100 dark:bg-[#1f1f1f] text-primary";
+
+  // Sheen across the top of the cover. Lives in the base classes rather than in
+  // defaultColorClasses so a caller passing its own colours still gets it:
+  // `className` replaces the default colours outright, and the highlight used to
+  // go with them.
+  const coverSheen =
+    'before:content-[""] before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-b before:from-white/25 before:to-transparent before:pointer-events-none dark:before:from-white/10';
 
   return (
     <div
-      className={`z-10 group [perspective:900px] w-min h-min`}
+      className={`z-10 group [perspective:900px] w-full h-min`}
     >
       <div
         style={{
-          width: sizeMap[size].width,
+          width: `min(100%, ${sizeMap[size]})`,
           borderRadius: "6px 4px 4px 6px",
         }}
-        className={`transition-transform duration-300 ease-out relative [transform-style:preserve-3d] [transform:rotateY(0deg)] group-hover:[transform:rotateY(-20deg)] group-hover:scale-[1.066] group-hover:-translate-x-1 aspect-[49/60]`}
+        className={`mx-auto transition-transform duration-300 ease-out relative [transform-style:preserve-3d] [transform:rotateY(0deg)] group-hover:[transform:rotateY(-20deg)] group-hover:scale-[1.066] group-hover:-translate-x-1 aspect-[49/60]`}
       >
         {/* Front Side */}
         <div
           className={cn(
             `absolute inset-y-0 overflow-hidden size-full left-0 flex flex-col p-[12%] after:content-[''] after:absolute after:inset-0 after:shadow-[0_1.8px_3.6px_#0000000d,_0_10.8px_21.6px_#00000014,_inset_0_-.9px_#0000001a,_inset_0_1.8px_1.8px_#ffffff1a,_inset_3.6px_0_3.6px_#0000001a] after:pointer-events-none after:rounded-[inherit] after:border-[#00000014] after:border after:border-solid`,
+            coverSheen,
             className || defaultColorClasses,
           )}
           style={{
@@ -47,6 +57,8 @@ export function PerspectiveBook({
             borderRadius: "6px 4px 4px 6px",
           }}
         >
+          {/* Paper edge, the stacked page ends at the opening side. White in
+              both themes for the same reason as the spine. */}
           <div
             className="absolute left-0 top-0 h-full opacity-40"
             style={{
@@ -71,16 +83,19 @@ export function PerspectiveBook({
           )}
         </div>
 
-        {/* Spine */}
+        {/* Spine: the page block seen edge-on. Paper stays paper in both themes,
+            the same way a real book's pages do not darken with the room. */}
         <div
           className="absolute left-0 bg-[linear-gradient(90deg,#eaeaea_0%,#0000_80%),linear-gradient(#fff,#fafafa)]"
           style={{
             top: "3px",
             bottom: "3px",
             width: "48px",
-            transform: `translateX(${
-              sizeMap[size].spineTranslation
-            }) rotateY(90deg)`,
+            // Positioned rather than translated: a translate percentage is
+            // relative to the spine's own 48px, `left` is relative to the
+            // cover, which is what has to be tracked now that it is fluid.
+            left: "calc(100% - 28px)",
+            transform: "rotateY(90deg)",
           }}
         >
         </div>
@@ -144,7 +159,9 @@ export function BookDescription({
   className = "",
 }: BookDescriptionProps) {
   return (
-    <p className={`opacity-80 select-none text-xs/relaxed ${className}`}>
+    <p
+      className={`opacity-80 select-none text-[11px]/relaxed sm:text-xs/relaxed ${className}`}
+    >
       {children}
     </p>
   );

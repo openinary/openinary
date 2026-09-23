@@ -1,51 +1,31 @@
-import Banner from "@/components/landing-page/banner";
-import FAQsSection from "@/components/landing-page/faq";
-import { Footer } from "@/components/footer";
-import { Header } from "@/components/header";
-import { HeroSection } from "@/components/hero";
-import { FeatureSection } from "@/components/feature-section";
-import { PricingSection } from "@/components/pricing-section";
-import { Integrations } from "@/components/integrations";
-import DeveloperSection from "@/components/features-6";
-import { DocsSection } from "@/components/docs-section";
-import CTASection from "@/components/landing-page/cta";
-import { SectionReveal } from "@/components/ui/section-reveal";
+import { CalculatorSection } from "@/components/home/calculator-section";
+import { Cta } from "@/components/home/cta";
+import { Docs } from "@/components/home/docs";
+import { Faq } from "@/components/home/faq";
+import { Footer } from "@/components/home/footer";
+import { Header } from "@/components/home/header";
+import { Hero } from "@/components/home/hero";
+import { PlaygroundSection } from "@/components/home/playground-section";
+import { ProductPreview } from "@/components/home/product-preview";
+import { Why } from "@/components/home/why";
 
 export default function Home() {
   return (
-    <div className="bg-background overflow-x-clip">
-      <main className="relative mx-auto max-w-screen-xl border-x">
-        <Banner
-          title="Openinary Cloud is in public alpha."
-          description="Start on the free plan, no card required."
-          linkText="Try it"
-          linkUrl="https://app.openinary.dev"
-        />
+    <div className="bg-background">
+      <div className="mx-auto w-full max-w-[1100px] md:border-x md:border-border">
         <Header />
-        <SectionReveal>
-          <HeroSection />
-        </SectionReveal>
-        <SectionReveal delay={0.1}>
-          <FeatureSection />
-        </SectionReveal>
-        <SectionReveal delay={0.1}>
-          <Integrations />
-        </SectionReveal>
-        <SectionReveal delay={0.1}>
-          <DeveloperSection />
-        </SectionReveal>
-        <SectionReveal delay={0.1}>
-          <DocsSection />
-        </SectionReveal>
-        <SectionReveal delay={0.1}>
-          <PricingSection />
-        </SectionReveal>
-        <SectionReveal delay={0.1}>
-          <FAQsSection />
-        </SectionReveal>
-        <CTASection />
+        <main>
+          <Hero />
+          <ProductPreview />
+          <Why />
+          <PlaygroundSection />
+          <Docs />
+          <CalculatorSection />
+          <Faq />
+          <Cta />
+        </main>
         <Footer />
-      </main>
+      </div>
     </div>
   );
 }
