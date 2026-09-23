@@ -20,9 +20,6 @@
 
 **For documentation and more examples, please visit https://docs.openinary.dev.**
 
-> [!TIP]
-> **☁️ Openinary Cloud is in public alpha.** Same engine, hosted for you. Sign up and start on the free plan, no card required. [Try it →](https://app.openinary.dev)
-
 > [!WARNING]
 > Please keep in mind that Openinary is still under active development
 > and therefore full backward compatibility is not guaranteed before reaching v1.0.0.
@@ -30,7 +27,7 @@
 ## Quick Start
 
 <p align="left">
-    <a href="https://railway.com/deploy/openinary-1?referralCode=imHr5N&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/railway.svg" alt="Deploy with Railway" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/coolify-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/coolify.svg" alt="Deploy with Coolify" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/dokploy-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/dokploy.svg" alt="Deploy with Dokploy" style="display: block;" /></a>
+    <a href="https://railway.com/deploy/openinary-1?referralCode=imHr5N&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/railway.svg" alt="Deploy with Railway" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/coolify-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/coolify.svg" alt="Deploy with Coolify" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/dokploy-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/dokploy.svg" alt="Deploy with Dokploy" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://app.openinary.dev" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/cloud.svg" alt="Use Openinary Cloud" style="display: block;" /></a>
 </p>
 
 ### Installation
