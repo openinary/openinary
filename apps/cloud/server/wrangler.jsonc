@@ -158,14 +158,22 @@
     // signups again; existing accounts keep working either way.
     "ALLOW_PUBLIC_SIGNUP": "true"
   },
-  // Every 5 minutes: reports completed video transform jobs' minutes to Autumn
-  // (meterCompletedVideoJobs). Daily at 07:00 UTC: pushes every account's
+  // Hourly, NOT every 5 minutes: meterCompletedVideoJobs opens a Postgres
+  // connection on every tick, and Neon's Free plan suspends an idle compute
+  // after exactly 5 minutes and won't let that timeout be changed. A query
+  // every 5 minutes therefore reset the suspend timer forever, so the compute
+  // never scaled to zero and burned the plan's 100 CU-hours/month at
+  // 0.25 CU x 24/7 = ~182 CU-hours - the allowance ran out mid-month and
+  // every DB-backed route, sign-in included, started 500ing. Hourly costs a
+  // few seconds of uptime per day. Metering an hour late is invisible:
+  // Autumn bills on totals, not on when the tick landed.
+  // Daily at 07:00 UTC: pushes every account's
   // marketing profile to Loops and fires the inactivity / near-limit events
   // (syncLifecycle). Both in worker/index.ts's scheduled handler, which tells
   // them apart by the expression - so DAILY_CRON there must match the second
   // string here character for character.
   "triggers": {
-    "crons": ["*/5 * * * *", "0 7 * * *"]
+    "crons": ["0 * * * *", "0 7 * * *"]
   },
   "observability": {
     "enabled": true
