@@ -5,6 +5,11 @@
 // AsyncLocalStorage context (scoped-storage.ts) - there's no request-scoped
 // storage instance here, just plain calls.
 //
+// The "public/" prefix below is intentionally fixed here. core's equivalent is
+// configurable via STORAGE_PREFIX, for self-hosters pointing Openinary at a
+// bucket whose layout they do not own; Cloud pins its own layout on purpose, so
+// there is nothing to configure and the two are meant to differ.
+//
 // Key conventions mirrored exactly from core (must match, since the
 // container's transform route and VideoWorker still write through the S3
 // API to the same bucket):

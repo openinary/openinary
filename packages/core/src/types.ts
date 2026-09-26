@@ -60,6 +60,16 @@ export interface StorageConfig {
   bucketName: string;
   endpoint?: string; // Required for non-AWS providers (R2, Minio, etc.)
   publicUrl?: string; // Public URL of the bucket
+  /**
+   * Key prefix media is stored under, relative to the bucket root. Defaults to
+   * "public" when unset, which is the layout every existing deployment has.
+   *
+   * Setting it to "" stores media at the bucket root. That is what lets
+   * Openinary serve a bucket whose layout it does not own: an uploader already
+   * writing `photos/2024/sunset.jpg` can be delivered at
+   * /t/photos/2024/sunset.jpg without moving a single object.
+   */
+  prefix?: string;
 }
 
 /** HTTP client tuning for the storage backend. All fields optional; timeouts of 0/undefined mean "disabled". */
