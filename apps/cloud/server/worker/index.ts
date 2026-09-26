@@ -21,6 +21,7 @@ import {
 } from "../api/lib/delivery-log.js";
 import { syncLifecycle } from "../api/lib/loops.js";
 import { notify } from "../api/lib/push.js";
+import { probeSignIn } from "../api/lib/sign-in-probe.js";
 import { billableJob } from "../api/lib/video-metering.js";
 import { app, parseRangeHeader } from "./app.js";
 import { MediaContainer } from "./container.js";
@@ -560,37 +561,27 @@ async function checkVideoProcessing(
 // attempt - our retries are not the customer's to pay for.
 /**
  * Hourly canary on the one request that matters most: the exact call the
- * dashboard's Google button makes. It exercises DNS and routing, the auth
- * mount, Postgres (better-auth writes the OAuth state row) and the Google
- * credentials in a single request - which is the point, because while all of
- * that was broken /api/auth/ok kept cheerfully answering 200. A plain health
- * endpoint would have reported everything fine for two days.
+ * dashboard's Google button makes (see api/lib/sign-in-probe.ts).
  *
- * Costs one verification row per hour, expired ten minutes later and never
+ * Dispatched into this Worker's own app in-process, not with fetch() to
+ * BETTER_AUTH_URL: a Worker's subrequest to a hostname on its own zone skips
+ * the Worker and goes straight to the DNS origin, which for cdn.openinary.dev
+ * doesn't answer - so that fetch came back 522 on every tick while real
+ * browsers, which do reach the Worker, signed in fine. Edge reachability of
+ * the hostname is left to an external monitor, which sees what users see.
+ *
+ * Costs one verification row per attempt, expired ten minutes later and never
  * read again. Cheaper than hearing about an outage from a customer.
  */
-async function checkSignIn(): Promise<void> {
-  const origin = process.env.CORS_ORIGIN ?? "";
-  const res = await fetch(
-    `${process.env.BETTER_AUTH_URL}/api/auth/sign-in/social`,
+async function checkSignIn(env: Env, ctx: ExecutionContext): Promise<void> {
+  const failure = await probeSignIn(
+    async (request) => app.fetch(request, env, ctx),
     {
-      method: "POST",
-      headers: { "content-type": "application/json", origin },
-      // disableRedirect keeps the answer JSON instead of a hop to Google.
-      body: JSON.stringify({
-        provider: "google",
-        callbackURL: origin,
-        disableRedirect: true,
-      }),
+      authUrl: process.env.BETTER_AUTH_URL ?? "",
+      origin: process.env.CORS_ORIGIN ?? "",
     },
   );
-  if (res.ok) return;
-  // Body included because better-auth answers an unexpected failure with an
-  // empty 500 - the status alone was what made this one slow to place.
-  await notify(
-    "Openinary Cloud sign-in is down",
-    `POST /api/auth/sign-in/social -> ${res.status} ${(await res.text()).slice(0, 300)}`,
-  );
+  if (failure) await notify("Openinary Cloud sign-in is down", failure);
 }
 
 async function meterCompletedVideoJobs(): Promise<void> {
@@ -858,7 +849,7 @@ export default {
   },
   async scheduled(
     controller: ScheduledController,
-    _env: Env,
+    env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
     // Two schedules, one handler (see wrangler.jsonc's triggers.crons). The
@@ -888,7 +879,7 @@ export default {
     ctx.waitUntil(
       meterCompletedVideoJobs().catch(alert("meterCompletedVideoJobs")),
     );
-    ctx.waitUntil(checkSignIn().catch(alert("checkSignIn")));
+    ctx.waitUntil(checkSignIn(env, ctx).catch(alert("checkSignIn")));
   },
 };
 
