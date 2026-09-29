@@ -121,13 +121,13 @@ export default function HeaderBar({
                   />
                 </div>
               )}
-              {/* 32px total to match Upload: 28px buttons + 1px padding + 1px
-                  border. Outer radius = inner radius + padding: 8 + 1 = 9px. */}
-              <div className="flex items-center rounded-[9px] border border-border p-px">
+              {/* 36px total to match Upload: 32px buttons + 1px padding + 1px
+                  border. Outer radius = inner radius + padding: 10 + 1 = 11px. */}
+              <div className="flex items-center rounded-[11px] border border-border p-px shadow-xs">
                 <Button
                   variant={view === "grid" ? "secondary" : "ghost"}
                   size="icon"
-                  className="before:-inset-y-1 relative size-7 before:absolute before:inset-x-0 before:content-['']"
+                  className="before:-inset-y-1 relative size-8 before:absolute before:inset-x-0 before:content-['']"
                   onClick={() => onViewChange?.("grid")}
                   aria-label="Grid view"
                   aria-pressed={view === "grid"}
@@ -137,7 +137,7 @@ export default function HeaderBar({
                 <Button
                   variant={view === "list" ? "secondary" : "ghost"}
                   size="icon"
-                  className="before:-inset-y-1 relative size-7 before:absolute before:inset-x-0 before:content-['']"
+                  className="before:-inset-y-1 relative size-8 before:absolute before:inset-x-0 before:content-['']"
                   onClick={() => onViewChange?.("list")}
                   aria-label="List view"
                   aria-pressed={view === "list"}

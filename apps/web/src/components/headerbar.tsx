@@ -92,11 +92,11 @@ export default function HeaderBar({
           {view === "grid" && (
             <ColumnCountSlider value={columns} onChange={onColumnsChange} />
           )}
-          <div className="flex items-center rounded-md border border-border p-0.5">
+          <div className="flex items-center rounded-[11px] border border-border p-px shadow-xs">
             <Button
               variant={view === "grid" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="size-8"
               onClick={() => onViewChange?.("grid")}
               aria-label="Grid view"
             >
@@ -105,7 +105,7 @@ export default function HeaderBar({
             <Button
               variant={view === "list" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="size-8"
               onClick={() => onViewChange?.("list")}
               aria-label="List view"
             >

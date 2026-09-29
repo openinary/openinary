@@ -39,23 +39,23 @@ export function AppearanceTab() {
             </>
           }
         >
-          <div className="flex w-fit gap-1 rounded-full border bg-muted/40 p-1">
+          <div className="flex w-fit gap-0.5 rounded-xl bg-muted p-[3px]">
             {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setTheme(value)}
                 className={cn(
-                  "relative flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
+                  "relative flex h-8 items-center gap-1.5 rounded-[9px] px-2.5 text-sm font-medium transition-colors",
                   mounted && theme === value
-                    ? "text-background"
+                    ? "font-semibold text-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {mounted && theme === value && (
                   <motion.div
                     layoutId="theme-active"
-                    className="absolute inset-0 rounded-full bg-foreground"
+                    className="absolute inset-0 rounded-[9px] border bg-background shadow-xs dark:bg-input"
                     transition={{ type: "tween", duration: 0.2, ease: "easeOut" }}
                   />
                 )}
