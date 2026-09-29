@@ -89,6 +89,14 @@ export {
   settingsFieldClass,
   settingsFieldLabelClass,
 } from "./settings/settings-section";
+export {
+  UsageCell,
+  UsageDashboard,
+  UsageTable,
+  UsageTime,
+  type UsageColumn,
+  type UsageEvent,
+} from "./settings/usage-dashboard";
 export { StorageTab } from "./settings/storage-tab";
 
 // File uploader (presigned direct upload)

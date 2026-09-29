@@ -36,6 +36,8 @@ export const SETTINGS_PAGES: {
   description: string;
   icon: LucideIcon;
   content: React.ComponentType;
+  /** Takes the whole width, for pages that are tables and charts. */
+  wide?: boolean;
 }[] = [
   {
     value: "account",
@@ -71,5 +73,6 @@ export const SETTINGS_PAGES: {
     description: "The deliveries and video jobs behind your traffic.",
     icon: ScrollText,
     content: ActivityTab,
+    wide: true,
   },
 ];

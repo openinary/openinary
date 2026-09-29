@@ -49,7 +49,7 @@ export function SettingsPage({ tab }: { tab: string }) {
         <h2 className="mt-8 font-semibold text-base">{page.label}</h2>
         <p className="mt-1 text-muted-foreground text-sm">{page.description}</p>
         <Separator className="my-6" />
-        <div className="max-w-4xl">
+        <div className={cn("@container", !page.wide && "max-w-4xl")}>
           <page.content />
         </div>
       </div>

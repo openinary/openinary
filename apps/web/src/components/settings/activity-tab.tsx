@@ -1,17 +1,16 @@
 "use client";
 
-import { SettingsSection, useOpeninary } from "@openinary/ui";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
-import { useState } from "react";
-
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+  type UsageColumn,
+  UsageCell,
+  UsageDashboard,
+  type UsageEvent,
+  UsageTable,
+  UsageTime,
+  useOpeninary,
+} from "@openinary/ui";
+import { useQuery } from "@tanstack/react-query";
+
 import { cn } from "@/lib/utils";
 
 // Wire format is single-letter keys, see apps/api/src/utils/activity-log.ts.
@@ -34,23 +33,8 @@ type VideoJob = {
   completed_at: number | null;
 };
 
-function formatClock(ms: number) {
-  return new Date(ms).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function formatTime(ms: number) {
-  return new Date(ms).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
+// Must match LOG_LIMIT in apps/api/src/utils/activity-log.ts.
+const LOG_LIMIT = 500;
 
 function formatSeconds(seconds: number) {
   if (seconds < 60) return `${seconds}s`;
@@ -79,98 +63,42 @@ function jobParams(json: string): string {
   }
 }
 
-/** One log line: a single row, with the rest of the record behind it. */
-function LogRow({
-  time,
-  tag,
-  tagClassName,
-  path,
-  right,
-  details,
-}: {
-  time: number;
-  tag: string;
-  tagClassName?: string;
-  path: string;
-  right: string;
-  details: [string, string][];
-}) {
-  const [open, setOpen] = useState(false);
+const jobSeconds = (job: VideoJob) =>
+  job.started_at && job.completed_at
+    ? Math.round((job.completed_at - job.started_at) / 1000)
+    : null;
 
-  return (
-    <Collapsible
-      className="border-b last:border-0"
-      onOpenChange={setOpen}
-      open={open}
-    >
-      <CollapsibleTrigger className="flex w-full items-center gap-2 px-2 py-1 text-left font-mono text-xs hover:bg-muted/50">
-        <ChevronRight
-          className={cn(
-            "size-3 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-90",
-          )}
-        />
-        <span className="shrink-0 text-muted-foreground tabular-nums">
-          {formatClock(time)}
-        </span>
-        <span className={cn("w-20 shrink-0 truncate", tagClassName)}>
-          {tag}
-        </span>
-        <span className="min-w-0 flex-1 truncate">{path}</span>
-        <span className="shrink-0 text-muted-foreground tabular-nums">
-          {right}
-        </span>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 bg-muted/30 px-2 py-2 pl-7 font-mono text-xs">
-          {details.map(([label, value]) => (
-            <div className="contents" key={label}>
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className="min-w-0 break-all">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function LogPanel({
-  isLoading,
-  isError,
-  isEmpty,
-  empty,
-  children,
-}: {
-  isLoading: boolean;
-  isError: boolean;
-  isEmpty: boolean;
-  empty: string;
-  children: React.ReactNode;
-}) {
-  if (isError) {
-    return <p className="text-destructive text-sm">Failed to load activity.</p>;
-  }
-  if (isLoading) {
-    return (
-      <div className="space-y-1">
-        {[0, 1, 2, 3, 4].map((row) => (
-          <Skeleton key={row} className="h-6 w-full" />
-        ))}
-      </div>
-    );
-  }
-  if (isEmpty) {
-    return (
-      <p className="rounded-lg border border-dashed px-4 py-6 text-center text-muted-foreground text-xs">
-        {empty}
-      </p>
-    );
-  }
-  return (
-    <div className="max-h-80 overflow-y-auto rounded-lg border">{children}</div>
-  );
-}
+const JOB_COLUMNS: UsageColumn<VideoJob>[] = [
+  { header: "Time", cell: (job) => <UsageTime time={job.created_at} /> },
+  {
+    header: "Status",
+    cell: (job) => (
+      <UsageCell
+        className={cn(job.status === "error" && "text-destructive")}
+        detail={job.error ?? undefined}
+        value={job.status}
+      />
+    ),
+  },
+  {
+    header: "File",
+    className: "max-w-0 w-full",
+    cell: (job) => (
+      <UsageCell
+        detail={jobParams(job.params_json) || "-"}
+        value={job.file_path}
+      />
+    ),
+  },
+  {
+    header: "Duration",
+    className: "whitespace-nowrap tabular-nums",
+    cell: (job) => {
+      const seconds = jobSeconds(job);
+      return seconds === null ? "-" : formatSeconds(seconds);
+    },
+  },
+];
 
 export function ActivityTab() {
   const { apiBaseUrl, fetch } = useOpeninary();
@@ -192,84 +120,47 @@ export function ActivityTab() {
     refetchInterval: 10_000,
   });
 
-  const deliveryRows = deliveries.data?.deliveries ?? [];
-  const jobRows = jobs.data?.jobs ?? [];
+  const events: UsageEvent[] = (deliveries.data?.deliveries ?? []).map(
+    (delivery, index) => ({
+      id: `${delivery.t}-${index}`,
+      time: delivery.t,
+      status: delivery.s,
+      kind: delivery.k,
+      ...splitDelivery(delivery.p),
+    }),
+  );
 
   return (
-    <div className="space-y-6">
-      <SettingsSection
-        title="Delivery log"
-        description="The last 500 assets served from your public URLs. The dashboard's own previews are left out. Expand a line for the transformation and the file behind it."
-      >
-        <LogPanel
-          empty="Nothing served yet. Requests to your public asset URLs show up here within a few seconds."
-          isEmpty={deliveryRows.length === 0}
-          isError={deliveries.isError}
-          isLoading={deliveries.isLoading}
-        >
-          {deliveryRows.map((delivery) => {
-            const { transform, file } = splitDelivery(delivery.p);
-            return (
-              <LogRow
-                details={[
-                  ["when", formatTime(delivery.t)],
-                  ["file", file],
-                  ["transform", transform || "-"],
-                  ["type", delivery.k],
-                  ["status", String(delivery.s)],
-                ]}
-                key={`${delivery.t}-${delivery.p}`}
-                path={delivery.p}
-                right={delivery.k}
-                tag={String(delivery.s)}
-                tagClassName={cn(delivery.s >= 400 && "text-destructive")}
-                time={delivery.t}
-              />
-            );
-          })}
-        </LogPanel>
-      </SettingsSection>
+    <div className="space-y-8">
+      <UsageDashboard
+        events={events}
+        isError={deliveries.isError}
+        isLoading={deliveries.isLoading}
+        isRefreshing={deliveries.isFetching || jobs.isFetching}
+        limit={LOG_LIMIT}
+        onRefresh={() => {
+          deliveries.refetch();
+          jobs.refetch();
+        }}
+      />
 
-      <Separator />
-
-      <SettingsSection
-        title="Video processing"
-        description="The latest transcodes this instance has run, with the time each one took."
-      >
-        <LogPanel
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">Video processing</h3>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            The latest transcodes this instance has run, with the time each
+            one took.
+          </p>
+        </div>
+        <UsageTable
+          columns={JOB_COLUMNS}
           empty="No video has been processed yet."
-          isEmpty={jobRows.length === 0}
           isError={jobs.isError}
           isLoading={jobs.isLoading}
-        >
-          {jobRows.map((job) => {
-            const seconds =
-              job.started_at && job.completed_at
-                ? Math.round((job.completed_at - job.started_at) / 1000)
-                : null;
-            return (
-              <LogRow
-                details={[
-                  ["when", formatTime(job.created_at)],
-                  ["file", job.file_path],
-                  ["transform", jobParams(job.params_json) || "-"],
-                  ["status", job.status],
-                  ["time", seconds === null ? "-" : formatSeconds(seconds)],
-                  ...(job.error
-                    ? ([["error", job.error]] as [string, string][])
-                    : []),
-                ]}
-                key={job.id}
-                path={job.file_path}
-                right={seconds === null ? "" : formatSeconds(seconds)}
-                tag={job.status}
-                tagClassName={cn(job.status === "error" && "text-destructive")}
-                time={job.created_at}
-              />
-            );
-          })}
-        </LogPanel>
-      </SettingsSection>
+          rowKey={(job) => job.id}
+          rows={jobs.data?.jobs ?? []}
+        />
+      </section>
     </div>
   );
 }
