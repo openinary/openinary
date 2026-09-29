@@ -19,7 +19,9 @@ import {
 } from "@openinary/core";
 import { createUploadRoute } from "./routes/upload";
 import apiKeys from "./routes/api-keys";
+import activity from "./routes/activity";
 import health from "./routes/health";
+import { logDelivery, noteApiUpload } from "./middleware/activity";
 import { apiKeyAuth } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
 import { getSharedStorage } from "./config/storage";
@@ -111,6 +113,7 @@ app.route("/video-status", videoStatus);
 // Image transformation route is public for easy access to transformed images
 app.use("/t", publicRateLimit);
 app.use("/t/*", publicRateLimit);
+app.use("/t/*", logDelivery("/t"));
 app.route("/t", transform);
 
 // Original file download route (public, consistent with /t/)
@@ -126,6 +129,7 @@ app.route("/download-folder", downloadFolder);
 // Authenticated image transformation route (with signature verification)
 app.use("/authenticated", publicRateLimit);
 app.use("/authenticated/*", publicRateLimit);
+app.use("/authenticated/*", logDelivery("/authenticated"));
 app.route("/authenticated", authenticated);
 
 // Queue events SSE endpoint (public for real-time updates)
@@ -141,6 +145,7 @@ app.route("/queue/events", queueEvents);
 // auth handling (see presignedOrApiKeyAuth) plus public rate limiting,
 // while the other /upload/* subroutes stay strictly API-key protected.
 app.use("/upload", publicRateLimit);
+app.use("/upload", noteApiUpload);
 app.use("/upload/sign", apiKeyAuth);
 app.use("/upload/createfolder", apiKeyAuth);
 app.route("/upload", upload);
@@ -164,6 +169,11 @@ app.route("/invalidate", invalidateRoute);
 // Note: /queue/events is public (registered above), but other /queue/* routes require auth
 app.use("/queue/*", apiKeyAuth);
 app.route("/queue", queue);
+
+// Delivery log and onboarding state, for the dashboard (protected)
+app.use("/activity", apiKeyAuth);
+app.use("/activity/*", apiKeyAuth);
+app.route("/activity", activity);
 
 // API key management routes (also protected)
 app.route("/api-keys", apiKeys);
