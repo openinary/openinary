@@ -9,13 +9,16 @@ import { cn } from "@/lib/utils";
  * display sizes the dither cells get averaged into a smear. Painting at the
  * device resolution instead keeps every cell a crisp square (drawDither sizes
  * cells off the canvas dimension, so this also gives us more of them).
+ *
+ * Seeded by the bucket's id, not its name: a rename keeps the picture, and
+ * two buckets given the same name still look different.
  */
 export function BucketAvatar({
-  name,
+  id,
   size = 32,
   className,
 }: {
-  name: string;
+  id: string;
   size?: number;
   className?: string;
 }) {
@@ -29,8 +32,8 @@ export function BucketAvatar({
     // at 2px), so oversampling past the device resolution is what shrinks the
     // cells: 2x here halves them on screen.
     canvas.width = canvas.height = Math.round(size * dpr * 2);
-    renderGradient(canvas, name, { pattern: "dither" });
-  }, [name, size]);
+    renderGradient(canvas, id, { pattern: "dither" });
+  }, [id, size]);
 
   return (
     <canvas

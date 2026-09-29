@@ -230,7 +230,7 @@ export function BucketsTab() {
                 key={bucket.id}
                 className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm"
               >
-                <BucketAvatar name={bucket.name} size={28} />
+                <BucketAvatar id={bucket.id} size={28} />
                 <div className="min-w-0 flex-1">
                   {renamingId === bucket.id ? (
                     <Input

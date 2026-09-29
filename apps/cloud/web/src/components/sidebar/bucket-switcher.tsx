@@ -62,7 +62,7 @@ export function BucketSwitcher() {
                 </div>
               ) : (
                 <BucketAvatar
-                  name={activeBucket?.name ?? "Openinary"}
+                  id={activeBucket?.id ?? "Openinary"}
                   size={20}
                 />
               )}
@@ -90,7 +90,7 @@ export function BucketSwitcher() {
                   switchToBucket(b.id);
                 }}
               >
-                <BucketAvatar name={b.name} size={20} />
+                <BucketAvatar id={b.id} size={20} />
                 <span className="flex-1 truncate">{b.name}</span>
                 {switchingToId === b.id ? (
                   <Spinner className="size-4" />
