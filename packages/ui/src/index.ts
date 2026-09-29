@@ -18,6 +18,16 @@ export {
 
 // Leaf components
 export { CopyInput } from "./ui/copy-input";
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 export { DefaultDialog } from "./components/default-dialog";
 export { QuickActions, type QuickAction } from "./components/quick-actions";
 export { DeleteConfirmDialog } from "./components/delete-confirm-dialog";

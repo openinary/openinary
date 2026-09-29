@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Skeleton } from "../ui/skeleton";
 
 export type UsageEvent = {
@@ -35,10 +42,40 @@ const RANGES = [
 
 const isFailure = (status: number) => status >= 400;
 
-// Native selects dressed as the outline button next to them: no dependency,
-// and the platform's own picker on mobile.
-const SELECT_CLASS =
-  "h-9 cursor-pointer rounded-lg border bg-background px-3 text-sm font-medium shadow-xs outline-none transition-[color,box-shadow] hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:border-input dark:bg-input/30";
+/** One filter of the toolbar: a select that always has a value. */
+function FilterSelect({
+  label,
+  icon,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Select
+      items={options}
+      onValueChange={(next) => next !== null && onChange(next)}
+      value={value}
+    >
+      <SelectTrigger aria-label={label} className="font-medium">
+        {icon}
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent alignItemWithTrigger={false}>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function formatDay(ms: number) {
   return new Date(ms).toLocaleDateString(undefined, {
@@ -362,29 +399,25 @@ export function UsageDashboard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          aria-label="Type"
-          className={SELECT_CLASS}
-          onChange={(event) => setKind(event.target.value)}
+        <FilterSelect
+          label="Type"
+          onChange={setKind}
+          options={[
+            { value: "all", label: "All types" },
+            ...kinds.map((value) => ({ value, label: value })),
+          ]}
           value={kind}
-        >
-          <option value="all">All types</option>
-          {kinds.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Outcome"
-          className={SELECT_CLASS}
-          onChange={(event) => setOutcome(event.target.value)}
+        />
+        <FilterSelect
+          label="Outcome"
+          onChange={setOutcome}
+          options={[
+            { value: "all", label: "All outcomes" },
+            { value: "ok", label: "Delivered" },
+            { value: "failed", label: "Failed" },
+          ]}
           value={outcome}
-        >
-          <option value="all">All outcomes</option>
-          <option value="ok">Delivered</option>
-          <option value="failed">Failed</option>
-        </select>
+        />
         {filtered && (
           <Button
             onClick={() => {
@@ -399,23 +432,13 @@ export function UsageDashboard({
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          <div className="relative">
-            <CalendarDays className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <select
-              aria-label="Period"
-              className={cn(SELECT_CLASS, "pl-9")}
-              onChange={(event) =>
-                setRangeId(event.target.value as typeof rangeId)
-              }
-              value={rangeId}
-            >
-              {RANGES.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FilterSelect
+            icon={<CalendarDays />}
+            label="Period"
+            onChange={(value) => setRangeId(value as typeof rangeId)}
+            options={RANGES.map(({ id, label }) => ({ value: id, label }))}
+            value={rangeId}
+          />
           {onRefresh && (
             <Button
               aria-label="Refresh"

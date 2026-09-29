@@ -8,6 +8,11 @@ import {
   SettingsFields,
   SettingsList,
   SettingsSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@openinary/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Power, Trash2, X } from "lucide-react";
@@ -25,11 +30,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
-
-// Matches the Input component's chrome; a native select needs no dependency
-// and gets the platform's own picker on mobile.
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30";
 
 const DEFAULT_EXPIRES = "365";
 
@@ -142,18 +142,26 @@ export function ApiKeysTab() {
               />
             </SettingsField>
             <SettingsField label="Bucket" hint="Can't be changed later.">
-              <select
-                value={selectedScope}
-                onChange={(e) => setScope(e.target.value)}
-                className={SELECT_CLASS}
+              <Select
                 disabled={!buckets.data?.length}
+                items={buckets.data?.map((bucket) => ({
+                  value: bucket.id,
+                  label: bucket.name,
+                }))}
+                onValueChange={(value) => value !== null && setScope(value)}
+                value={selectedScope || null}
               >
-                {buckets.data?.map((bucket) => (
-                  <option key={bucket.id} value={bucket.id}>
-                    {bucket.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {buckets.data?.map((bucket) => (
+                    <SelectItem key={bucket.id} value={bucket.id}>
+                      {bucket.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </SettingsField>
             <SettingsField label="Expires in (days)" hint="Up to 365.">
               <Input
