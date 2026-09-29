@@ -1,0 +1,372 @@
+{
+  "images": [
+    {
+      "role": "product",
+      "label": "Product shot",
+      "hint": "Detailed subject on a plain background - the honest compression case.",
+      "original": {
+        "src": "/demo/images/product/original.jpg",
+        "bytes": 1753874,
+        "width": 5521,
+        "height": 3681,
+        "format": "JPG"
+      },
+      "variants": [
+        {
+          "width": 5521,
+          "height": 3681,
+          "webp": {
+            "src": "/demo/images/product/w5521.webp",
+            "bytes": 605928
+          },
+          "avif": {
+            "src": "/demo/images/product/w5521.avif",
+            "bytes": 618776
+          }
+        },
+        {
+          "width": 1500,
+          "height": 1000,
+          "webp": {
+            "src": "/demo/images/product/w1500.webp",
+            "bytes": 50338
+          },
+          "avif": {
+            "src": "/demo/images/product/w1500.avif",
+            "bytes": 33825
+          }
+        },
+        {
+          "width": 900,
+          "height": 600,
+          "webp": {
+            "src": "/demo/images/product/w900.webp",
+            "bytes": 22862
+          },
+          "avif": {
+            "src": "/demo/images/product/w900.avif",
+            "bytes": 15642
+          }
+        }
+      ]
+    },
+    {
+      "role": "portrait",
+      "label": "Portrait",
+      "hint": "A face off-centre, so smart cropping has something to find.",
+      "original": {
+        "src": "/demo/images/portrait/original.jpg",
+        "bytes": 1647895,
+        "width": 3840,
+        "height": 5760,
+        "format": "JPG"
+      },
+      "variants": [
+        {
+          "width": 3840,
+          "height": 5760,
+          "webp": {
+            "src": "/demo/images/portrait/w3840.webp",
+            "bytes": 717664
+          },
+          "avif": {
+            "src": "/demo/images/portrait/w3840.avif",
+            "bytes": 517442
+          }
+        },
+        {
+          "width": 1500,
+          "height": 2250,
+          "webp": {
+            "src": "/demo/images/portrait/w1500.webp",
+            "bytes": 69022
+          },
+          "avif": {
+            "src": "/demo/images/portrait/w1500.avif",
+            "bytes": 43721
+          }
+        },
+        {
+          "width": 900,
+          "height": 1350,
+          "webp": {
+            "src": "/demo/images/portrait/w900.webp",
+            "bytes": 28684
+          },
+          "avif": {
+            "src": "/demo/images/portrait/w900.avif",
+            "bytes": 19786
+          }
+        }
+      ]
+    },
+    {
+      "role": "landscape",
+      "label": "Landscape",
+      "hint": "Wide framing, for responsive widths and aspect-ratio crops.",
+      "original": {
+        "src": "/demo/images/landscape/original.jpg",
+        "bytes": 2950577,
+        "width": 6883,
+        "height": 5162,
+        "format": "JPG"
+      },
+      "variants": [
+        {
+          "width": 6883,
+          "height": 5162,
+          "webp": {
+            "src": "/demo/images/landscape/w6883.webp",
+            "bytes": 1453362
+          },
+          "avif": {
+            "src": "/demo/images/landscape/w6883.avif",
+            "bytes": 1126771
+          }
+        },
+        {
+          "width": 1500,
+          "height": 1125,
+          "webp": {
+            "src": "/demo/images/landscape/w1500.webp",
+            "bytes": 87582
+          },
+          "avif": {
+            "src": "/demo/images/landscape/w1500.avif",
+            "bytes": 61613
+          }
+        },
+        {
+          "width": 900,
+          "height": 675,
+          "webp": {
+            "src": "/demo/images/landscape/w900.webp",
+            "bytes": 33396
+          },
+          "avif": {
+            "src": "/demo/images/landscape/w900.avif",
+            "bytes": 24327
+          }
+        }
+      ]
+    }
+  ],
+  "transforms": [
+    {
+      "id": "crop-square",
+      "label": "Crop to fill",
+      "description": "Cover an exact box, cropping whatever overflows.",
+      "segment": "w_600,h_600,c_fill",
+      "before": {
+        "webp": {
+          "src": "/demo/transforms/crop-square/before.webp",
+          "bytes": 16052
+        },
+        "avif": {
+          "src": "/demo/transforms/crop-square/before.avif",
+          "bytes": 12120
+        }
+      },
+      "after": {
+        "webp": {
+          "src": "/demo/transforms/crop-square/after.webp",
+          "bytes": 19038
+        },
+        "avif": {
+          "src": "/demo/transforms/crop-square/after.avif",
+          "bytes": 14373
+        }
+      }
+    },
+    {
+      "id": "smart-crop",
+      "label": "Smart crop",
+      "description": "Keep the subject in frame instead of blindly cropping to the centre.",
+      "segment": "w_400,h_400,c_fill,g_face",
+      "before": {
+        "webp": {
+          "src": "/demo/transforms/smart-crop/before.webp",
+          "bytes": 16324
+        },
+        "avif": {
+          "src": "/demo/transforms/smart-crop/before.avif",
+          "bytes": 11656
+        }
+      },
+      "after": {
+        "webp": {
+          "src": "/demo/transforms/smart-crop/after.webp",
+          "bytes": 6028
+        },
+        "avif": {
+          "src": "/demo/transforms/smart-crop/after.avif",
+          "bytes": 5009
+        }
+      }
+    },
+    {
+      "id": "aspect",
+      "label": "Aspect ratio",
+      "description": "Force a ratio - 16:9 banners from any source.",
+      "segment": "ar_16:9,c_fill,w_800",
+      "before": {
+        "webp": {
+          "src": "/demo/transforms/aspect/before.webp",
+          "bytes": 16052
+        },
+        "avif": {
+          "src": "/demo/transforms/aspect/before.avif",
+          "bytes": 12120
+        }
+      },
+      "after": {
+        "webp": {
+          "src": "/demo/transforms/aspect/after.webp",
+          "bytes": 21166
+        },
+        "avif": {
+          "src": "/demo/transforms/aspect/after.avif",
+          "bytes": 16361
+        }
+      }
+    },
+    {
+      "id": "pad",
+      "label": "Pad",
+      "description": "Fit inside a box and fill the rest with a colour.",
+      "segment": "w_600,h_600,c_pad,b_white",
+      "before": {
+        "webp": {
+          "src": "/demo/transforms/pad/before.webp",
+          "bytes": 12724
+        },
+        "avif": {
+          "src": "/demo/transforms/pad/before.avif",
+          "bytes": 8854
+        }
+      },
+      "after": {
+        "webp": {
+          "src": "/demo/transforms/pad/after.webp",
+          "bytes": 12756
+        },
+        "avif": {
+          "src": "/demo/transforms/pad/after.avif",
+          "bytes": 9217
+        }
+      }
+    },
+    {
+      "id": "rotate",
+      "label": "Rotate",
+      "description": "Turn by any angle, or auto from EXIF.",
+      "segment": "a_90",
+      "before": {
+        "webp": {
+          "src": "/demo/transforms/rotate/before.webp",
+          "bytes": 12724
+        },
+        "avif": {
+          "src": "/demo/transforms/rotate/before.avif",
+          "bytes": 8854
+        }
+      },
+      "after": {
+        "webp": {
+          "src": "/demo/transforms/rotate/after.webp",
+          "bytes": 12586
+        },
+        "avif": {
+          "src": "/demo/transforms/rotate/after.avif",
+          "bytes": 8782
+        }
+      }
+    },
+    {
+      "id": "round",
+      "label": "Round corners",
+      "description": "Radius in pixels, or r_max for a circle.",
+      "segment": "w_400,h_400,c_fill,r_max",
+      "before": {
+        "webp": {
+          "src": "/demo/transforms/round/before.webp",
+          "bytes": 16324
+        },
+        "avif": {
+          "src": "/demo/transforms/round/before.avif",
+          "bytes": 11656
+        }
+      },
+      "after": {
+        "webp": {
+          "src": "/demo/transforms/round/after.webp",
+          "bytes": 6098
+        },
+        "avif": {
+          "src": "/demo/transforms/round/after.avif",
+          "bytes": 5614
+        }
+      }
+    }
+  ],
+  "videos": [
+    {
+      "slug": "2d-animation",
+      "label": "2d-animation",
+      "poster": "/demo/videos/2d-animation/poster.webp",
+      "original": {
+        "bytes": 503848,
+        "width": 1920,
+        "height": 1080,
+        "duration": 11
+      },
+      "renditions": [
+        {
+          "id": "360p",
+          "label": "360p",
+          "segment": "w_640",
+          "width": 640,
+          "src": "/demo/videos/2d-animation/360p.mp4",
+          "bytes": 157810
+        },
+        {
+          "id": "720p",
+          "label": "720p",
+          "segment": "w_1280",
+          "width": 1280,
+          "src": "/demo/videos/2d-animation/720p.mp4",
+          "bytes": 312749
+        }
+      ]
+    },
+    {
+      "slug": "cherry-blossom",
+      "label": "Cherry-blossom",
+      "poster": "/demo/videos/cherry-blossom/poster.webp",
+      "original": {
+        "bytes": 59817094,
+        "width": 3840,
+        "height": 2160,
+        "duration": 14.1
+      },
+      "renditions": [
+        {
+          "id": "360p",
+          "label": "360p",
+          "segment": "w_640",
+          "width": 640,
+          "src": "/demo/videos/cherry-blossom/360p.mp4",
+          "bytes": 3723768
+        },
+        {
+          "id": "720p",
+          "label": "720p",
+          "segment": "w_1280",
+          "width": 1280,
+          "src": "/demo/videos/cherry-blossom/720p.mp4",
+          "bytes": 9874873
+        }
+      ]
+    }
+  ]
+}

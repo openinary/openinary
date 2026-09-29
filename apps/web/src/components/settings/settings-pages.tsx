@@ -6,11 +6,13 @@ import {
   KeyRound,
   type LucideIcon,
   Palette,
+  ScrollText,
   User,
 } from "lucide-react";
 
 import { ApiKeyManager } from "@/components/api-key-manager";
 import { AccountTab } from "@/components/settings/account-tab";
+import { ActivityTab } from "@/components/settings/activity-tab";
 import { useSession } from "@/lib/auth-client";
 
 function AccountPage() {
@@ -62,5 +64,12 @@ export const SETTINGS_PAGES: {
     description: "Storage used by your files and by cached transformations.",
     icon: HardDrive,
     content: StorageTab,
+  },
+  {
+    value: "activity",
+    label: "Usage",
+    description: "The deliveries and video jobs behind your traffic.",
+    icon: ScrollText,
+    content: ActivityTab,
   },
 ];
