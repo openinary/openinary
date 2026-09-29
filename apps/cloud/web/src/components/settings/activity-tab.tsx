@@ -1,5 +1,6 @@
 "use client";
 
+import { SettingsSection } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Info } from "lucide-react";
 import { useState } from "react";
@@ -167,7 +168,7 @@ function LogPanel({
 }) {
   if (isLoading) {
     return (
-      <div className="mt-3 space-y-1">
+      <div className="space-y-1">
         {[0, 1, 2, 3, 4].map((row) => (
           <Skeleton key={row} className="h-6 w-full" />
         ))}
@@ -176,13 +177,13 @@ function LogPanel({
   }
   if (isEmpty) {
     return (
-      <p className="mt-3 rounded-lg border border-dashed px-4 py-6 text-center text-muted-foreground text-xs">
+      <p className="rounded-lg border border-dashed px-4 py-6 text-center text-muted-foreground text-xs">
         {empty}
       </p>
     );
   }
   return (
-    <div className="mt-3 max-h-80 overflow-y-auto rounded-lg border">
+    <div className="max-h-80 overflow-y-auto rounded-lg border">
       {children}
     </div>
   );
@@ -208,15 +209,12 @@ export function ActivityTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="font-semibold text-sm">Delivery log</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          The last 500 assets served from your public URLs. Expand a line for
-          the bucket, the cache outcome and what it added to your usage.
-        </p>
-
+      <SettingsSection
+        title="Delivery log"
+        description="The last 500 assets served from your public URLs. Expand a line for the bucket, the cache outcome and what it added to your usage."
+      >
         {isError ? (
-          <p className="mt-3 text-destructive text-sm">
+          <p className="text-destructive text-sm">
             Failed to load activity.
           </p>
         ) : (
@@ -251,12 +249,13 @@ export function ActivityTab() {
             })}
           </LogPanel>
         )}
-      </div>
+      </SettingsSection>
 
       <Separator />
 
-      <div>
-        <p className="flex items-center gap-1 font-semibold text-sm">
+      <SettingsSection
+        title={
+          <>
           Video processing
           <Tooltip>
             <TooltipTrigger asChild>
@@ -274,11 +273,10 @@ export function ActivityTab() {
               this figure and your Video processing usage always agree.
             </TooltipContent>
           </Tooltip>
-        </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Every transcode this account has run, with the processing time each
-          one was charged for.
-        </p>
+          </>
+        }
+        description="Every transcode this account has run, with the processing time each one was charged for."
+      >
 
         <LogPanel
           empty="No video has been processed yet."
@@ -326,7 +324,7 @@ export function ActivityTab() {
             );
           })}
         </LogPanel>
-      </div>
+      </SettingsSection>
 
       {showCost && (
         <p className="text-muted-foreground text-xs">

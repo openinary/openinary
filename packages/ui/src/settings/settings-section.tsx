@@ -12,7 +12,7 @@ export function SettingsSection({
   action,
   children,
 }: {
-  title: string;
+  title: React.ReactNode;
   description?: React.ReactNode;
   /** Sits under the description, for something that acts on the section. */
   action?: React.ReactNode;
@@ -24,7 +24,9 @@ export function SettingsSection({
     <section className="@container">
       <div className="grid gap-x-10 gap-y-4 @2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="flex items-center gap-1 text-sm font-semibold">
+          {title}
+        </h3>
         {description && (
           <p className="mt-1 text-[13px] text-muted-foreground">
             {description}

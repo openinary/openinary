@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { SettingsSection } from "@openinary/ui";
 import { AlertTriangle, Check, ExternalLink, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -113,29 +114,26 @@ export function PlanTab() {
   return (
     <div className="space-y-6">
       {/* Current plan */}
-      <div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-semibold text-sm">Current plan</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {isMetered
-                ? `${planName} includes pay-as-you-go beyond the monthly allowance.`
-                : "The Free trial is capped: uploads and transformations stop once an allowance runs out."}
-            </p>
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-7 w-16" />
-          ) : (
-            <span className="shrink-0 rounded-full border px-3 py-1 font-medium text-xs">
-              {planName}
-              {monthly > 0 && (
-                <span className="ml-1.5 text-muted-foreground">{`$${monthly}/mo`}</span>
-              )}
-            </span>
-          )}
-        </div>
+      <SettingsSection
+        title="Current plan"
+        description={
+          isMetered
+            ? `${planName} includes pay-as-you-go beyond the monthly allowance.`
+            : "The Free trial is capped: uploads and transformations stop once an allowance runs out."
+        }
+      >
+        {isLoading ? (
+          <Skeleton className="h-7 w-16" />
+        ) : (
+          <span className="inline-block rounded-full border px-3 py-1 font-medium text-xs">
+            {planName}
+            {monthly > 0 && (
+              <span className="ml-1.5 text-muted-foreground">{`$${monthly}/mo`}</span>
+            )}
+          </span>
+        )}
         {cancelsAt && (
-          <p className="mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-700 text-xs dark:text-amber-400">
+          <p className="flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-700 text-xs dark:text-amber-400">
             <AlertTriangle className="mt-px size-3.5 shrink-0" />
             <span>
               Subscription cancelled. {planName} stays active until{" "}
@@ -146,7 +144,7 @@ export function PlanTab() {
           </p>
         )}
         {!isLoading && (
-          <div className="mt-3 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {!isMetered && (
               <Button
                 size="sm"
@@ -172,27 +170,28 @@ export function PlanTab() {
           </div>
         )}
         {portal.isError && (
-          <p className="mt-2 text-destructive text-xs">
+          <p className="text-destructive text-xs">
             Couldn't open the billing portal. Try again.
           </p>
         )}
-      </div>
+      </SettingsSection>
 
       <Separator />
 
       {/* Usage this period */}
-      <div>
-        <p className="font-semibold text-sm">Usage</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {isMetered
+      <SettingsSection
+        title="Usage"
+        description={
+          isMetered
             ? "What your plan includes this period. Going past it never stops anything - the extra is simply billed at the end of the period. Storage is cumulative; the rest resets monthly."
-            : "Consumption against your current allowance. Storage is cumulative; the rest resets monthly."}
-        </p>
+            : "Consumption against your current allowance. Storage is cumulative; the rest resets monthly."
+        }
+      >
         {/* The one thing a blocked Free account actually needs: not that the
             allowance resets, but when. Kept out of the sentence above so it
             survives that copy being reworded. */}
         {resetsAt && (
-          <p className="mt-1.5 text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-xs">
             Monthly allowances reset on{" "}
             <span className="font-medium text-foreground">
               {formatDate(resetsAt)}
@@ -202,7 +201,7 @@ export function PlanTab() {
         )}
 
         {isMetered && extraCost > 0 && (
-          <p className="mt-3 flex items-start gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-muted-foreground text-xs">
+          <p className="flex items-start gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-muted-foreground text-xs">
             <Info className="mt-px size-3.5 shrink-0" />
             <span>
               <span className="font-medium text-foreground">
@@ -215,9 +214,9 @@ export function PlanTab() {
         )}
 
         {isError ? (
-          <p className="mt-3 text-destructive text-sm">Failed to load usage.</p>
+          <p className="text-destructive text-sm">Failed to load usage.</p>
         ) : (
-          <div className="mt-3 space-y-3">
+          <div className="space-y-3">
             {FEATURES.map((feature) => {
               const usage = data?.features[feature.id];
               const over = overUnits(usage);
@@ -319,19 +318,16 @@ export function PlanTab() {
             )}
           </div>
         )}
-      </div>
+      </SettingsSection>
 
       <Separator />
 
       {/* Plan comparison */}
-      <div>
-        <p className="font-semibold text-sm">Plans</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          What each plan includes. Allowances reset monthly, except storage and
-          buckets.
-        </p>
-
-        <div className="mt-3 overflow-hidden rounded-lg border">
+      <SettingsSection
+        title="Plans"
+        description="What each plan includes. Allowances reset monthly, except storage and buckets."
+      >
+        <div className="overflow-hidden rounded-lg border">
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b bg-muted/40 px-4 py-2 text-sm">
             <span className="text-muted-foreground">Feature</span>
             <span
@@ -374,31 +370,31 @@ export function PlanTab() {
             </span>
           </div>
         </div>
-      </div>
+      </SettingsSection>
 
       <Separator />
 
       {/* Pay as you go */}
-      <div>
-        <p className="font-semibold text-sm">Pay as you go</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {isMetered
+      <SettingsSection
+        title="Pay as you go"
+        description={
+          isMetered
             ? "Going over an allowance keeps things running and is billed at the end of the period."
-            : `Included with ${paidPlan.name}: going over an allowance keeps things running and is billed at the end of the period. The Free trial is simply blocked.`}
-        </p>
-
-        <div className="mt-3 space-y-2">
+            : `Included with ${paidPlan.name}: going over an allowance keeps things running and is billed at the end of the period. The Free trial is simply blocked.`
+        }
+      >
+        <div className="overflow-hidden rounded-lg border">
           {FEATURES.map((feature) => (
             <div
               key={feature.id}
-              className="flex items-center justify-between gap-4 rounded-lg border px-4 py-2.5 text-sm"
+              className="flex items-center justify-between gap-4 border-b px-4 py-2.5 text-sm last:border-0"
             >
               <span>{feature.label}</span>
               <span className="text-right tabular-nums">{feature.overage}</span>
             </div>
           ))}
         </div>
-      </div>
+      </SettingsSection>
     </div>
   );
 }

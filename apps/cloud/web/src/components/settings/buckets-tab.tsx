@@ -168,17 +168,6 @@ export function BucketsTab() {
               disabled={!canCreate}
             />
           </SettingsField>
-          <SettingsActions>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={
-                create.isPending || isSwitching || !canCreate || !newName.trim()
-              }
-            >
-              {create.isPending || isSwitching ? "Creating…" : "Create bucket"}
-            </Button>
-          </SettingsActions>
         {!quota.data && (
           <p className="text-muted-foreground text-xs">
             {quota.isError
@@ -205,6 +194,17 @@ export function BucketsTab() {
             )}
           </p>
         )}
+          <SettingsActions>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                create.isPending || isSwitching || !canCreate || !newName.trim()
+              }
+            >
+              {create.isPending || isSwitching ? "Creating…" : "Create bucket"}
+            </Button>
+          </SettingsActions>
         </SettingsSection>
       </form>
 
