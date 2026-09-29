@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -88,10 +89,10 @@ export function ApiKeysTab() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <p className="font-medium text-[15px]">API keys</p>
-        <p className="mt-1 text-muted-foreground text-sm">
+        <p className="font-semibold text-sm">API keys</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">
           Send a key as the <code className="font-mono">x-api-key</code> header,
           or as <code className="font-mono">Authorization: Bearer</code>, to
           authenticate requests. Each key is locked to one bucket, so what an
@@ -167,8 +168,10 @@ export function ApiKeysTab() {
         </div>
       </form>
 
+      <Separator />
+
       <div>
-        <p className="font-medium text-[15px]">Your keys</p>
+        <p className="font-semibold text-sm">Your keys</p>
         {keys.isLoading ? (
           <div className="mt-3 space-y-2">
             <Skeleton className="h-10 w-full" />

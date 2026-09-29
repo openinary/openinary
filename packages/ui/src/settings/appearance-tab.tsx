@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Laptop, Moon, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
+import { Separator } from "../ui/separator";
 import { Switch } from "../ui/switch";
 import { cn } from "../lib/utils";
 import { useHideThumbnails } from "../hooks/use-hide-thumbnails";
@@ -24,10 +25,10 @@ export function AppearanceTab() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <p className="font-medium text-[15px]">Theme</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="font-semibold text-sm">Theme</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">
           Pick a theme. &quot;System&quot; follows your OS appearance
           setting and updates automatically when it changes.
         </p>
@@ -58,9 +59,11 @@ export function AppearanceTab() {
         </div>
       </div>
 
+      <Separator />
+
       <div>
-        <p className="font-medium text-[15px]">Hide thumbnails</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="font-semibold text-sm">Hide thumbnails</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">
           Show a generic icon per file type or folder instead of a
           thumbnail preview, for better performance in the dashboard. Grid
           and list views are affected; the Asset Details sidebar still

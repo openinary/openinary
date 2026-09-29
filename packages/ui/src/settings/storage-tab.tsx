@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Database, HardDrive, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
+import { Separator } from "../ui/separator";
 import { Skeleton } from "../ui/skeleton";
 import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
@@ -37,7 +38,7 @@ export function StorageTab() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm text-muted-foreground">
           View your storage usage and manage cached transformations.
@@ -85,7 +86,7 @@ export function StorageTab() {
                 </p>
               )}
               {!isLoading && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-[13px] text-muted-foreground">
                   {data?.storage.fileCount ?? 0} file
                   {(data?.storage.fileCount ?? 0) === 1 ? "" : "s"}
                 </p>
@@ -105,7 +106,7 @@ export function StorageTab() {
                 </p>
               )}
               {!isLoading && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-[13px] text-muted-foreground">
                   {data?.cache.fileCount ?? 0} cached file
                   {(data?.cache.fileCount ?? 0) === 1 ? "" : "s"}
                 </p>
@@ -119,6 +120,8 @@ export function StorageTab() {
           )}
         </div>
       )}
+
+      <Separator />
 
       <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
         <div>

@@ -18,6 +18,7 @@ import {
 } from "./ui/form";
 import { DeleteConfirmDialog } from "@openinary/ui";
 import { CopyInput } from "@openinary/ui";
+import { Separator } from "./ui/separator";
 import {
   Table,
   TableBody,
@@ -199,7 +200,7 @@ export function ApiKeyManager() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {createdKey && (
         <div className="relative rounded-lg border p-3 pr-9">
           <button
@@ -283,8 +284,10 @@ export function ApiKeyManager() {
         </p>
       </div>
 
+      <Separator />
+
       <div>
-        <p className="mb-3 text-[15px] font-medium">Your keys</p>
+        <p className="mb-3 text-sm font-semibold">Your keys</p>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : keys.length === 0 ? (
