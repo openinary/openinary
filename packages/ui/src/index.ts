@@ -19,6 +19,7 @@ export {
 // Leaf components
 export { CopyInput } from "./ui/copy-input";
 export { DefaultDialog } from "./components/default-dialog";
+export { QuickActions, type QuickAction } from "./components/quick-actions";
 export { DeleteConfirmDialog } from "./components/delete-confirm-dialog";
 export { RenameSection } from "./components/rename-section";
 export { ColumnCountSlider, MIN_COLUMNS, MAX_COLUMNS } from "./components/column-count-slider";

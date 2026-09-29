@@ -1,11 +1,13 @@
 "use client";
 
-import { Spinner } from "@openinary/ui";
+import { Spinner, UserAvatar } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronDown, Settings2 } from "lucide-react";
+import { Check, ChevronDown, LogOut, Settings, Settings2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsDialog } from "@/components/settings-dialog";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
+import { UsagePanel } from "@/components/sidebar/nav-plan";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,11 +21,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 /**
- * Sits where the logo used to be, and only switches - creating, renaming and
- * deleting live in the Buckets settings tab. Buckets are an app-level concept
+ * Sits where the logo used to be. The top half only switches - creating,
+ * renaming and deleting live in the Buckets settings tab - and the bottom half
+ * is the account menu: who is signed in, usage, settings, sign out. Buckets are an app-level concept
  * only (there is still a single real R2 bucket underneath, see
  * apps/server/worker/r2-storage.ts) and the active one is a per-account
  * setting the server resolves for every storage/upload/transform request, not
@@ -33,6 +37,9 @@ import { orpc } from "@/utils/orpc";
 export function BucketSwitcher() {
   const [, setSettingsTab] = useSettingsDialog();
   const { isSwitching, switchingToId, switchToBucket } = useBucketSwitch();
+  const router = useRouter();
+  const user = authClient.useSession().data?.user;
+  const userName = user?.name || user?.email?.split("@")[0] || "User";
 
   const { data: buckets, isLoading } = useQuery(
     orpc.bucket.list.queryOptions(),
@@ -66,7 +73,7 @@ export function BucketSwitcher() {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="min-w-60 rounded-lg"
             side="bottom"
             align="start"
             sideOffset={4}
@@ -99,6 +106,41 @@ export function BucketSwitcher() {
             >
               <Settings2 className="size-4" />
               Manage buckets
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="flex items-center gap-2 font-normal">
+              <UserAvatar
+                name={userName}
+                email={user?.email ?? ""}
+                image={user?.image ?? ""}
+                className="size-8 rounded-lg"
+              />
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{userName}</span>
+                <span className="truncate text-muted-foreground text-xs">
+                  {user?.email}
+                </span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="p-0 font-normal">
+              <UsagePanel />
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setSettingsTab("appearance")}>
+              <Settings className="size-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => {
+                authClient.signOut({
+                  fetchOptions: { onSuccess: () => router.push("/") },
+                });
+              }}
+            >
+              <LogOut className="size-4" />
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,6 +1,8 @@
 "use client"
 
 import { useQueryState } from "nuqs"
+import { ChevronDown } from "lucide-react"
+import Image from "next/image"
 import { useSession } from "@/lib/auth-client"
 import {
   DropdownMenu,
@@ -11,7 +13,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { UserAvatar } from "@openinary/ui"
 import { UserDropdown } from "./user-dropdown"
 import { SettingsDialog } from "./settings-dialog"
 
@@ -59,14 +60,16 @@ export function NavUser() {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!">
-              <UserAvatar
-                name={userName}
-                email={userEmail}
-                image={userAvatar}
-                className="size-5 rounded-full text-[9px]"
+            <SidebarMenuButton className="w-fit max-w-full text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!">
+              <Image
+                src="/icon.svg"
+                alt=""
+                width={20}
+                height={20}
+                className="size-5 shrink-0 dark:invert"
               />
-              <span className="truncate">{userName}</span>
+              <span className="truncate font-medium">Openinary</span>
+              <ChevronDown className="size-3.5!" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <UserDropdown

@@ -18,7 +18,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { useSidebar } from "@/components/ui/sidebar"
 import { UserAvatar } from "@openinary/ui"
 
 interface UserDropdownProps {
@@ -38,7 +37,6 @@ export function UserDropdown({
   onApiKeysClick,
   onStorageClick,
 }: UserDropdownProps) {
-  const { isMobile } = useSidebar()
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -53,8 +51,8 @@ export function UserDropdown({
   return (
     <DropdownMenuContent
       className="min-w-56 rounded-lg"
-      side={isMobile ? "bottom" : "right"}
-      align="end"
+      side="bottom"
+      align="start"
       sideOffset={4}
     >
       <DropdownMenuLabel className="p-0 font-normal">

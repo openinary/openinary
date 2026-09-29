@@ -29,7 +29,7 @@ const UPSELL_AT = 0.35;
  *   1. onboarding incomplete  ->  the checklist
  *   2. past UPSELL_AT         ->  the full Free -> Alpha card
  *   3. nudge not dismissed    ->  the FileUploader card
- *   4. done, usage still low  ->  nothing here, Upgrade sits on the user row
+ *   4. done, usage still low  ->  nothing here, Upgrade sits on the plan row
  *
  * Read as priority, not as a timeline: the upsell outranks the nudge because a
  * limit in sight is the more urgent thing to say, and every state is one card
@@ -119,6 +119,6 @@ export function UpgradeCard() {
 
   if (!nudgeDismissed) return <UploaderNudge onDismiss={dismissNudge} />;
 
-  // State 4 is the Upgrade button on the user row (nav-user.tsx).
+  // State 4 is the Upgrade button on the plan row (nav-plan.tsx).
   return null;
 }
