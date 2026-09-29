@@ -44,7 +44,7 @@ export function Page({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-screen w-full overflow-auto">
+    <div className="@container/main h-screen w-full overflow-auto">
       <div
         className={cn(
           "mx-auto w-full max-w-2xl px-4 pt-6 pb-16 sm:px-6 md:pt-14",
