@@ -79,6 +79,15 @@ export { MediaGrid, type MediaGridProps } from "./media-grid";
 // Settings dialog (composable shell + portable tabs)
 export { SettingsDialog, type SettingsDialogProps, type SettingsNavItem } from "./settings/settings-dialog";
 export { AppearanceTab } from "./settings/appearance-tab";
+export {
+  SettingsActions,
+  SettingsList,
+  SettingsRow,
+  SettingsSection,
+  settingsFieldClass,
+  settingsLabelClass,
+  settingsRowClass,
+} from "./settings/settings-section";
 export { StorageTab } from "./settings/storage-tab";
 
 // File uploader (presigned direct upload)

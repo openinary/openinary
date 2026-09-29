@@ -18,6 +18,14 @@ import { authClient } from "@/lib/auth-client"
 import logger from "@/lib/logger"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
+import {
+  SettingsActions,
+  SettingsList,
+  SettingsSection,
+  settingsFieldClass,
+  settingsLabelClass,
+  settingsRowClass,
+} from "@openinary/ui"
 
 const accountFormSchema = z.object({
   name: z.string().min(1, {
@@ -95,19 +103,23 @@ export function AccountTab({
 
   return (
     <Form {...accountForm}>
-      <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-4">
-        <div className="divide-y rounded-lg border">
+      <form onSubmit={accountForm.handleSubmit(onAccountSubmit)}>
+        <SettingsSection
+          title="Profile"
+          description="How you appear in this dashboard. The email is the one you sign in with."
+        >
+        <SettingsList>
           <FormField
             control={accountForm.control}
             name="name"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
-                <FormLabel className="text-muted-foreground">Name</FormLabel>
+              <FormItem className={settingsRowClass}>
+                <FormLabel className={settingsLabelClass}>Name</FormLabel>
                 <FormControl>
                   <Input
                     type="text"
                     placeholder="Your name"
-                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    className={settingsFieldClass}
                     {...field}
                   />
                 </FormControl>
@@ -119,14 +131,14 @@ export function AccountTab({
             control={accountForm.control}
             name="email"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
-                <FormLabel className="text-muted-foreground">Email</FormLabel>
+              <FormItem className={settingsRowClass}>
+                <FormLabel className={settingsLabelClass}>Email</FormLabel>
                 <FormControl>
                   <Input
                     disabled
                     type="email"
                     placeholder="your.email@example.com"
-                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    className={settingsFieldClass}
                     {...field}
                   />
                 </FormControl>
@@ -137,13 +149,13 @@ export function AccountTab({
             control={accountForm.control}
             name="image"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3">
-                <FormLabel className="text-muted-foreground">Avatar URL</FormLabel>
+              <FormItem className={settingsRowClass}>
+                <FormLabel className={settingsLabelClass}>Avatar URL</FormLabel>
                 <FormControl>
                   <Input
                     type="url"
                     placeholder="https://example.com/avatar.jpg"
-                    className="h-auto max-w-52 border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0"
+                    className={settingsFieldClass}
                     {...field}
                   />
                 </FormControl>
@@ -151,11 +163,12 @@ export function AccountTab({
               </FormItem>
             )}
           />
-        </div>
-        <div className="flex justify-end gap-2 pt-2">
+        </SettingsList>
+        <SettingsActions>
           <Button
             type="button"
             variant="ghost"
+            size="sm"
             disabled={accountForm.formState.isSubmitting}
             onClick={() => accountForm.reset()}
           >
@@ -163,12 +176,14 @@ export function AccountTab({
           </Button>
           <Button
             type="submit"
+            size="sm"
             className="w-[110px]"
             disabled={accountForm.formState.isSubmitting}
           >
             {accountForm.formState.isSubmitting ? <Spinner size={16} /> : "Save Changes"}
           </Button>
-        </div>
+        </SettingsActions>
+        </SettingsSection>
       </form>
     </Form>
   )

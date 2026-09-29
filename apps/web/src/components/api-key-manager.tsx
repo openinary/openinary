@@ -16,17 +16,18 @@ import {
   FormLabel,
   FormMessage,
 } from "./ui/form";
-import { DeleteConfirmDialog } from "@openinary/ui";
-import { CopyInput } from "@openinary/ui";
-import { Separator } from "./ui/separator";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
+  CopyInput,
+  DeleteConfirmDialog,
+  SettingsActions,
+  SettingsList,
+  SettingsRow,
+  SettingsSection,
+  settingsFieldClass,
+  settingsLabelClass,
+  settingsRowClass,
+} from "@openinary/ui";
+import { Separator } from "./ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -229,65 +230,75 @@ export function ApiKeyManager() {
         </div>
       )}
 
-      <div>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onCreateKey)}
-            className="flex items-start gap-2"
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onCreateKey)}>
+          <SettingsSection
+            title="Create a key"
+            description="Name it after the app that will use it. Expiry is in days and defaults to 365."
           >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem className="flex-1 space-y-1">
-                  <FormLabel className="text-xs font-normal text-muted-foreground">
-                    Key name
-                  </FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="New key" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="expires"
-              render={({ field }) => (
-                <FormItem className="w-24 space-y-1">
-                  <FormLabel className="text-xs font-normal text-muted-foreground">
-                    Expires
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="365"
-                      min="1"
-                      max="3650"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="space-y-1">
-              <p className="invisible text-xs">Expires</p>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating..." : "Create"}
+            <SettingsList>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className={settingsRowClass}>
+                    <FormLabel className={settingsLabelClass}>
+                      Key name
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="New key"
+                        className={settingsFieldClass}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="expires"
+                render={({ field }) => (
+                  <FormItem className={settingsRowClass}>
+                    <FormLabel className={settingsLabelClass}>
+                      Expires
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="365"
+                        min="1"
+                        max="3650"
+                        className={settingsFieldClass}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsList>
+            <SettingsActions>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? "Creating..." : "Create key"}
               </Button>
-            </div>
-          </form>
-        </Form>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Expires in days, defaults to 365.
-        </p>
-      </div>
+            </SettingsActions>
+          </SettingsSection>
+        </form>
+      </Form>
 
       <Separator />
 
-      <div>
-        <p className="mb-3 text-sm font-semibold">Your keys</p>
+      <SettingsSection
+        title="Your keys"
+        description="Disable a key to pause it, delete it to revoke it for good."
+      >
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : keys.length === 0 ? (
@@ -295,90 +306,64 @@ export function ApiKeyManager() {
             No API keys yet. Create one above.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-lg border">
-            <TooltipProvider delayDuration={0}>
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="h-8 px-3 text-xs">Name</TableHead>
-                    <TableHead className="h-8 px-3 text-xs">Prefix</TableHead>
-                    <TableHead className="h-8 px-3 text-xs">Status</TableHead>
-                    <TableHead className="h-8 px-3 text-xs">Created</TableHead>
-                    <TableHead className="h-8 w-16 px-3" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {keys.map((key) => (
-                    <TableRow key={key.id}>
-                      <TableCell className="px-3 py-2 font-medium">
-                        {key.name || "Unnamed Key"}
-                      </TableCell>
-                      <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                        {key.start ? `${key.start}…` : "—"}
-                      </TableCell>
-                      <TableCell className="px-3 py-2">
-                        <span
-                          className={cn(
-                            "text-xs",
-                            key.enabled
-                              ? "text-foreground"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {key.enabled ? "Active" : "Disabled"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-3 py-2 text-xs text-muted-foreground">
-                        {new Date(key.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="px-3 py-2">
-                        <div className="flex items-center justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() =>
-                                  updateKey(key.id, { enabled: !key.enabled })
-                                }
-                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                aria-label={
-                                  key.enabled ? "Disable key" : "Enable key"
-                                }
-                              >
-                                {key.enabled ? (
-                                  <Ban size={14} />
-                                ) : (
-                                  <Power size={14} />
-                                )}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="px-2 py-1 text-xs">
-                              {key.enabled ? "Disable" : "Enable"}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => setKeyToDelete(key)}
-                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                                aria-label="Delete key"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="px-2 py-1 text-xs">
-                              Delete
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TooltipProvider>
-          </div>
+          <TooltipProvider delayDuration={0}>
+            <SettingsList>
+              {keys.map((key) => (
+                <SettingsRow
+                  key={key.id}
+                  label={
+                    <span className={cn(!key.enabled && "text-muted-foreground")}>
+                      {key.name || "Unnamed Key"}
+                    </span>
+                  }
+                  description={
+                    <>
+                      <span className="font-mono">
+                        {key.start ? `${key.start}…` : "-"}
+                      </span>
+                      {" · "}
+                      {key.enabled ? "Active" : "Disabled"}
+                      {" · created "}
+                      {new Date(key.createdAt).toLocaleDateString()}
+                    </>
+                  }
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() =>
+                          updateKey(key.id, { enabled: !key.enabled })
+                        }
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label={key.enabled ? "Disable key" : "Enable key"}
+                      >
+                        {key.enabled ? <Ban size={14} /> : <Power size={14} />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="px-2 py-1 text-xs">
+                      {key.enabled ? "Disable" : "Enable"}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setKeyToDelete(key)}
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        aria-label="Delete key"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="px-2 py-1 text-xs">
+                      Delete
+                    </TooltipContent>
+                  </Tooltip>
+                </SettingsRow>
+              ))}
+            </SettingsList>
+          </TooltipProvider>
         )}
-      </div>
+      </SettingsSection>
 
       <DeleteConfirmDialog
         isOpen={!!keyToDelete}

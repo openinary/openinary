@@ -293,7 +293,7 @@ export function PlanTab() {
             })}
 
             {isMetered && (
-              <div className="flex items-baseline justify-between gap-2 rounded-lg border px-3 py-2 text-xs">
+              <div className="flex items-baseline justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm">
                 <span className="font-medium">
                   Estimated this period
                   {renewsAt && (
@@ -332,7 +332,7 @@ export function PlanTab() {
         </p>
 
         <div className="mt-3 overflow-hidden rounded-lg border">
-          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b bg-muted/40 px-4 py-2 text-xs">
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b bg-muted/40 px-4 py-2 text-sm">
             <span className="text-muted-foreground">Feature</span>
             <span
               className={cn(
@@ -355,7 +355,7 @@ export function PlanTab() {
           {[...FEATURES, BUCKET_ROW].map((feature) => (
             <div
               key={feature.label}
-              className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b px-4 py-2.5 text-xs last:border-0"
+              className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b px-4 py-2.5 text-sm last:border-0"
             >
               <span>{feature.label}</span>
               <span className="w-24 text-right text-muted-foreground tabular-nums">
@@ -366,7 +366,7 @@ export function PlanTab() {
               </span>
             </div>
           ))}
-          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-t bg-muted/40 px-4 py-2.5 text-xs">
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-t bg-muted/40 px-4 py-2.5 text-sm">
             <span className="font-medium">Price</span>
             <span className="w-24 text-right text-muted-foreground">$0</span>
             <span className="w-28 text-right font-medium">
@@ -391,7 +391,7 @@ export function PlanTab() {
           {FEATURES.map((feature) => (
             <div
               key={feature.id}
-              className="flex items-center justify-between gap-4 rounded-lg border px-4 py-2.5 text-xs"
+              className="flex items-center justify-between gap-4 rounded-lg border px-4 py-2.5 text-sm"
             >
               <span>{feature.label}</span>
               <span className="text-right tabular-nums">{feature.overage}</span>

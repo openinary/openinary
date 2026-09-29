@@ -1,6 +1,14 @@
 "use client";
 
-import { CopyInput, DeleteConfirmDialog } from "@openinary/ui";
+import {
+  CopyInput,
+  DeleteConfirmDialog,
+  SettingsActions,
+  SettingsList,
+  SettingsRow,
+  SettingsSection,
+  settingsFieldClass,
+} from "@openinary/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Power, Trash2, X } from "lucide-react";
 import { useState } from "react";
@@ -18,10 +26,10 @@ import {
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
-// Matches the Input component's chrome; a native select needs no dependency
-// and gets the platform's own picker on mobile.
+// Reads as the row's value, like the inputs beside it; a native select needs
+// no dependency and gets the platform's own picker on mobile.
 const SELECT_CLASS =
-  "flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30";
+  "max-w-60 cursor-pointer rounded-sm bg-transparent text-right text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 const DEFAULT_EXPIRES = "365";
 
@@ -90,17 +98,6 @@ export function ApiKeysTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="font-semibold text-sm">API keys</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Send a key as the <code className="font-mono">x-api-key</code> header,
-          or as <code className="font-mono">Authorization: Bearer</code>, to
-          authenticate requests. Each key is locked to one bucket, so what an
-          integration writes to never depends on what's selected in this
-          dashboard.
-        </p>
-      </div>
-
       {createdKey && (
         <div className="relative rounded-lg border p-3 pr-9">
           <button
@@ -118,79 +115,97 @@ export function ApiKeysTab() {
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="space-y-3">
-        <div className="grid grid-cols-[1fr_1fr_5rem] items-end gap-2">
-          <label className="space-y-1">
-            <span className="text-muted-foreground text-xs">Name</span>
-            {/* Naming the key is the first thing to do on this tab, and the
-                onboarding checklist links straight here to do exactly that. */}
-            <Input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Production"
-              maxLength={32}
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-muted-foreground text-xs">Bucket</span>
-            <select
-              value={selectedScope}
-              onChange={(e) => setScope(e.target.value)}
-              className={SELECT_CLASS}
-              disabled={!buckets.data?.length}
+      <form onSubmit={handleCreate}>
+        <SettingsSection
+          title="Create a key"
+          description={
+            <>
+              Send a key as the <code className="font-mono">x-api-key</code>{" "}
+              header, or as{" "}
+              <code className="font-mono">Authorization: Bearer</code>, to
+              authenticate requests. Each key is locked to one bucket, so what
+              an integration writes to never depends on what's selected in this
+              dashboard.
+            </>
+          }
+        >
+          <SettingsList>
+            <SettingsRow label="Key name">
+              {/* Naming the key is the first thing to do on this page, and the
+                  onboarding checklist links straight here to do exactly that. */}
+              <Input
+                autoFocus
+                aria-label="Key name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Production"
+                maxLength={32}
+                className={settingsFieldClass}
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="Bucket"
+              description="Can't be changed later."
             >
-              {buckets.data?.map((bucket) => (
-                <option key={bucket.id} value={bucket.id}>
-                  {bucket.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1">
-            <span className="text-muted-foreground text-xs">Expires</span>
-            <Input
-              type="number"
-              min={1}
-              max={365}
-              value={expires}
-              onChange={(e) => setExpires(e.target.value)}
-            />
-          </label>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-muted-foreground text-xs">
-            Expiry in days, up to 365. The bucket can't be changed later.
-          </p>
-          <Button type="submit" size="sm" disabled={create.isPending}>
-            {create.isPending ? "Creating…" : "Create key"}
-          </Button>
-        </div>
+              <select
+                aria-label="Bucket"
+                value={selectedScope}
+                onChange={(e) => setScope(e.target.value)}
+                className={SELECT_CLASS}
+                disabled={!buckets.data?.length}
+              >
+                {buckets.data?.map((bucket) => (
+                  <option key={bucket.id} value={bucket.id}>
+                    {bucket.name}
+                  </option>
+                ))}
+              </select>
+            </SettingsRow>
+            <SettingsRow label="Expires" description="In days, up to 365.">
+              <Input
+                type="number"
+                aria-label="Expires"
+                min={1}
+                max={365}
+                value={expires}
+                onChange={(e) => setExpires(e.target.value)}
+                className={settingsFieldClass}
+              />
+            </SettingsRow>
+          </SettingsList>
+          <SettingsActions>
+            <Button type="submit" size="sm" disabled={create.isPending}>
+              {create.isPending ? "Creating…" : "Create key"}
+            </Button>
+          </SettingsActions>
+        </SettingsSection>
       </form>
 
       <Separator />
 
-      <div>
-        <p className="font-semibold text-sm">Your keys</p>
+      <SettingsSection
+        title="Your keys"
+        description="Disable a key to pause it, delete it to revoke it for good."
+      >
         {keys.isLoading ? (
-          <div className="mt-3 space-y-2">
+          <div className="space-y-2">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
         ) : keys.isError ? (
-          <p className="mt-3 text-destructive text-sm">
+          <p className="text-destructive text-sm">
             Failed to load API keys.
           </p>
         ) : keys.data?.length === 0 ? (
-          <p className="mt-3 text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-sm">
             No keys yet. Create one above.
           </p>
         ) : (
-          <div className="mt-3 overflow-hidden rounded-lg border">
+          <SettingsList>
             {keys.data?.map((key) => (
               <div
                 key={key.id}
-                className="flex items-center gap-3 border-b px-3 py-2.5 text-xs last:border-0"
+                className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm"
               >
                 <div className="min-w-0 flex-1">
                   <p
@@ -204,7 +219,7 @@ export function ApiKeysTab() {
                       <span className="ml-1.5 font-normal">(disabled)</span>
                     )}
                   </p>
-                  <p className="mt-0.5 truncate text-muted-foreground">
+                  <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
                     <span className="font-mono">
                       {key.start ? `${key.start}…` : "-"}
                     </span>
@@ -274,9 +289,9 @@ export function ApiKeysTab() {
                 </div>
               </div>
             ))}
-          </div>
+          </SettingsList>
         )}
-      </div>
+      </SettingsSection>
 
       <DeleteConfirmDialog
         isOpen={!!keyToDelete}
