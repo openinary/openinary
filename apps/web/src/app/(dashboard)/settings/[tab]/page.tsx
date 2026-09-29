@@ -1,5 +1,6 @@
 "use client";
 
+import { Settings } from "lucide-react";
 import { notFound } from "next/navigation";
 import { use } from "react";
 
@@ -18,7 +19,7 @@ export default function SettingsPage({
   return (
     <Page
       breadcrumb={[
-        { label: "Settings", href: "/settings" },
+        { label: "Settings", href: "/settings", icon: Settings },
         { label: page.label },
       ]}
       icon={page.icon}

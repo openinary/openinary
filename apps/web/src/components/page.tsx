@@ -29,8 +29,12 @@ export function Page({
   className,
   children,
 }: {
-  /** Parents first. The last entry is this page and takes no href. */
-  breadcrumb: { label: string; href?: string }[];
+  /**
+   * Parents first. The last entry is this page and takes no href. The first
+   * one shows an icon: its own, so a section keeps the same one on every page
+   * under it, or the page's when it has none.
+   */
+  breadcrumb: { label: string; href?: string; icon?: LucideIcon }[];
   icon: LucideIcon;
   title: React.ReactNode;
   badge?: React.ReactNode;
@@ -51,7 +55,7 @@ export function Page({
           <SidebarTrigger className="-ml-1 md:hidden" />
           <Breadcrumb className="min-w-0">
             <BreadcrumbList className="flex-nowrap gap-2 sm:gap-2">
-              {breadcrumb.map((item, index) => (
+              {breadcrumb.map(({ icon: ItemIcon = Icon, ...item }, index) => (
                 <Fragment key={item.label}>
                   {index > 0 && (
                     <BreadcrumbSeparator className="text-muted-foreground/60">
@@ -65,14 +69,14 @@ export function Page({
                           href={item.href}
                           className="flex items-center gap-1.5"
                         >
-                          {index === 0 && <Icon className="size-3.5" />}
+                          {index === 0 && <ItemIcon className="size-3.5" />}
                           {item.label}
                         </Link>
                       </BreadcrumbLink>
                     ) : (
                       <BreadcrumbPage className="flex items-center gap-1.5 truncate">
                         {index === 0 && (
-                          <Icon className="size-3.5 text-muted-foreground" />
+                          <ItemIcon className="size-3.5 text-muted-foreground" />
                         )}
                         {item.label}
                       </BreadcrumbPage>

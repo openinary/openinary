@@ -35,7 +35,10 @@ export function GetStartedPage({
       breadcrumb={
         title === rootTitle
           ? [{ label: rootTitle }]
-          : [{ label: rootTitle, href: "/get-started" }, { label: title }]
+          : [
+              { label: rootTitle, href: "/get-started", icon: Rocket },
+              { label: title },
+            ]
       }
       icon={ICONS[title] ?? Rocket}
       title={heading}
