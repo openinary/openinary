@@ -4,7 +4,10 @@
    and inherits the shadcn tokens defined below. */
 @import "@cossistant/next/support.css";
 
-@source "../node_modules/@openinary/ui/dist";
+/* The package's source, not its dist: the dev server does not rescan dist
+   when the package is rebuilt, so new classes silently went missing until the
+   build cache was cleared. Same path apps/web scans. */
+@source "../../../../packages/ui/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
