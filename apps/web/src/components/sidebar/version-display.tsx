@@ -14,8 +14,8 @@ export function VersionDisplay() {
   }, []);
   
   return (
-    <div className="px-2 py-1 text-center text-[11px] text-muted-foreground opacity-75">
-      Version: {version}
-    </div>
+    <span className="shrink-0 pr-1 text-xs text-muted-foreground tabular-nums">
+      {version}
+    </span>
   );
 }

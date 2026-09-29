@@ -2,7 +2,7 @@
 
 import { Spinner } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, Settings2 } from "lucide-react";
+import { Check, ChevronDown, Settings2 } from "lucide-react";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsDialog } from "@/components/settings-dialog";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
@@ -41,34 +41,28 @@ export function BucketSwitcher() {
   const activeBucket = buckets?.find((b) => b.active) ?? buckets?.[0];
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="min-w-0 flex-1">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="w-fit max-w-full text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!"
               disabled={isLoading || isSwitching}
             >
               {isSwitching ? (
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary">
-                  <Spinner className="size-4 text-sidebar-primary-foreground" />
+                <div className="flex size-5 shrink-0 items-center justify-center">
+                  <Spinner className="size-4" />
                 </div>
               ) : (
                 <BucketAvatar
                   name={activeBucket?.name ?? "Openinary"}
-                  className="rounded-lg"
+                  size={20}
                 />
               )}
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">
-                  {activeBucket?.name ?? "Openinary"}
-                </span>
-                <span className="truncate text-muted-foreground text-xs">
-                  {isSwitching ? "Switching…" : "Bucket"}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <span className="truncate font-medium">
+                {activeBucket?.name ?? "Openinary"}
+              </span>
+              <ChevronDown className="size-3.5!" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

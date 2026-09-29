@@ -1,7 +1,6 @@
 "use client"
 
 import { useQueryState } from "nuqs"
-import { ChevronsUpDown } from "lucide-react"
 import { useSession } from "@/lib/auth-client"
 import {
   DropdownMenu,
@@ -42,12 +41,9 @@ export function NavUser() {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled>
-            <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-              <div className="h-3 w-32 bg-muted rounded animate-pulse mt-1" />
-            </div>
+          <SidebarMenuButton disabled className="group-data-[collapsible=icon]:p-1.5!">
+            <div className="size-5 shrink-0 rounded-full bg-muted animate-pulse" />
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -59,25 +55,18 @@ export function NavUser() {
   }
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="min-w-0 flex-1">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
+            <SidebarMenuButton className="text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!">
               <UserAvatar
                 name={userName}
                 email={userEmail}
                 image={userAvatar}
-                className="h-8 w-8 rounded-lg"
+                className="size-5 rounded-full text-[9px]"
               />
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{userName}</span>
-                <span className="truncate text-xs">{userEmail}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <span className="truncate">{userName}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <UserDropdown

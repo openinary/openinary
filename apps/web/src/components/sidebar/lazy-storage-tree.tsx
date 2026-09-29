@@ -22,7 +22,7 @@ interface LazyStorageTreeProps {
 }
 
 const rowClass =
-  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer transition-colors hover:bg-accent/60 text-left";
+  "flex h-7 w-full items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/80 cursor-pointer transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-left";
 
 function indentStyle(depth: number) {
   return { paddingLeft: `${depth * 12 + 8}px` };

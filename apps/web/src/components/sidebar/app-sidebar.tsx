@@ -14,6 +14,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
@@ -52,16 +53,19 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="pl-4 pt-4 group-data-[collapsible=icon]:pt-[11px] group-data-[collapsible=icon]:pl-[12px]">
-        <Link href="/" className="flex items-center">
-          <Image
-            src={isCollapsed ? "/icon.svg" : "/openinary.svg"}
-            alt="Openinary"
-            width={100}
-            height={25}
-            className="dark:invert h-[25px] w-auto"
-          />
-        </Link>
+      <SidebarHeader>
+        <div className="flex h-7 items-center justify-between gap-1 pl-2 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:pl-0 group-data-[collapsible=icon]:pt-1">
+          <Link href="/" className="flex items-center">
+            <Image
+              src={isCollapsed ? "/icon.svg" : "/openinary.svg"}
+              alt="Openinary"
+              width={80}
+              height={20}
+              className="dark:invert h-5 w-auto"
+            />
+          </Link>
+          <SidebarTrigger className="text-muted-foreground" />
+        </div>
       </SidebarHeader>
       <SidebarContent
         style={{
@@ -74,9 +78,11 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
         <NavMain items={data.navMain} />
         <NavProjects onMediaSelect={onMediaSelect} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-        {!isCollapsed && <VersionDisplay />}
+      <SidebarFooter className="border-t py-2">
+        <div className="flex items-center gap-2">
+          <NavUser />
+          {!isCollapsed && <VersionDisplay />}
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

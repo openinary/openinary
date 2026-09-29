@@ -33,12 +33,12 @@ export function GetStartedPage({
 }) {
   return (
     <div className="@container/main h-screen w-full">
-      <header className="flex h-16 shrink-0 items-center gap-2 shadow-[0_1px_0_0_oklch(0_0_0/0.06),0_2px_4px_-2px_oklch(0_0_0/0.04)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:shadow-[0_1px_0_0_oklch(1_0_0/0.08),0_2px_4px_-2px_oklch(0_0_0/0.4)]">
+      <header className="flex h-12 shrink-0 items-center gap-2 shadow-[0_1px_0_0_oklch(0_0_0/0.06),0_2px_4px_-2px_oklch(0_0_0/0.04)] transition-[width,height] ease-linear dark:shadow-[0_1px_0_0_oklch(1_0_0/0.08),0_2px_4px_-2px_oklch(0_0_0/0.4)]">
         <div className="flex w-full items-center gap-2 @2xl/main:px-6 px-4">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1 md:hidden" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-2 data-[orientation=vertical]:h-4 md:hidden"
           />
           <Breadcrumb className="min-w-0">
             <BreadcrumbList className="flex-nowrap">
@@ -65,7 +65,7 @@ export function GetStartedPage({
           </Breadcrumb>
         </div>
       </header>
-      <div className="h-[calc(100vh-64px)] overflow-auto @2xl/main:px-6 px-4 @2xl/main:py-8 py-6">
+      <div className="h-[calc(100vh-48px)] overflow-auto @2xl/main:px-6 px-4 @2xl/main:py-8 py-6">
         <div className="mx-auto max-w-3xl space-y-8">
           <div>
             <h1 className="font-semibold text-2xl tracking-tight">{heading}</h1>

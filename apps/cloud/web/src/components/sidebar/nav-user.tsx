@@ -2,7 +2,7 @@
 
 import { UserAvatar } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronsUpDown, LogOut, Settings } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useSettingsDialog } from "@/components/settings-dialog";
@@ -20,11 +20,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth-client";
-import { FEATURES, isMeteredPlan } from "@/lib/usage";
+import { CLOUD_AVAILABLE, FEATURES, isMeteredPlan } from "@/lib/usage";
 import { orpc } from "@/utils/orpc";
 
 const pct = (used: number, granted: number) =>
@@ -104,7 +103,6 @@ function UsagePanel() {
 export function NavUser() {
   const router = useRouter();
   const [, setSettingsTab] = useSettingsDialog();
-  const collapsed = useSidebar().state === "collapsed";
   const { data: session, isPending } = authClient.useSession();
   const { data: usage } = useQuery(orpc.usage.get.queryOptions());
 
@@ -124,12 +122,12 @@ export function NavUser() {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled>
-            <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
-            <div className="grid flex-1 gap-1 text-left text-sm leading-tight">
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-            </div>
+          <SidebarMenuButton
+            disabled
+            className="group-data-[collapsible=icon]:p-1.5!"
+          >
+            <div className="size-5 shrink-0 animate-pulse rounded-full bg-muted" />
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -144,43 +142,33 @@ export function NavUser() {
 
   return (
     <SidebarMenu>
-      <SidebarMenuItem>
+      <SidebarMenuItem className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              {/* Collapsed, the button is exactly 32px and clips its overflow,
-                  so the ring can't orbit outside a 32px avatar - shrink both
-                  down a notch and keep the gap. */}
-              <div
-                className={`relative flex shrink-0 items-center justify-center ${collapsed ? "size-8" : ""}`}
-              >
+            <SidebarMenuButton className="min-w-0 flex-1 text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!">
+              {/* 20px avatar, 26px ring: fits the 28px row and the 32px
+                  collapsed button alike, so neither state needs its own size. */}
+              <div className="relative flex size-5 shrink-0 items-center justify-center">
                 {ringPercentage !== null && (
                   <CircularProgress
                     value={ringPercentage}
-                    size={collapsed ? 32 : 36}
+                    size={26}
                     thickness={2}
-                    className={`-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 ${ringPercentage >= 80 ? "text-destructive" : "text-primary"}`}
+                    className={`-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 max-w-none ${ringPercentage >= 80 ? "text-destructive" : "text-primary"}`}
                   />
                 )}
                 <UserAvatar
                   name={userName}
                   email={userEmail}
                   image={user.image ?? ""}
-                  className={`rounded-full ${collapsed ? "size-7" : "size-8"}`}
+                  className="size-5 rounded-full text-[9px]"
                 />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{userName}</span>
-                <span className="truncate text-xs">{userEmail}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <span className="truncate">{userName}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="min-w-56 rounded-lg"
             side="right"
             align="end"
             sideOffset={4}
@@ -224,6 +212,17 @@ export function NavUser() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Same audience the quiet footer button had: Free, while Alpha is
+            the offer. */}
+        {usage && !CLOUD_AVAILABLE && !isMeteredPlan(usage.planId) && (
+          <Button
+            size="sm"
+            className="h-6 px-2 text-xs group-data-[collapsible=icon]:hidden"
+            onClick={() => setSettingsTab("plan")}
+          >
+            Upgrade
+          </Button>
+        )}
       </SidebarMenuItem>
     </SidebarMenu>
   );

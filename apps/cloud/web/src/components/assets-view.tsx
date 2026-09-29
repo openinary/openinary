@@ -237,7 +237,7 @@ export function AssetsView() {
             ref={scrollContainerRef}
             aria-busy={isSwitching}
             className={cn(
-              "h-[calc(100vh-64px)] space-y-6 overflow-auto @2xl/main:px-6 px-4 @2xl/main:py-8 py-6 transition-opacity",
+              "h-[calc(100vh-48px)] space-y-6 overflow-auto @2xl/main:px-6 px-4 @2xl/main:py-8 py-6 transition-opacity",
               isSwitching && "pointer-events-none opacity-50",
             )}
           >

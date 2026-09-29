@@ -15,6 +15,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 
 // Image/Video used to sit here as permanently disabled dead ends. They are
@@ -29,7 +30,10 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <BucketSwitcher />
+        <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+          <BucketSwitcher />
+          <SidebarTrigger className="text-muted-foreground" />
+        </div>
       </SidebarHeader>
       <SidebarContent
         style={{
@@ -43,9 +47,13 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
         <NavMain label="Platform" items={platformItems} />
         <NavProjects onMediaSelect={onMediaSelect} />
       </SidebarContent>
-      <SidebarFooter>
-        <UpgradeCard />
-        <NavUser />
+      <SidebarFooter className="p-0 group-data-[collapsible=icon]:px-0">
+        <div className="px-3 empty:hidden group-data-[collapsible=icon]:hidden">
+          <UpgradeCard />
+        </div>
+        <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
+          <NavUser />
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
