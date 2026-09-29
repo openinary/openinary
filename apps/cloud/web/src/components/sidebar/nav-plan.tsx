@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Rocket } from "lucide-react";
+import { Settings } from "lucide-react";
+import Link from "next/link";
 
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { Button } from "@/components/ui/button";
@@ -90,30 +91,28 @@ export function UsagePanel() {
 }
 
 /**
- * The footer row: which plan the account is on, and the way up from Free.
- * The account menu itself lives on the bucket switcher.
+ * The footer row: the way into Settings, and the way up from Free. The
+ * account menu itself lives on the bucket switcher.
  */
-export function NavPlan() {
+export function NavSettings() {
   const setSettingsTab = useSettingsPage();
   const { data: usage } = useQuery(orpc.usage.get.queryOptions());
-
-  if (!usage) return null;
-  const metered = isMeteredPlan(usage.planId);
+  const metered = isMeteredPlan(usage?.planId);
 
   return (
     <SidebarMenu>
       <SidebarMenuItem className="flex items-center gap-2">
         <SidebarMenuButton
-          tooltip="Plan"
-          className="min-w-0 flex-1 text-sidebar-foreground group-data-[collapsible=icon]:p-1.5!"
-          onClick={() => setSettingsTab("plan")}
+          asChild
+          tooltip="Settings"
+          className="min-w-0 flex-1 text-sidebar-foreground"
         >
-          <span className="-mx-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Rocket className="size-3" />
-          </span>
-          <span>{metered ? "Pay as you go" : "Free plan"}</span>
+          <Link href="/settings">
+            <Settings />
+            <span>Settings</span>
+          </Link>
         </SidebarMenuButton>
-        {!CLOUD_AVAILABLE && !metered && (
+        {usage && !CLOUD_AVAILABLE && !metered && (
           <Button
             size="sm"
             className="h-6 px-2 text-xs group-data-[collapsible=icon]:hidden"

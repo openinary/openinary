@@ -21,7 +21,7 @@ import { FILE_UPLOADER_DOCS } from "@/components/get-started/uploader-card";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { BucketSwitcher } from "@/components/sidebar/bucket-switcher";
 import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
-import { NavPlan } from "@/components/sidebar/nav-plan";
+import { NavSettings } from "@/components/sidebar/nav-plan";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { UpgradeCard } from "@/components/sidebar/upgrade-card";
 import {
@@ -128,7 +128,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           <UpgradeCard />
         </div>
         <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
-          <NavPlan />
+          <NavSettings />
         </div>
       </SidebarFooter>
       <SidebarRail />

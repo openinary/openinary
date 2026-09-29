@@ -10,11 +10,12 @@ import {
   LayoutGrid,
   Palette,
   Plug,
-  Rocket,
+  Settings,
   UploadCloud,
   User,
   Video,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { GettingStarted } from "@/components/sidebar/getting-started";
@@ -22,7 +23,6 @@ import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavUser } from "@/components/sidebar/nav-user";
 import { useVersion } from "@/components/sidebar/version-display";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -137,25 +137,23 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
               asChild
-              tooltip={`Version ${version}`}
-              className="min-w-0 flex-1 text-sidebar-foreground group-data-[collapsible=icon]:p-1.5!"
+              tooltip="Settings"
+              className="min-w-0 flex-1 text-sidebar-foreground"
             >
-              <a href={`${GITHUB_URL}/releases`} target="_blank" rel="noreferrer">
-                <span className="-mx-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                  <Rocket className="size-3" />
-                </span>
-                <span>Version {version}</span>
-              </a>
+              <Link href="/settings">
+                <Settings />
+                <span>Settings</span>
+              </Link>
             </SidebarMenuButton>
-            <Button
-              asChild
-              size="sm"
-              className="h-6 px-2 text-xs group-data-[collapsible=icon]:hidden"
+            {/* Still worth a glance when reporting a bug, so it stays, quietly. */}
+            <a
+              href={`${GITHUB_URL}/releases`}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 pr-1 text-xs text-muted-foreground tabular-nums transition-colors hover:text-foreground group-data-[collapsible=icon]:hidden"
             >
-              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-                Star
-              </a>
-            </Button>
+              {version}
+            </a>
           </SidebarMenuItem>
         </SidebarMenu>
         </div>
