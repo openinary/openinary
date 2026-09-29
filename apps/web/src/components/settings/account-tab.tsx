@@ -107,7 +107,7 @@ export function AccountTab({
           title="Profile"
           description="How you appear in this dashboard. The email is the one you sign in with."
         >
-        <SettingsFields className="sm:grid-cols-1">
+        <SettingsFields className="@sm:grid-cols-1">
           <FormField
             control={accountForm.control}
             name="name"

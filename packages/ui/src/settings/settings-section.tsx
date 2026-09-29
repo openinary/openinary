@@ -19,7 +19,10 @@ export function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="grid gap-x-10 gap-y-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    // Container queries, not breakpoints: what matters is the room the page
+    // leaves this section, which the sidebar and any side panel change.
+    <section className="@container">
+      <div className="grid gap-x-10 gap-y-4 @2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
         {description && (
@@ -29,7 +32,8 @@ export function SettingsSection({
         )}
         {action && <div className="mt-3">{action}</div>}
       </div>
-      <div className="space-y-4">{children}</div>
+      <div className="@container space-y-4">{children}</div>
+      </div>
     </section>
   );
 }
@@ -40,7 +44,7 @@ export function SettingsFields({
   ...props
 }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2", className)} {...props} />
+    <div className={cn("grid gap-4 @sm:grid-cols-2", className)} {...props} />
   );
 }
 
@@ -94,8 +98,10 @@ export function SettingsRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-2.5">
-      <div className="min-w-0">
+    // Wraps rather than squeezes: once the text would drop under 14rem, the
+    // control moves to its own line below it.
+    <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
+      <div className="min-w-[min(100%,14rem)] flex-1">
         <p className="text-sm font-medium">{label}</p>
         {description && (
           <p className="mt-0.5 text-[13px] text-muted-foreground">
