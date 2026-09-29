@@ -1,0 +1,67 @@
+import { AppearanceTab, StorageTab } from "@openinary/ui";
+import {
+  Boxes,
+  CreditCard,
+  HardDrive,
+  KeyRound,
+  type LucideIcon,
+  Palette,
+  ScrollText,
+} from "lucide-react";
+
+import { ActivityTab } from "@/components/settings/activity-tab";
+import { ApiKeysTab } from "@/components/settings/api-keys-tab";
+import { BucketsTab } from "@/components/settings/buckets-tab";
+import { PlanTab } from "@/components/settings/plan-tab";
+import type { SettingsTab } from "@/components/settings/use-settings-page";
+
+export const SETTINGS_PAGES: {
+  value: SettingsTab;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  content: React.ComponentType;
+}[] = [
+  {
+    value: "appearance",
+    label: "Appearance",
+    description: "Theme and display preferences for this dashboard.",
+    icon: Palette,
+    content: AppearanceTab,
+  },
+  {
+    value: "buckets",
+    label: "Buckets",
+    description: "The buckets your files live in, and which one is active.",
+    icon: Boxes,
+    content: BucketsTab,
+  },
+  {
+    value: "storage",
+    label: "Storage",
+    description: "Storage used by your files and by cached transformations.",
+    icon: HardDrive,
+    content: StorageTab,
+  },
+  {
+    value: "api-keys",
+    label: "API keys",
+    description: "The keys your apps use to authenticate with Openinary.",
+    icon: KeyRound,
+    content: ApiKeysTab,
+  },
+  {
+    value: "plan",
+    label: "Plan",
+    description: "Your plan, what it includes and what usage costs.",
+    icon: CreditCard,
+    content: PlanTab,
+  },
+  {
+    value: "activity",
+    label: "Usage",
+    description: "The deliveries and video jobs behind your usage.",
+    icon: ScrollText,
+    content: ActivityTab,
+  },
+];

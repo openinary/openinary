@@ -1,25 +1,24 @@
 "use client";
 
-import Link from "next/link";
-
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+  Image as ImageIcon,
+  type LucideIcon,
+  Plug,
+  Rocket,
+  Video,
+} from "lucide-react";
+
+import { Page } from "@/components/page";
 
 const rootTitle = "Get started";
 
-/**
- * The chrome every Get started route renders inside the shell's SidebarInset.
- * Mirrors HeaderBar's height and shadow so switching between Assets and a
- * playground doesn't shift the header.
- */
+const ICONS: Record<string, LucideIcon> = {
+  Integrate: Plug,
+  Images: ImageIcon,
+  Videos: Video,
+};
+
+/** Every Get started route, in the shared page frame. */
 export function GetStartedPage({
   title,
   heading,
@@ -32,50 +31,19 @@ export function GetStartedPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="@container/main h-screen w-full">
-      <header className="flex h-12 shrink-0 items-center gap-2 shadow-[0_1px_0_0_oklch(0_0_0/0.06),0_2px_4px_-2px_oklch(0_0_0/0.04)] transition-[width,height] ease-linear dark:shadow-[0_1px_0_0_oklch(1_0_0/0.08),0_2px_4px_-2px_oklch(0_0_0/0.4)]">
-        <div className="flex w-full items-center gap-2 @2xl/main:px-6 px-4">
-          <SidebarTrigger className="-ml-1 md:hidden" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4 md:hidden"
-          />
-          <Breadcrumb className="min-w-0">
-            <BreadcrumbList className="flex-nowrap">
-              <BreadcrumbItem className="shrink-0">
-                {title === rootTitle ? (
-                  <BreadcrumbPage>{rootTitle}</BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink asChild>
-                    <Link href="/get-started">{rootTitle}</Link>
-                  </BreadcrumbLink>
-                )}
-              </BreadcrumbItem>
-              {title !== rootTitle && (
-                <>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem className="min-w-0">
-                    <BreadcrumbPage className="truncate">
-                      {title}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-      <div className="h-[calc(100vh-48px)] overflow-auto @2xl/main:px-6 px-4 @2xl/main:py-8 py-6">
-        <div className="mx-auto max-w-3xl space-y-8">
-          <div>
-            <h1 className="font-semibold text-2xl tracking-tight">{heading}</h1>
-            <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
-              {description}
-            </p>
-          </div>
-          {children}
-        </div>
-      </div>
-    </div>
+    <Page
+      breadcrumb={
+        title === rootTitle
+          ? [{ label: rootTitle }]
+          : [{ label: rootTitle, href: "/get-started" }, { label: title }]
+      }
+      icon={ICONS[title] ?? Rocket}
+      title={heading}
+      description={description}
+      // The playgrounds hold a preview and its controls side by side.
+      className="max-w-3xl"
+    >
+      {children}
+    </Page>
   );
 }

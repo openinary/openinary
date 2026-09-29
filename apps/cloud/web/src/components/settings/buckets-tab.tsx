@@ -7,11 +7,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BucketAvatar } from "@/components/bucket-avatar";
-import { useSettingsDialog } from "@/components/settings/use-settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -56,7 +55,7 @@ export function BucketsTab() {
   const queryClient = useQueryClient();
   const buckets = useQuery(orpc.bucket.list.queryOptions());
   const quota = useQuery(orpc.bucket.quota.queryOptions());
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const { isSwitching, switchingToId, switchToBucket } = useBucketSwitch();
 
   const [newName, setNewName] = useState("");
@@ -145,10 +144,10 @@ export function BucketsTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <p className="font-medium text-sm">Buckets</p>
-        <p className="mt-1 text-muted-foreground text-xs">
+        <p className="font-medium text-[15px]">Buckets</p>
+        <p className="mt-1 text-muted-foreground text-sm">
           Each bucket is a separate space for your media - files, folders and
           transforms never cross between them. Only one is active at a time; API
           keys are pinned to a single bucket at creation.
@@ -205,10 +204,8 @@ export function BucketsTab() {
         )}
       </div>
 
-      <Separator />
-
       <div>
-        <p className="font-medium text-sm">Your buckets</p>
+        <p className="font-medium text-[15px]">Your buckets</p>
         {buckets.isLoading ? (
           <div className="mt-3 space-y-2">
             <Skeleton className="h-12 w-full" />

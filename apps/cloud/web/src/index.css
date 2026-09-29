@@ -167,14 +167,6 @@ body {
   }
 }
 
-/* ponytail: @openinary/ui SettingsDialog hardcodes its size and takes no
-   className prop — unlayered so it beats the utilities layer. Drop this
-   when the package exposes a className. */
-[data-slot="dialog-content"].h-\[520px\] {
-  height: min(600px, calc(100dvh - 4rem));
-  max-width: 56rem;
-}
-
 /* The FileUploader demo on Get started (uploader-card.tsx). One 7s cycle, one
    set of keyframes: the second file re-runs all of these with a delay rather
    than owning any of its own. Percentages are of the 7s, so read them as a

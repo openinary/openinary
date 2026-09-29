@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Rocket } from "lucide-react";
 
-import { useSettingsDialog } from "@/components/settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { Button } from "@/components/ui/button";
 import { CircularProgress } from "@/components/ui/circular-progress";
 import {
@@ -20,7 +20,7 @@ const pct = (used: number, granted: number) =>
 
 export function UsagePanel() {
   const { data, isLoading } = useQuery(orpc.usage.get.queryOptions());
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const isMetered = isMeteredPlan(data?.planId);
 
   if (isLoading || !data) {
@@ -94,7 +94,7 @@ export function UsagePanel() {
  * The account menu itself lives on the bucket switcher.
  */
 export function NavPlan() {
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const { data: usage } = useQuery(orpc.usage.get.queryOptions());
 
   if (!usage) return null;

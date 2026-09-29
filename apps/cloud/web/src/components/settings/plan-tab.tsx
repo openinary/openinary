@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ExternalLink, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -111,13 +110,13 @@ export function PlanTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Current plan */}
       <div>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-medium text-sm">Current plan</p>
-            <p className="mt-1 text-muted-foreground text-xs">
+            <p className="font-medium text-[15px]">Current plan</p>
+            <p className="mt-1 text-muted-foreground text-sm">
               {isMetered
                 ? `${planName} includes pay-as-you-go beyond the monthly allowance.`
                 : "The Free trial is capped: uploads and transformations stop once an allowance runs out."}
@@ -178,12 +177,10 @@ export function PlanTab() {
         )}
       </div>
 
-      <Separator />
-
       {/* Usage this period */}
       <div>
-        <p className="font-medium text-sm">Usage</p>
-        <p className="mt-1 text-muted-foreground text-xs">
+        <p className="font-medium text-[15px]">Usage</p>
+        <p className="mt-1 text-muted-foreground text-sm">
           {isMetered
             ? "What your plan includes this period. Going past it never stops anything - the extra is simply billed at the end of the period. Storage is cumulative; the rest resets monthly."
             : "Consumption against your current allowance. Storage is cumulative; the rest resets monthly."}
@@ -321,12 +318,10 @@ export function PlanTab() {
         )}
       </div>
 
-      <Separator />
-
       {/* Plan comparison */}
       <div>
-        <p className="font-medium text-sm">Plans</p>
-        <p className="mt-1 text-muted-foreground text-xs">
+        <p className="font-medium text-[15px]">Plans</p>
+        <p className="mt-1 text-muted-foreground text-sm">
           What each plan includes. Allowances reset monthly, except storage and
           buckets.
         </p>
@@ -376,12 +371,10 @@ export function PlanTab() {
         </div>
       </div>
 
-      <Separator />
-
       {/* Pay as you go */}
       <div>
-        <p className="font-medium text-sm">Pay as you go</p>
-        <p className="mt-1 text-muted-foreground text-xs">
+        <p className="font-medium text-[15px]">Pay as you go</p>
+        <p className="mt-1 text-muted-foreground text-sm">
           {isMetered
             ? "Going over an allowance keeps things running and is billed at the end of the period."
             : `Included with ${paidPlan.name}: going over an allowance keeps things running and is billed at the end of the period. The Free trial is simply blocked.`}

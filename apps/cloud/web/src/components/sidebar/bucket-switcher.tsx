@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, LogOut, Settings, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BucketAvatar } from "@/components/bucket-avatar";
-import { useSettingsDialog } from "@/components/settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { UsagePanel } from "@/components/sidebar/nav-plan";
 import {
@@ -35,7 +35,7 @@ import { orpc } from "@/utils/orpc";
  * cache teardown it implies, lives in BucketSwitchProvider.
  */
 export function BucketSwitcher() {
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const { isSwitching, switchingToId, switchToBucket } = useBucketSwitch();
   const router = useRouter();
   const user = authClient.useSession().data?.user;

@@ -18,7 +18,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { FILE_UPLOADER_DOCS } from "@/components/get-started/uploader-card";
-import { useSettingsDialog } from "@/components/settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { BucketSwitcher } from "@/components/sidebar/bucket-switcher";
 import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
 import { NavPlan } from "@/components/sidebar/nav-plan";
@@ -39,21 +39,13 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   const router = useRouter();
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
 
   const mainItems: NavItem[] = [
     { title: "Assets", icon: LayoutGrid, url: "/" },
-    {
-      title: "Usage",
-      icon: ChartColumn,
-      onSelect: () => setSettingsTab("activity"),
-    },
-    { title: "Plan", icon: CreditCard, onSelect: () => setSettingsTab("plan") },
-    {
-      title: "API keys",
-      icon: KeyRound,
-      onSelect: () => setSettingsTab("api-keys"),
-    },
+    { title: "Usage", icon: ChartColumn, url: "/settings/activity" },
+    { title: "Plan", icon: CreditCard, url: "/settings/plan" },
+    { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
   ];
 
   const toolItems: NavItem[] = [

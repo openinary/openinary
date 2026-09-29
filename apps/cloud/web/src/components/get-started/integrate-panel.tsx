@@ -7,7 +7,7 @@ import {
   CopyPromptButton,
   useAiPrompt,
 } from "@/components/get-started/prompt-copy";
-import { useSettingsDialog } from "@/components/settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackIntegrationDocsOpened } from "@/lib/analytics";
@@ -72,7 +72,7 @@ const GUIDES: {
 ];
 
 export function IntegratePanel() {
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
 
   const { data: keys } = useQuery(orpc.apiKey.list.queryOptions());
   const content = useAiPrompt();

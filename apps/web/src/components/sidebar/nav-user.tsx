@@ -1,6 +1,6 @@
 "use client"
 
-import { useQueryState } from "nuqs"
+import { useRouter } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 import Image from "next/image"
 import { useSession } from "@/lib/auth-client"
@@ -14,11 +14,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { UserDropdown } from "./user-dropdown"
-import { SettingsDialog } from "./settings-dialog"
 
 export function NavUser() {
   const { data, isPending } = useSession()
-  const [, setTab] = useQueryState("settings")
+  const router = useRouter()
+  const setTab = (tab: string) => router.push(`/settings/${tab}`)
 
   const user = data?.user
   const userName = user?.name || user?.email?.split("@")[0] || "User"
@@ -82,12 +82,6 @@ export function NavUser() {
           />
         </DropdownMenu>
       </SidebarMenuItem>
-
-      <SettingsDialog
-        userName={userName}
-        userEmail={userEmail}
-        userAvatar={userAvatar}
-      />
     </SidebarMenu>
   )
 }

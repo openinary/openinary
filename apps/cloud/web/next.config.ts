@@ -19,6 +19,18 @@ const nextConfig: NextConfig = {
   // posthog.com request. Unproxied, app.openinary.dev was losing roughly one
   // signup in ten to blocked clients - and with it every $exception and the
   // whole playground funnel, which only exist client-side.
+  // Settings used to be a dialog opened by ?settings=<tab>. Those links are in
+  // sent emails and in the API's planUrl, so they keep working.
+  async redirects() {
+    return [
+      {
+        source: "/",
+        has: [{ type: "query", key: "settings", value: "(?<tab>[a-z-]+)" }],
+        destination: "/settings/:tab",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

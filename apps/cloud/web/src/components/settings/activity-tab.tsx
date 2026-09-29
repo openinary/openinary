@@ -9,7 +9,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -207,10 +206,10 @@ export function ActivityTab() {
   const videoJobs = (data?.videoJobs ?? []) as VideoJob[];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <p className="font-medium text-sm">Delivery log</p>
-        <p className="mt-1 text-muted-foreground text-xs">
+        <p className="font-medium text-[15px]">Delivery log</p>
+        <p className="mt-1 text-muted-foreground text-sm">
           The last 500 assets served from your public URLs. Expand a line for
           the bucket, the cache outcome and what it added to your usage.
         </p>
@@ -253,10 +252,8 @@ export function ActivityTab() {
         )}
       </div>
 
-      <Separator />
-
       <div>
-        <p className="flex items-center gap-1 font-medium text-sm">
+        <p className="flex items-center gap-1 font-medium text-[15px]">
           Video processing
           <Tooltip>
             <TooltipTrigger asChild>
@@ -275,7 +272,7 @@ export function ActivityTab() {
             </TooltipContent>
           </Tooltip>
         </p>
-        <p className="mt-1 text-muted-foreground text-xs">
+        <p className="mt-1 text-muted-foreground text-sm">
           Every transcode this account has run, with the processing time each
           one was charged for.
         </p>

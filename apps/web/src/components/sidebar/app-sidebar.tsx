@@ -14,7 +14,6 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useQueryState } from "nuqs";
 import { toast } from "sonner";
 
 import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
@@ -44,23 +43,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   const router = useRouter();
   const version = useVersion();
-  const [, setSettingsTab] = useQueryState("settings");
   // The playgrounds only exist on Cloud for now.
   const soon = (name: string) => () => toast(`${name} is coming soon`);
 
   const mainItems: NavItem[] = [
     { title: "Assets", icon: LayoutGrid, url: "/" },
-    {
-      title: "Storage",
-      icon: HardDrive,
-      onSelect: () => setSettingsTab("storage"),
-    },
-    {
-      title: "API keys",
-      icon: KeyRound,
-      onSelect: () => setSettingsTab("api-keys"),
-    },
-    { title: "Account", icon: User, onSelect: () => setSettingsTab("account") },
+    { title: "Storage", icon: HardDrive, url: "/settings/storage" },
+    { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
+    { title: "Account", icon: User, url: "/settings/account" },
   ];
 
   const toolItems: NavItem[] = [
@@ -104,7 +94,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
     {
       label: "Appearance",
       icon: Palette,
-      onSelect: () => setSettingsTab("appearance"),
+      onSelect: () => router.push("/settings/appearance"),
     },
   ];
 
@@ -120,7 +110,14 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
       <SidebarContent>
         <NavMain items={mainItems} />
         <NavMain label="Tools" items={toolItems} />
-        <NavProjects onMediaSelect={onMediaSelect} />
+        <NavProjects
+          // Off the assets page there is no details panel to open, so go there.
+          onMediaSelect={
+            onMediaSelect ??
+            ((media) =>
+              router.push(`/?asset=${encodeURIComponent(media.id)}`))
+          }
+        />
       </SidebarContent>
       <SidebarFooter className="border-t py-2">
         <SidebarMenu>

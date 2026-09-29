@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { useOnboarding } from "@/components/get-started/use-onboarding";
-import { useSettingsDialog } from "@/components/settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import {
   UploaderNudge,
   useUploaderNudge,
@@ -53,7 +53,7 @@ const UPSELL_AT = 0.35;
  */
 export function UpgradeCard() {
   const { data } = useQuery(orpc.usage.get.queryOptions());
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const { completed, total, isComplete, isReady } = useOnboarding();
   const [nudgeDismissed, dismissNudge] = useUploaderNudge();
 
