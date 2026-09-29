@@ -20,11 +20,10 @@ import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
 import {
   SettingsActions,
-  SettingsList,
+  SettingsFields,
   SettingsSection,
   settingsFieldClass,
-  settingsLabelClass,
-  settingsRowClass,
+  settingsFieldLabelClass,
 } from "@openinary/ui"
 
 const accountFormSchema = z.object({
@@ -108,18 +107,17 @@ export function AccountTab({
           title="Profile"
           description="How you appear in this dashboard. The email is the one you sign in with."
         >
-        <SettingsList>
+        <SettingsFields className="sm:grid-cols-1">
           <FormField
             control={accountForm.control}
             name="name"
             render={({ field }) => (
-              <FormItem className={settingsRowClass}>
-                <FormLabel className={settingsLabelClass}>Name</FormLabel>
+              <FormItem className={settingsFieldClass}>
+                <FormLabel className={settingsFieldLabelClass}>Name</FormLabel>
                 <FormControl>
                   <Input
                     type="text"
                     placeholder="Your name"
-                    className={settingsFieldClass}
                     {...field}
                   />
                 </FormControl>
@@ -131,14 +129,13 @@ export function AccountTab({
             control={accountForm.control}
             name="email"
             render={({ field }) => (
-              <FormItem className={settingsRowClass}>
-                <FormLabel className={settingsLabelClass}>Email</FormLabel>
+              <FormItem className={settingsFieldClass}>
+                <FormLabel className={settingsFieldLabelClass}>Email</FormLabel>
                 <FormControl>
                   <Input
                     disabled
                     type="email"
                     placeholder="your.email@example.com"
-                    className={settingsFieldClass}
                     {...field}
                   />
                 </FormControl>
@@ -149,13 +146,12 @@ export function AccountTab({
             control={accountForm.control}
             name="image"
             render={({ field }) => (
-              <FormItem className={settingsRowClass}>
-                <FormLabel className={settingsLabelClass}>Avatar URL</FormLabel>
+              <FormItem className={settingsFieldClass}>
+                <FormLabel className={settingsFieldLabelClass}>Avatar URL</FormLabel>
                 <FormControl>
                   <Input
                     type="url"
                     placeholder="https://example.com/avatar.jpg"
-                    className={settingsFieldClass}
                     {...field}
                   />
                 </FormControl>
@@ -163,7 +159,7 @@ export function AccountTab({
               </FormItem>
             )}
           />
-        </SettingsList>
+        </SettingsFields>
         <SettingsActions>
           <Button
             type="button"

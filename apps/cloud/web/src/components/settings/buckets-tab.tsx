@@ -4,11 +4,10 @@ import {
   DefaultDialog,
   formatFileSize,
   SettingsActions,
+  SettingsField,
   SettingsList,
-  SettingsRow,
   SettingsSection,
   Spinner,
-  settingsFieldClass,
 } from "@openinary/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Trash2 } from "lucide-react";
@@ -160,19 +159,15 @@ export function BucketsTab() {
           title="Create a bucket"
           description="Each bucket is a separate space for your media - files, folders and transforms never cross between them. Only one is active at a time; API keys are pinned to a single bucket at creation."
         >
-          <SettingsList>
-            <SettingsRow label="Bucket name">
-              <Input
-                aria-label="Bucket name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Staging"
-                maxLength={60}
-                disabled={!canCreate}
-                className={settingsFieldClass}
-              />
-            </SettingsRow>
-          </SettingsList>
+          <SettingsField label="Bucket name">
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Staging"
+              maxLength={60}
+              disabled={!canCreate}
+            />
+          </SettingsField>
           <SettingsActions>
             <Button
               type="submit"

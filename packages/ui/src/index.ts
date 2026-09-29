@@ -81,12 +81,13 @@ export { SettingsDialog, type SettingsDialogProps, type SettingsNavItem } from "
 export { AppearanceTab } from "./settings/appearance-tab";
 export {
   SettingsActions,
+  SettingsField,
+  SettingsFields,
   SettingsList,
   SettingsRow,
   SettingsSection,
   settingsFieldClass,
-  settingsLabelClass,
-  settingsRowClass,
+  settingsFieldLabelClass,
 } from "./settings/settings-section";
 export { StorageTab } from "./settings/storage-tab";
 

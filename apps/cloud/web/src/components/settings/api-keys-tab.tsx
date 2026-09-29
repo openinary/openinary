@@ -4,10 +4,10 @@ import {
   CopyInput,
   DeleteConfirmDialog,
   SettingsActions,
+  SettingsField,
+  SettingsFields,
   SettingsList,
-  SettingsRow,
   SettingsSection,
-  settingsFieldClass,
 } from "@openinary/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Power, Trash2, X } from "lucide-react";
@@ -26,10 +26,10 @@ import {
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
-// Reads as the row's value, like the inputs beside it; a native select needs
-// no dependency and gets the platform's own picker on mobile.
+// Matches the Input component's chrome; a native select needs no dependency
+// and gets the platform's own picker on mobile.
 const SELECT_CLASS =
-  "max-w-60 cursor-pointer rounded-sm bg-transparent text-right text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50";
+  "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30";
 
 const DEFAULT_EXPIRES = "365";
 
@@ -129,26 +129,20 @@ export function ApiKeysTab() {
             </>
           }
         >
-          <SettingsList>
-            <SettingsRow label="Key name">
+          <SettingsFields>
+            <SettingsField label="Key name" className="col-span-full">
               {/* Naming the key is the first thing to do on this page, and the
                   onboarding checklist links straight here to do exactly that. */}
               <Input
                 autoFocus
-                aria-label="Key name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Production"
                 maxLength={32}
-                className={settingsFieldClass}
               />
-            </SettingsRow>
-            <SettingsRow
-              label="Bucket"
-              description="Can't be changed later."
-            >
+            </SettingsField>
+            <SettingsField label="Bucket" hint="Can't be changed later.">
               <select
-                aria-label="Bucket"
                 value={selectedScope}
                 onChange={(e) => setScope(e.target.value)}
                 className={SELECT_CLASS}
@@ -160,19 +154,17 @@ export function ApiKeysTab() {
                   </option>
                 ))}
               </select>
-            </SettingsRow>
-            <SettingsRow label="Expires" description="In days, up to 365.">
+            </SettingsField>
+            <SettingsField label="Expires in (days)" hint="Up to 365.">
               <Input
                 type="number"
-                aria-label="Expires"
                 min={1}
                 max={365}
                 value={expires}
                 onChange={(e) => setExpires(e.target.value)}
-                className={settingsFieldClass}
               />
-            </SettingsRow>
-          </SettingsList>
+            </SettingsField>
+          </SettingsFields>
           <SettingsActions>
             <Button type="submit" size="sm" disabled={create.isPending}>
               {create.isPending ? "Creating…" : "Create key"}

@@ -10,9 +10,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Every settings route: the title, one tab per section, then the section
- * itself. Left-aligned and full width, unlike the centred Page frame - the
- * rules run edge to edge while the content under them keeps a readable
- * measure.
+ * itself. Left-aligned, unlike the centred Page frame, with the section held
+ * to a readable measure.
  */
 export function SettingsPage({ tab }: { tab: string }) {
   const page = SETTINGS_PAGES.find(({ value }) => value === tab);
@@ -50,7 +49,7 @@ export function SettingsPage({ tab }: { tab: string }) {
         <h2 className="mt-8 font-semibold text-base">{page.label}</h2>
         <p className="mt-1 text-muted-foreground text-sm">{page.description}</p>
         <Separator className="my-6" />
-        <div className="[&>*>:not([data-slot=separator])]:max-w-2xl">
+        <div className="max-w-4xl">
           <page.content />
         </div>
       </div>

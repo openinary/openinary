@@ -1,9 +1,10 @@
 import { cn } from "../lib/utils";
 
 /**
- * The one shape every settings page is built from: a titled section holding a
- * bordered list of rows, label on the left and its control or value on the
- * right, with any buttons in a right-aligned row underneath.
+ * The one shape every settings page is built from. A section names itself on
+ * the left and holds its content on the right: labelled fields for anything
+ * typed, a bordered list of rows for toggles, values and existing items, and
+ * any buttons in a right-aligned row underneath.
  */
 export function SettingsSection({
   title,
@@ -13,25 +14,61 @@ export function SettingsSection({
 }: {
   title: string;
   description?: React.ReactNode;
-  /** Sits on the title row, for something that acts on the whole section. */
+  /** Sits under the description, for something that acts on the section. */
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          {description && (
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {description}
-            </p>
-          )}
-        </div>
-        {action}
+    <section className="grid gap-x-10 gap-y-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description && (
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {description}
+          </p>
+        )}
+        {action && <div className="mt-3">{action}</div>}
       </div>
-      <div className="mt-4 space-y-3">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
+  );
+}
+
+/** Lays fields out two to a line; a field can span both with col-span-full. */
+export function SettingsFields({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div className={cn("grid gap-4 sm:grid-cols-2", className)} {...props} />
+  );
+}
+
+/** Shared with fields that bring their own label (react-hook-form). */
+export const settingsFieldClass = "space-y-1.5";
+export const settingsFieldLabelClass = "text-[13px] font-medium";
+
+/** A label over its control, with an optional hint under it. */
+export function SettingsField({
+  label,
+  hint,
+  className,
+  children,
+}: {
+  label: string;
+  hint?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: the control is `children`
+    <label className={cn("block", settingsFieldClass, className)}>
+      <span className={cn("block", settingsFieldLabelClass)}>{label}</span>
+      {children}
+      {hint && (
+        <span className="block text-xs text-muted-foreground">{hint}</span>
+      )}
+    </label>
   );
 }
 
@@ -47,16 +84,6 @@ export function SettingsList({
   );
 }
 
-/** Shared with form rows that bring their own wrapper (react-hook-form). */
-export const settingsRowClass =
-  "flex min-h-12 items-center justify-between gap-4 space-y-0 px-4 py-2.5";
-
-export const settingsLabelClass = "text-sm font-medium";
-
-/** An input that reads as the row's value rather than as a box in a box. */
-export const settingsFieldClass =
-  "h-auto w-80 max-w-full rounded-none border-none bg-transparent p-0 text-right shadow-none focus-visible:ring-0 dark:bg-transparent";
-
 export function SettingsRow({
   label,
   description,
@@ -67,9 +94,9 @@ export function SettingsRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className={settingsRowClass}>
+    <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-2.5">
       <div className="min-w-0">
-        <p className={settingsLabelClass}>{label}</p>
+        <p className="text-sm font-medium">{label}</p>
         {description && (
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {description}

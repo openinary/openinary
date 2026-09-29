@@ -23,9 +23,9 @@ import {
   SettingsList,
   SettingsRow,
   SettingsSection,
+  SettingsFields,
   settingsFieldClass,
-  settingsLabelClass,
-  settingsRowClass,
+  settingsFieldLabelClass,
 } from "@openinary/ui";
 import { Separator } from "./ui/separator";
 import {
@@ -234,22 +234,21 @@ export function ApiKeyManager() {
         <form onSubmit={form.handleSubmit(onCreateKey)}>
           <SettingsSection
             title="Create a key"
-            description="Name it after the app that will use it. Expiry is in days and defaults to 365."
+            description="Name it after the app that will use it."
           >
-            <SettingsList>
+            <SettingsFields>
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem className={settingsRowClass}>
-                    <FormLabel className={settingsLabelClass}>
+                  <FormItem className={settingsFieldClass}>
+                    <FormLabel className={settingsFieldLabelClass}>
                       Key name
                     </FormLabel>
                     <FormControl>
                       <Input
                         type="text"
                         placeholder="New key"
-                        className={settingsFieldClass}
                         {...field}
                       />
                     </FormControl>
@@ -261,9 +260,9 @@ export function ApiKeyManager() {
                 control={form.control}
                 name="expires"
                 render={({ field }) => (
-                  <FormItem className={settingsRowClass}>
-                    <FormLabel className={settingsLabelClass}>
-                      Expires
+                  <FormItem className={settingsFieldClass}>
+                    <FormLabel className={settingsFieldLabelClass}>
+                      Expires in (days)
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -271,7 +270,6 @@ export function ApiKeyManager() {
                         placeholder="365"
                         min="1"
                         max="3650"
-                        className={settingsFieldClass}
                         {...field}
                       />
                     </FormControl>
@@ -279,7 +277,7 @@ export function ApiKeyManager() {
                   </FormItem>
                 )}
               />
-            </SettingsList>
+            </SettingsFields>
             <SettingsActions>
               <Button
                 type="submit"

@@ -60,9 +60,8 @@ export function StorageTab() {
         description="View your storage usage and manage cached transformations."
         action={
           <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0"
+            variant="outline"
+            size="sm"
             title="Recalculate from storage"
             disabled={isLoading || recalculate.isPending}
             onClick={() =>
@@ -79,6 +78,7 @@ export function StorageTab() {
             <RefreshCw
               className={cn("size-4", recalculate.isPending && "animate-spin")}
             />
+            Recalculate
           </Button>
         }
       >
