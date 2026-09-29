@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Layers, Rocket, Server } from "lucide-react";
+import { ArrowRightLeft, BookOpen, Rocket, Server } from "lucide-react";
 
 import {
   BookDescription,
@@ -22,13 +22,13 @@ const docs = [
       "Set up Openinary and serve your first optimized image in under five minutes.",
   },
   {
-    href: "https://docs.openinary.dev/media-transformations/overview",
+    href: "https://docs.openinary.dev/migrate-from-cloudinary",
     tint: "bg-gradient-to-br from-sky-200 to-sky-300 text-sky-950 dark:from-sky-900 dark:to-sky-950 dark:text-sky-50",
-    icon: Layers,
-    label: "Transformations",
-    title: "Transformations",
+    icon: ArrowRightLeft,
+    label: "Migration",
+    title: "Migrate from Cloudinary",
     description:
-      "Resize, crop, convert and optimize media on the fly, straight from the URL.",
+      "Move your files, uploads and URLs from Cloudinary in five steps.",
   },
   {
     href: "https://docs.openinary.dev/configuration/storage",
