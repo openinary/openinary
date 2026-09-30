@@ -108,6 +108,12 @@ export {
   type UsageEvent,
 } from "./settings/usage-dashboard";
 export { StorageTab } from "./settings/storage-tab";
+export {
+  ApiKeyScope,
+  ApiKeysCard,
+  CreateApiKeyDialog,
+  type ApiKeyItem,
+} from "./settings/api-keys-card";
 
 // First-run onboarding (cloud and self-hosted)
 export {
