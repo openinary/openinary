@@ -1,0 +1,163 @@
+// Openinary database schema — PostgreSQL via Prisma (single DB story, no sqlite).
+//
+// Notes:
+// - better-auth core models (User/Session/Account/Verification) + ApiKey plugin
+//   model follow the official better-auth Prisma shapes (camelCase fields,
+//   DateTime for timestamps, Boolean for flags). Field names/DB columns match
+//   what better-auth's prisma adapter expects by default (lowercase,
+//   camelCase-mapped model names: user/session/account/verification/apiKey).
+// - ApiKey: the plugin's canonical owner column is `referenceId` (owner =
+//   user id). apps/api/src/routes/api-keys.ts currently queries
+//   `WHERE userId = ?`, so the DB column is named `userId` and the plugin is
+//   mapped to it via `@map` on the model + better-auth `apiKey.model.fields`
+//   mapping in todo 4. Both surfaces see a userId-shaped field.
+// - VideoJob: columns mirror packages/core/src/utils/video/queue-store.ts
+//   VideoJob interface EXACTLY (snake_case via @map) + lease columns
+//   claimed_by/heartbeat_at for multi-replica claiming (todo 5).
+//   Timestamps are BigInt epoch-milliseconds — conversion to number happens
+//   in the store layer (todo 5), NOT here.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// better-auth core — user table.
+model User {
+  id               String   @id
+  name             String
+  email            String   @unique
+  emailVerified    Boolean  @default(false)
+  image            String?
+  twoFactorEnabled Boolean? @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt @default(now())
+
+  sessions    Session[]
+  accounts    Account[]
+  apiKeys     ApiKey[]
+
+  @@map("user")
+}
+
+/// better-auth core — session table.
+model Session {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+/// better-auth core — account table (credentials/oauth).
+model Account {
+  id                  String    @id
+  userId              String
+  accountId           String
+  providerId          String
+  accessToken         String?
+  refreshToken        String?
+  idToken             String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope               String?
+  password            String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+/// better-auth core — verification table.
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt @default(now())
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// @better-auth/api-key plugin — ApiKey table.
+/// DB column `userId` (was `referenceId` in sqlite DDL); reconciled with the
+/// plugin via field mapping in todo 4 (apiKey referenceId -> userId column).
+model ApiKey {
+  id                  String   @id
+  name                String?
+  start               String?
+  prefix              String?
+  key                 String   @unique
+  userId              String
+  configId            String   @default("default")
+  refillInterval      Int?
+  refillAmount        Int?
+  lastRefillAt        BigInt?
+  enabled             Boolean  @default(true)
+  rateLimitEnabled    Boolean  @default(true)
+  rateLimitTimeWindow Int?
+  rateLimitMax        Int?
+  requestCount        Int      @default(0)
+  remaining           Int?
+  lastRequest         BigInt?
+  expiresAt           BigInt?
+  createdAt           BigInt
+  updatedAt           BigInt
+  permissions         String?
+  metadata            String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("apiKey")
+}
+
+/// Video transformation queue (packages/core/src/utils/video/queue-store.ts).
+/// BigInt = epoch milliseconds. Store layer converts to number (todo 5).
+model VideoJob {
+  id           String  @id
+  filePath     String  @map("file_path")
+  paramsJson   String  @map("params_json")
+  cachePath    String  @map("cache_path")
+  status       String
+  priority     Int     @default(2)
+  progress     Int     @default(0)
+  error        String?
+  retryCount   Int     @default(0) @map("retry_count")
+  maxRetries   Int     @default(3) @map("max_retries")
+  createdAt    BigInt  @map("created_at")
+  startedAt    BigInt? @map("started_at")
+  completedAt  BigInt? @map("completed_at")
+  claimedBy    String? @map("claimed_by")
+  heartbeatAt  BigInt? @map("heartbeat_at")
+
+  @@index([status, priority])
+  @@index([filePath, paramsJson])
+  @@map("video_jobs")
+}
+
+/// Replaces the old `_auth_config` table (secret-hash check, todo 4).
+model AuthConfig {
+  key   String @id
+  value String
+
+  @@map("auth_config")
+}

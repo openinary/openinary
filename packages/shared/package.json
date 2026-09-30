@@ -28,17 +28,23 @@
     }
   },
   "scripts": {
-    "build": "tsc && node scripts/add-js-extensions.cjs",
-    "type-check": "tsc --noEmit"
+    "build": "prisma generate && tsc && cp -R src/generated dist/generated && node scripts/add-js-extensions.cjs",
+    "type-check": "prisma generate && tsc --noEmit",
+    "test": "node --import tsx --test src/db/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:migrate-deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",
+    "@prisma/client": "^6.17.0",
     "better-auth": "^1.6.23",
     "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
+    "prisma": "^6.17.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.0.0"
   }
 }
