@@ -47,6 +47,14 @@ test("the API upload flag sticks", () => {
   assert.equal(log.apiUploadSeen(), true);
 });
 
+test("state documents round-trip and overwrite", () => {
+  const log = new ActivityLog(new Database(":memory:"));
+  assert.equal(log.getState("workspace"), undefined);
+  log.setState("workspace", { name: "Acme", logo: null });
+  log.setState("workspace", { name: "Acme Media", logo: null });
+  assert.deepEqual(log.getState("workspace"), { name: "Acme Media", logo: null });
+});
+
 test("request rules", () => {
   assert.equal(isOpeningRange(undefined), true);
   assert.equal(isOpeningRange("bytes=0-"), true);

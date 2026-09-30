@@ -19,6 +19,8 @@ export type UsageMeterBinding = {
     recent(): Promise<{ events: DeliveryEvent[]; pendingCdn: number }>;
     pending(): Promise<number>;
     apiUploadSeen(): Promise<boolean>;
+    onboarded(): Promise<boolean>;
+    markOnboarded(): Promise<void>;
   };
 };
 

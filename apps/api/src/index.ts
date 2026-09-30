@@ -20,6 +20,7 @@ import {
 import { createUploadRoute } from "./routes/upload";
 import apiKeys from "./routes/api-keys";
 import activity from "./routes/activity";
+import onboarding from "./routes/onboarding";
 import health from "./routes/health";
 import { logDelivery, noteApiUpload } from "./middleware/activity";
 import { apiKeyAuth } from "./middleware/auth";
@@ -174,6 +175,11 @@ app.route("/queue", queue);
 app.use("/activity", apiKeyAuth);
 app.use("/activity/*", apiKeyAuth);
 app.route("/activity", activity);
+
+// First-run questionnaire and the workspace it names (protected)
+app.use("/onboarding", apiKeyAuth);
+app.use("/onboarding/*", apiKeyAuth);
+app.route("/onboarding", onboarding);
 
 // API key management routes (also protected)
 app.route("/api-keys", apiKeys);

@@ -163,4 +163,20 @@ export class ActivityLog {
       .prepare("SELECT 1 FROM app_state WHERE key = 'api_upload_seen'")
       .get();
   }
+
+  /** A JSON document kept in app_state, e.g. onboarding answers. */
+  getState<T>(key: string): T | undefined {
+    const row = this.#db
+      .prepare("SELECT value FROM app_state WHERE key = ?")
+      .get(key) as { value: string } | undefined;
+    return row ? (JSON.parse(row.value) as T) : undefined;
+  }
+
+  setState(key: string, value: unknown): void {
+    this.#db
+      .prepare(
+        "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      )
+      .run(key, JSON.stringify(value));
+  }
 }
