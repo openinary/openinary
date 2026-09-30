@@ -53,13 +53,23 @@ export class VideoWorker extends EventEmitter {
 
     // Reset any orphaned "processing" jobs from previous crashes/restarts
     // These are jobs marked as "processing" but not actually being processed
-    const resetCount = this.store.resetOrphanedProcessingJobs();
-    if (resetCount > 0) {
-      logger.info(
-        { resetCount },
-        "Reset orphaned processing jobs on worker start",
-      );
-    }
+    // Fire-and-forget: start() stays sync, same as the initial fill below.
+    this.store
+      .resetOrphanedProcessingJobs()
+      .then((resetCount) => {
+        if (resetCount > 0) {
+          logger.info(
+            { resetCount },
+            "Reset orphaned processing jobs on worker start",
+          );
+        }
+      })
+      .catch((error) => {
+        logger.error(
+          { error: serializeError(error) },
+          "Failed to reset orphaned processing jobs on worker start",
+        );
+      });
 
     // Start polling for jobs
     this.intervalId = setInterval(() => {
@@ -112,7 +122,7 @@ export class VideoWorker extends EventEmitter {
       this.isAcquiring = true;
 
       while (true) {
-        const processingCount = this.store.countProcessingJobs();
+        const processingCount = await this.store.countProcessingJobs();
         if (processingCount >= this.maxConcurrent) {
           logger.debug(
             { processingCount, maxConcurrent: this.maxConcurrent },
@@ -122,7 +132,7 @@ export class VideoWorker extends EventEmitter {
         }
 
         // Get next pending job (atomically marks it as processing)
-        const job = this.store.getNextPendingJob();
+        const job = await this.store.getNextPendingJob();
         if (!job) {
           break; // No more pending jobs
         }
@@ -198,7 +208,7 @@ export class VideoWorker extends EventEmitter {
       }
 
       // Mark as completed
-      this.store.updateJobStatus(job.id, "completed", 100);
+      await this.store.updateJobStatus(job.id, "completed", 100);
 
       logger.info(
         { jobId: job.id, filePath: job.file_path },
@@ -236,11 +246,11 @@ export class VideoWorker extends EventEmitter {
         );
 
         // IMPORTANT: Mark as error first, then retry will reset it to pending
-        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
-        this.store.retryFailedJob(job.id);
+        await this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        await this.store.retryFailedJob(job.id);
       } else {
         // Mark as error if max retries reached
-        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        await this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
         this.emit(
           "job:error",
           { ...job, status: "error", error: errorMessage },
@@ -253,12 +263,12 @@ export class VideoWorker extends EventEmitter {
   /**
    * Get worker statistics
    */
-  getStats() {
+  async getStats() {
     return {
       maxConcurrent: this.maxConcurrent,
       pollInterval: this.pollInterval,
       isRunning: !!this.intervalId,
-      processingCount: this.store.countProcessingJobs(),
+      processingCount: await this.store.countProcessingJobs(),
     };
   }
 }

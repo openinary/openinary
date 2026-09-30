@@ -39,7 +39,7 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     );
 
     // Get job status first - if job is completed, we know the cache exists
-    const job = videoJobQueue.getJobByPath(filePath, params);
+    const job = await videoJobQueue.getJobByPath(filePath, params);
 
     logger.info(
       {
@@ -178,7 +178,7 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     const { filePath, params, cachePath } = resolveStatusTarget(c.req.path);
 
     // Get job status
-    const job = videoJobQueue.getJobByPath(filePath, params);
+    const job = await videoJobQueue.getJobByPath(filePath, params);
 
     if (!job) {
       // Job doesn't exist - check if optimized video exists in cache/storage
@@ -265,8 +265,8 @@ export function createVideoStatusRoute(deps: RouteDeps) {
    * GET /video-status-stats
    * Get queue statistics (for debugging)
    */
-  videoStatus.get("/stats", (c) => {
-    const stats = videoJobQueue.getStats();
+  videoStatus.get("/stats", async (c) => {
+    const stats = await videoJobQueue.getStats();
     return c.json(stats);
   });
 

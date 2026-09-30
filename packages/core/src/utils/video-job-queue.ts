@@ -102,7 +102,16 @@ export class VideoJobQueue extends EventEmitter {
     // Periodic cleanup (every 10 minutes). Started here rather than at
     // module load so it never runs against a not-yet-initialized worker.
     if (!this.cleanupInterval) {
-      this.cleanupInterval = setInterval(() => this.cleanup(), 10 * 60 * 1000);
+      this.cleanupInterval = setInterval(
+        () =>
+          this.cleanup().catch((error) => {
+            logger.error(
+              { error: (error as Error)?.message ?? error },
+              "Video job cleanup failed",
+            );
+          }),
+        10 * 60 * 1000,
+      );
     }
 
     logger.info("Video job queue initialized with background worker");
@@ -120,10 +129,10 @@ export class VideoJobQueue extends EventEmitter {
     priority: number = TRANSFORMATION_PRIORITY,
   ): Promise<string> {
     // Create job in database
-    const jobId = this.store.createJob(filePath, params, cachePath, priority);
+    const jobId = await this.store.createJob(filePath, params, cachePath, priority);
 
     // Emit created event
-    const job = this.store.getJobById(jobId);
+    const job = await this.store.getJobById(jobId);
     if (job) {
       this.emit("job:created", convertDBJob(job));
     }
@@ -134,33 +143,33 @@ export class VideoJobQueue extends EventEmitter {
   /**
    * Get job status
    */
-  getJob(jobId: string): VideoJob | null {
-    const dbJob = this.store.getJobById(jobId);
+  async getJob(jobId: string): Promise<VideoJob | null> {
+    const dbJob = await this.store.getJobById(jobId);
     return dbJob ? convertDBJob(dbJob) : null;
   }
 
   /**
    * Get job by file path and params
    */
-  getJobByPath(
+  async getJobByPath(
     filePath: string,
     params: ReturnType<typeof parseParams>,
-  ): VideoJob | null {
-    const dbJob = this.store.getJobByFileAndParams(filePath, params);
+  ): Promise<VideoJob | null> {
+    const dbJob = await this.store.getJobByFileAndParams(filePath, params);
     return dbJob ? convertDBJob(dbJob) : null;
   }
 
   /**
    * Clean up old completed/error jobs
    */
-  cleanup(): void {
-    this.store.cleanupOldJobs(JOB_CLEANUP_HOURS);
+  async cleanup(): Promise<void> {
+    await this.store.cleanupOldJobs(JOB_CLEANUP_HOURS);
   }
 
   /**
    * Get queue stats
    */
-  getStats() {
+  async getStats() {
     return this.store.getJobStats();
   }
 

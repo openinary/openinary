@@ -501,7 +501,7 @@ export class TransformService {
     cachePath: string,
   ): Promise<TransformResult> {
     // Check if already being processed
-    let existingJob = this.queue.getJobByPath(filePath, params);
+    let existingJob = await this.queue.getJobByPath(filePath, params);
     let shouldRequeue = false;
 
     if (existingJob) {
@@ -543,7 +543,9 @@ export class TransformService {
             "Job marked as completed but cache missing - resetting to pending",
           );
           try {
-            this.queue.getStore().updateJobStatus(existingJob.id, "pending", 0);
+            await this.queue
+              .getStore()
+              .updateJobStatus(existingJob.id, "pending", 0);
             shouldRequeue = true;
             existingJob = { ...existingJob, status: "pending" as const };
           } catch (error) {

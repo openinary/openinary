@@ -11,9 +11,9 @@ export function createQueueRoute(deps: RouteDeps) {
   /**
    * GET /queue/stats - Get queue statistics
    */
-  queue.get("/stats", (c) => {
+  queue.get("/stats", async (c) => {
     try {
-      const stats = store.getJobStats();
+      const stats = await store.getJobStats();
       return c.json(stats);
     } catch (error) {
       logger.error(
@@ -31,7 +31,7 @@ export function createQueueRoute(deps: RouteDeps) {
    *   - offset: number (default: 0)
    *   - status: JobStatus (optional filter)
    */
-  queue.get("/jobs", (c) => {
+  queue.get("/jobs", async (c) => {
     try {
       const limit = parseInt(c.req.query("limit") || "50", 10);
       const offset = parseInt(c.req.query("offset") || "0", 10);
@@ -39,9 +39,9 @@ export function createQueueRoute(deps: RouteDeps) {
 
       let jobs;
       if (status) {
-        jobs = store.getJobsByStatus(status, limit);
+        jobs = await store.getJobsByStatus(status, limit);
       } else {
-        jobs = store.getRecentJobs(limit, offset);
+        jobs = await store.getRecentJobs(limit, offset);
       }
 
       return c.json({
@@ -59,7 +59,7 @@ export function createQueueRoute(deps: RouteDeps) {
   /**
    * POST /queue/jobs/:id/retry - Retry a failed job
    */
-  queue.post("/jobs/:id/retry", (c) => {
+  queue.post("/jobs/:id/retry", async (c) => {
     try {
       const jobId = c.req.param("id");
 
@@ -67,7 +67,7 @@ export function createQueueRoute(deps: RouteDeps) {
         return c.json({ error: "Job ID is required" }, 400);
       }
 
-      const success = store.retryFailedJob(jobId);
+      const success = await store.retryFailedJob(jobId);
 
       if (!success) {
         return c.json({ error: "Failed to retry job" }, 400);
@@ -84,7 +84,7 @@ export function createQueueRoute(deps: RouteDeps) {
   /**
    * POST /queue/jobs/:id/cancel - Cancel a pending job
    */
-  queue.post("/jobs/:id/cancel", (c) => {
+  queue.post("/jobs/:id/cancel", async (c) => {
     try {
       const jobId = c.req.param("id");
 
@@ -92,7 +92,7 @@ export function createQueueRoute(deps: RouteDeps) {
         return c.json({ error: "Job ID is required" }, 400);
       }
 
-      const success = store.cancelJob(jobId);
+      const success = await store.cancelJob(jobId);
 
       if (!success) {
         return c.json({ error: "Failed to cancel job" }, 400);
@@ -109,7 +109,7 @@ export function createQueueRoute(deps: RouteDeps) {
   /**
    * DELETE /queue/jobs/:id - Delete a job
    */
-  queue.delete("/jobs/:id", (c) => {
+  queue.delete("/jobs/:id", async (c) => {
     try {
       const jobId = c.req.param("id");
 
@@ -117,7 +117,7 @@ export function createQueueRoute(deps: RouteDeps) {
         return c.json({ error: "Job ID is required" }, 400);
       }
 
-      const success = store.deleteJob(jobId);
+      const success = await store.deleteJob(jobId);
 
       if (!success) {
         return c.json({ error: "Failed to delete job" }, 400);
@@ -134,10 +134,10 @@ export function createQueueRoute(deps: RouteDeps) {
   /**
    * GET /queue/worker/stats - Get worker statistics
    */
-  queue.get("/worker/stats", (c) => {
+  queue.get("/worker/stats", async (c) => {
     try {
       const worker = videoJobQueue.getWorker();
-      const stats = worker.getStats();
+      const stats = await worker.getStats();
       return c.json(stats);
     } catch (error) {
       logger.error(

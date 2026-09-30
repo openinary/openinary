@@ -65,7 +65,7 @@ export async function deleteAssetCompletely(
 
     // Step 2: Delete all video jobs associated with this file
     try {
-      result.jobsDeleted = jobStore.deleteJobsByFilePath(filePath);
+      result.jobsDeleted = await jobStore.deleteJobsByFilePath(filePath);
       logger.debug(
         { filePath, count: result.jobsDeleted },
         "Deleted video jobs",

@@ -37,12 +37,12 @@ function normalizeParamsJson(params: unknown): string {
 export class SqliteVideoJobStore implements VideoJobStore {
   constructor(private db: Database.Database) {}
 
-  createJob(
+  async createJob(
     filePath: string,
     params: ReturnType<typeof parseParams>,
     cachePath: string,
     priority: number = 2,
-  ): string {
+  ): Promise<string> {
     const jobId = randomUUID();
     const paramsJson = normalizeParamsJson(params);
     const now = Date.now();
@@ -101,7 +101,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getNextPendingJob(): VideoJob | null {
+  async getNextPendingJob(): Promise<VideoJob | null> {
     try {
       const getAndUpdate = this.db.transaction(() => {
         const job = this.db
@@ -146,12 +146,12 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  updateJobStatus(
+  async updateJobStatus(
     jobId: string,
     status: JobStatus,
     progress?: number,
     error?: string,
-  ): void {
+  ): Promise<void> {
     try {
       const updates: string[] = ["status = ?"];
       const values: any[] = [status];
@@ -190,10 +190,10 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobByFileAndParams(
+  async getJobByFileAndParams(
     filePath: string,
     params: ReturnType<typeof parseParams>,
-  ): VideoJob | null {
+  ): Promise<VideoJob | null> {
     try {
       const paramsJson = normalizeParamsJson(params);
       const job = this.db
@@ -212,7 +212,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobById(jobId: string): VideoJob | null {
+  async getJobById(jobId: string): Promise<VideoJob | null> {
     try {
       const job = this.db
         .prepare("SELECT * FROM video_jobs WHERE id = ?")
@@ -228,7 +228,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobStats(): JobStats {
+  async getJobStats(): Promise<JobStats> {
     try {
       const stats = this.db
         .prepare(
@@ -249,7 +249,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getRecentJobs(limit: number = 50, offset: number = 0): VideoJob[] {
+  async getRecentJobs(limit: number = 50, offset: number = 0): Promise<VideoJob[]> {
     try {
       return this.db
         .prepare(
@@ -265,7 +265,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobsByStatus(status: JobStatus, limit: number = 50): VideoJob[] {
+  async getJobsByStatus(status: JobStatus, limit: number = 50): Promise<VideoJob[]> {
     try {
       return this.db
         .prepare(
@@ -281,7 +281,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  countProcessingJobs(): number {
+  async countProcessingJobs(): Promise<number> {
     try {
       const result = this.db
         .prepare(
@@ -299,7 +299,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  cleanupOldJobs(olderThanHours: number = 24): number {
+  async cleanupOldJobs(olderThanHours: number = 24): Promise<number> {
     try {
       const cutoffTime = Date.now() - olderThanHours * 60 * 60 * 1000;
 
@@ -328,9 +328,9 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  retryFailedJob(jobId: string): boolean {
+  async retryFailedJob(jobId: string): Promise<boolean> {
     try {
-      const job = this.getJobById(jobId);
+      const job = await this.getJobById(jobId);
 
       if (!job) {
         logger.warn({ jobId }, "Cannot retry: job not found");
@@ -379,9 +379,9 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  cancelJob(jobId: string): boolean {
+  async cancelJob(jobId: string): Promise<boolean> {
     try {
-      const job = this.getJobById(jobId);
+      const job = await this.getJobById(jobId);
 
       if (!job) {
         logger.warn({ jobId }, "Cannot cancel: job not found");
@@ -413,7 +413,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  deleteJob(jobId: string): boolean {
+  async deleteJob(jobId: string): Promise<boolean> {
     try {
       const result = this.db
         .prepare("DELETE FROM video_jobs WHERE id = ?")
@@ -435,7 +435,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  resetOrphanedProcessingJobs(): number {
+  async resetOrphanedProcessingJobs(): Promise<number> {
     try {
       const result = this.db
         .prepare(
@@ -462,7 +462,7 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  deleteJobsByFilePath(filePath: string): number {
+  async deleteJobsByFilePath(filePath: string): Promise<number> {
     try {
       const result = this.db
         .prepare("DELETE FROM video_jobs WHERE file_path = ?")
