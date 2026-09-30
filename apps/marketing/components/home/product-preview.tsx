@@ -13,10 +13,13 @@ import { cn } from "@/lib/utils";
  * old 2196x1698 product shot it replaces.
  *
  * It comes in a light and a dark cut. CSS picks the one on screen (the `dark`
- * class next-themes sets before paint), so the right cut shows from the first
- * frame with no hydration guess. Both are preload="none" and only the shown
- * one is played, so the hidden cut never downloads. Switching theme mid-play
- * hands over to the other cut at the same moment, sound state included.
+ * class next-themes sets), so the right cut shows from the first frame with no
+ * hydration guess. Which cut to *play* follows next-themes' resolvedTheme, not
+ * the DOM: in production the class can land after this effect has run, and
+ * reading visibility then played the hidden light cut on dark pages. Both are
+ * preload="none" and only the matching one is played, so the other never
+ * downloads. Switching theme mid-play hands over at the same moment, sound
+ * state included.
  *
  * The film itself is not a link: a hover veil over it hid the film just as
  * people moved in to watch. The Cloud CTA is a quiet link instead, sharing a
@@ -44,9 +47,8 @@ const FILMS = [
   },
 ] as const;
 
-/** The cut CSS currently displays (offsetParent is null under display: none). */
-const shownFilm = (films: (HTMLVideoElement | null)[]) =>
-  films.find((v) => v?.offsetParent != null) ?? null;
+/** Index in FILMS of the cut for a resolved theme (CSS shows the same one). */
+const cutFor = (theme: string) => (theme === "dark" ? 1 : 0);
 
 /** Both cuts, so a theme switch keeps the sound where the visitor left it. */
 const muteAll = (films: (HTMLVideoElement | null)[], muted: boolean) => {
@@ -60,9 +62,10 @@ export function ProductPreview() {
   const mutedRef = useRef(true);
   const { resolvedTheme } = useTheme();
 
-  // On mount and on every theme change: play the shown cut, park the other.
+  // Once the theme is known, and on every change: play its cut, park the other.
   useEffect(() => {
-    const v = shownFilm(films.current);
+    if (!resolvedTheme) return;
+    const v = films.current[cutFor(resolvedTheme)];
     if (!v) return;
     for (const other of films.current) {
       if (!other || other === v) continue;
@@ -78,7 +81,8 @@ export function ProductPreview() {
   }, [resolvedTheme]);
 
   function toggleSound() {
-    const v = shownFilm(films.current);
+    if (!resolvedTheme) return;
+    const v = films.current[cutFor(resolvedTheme)];
     if (!v) return;
     if (v.muted) v.currentTime = 0;
     const next = !v.muted;
