@@ -1,6 +1,6 @@
 "use client";
 
-import { Spinner, UserAvatar } from "@openinary/ui";
+import { Spinner } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, LogOut, Settings, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { UsagePanel } from "@/components/sidebar/nav-plan";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -72,63 +73,54 @@ export function BucketSwitcher() {
               <ChevronDown className="size-3.5!" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
+          {/* The sidebar's own width, flush under the trigger, so the menu
+              reads as the header opening rather than as a popup beside it. */}
           <DropdownMenuContent
-            className="min-w-60 rounded-lg"
+            className="w-58"
             side="bottom"
             align="start"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Buckets
+            <DropdownMenuLabel className="truncate">
+              Signed in as {user?.email ?? userName}
             </DropdownMenuLabel>
-            {buckets?.map((b) => (
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Buckets</DropdownMenuLabel>
+              {buckets?.map((b) => (
+                <DropdownMenuItem
+                  key={b.id}
+                  disabled={isSwitching}
+                  onSelect={() => {
+                    if (b.active) return;
+                    switchToBucket(b.id);
+                  }}
+                >
+                  <BucketAvatar id={b.id} size={16} className="rounded-[4px]" />
+                  <span className="flex-1 truncate">{b.name}</span>
+                  {switchingToId === b.id ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    b.active && <Check />
+                  )}
+                </DropdownMenuItem>
+              ))}
               <DropdownMenuItem
-                key={b.id}
                 disabled={isSwitching}
-                onSelect={() => {
-                  if (b.active) return;
-                  switchToBucket(b.id);
-                }}
+                onSelect={() => setSettingsTab("buckets")}
               >
-                <BucketAvatar id={b.id} size={20} />
-                <span className="flex-1 truncate">{b.name}</span>
-                {switchingToId === b.id ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  b.active && <Check className="size-4" />
-                )}
+                <Settings2 />
+                Manage buckets
               </DropdownMenuItem>
-            ))}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={isSwitching}
-              onSelect={() => setSettingsTab("buckets")}
-            >
-              <Settings2 className="size-4" />
-              Manage buckets
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="flex items-center gap-2 font-normal">
-              <UserAvatar
-                name={userName}
-                email={user?.email ?? ""}
-                image={user?.image ?? ""}
-                className="size-8 rounded-lg"
-              />
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{userName}</span>
-                <span className="truncate text-muted-foreground text-xs">
-                  {user?.email}
-                </span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="p-0 font-normal">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Usage this month</DropdownMenuLabel>
               <UsagePanel />
-            </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setSettingsTab("appearance")}>
-              <Settings className="size-4" />
+              <Settings />
               Settings
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -139,7 +131,7 @@ export function BucketSwitcher() {
                 });
               }}
             >
-              <LogOut className="size-4" />
+              <LogOut />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

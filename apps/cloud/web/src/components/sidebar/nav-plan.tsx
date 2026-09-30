@@ -26,41 +26,27 @@ export function UsagePanel() {
 
   if (isLoading || !data) {
     return (
-      <div className="w-full space-y-1.5 px-1 py-1.5">
-        <Skeleton className="h-5 w-full" />
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-full" />
+      <div className="space-y-1 px-2 pb-1">
+        {FEATURES.map((feature) => (
+          <Skeleton className="h-5 w-full" key={feature.id} />
+        ))}
       </div>
     );
   }
 
+  // Rows on the menu's grid: the gauge sits in the icon column, so the
+  // labels line up with every other item's text.
   return (
-    <div className="w-full space-y-1.5 px-1 py-1.5">
-      {data.planId === "free" && (
-        <div className="mb-4 flex w-full items-center justify-between">
-          <span className="font-medium text-muted-foreground text-xs">
-            Free Trial
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={() => setSettingsTab("plan")}
-          >
-            Upgrade
-          </Button>
-        </div>
-      )}
-
+    <div className="pb-1">
       {FEATURES.map((feature) => {
         const usage = data.features[feature.id];
         const percentage = usage.unlimited ? 0 : pct(usage.used, usage.granted);
         return (
           <div
             key={feature.id}
-            className="flex w-full items-center justify-between text-xs"
+            className="flex h-7 items-center gap-2.5 px-2 text-[13px]"
           >
-            <div className="flex items-center gap-2">
+            <span className="flex size-4 shrink-0 items-center justify-center">
               {/* A metered plan has no wall to warn about, so no gauge and no
                   red: this menu is a glance at consumption, the plan tab has
                   the money. */}
@@ -74,11 +60,11 @@ export function UsagePanel() {
                   }
                 />
               )}
-              <span className="font-medium text-muted-foreground">
-                {feature.short}
-              </span>
-            </div>
-            <span className="font-medium">
+            </span>
+            <span className="flex-1 truncate text-muted-foreground">
+              {feature.short}
+            </span>
+            <span className="font-medium tabular-nums">
               {isMetered || usage.unlimited
                 ? feature.format(usage.used)
                 : `${feature.format(usage.used)} / ${feature.format(usage.granted)}`}
@@ -86,6 +72,18 @@ export function UsagePanel() {
           </div>
         );
       })}
+      {data.planId === "free" && (
+        <div className="px-1 pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setSettingsTab("plan")}
+          >
+            Upgrade
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

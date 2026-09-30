@@ -18,7 +18,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { UserAvatar } from "@openinary/ui"
 
 interface UserDropdownProps {
   userName: string
@@ -50,24 +49,15 @@ export function UserDropdown({
 
   return (
     <DropdownMenuContent
-      className="min-w-56 rounded-lg"
+      // The sidebar's own width, flush under the trigger, so the menu reads as
+      // the header opening rather than as a popup beside it.
+      className="w-58"
       side="bottom"
       align="start"
       sideOffset={4}
     >
-      <DropdownMenuLabel className="p-0 font-normal">
-        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-          <UserAvatar
-            name={userName}
-            email={userEmail}
-            image={userAvatar}
-            className="h-8 w-8 rounded-lg"
-          />
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{userName}</span>
-            <span className="truncate text-xs">{userEmail}</span>
-          </div>
-        </div>
+      <DropdownMenuLabel className="truncate">
+        Signed in as {userEmail || userName}
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
