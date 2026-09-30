@@ -109,6 +109,17 @@ export {
 } from "./settings/usage-dashboard";
 export { StorageTab } from "./settings/storage-tab";
 
+// First-run onboarding (cloud and self-hosted)
+export {
+  Onboarding,
+  ONBOARDING_ROLES,
+  ONBOARDING_SOURCES,
+  ONBOARDING_USE_CASES,
+  type OnboardingAnswers,
+  type OnboardingProps,
+  type OnboardingVariant,
+} from "./onboarding/onboarding";
+
 // File uploader (presigned direct upload)
 export { FileUploader, type FileUploaderProps } from "./file-uploader/file-uploader";
 export {
