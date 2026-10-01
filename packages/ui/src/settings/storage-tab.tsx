@@ -9,6 +9,7 @@ import { Skeleton } from "../ui/skeleton";
 import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
 import { cn } from "../lib/utils";
+import { SettingsList, SettingsRow, SettingsSection } from "./settings-section";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -37,109 +38,107 @@ export function StorageTab() {
   const recalculate = useRecalculateStorageStats();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const stat = (size?: number, count?: number, noun = "file") =>
+    isLoading ? (
+      <Skeleton className="h-5 w-32" />
+    ) : (
+      <>
+        <span className="font-medium tabular-nums">
+          {formatBytes(size ?? 0)}
+        </span>
+        <span className="ml-2 text-muted-foreground tabular-nums">
+          {count ?? 0} {noun}
+          {(count ?? 0) === 1 ? "" : "s"}
+        </span>
+      </>
+    );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          View your storage usage and manage cached transformations.
-        </p>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0"
-          title="Recalculate from storage"
-          disabled={isLoading || recalculate.isPending}
-          onClick={() =>
-            toast.promise(recalculate.mutateAsync(), {
-              loading: "Recalculating storage",
-              success: "Storage stats recalculated",
-              error: (error) =>
-                error instanceof Error
-                  ? error.message
-                  : "Failed to recalculate stats",
-            })
-          }
-        >
-          <RefreshCw
-            className={cn("size-4", recalculate.isPending && "animate-spin")}
-          />
-        </Button>
-      </div>
-
-      {isError ? (
-        <p className="text-sm text-destructive">
-          Failed to load storage information.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border p-4">
-              <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                <HardDrive className="size-4" />
-                <span className="text-xs font-medium">Storage used</span>
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-7 w-24" />
-              ) : (
-                <p className="text-xl font-semibold tracking-tight">
-                  {formatBytes(data?.storage.size ?? 0)}
-                </p>
-              )}
-              {!isLoading && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {data?.storage.fileCount ?? 0} file
-                  {(data?.storage.fileCount ?? 0) === 1 ? "" : "s"}
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-lg border p-4">
-              <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                <Database className="size-4" />
-                <span className="text-xs font-medium">Cache</span>
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-7 w-24" />
-              ) : (
-                <p className="text-xl font-semibold tracking-tight">
-                  {formatBytes(data?.cache.size ?? 0)}
-                </p>
-              )}
-              {!isLoading && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {data?.cache.fileCount ?? 0} cached file
-                  {(data?.cache.fileCount ?? 0) === 1 ? "" : "s"}
-                </p>
-              )}
-            </div>
-          </div>
-          {!isLoading && data?.updatedAt && (
-            <p className="text-xs text-muted-foreground">
-              Updated {formatUpdatedAt(data.updatedAt)}
-            </p>
-          )}
-        </div>
-      )}
+      <SettingsSection
+        title="Usage"
+        description="View your storage usage and manage cached transformations."
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            title="Recalculate from storage"
+            disabled={isLoading || recalculate.isPending}
+            onClick={() =>
+              toast.promise(recalculate.mutateAsync(), {
+                loading: "Recalculating storage",
+                success: "Storage stats recalculated",
+                error: (error) =>
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to recalculate stats",
+              })
+            }
+          >
+            <RefreshCw
+              className={cn("size-4", recalculate.isPending && "animate-spin")}
+            />
+            Recalculate
+          </Button>
+        }
+      >
+        {isError ? (
+          <p className="text-sm text-destructive">
+            Failed to load storage information.
+          </p>
+        ) : (
+          <>
+            <SettingsList>
+              <SettingsRow
+                label={
+                  <span className="flex items-center gap-2">
+                    <HardDrive className="size-4 text-muted-foreground" />
+                    Storage used
+                  </span>
+                }
+              >
+                {stat(data?.storage.size, data?.storage.fileCount)}
+              </SettingsRow>
+              <SettingsRow
+                label={
+                  <span className="flex items-center gap-2">
+                    <Database className="size-4 text-muted-foreground" />
+                    Cache
+                  </span>
+                }
+              >
+                {stat(data?.cache.size, data?.cache.fileCount, "cached file")}
+              </SettingsRow>
+            </SettingsList>
+            {!isLoading && data?.updatedAt && (
+              <p className="text-xs text-muted-foreground">
+                Updated {formatUpdatedAt(data.updatedAt)}
+              </p>
+            )}
+          </>
+        )}
+      </SettingsSection>
 
       <Separator />
 
-      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-        <div>
-          <p className="text-sm font-medium">Clear cache</p>
-          <p className="text-xs text-muted-foreground">
-            Removes all cached image and video transformations. Original files
-            are not affected.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => setConfirmOpen(true)}
-          disabled={isLoading || (data?.cache.fileCount ?? 0) === 0}
-        >
-          <Trash2 className="size-4" />
-          Clear
-        </Button>
-      </div>
+      <SettingsSection title="Cache">
+        <SettingsList>
+          <SettingsRow
+            label="Clear cache"
+            description="Removes all cached image and video transformations. Original files are not affected."
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmOpen(true)}
+              disabled={isLoading || (data?.cache.fileCount ?? 0) === 0}
+            >
+              <Trash2 className="size-4" />
+              Clear
+            </Button>
+          </SettingsRow>
+        </SettingsList>
+      </SettingsSection>
 
       <DeleteConfirmDialog
         isOpen={confirmOpen}

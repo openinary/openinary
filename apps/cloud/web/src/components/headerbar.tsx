@@ -38,18 +38,18 @@ export default function HeaderBar({
   const [folderPath, setFolderPath] = useQueryState("folder");
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 shadow-[0_1px_0_0_oklch(0_0_0/0.06),0_2px_4px_-2px_oklch(0_0_0/0.04)] transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 dark:shadow-[0_1px_0_0_oklch(1_0_0/0.08),0_2px_4px_-2px_oklch(0_0_0/0.4)]">
+    <header className="flex h-12 shrink-0 items-center gap-2 shadow-[0_1px_0_0_oklch(0_0_0/0.06),0_2px_4px_-2px_oklch(0_0_0/0.04)] transition-[width,height] ease-linear dark:shadow-[0_1px_0_0_oklch(1_0_0/0.08),0_2px_4px_-2px_oklch(0_0_0/0.4)]">
       {/* Padding tracks the grid's own @2xl/main step below, so the breadcrumb
           stays aligned with the first column at every panel width. */}
       <div className="flex w-full items-center justify-between gap-2 @2xl/main:px-6 px-4">
         <div className="flex min-w-0 items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1 md:hidden" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-2 data-[orientation=vertical]:h-4 md:hidden"
           />
           <Breadcrumb className="min-w-0">
-            {/* Nowrap: wrapping would break the fixed h-16 header, so deep
+            {/* Nowrap: wrapping would break the fixed h-12 header, so deep
                 folder paths scroll horizontally instead. */}
             <BreadcrumbList className="flex-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <BreadcrumbItem className="shrink-0">
@@ -121,13 +121,13 @@ export default function HeaderBar({
                   />
                 </div>
               )}
-              {/* 32px total to match Upload: 28px buttons + 1px padding + 1px
-                  border. Outer radius = inner radius + padding: 8 + 1 = 9px. */}
-              <div className="flex items-center rounded-[9px] border border-border p-px">
+              {/* 36px total to match Upload: 32px buttons + 1px padding + 1px
+                  border. Outer radius = inner radius + padding: 10 + 1 = 11px. */}
+              <div className="flex items-center rounded-[11px] border border-border p-px shadow-xs">
                 <Button
                   variant={view === "grid" ? "secondary" : "ghost"}
                   size="icon"
-                  className="before:-inset-y-1 relative size-7 before:absolute before:inset-x-0 before:content-['']"
+                  className="before:-inset-y-1 relative size-8 before:absolute before:inset-x-0 before:content-['']"
                   onClick={() => onViewChange?.("grid")}
                   aria-label="Grid view"
                   aria-pressed={view === "grid"}
@@ -137,7 +137,7 @@ export default function HeaderBar({
                 <Button
                   variant={view === "list" ? "secondary" : "ghost"}
                   size="icon"
-                  className="before:-inset-y-1 relative size-7 before:absolute before:inset-x-0 before:content-['']"
+                  className="before:-inset-y-1 relative size-8 before:absolute before:inset-x-0 before:content-['']"
                   onClick={() => onViewChange?.("list")}
                   aria-label="List view"
                   aria-pressed={view === "list"}

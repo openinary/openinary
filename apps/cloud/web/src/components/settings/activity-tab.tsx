@@ -1,16 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Info } from "lucide-react";
-import { useState } from "react";
-
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+  type UsageColumn,
+  UsageCell,
+  UsageDashboard,
+  type UsageEvent,
+  UsageTable,
+  UsageTime,
+} from "@openinary/ui";
+import { useQuery } from "@tanstack/react-query";
+import { Info } from "lucide-react";
+
 import {
   Tooltip,
   TooltipContent,
@@ -50,33 +50,6 @@ type VideoJob = {
   metered: boolean;
 };
 
-// Only the outcomes a customer can act on get colour. A cache hit is the
-// normal, cheap case and should read as unremarkable.
-const CACHE_STYLE: Record<Delivery["c"], string> = {
-  HIT: "text-muted-foreground",
-  MISS: "text-foreground",
-  ORIGINAL: "text-amber-700 dark:text-amber-400",
-  NONE: "text-destructive",
-};
-
-function formatClock(ms: number) {
-  return new Date(ms).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function formatTime(ms: number) {
-  return new Date(ms).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
 function formatSeconds(seconds: number) {
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
@@ -98,105 +71,15 @@ function deliveryCost(delivery: Delivery): number {
   );
 }
 
-/** One log line: a single row, with the rest of the record behind it. */
-function LogRow({
-  time,
-  tag,
-  tagClassName,
-  path,
-  right,
-  details,
-}: {
-  time: number;
-  tag: string;
-  tagClassName?: string;
-  path: string;
-  right: string;
-  details: [string, string][];
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Collapsible
-      className="border-b last:border-0"
-      onOpenChange={setOpen}
-      open={open}
-    >
-      <CollapsibleTrigger className="flex w-full items-center gap-2 px-2 py-1 text-left font-mono text-xs hover:bg-muted/50">
-        <ChevronRight
-          className={cn(
-            "size-3 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-90",
-          )}
-        />
-        <span className="shrink-0 text-muted-foreground tabular-nums">
-          {formatClock(time)}
-        </span>
-        <span className={cn("w-20 shrink-0 truncate", tagClassName)}>
-          {tag}
-        </span>
-        <span className="min-w-0 flex-1 truncate">{path}</span>
-        <span className="shrink-0 text-muted-foreground tabular-nums">
-          {right}
-        </span>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 bg-muted/30 px-2 py-2 pl-7 font-mono text-xs">
-          {details.map(([label, value]) => (
-            <div className="contents" key={label}>
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className="min-w-0 break-all">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function LogPanel({
-  isLoading,
-  isEmpty,
-  empty,
-  children,
-}: {
-  isLoading: boolean;
-  isEmpty: boolean;
-  empty: string;
-  children: React.ReactNode;
-}) {
-  if (isLoading) {
-    return (
-      <div className="mt-3 space-y-1">
-        {[0, 1, 2, 3, 4].map((row) => (
-          <Skeleton key={row} className="h-6 w-full" />
-        ))}
-      </div>
-    );
-  }
-  if (isEmpty) {
-    return (
-      <p className="mt-3 rounded-lg border border-dashed px-4 py-6 text-center text-muted-foreground text-xs">
-        {empty}
-      </p>
-    );
-  }
-  return (
-    <div className="mt-3 max-h-80 overflow-y-auto rounded-lg border">
-      {children}
-    </div>
-  );
-}
-
 export function ActivityTab() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     ...orpc.usage.activity.queryOptions(),
     // The log is live by construction: the meter serves the current window
     // out of memory, so a refetch always reflects traffic from a second ago.
     refetchInterval: 10_000,
   });
 
-  // Pay as you go needs a metered plan (see plan-tab): on Free nothing served
+  // Pay as you go needs a metered plan (see billing-tab): on Free nothing served
   // here can ever cost anything, so a column of $0.00 would be noise at best
   // and a scare at worst. Shares its cache with the Plan tab, so this costs no
   // round-trip.
@@ -206,127 +89,120 @@ export function ActivityTab() {
   const deliveries = (data?.deliveries ?? []) as Delivery[];
   const videoJobs = (data?.videoJobs ?? []) as VideoJob[];
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="font-medium text-sm">Delivery log</p>
-        <p className="mt-1 text-muted-foreground text-xs">
-          The last 500 assets served from your public URLs. Expand a line for
-          the bucket, the cache outcome and what it added to your usage.
-        </p>
+  const events: UsageEvent[] = deliveries.map((delivery, index) => {
+    const cost = deliveryCost(delivery);
+    const slash = delivery.p.indexOf("/");
+    const first = slash === -1 ? "" : delivery.p.slice(0, slash);
+    // A transformation segment is key_value pairs; a folder is not.
+    const transformed = /^[a-z]+_[^/]+$/.test(first);
+    return {
+      id: `${delivery.t}-${index}`,
+      time: delivery.t,
+      status: delivery.s,
+      kind: delivery.k,
+      file: transformed ? delivery.p.slice(slash + 1) : delivery.p,
+      transform: transformed ? first : "",
+      extra: {
+        Bucket: delivery.b,
+        Cache: delivery.c,
+        Usage: deliveryUsage(delivery),
+        ...(showCost && { Cost: cost > 0 ? formatUsd(cost) : "-" }),
+      },
+    };
+  });
 
-        {isError ? (
-          <p className="mt-3 text-destructive text-sm">
-            Failed to load activity.
-          </p>
-        ) : (
-          <LogPanel
-            empty="Nothing served yet. Requests to your public asset URLs show up here within a few seconds."
-            isEmpty={deliveries.length === 0}
-            isLoading={isLoading}
-          >
-            {deliveries.map((delivery) => {
-              const cost = deliveryCost(delivery);
-              return (
-                <LogRow
-                  details={[
-                    ["when", formatTime(delivery.t)],
-                    ["bucket", delivery.b],
-                    ["path", delivery.p],
-                    ["type", delivery.k],
-                    ["cache", delivery.c],
-                    ["usage", deliveryUsage(delivery)],
-                    ...(showCost
-                      ? ([["cost", formatUsd(cost)]] as [string, string][])
-                      : []),
-                  ]}
-                  key={`${delivery.t}-${delivery.p}-${delivery.s}`}
-                  path={delivery.p}
-                  right={showCost && cost > 0 ? formatUsd(cost) : ""}
-                  tag={`${delivery.s} ${delivery.c}`}
-                  tagClassName={CACHE_STYLE[delivery.c]}
-                  time={delivery.t}
-                />
-              );
-            })}
-          </LogPanel>
-        )}
-      </div>
-
-      <Separator />
-
-      <div>
-        <p className="flex items-center gap-1 font-medium text-sm">
-          Video processing
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                aria-label="About video processing time"
-                className="text-muted-foreground transition-colors hover:text-foreground"
-                type="button"
-              >
-                <Info className="size-3" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64">
-              Time is the wall clock the transcoder actually spent on the job,
-              not the length of your video. It is the exact quantity billed, so
-              this figure and your Video processing usage always agree.
-            </TooltipContent>
-          </Tooltip>
-        </p>
-        <p className="mt-1 text-muted-foreground text-xs">
-          Every transcode this account has run, with the processing time each
-          one was charged for.
-        </p>
-
-        <LogPanel
-          empty="No video has been processed yet."
-          isEmpty={videoJobs.length === 0}
-          isLoading={isLoading}
+  const jobColumns: UsageColumn<VideoJob>[] = [
+    { header: "Time", cell: (job) => <UsageTime time={job.createdAt} /> },
+    {
+      header: "Status",
+      cell: (job) => (
+        <span
+          className={cn(
+            job.status === "failed" && "text-destructive",
+            job.status === "processing" && "text-shimmer",
+          )}
         >
-          {videoJobs.map((job) => {
-            const cost =
+          {job.status}
+        </span>
+      ),
+    },
+    {
+      header: "File",
+      className: "max-w-0 w-full",
+      cell: (job) => <UsageCell detail={job.params || "-"} value={job.path} />,
+    },
+    { header: "Bucket", className: "whitespace-nowrap", cell: (job) => job.bucket },
+    {
+      header: "Billed",
+      className: "whitespace-nowrap tabular-nums",
+      cell: (job) =>
+        job.seconds === null
+          ? "not yet measured"
+          : `${formatSeconds(job.seconds)}${job.metered ? "" : " (pending)"}`,
+    },
+    ...(showCost
+      ? [
+          {
+            header: "Cost",
+            className: "whitespace-nowrap tabular-nums",
+            cell: (job: VideoJob) =>
               job.seconds === null
-                ? 0
-                : job.seconds * (RATES.video_processing_seconds ?? 0);
-            return (
-              <LogRow
-                details={[
-                  ["when", formatTime(job.createdAt)],
-                  ["bucket", job.bucket],
-                  ["path", job.path],
-                  ["transform", job.params || "-"],
-                  [
-                    "billed",
-                    job.seconds === null
-                      ? "not yet measured"
-                      : `${formatSeconds(job.seconds)}${job.metered ? "" : " (pending)"}`,
-                  ],
-                  ...(showCost
-                    ? ([["cost", formatUsd(cost)]] as [string, string][])
-                    : []),
-                  ["job", job.id],
-                ]}
-                key={job.id}
-                path={job.path}
-                right={
-                  job.seconds === null
-                    ? ""
-                    : formatSeconds(job.seconds) +
-                      (showCost ? ` · ${formatUsd(cost)}` : "")
-                }
-                tag={job.status}
-                tagClassName={cn(
-                  job.status === "failed" && "text-destructive",
-                  job.status === "processing" && "text-shimmer",
-                )}
-                time={job.createdAt}
-              />
-            );
-          })}
-        </LogPanel>
-      </div>
+                ? "-"
+                : formatUsd(
+                    job.seconds * (RATES.video_processing_seconds ?? 0),
+                  ),
+          },
+        ]
+      : []),
+  ];
+
+  return (
+    <div className="space-y-8">
+      <UsageDashboard
+        events={events}
+        isError={isError}
+        isLoading={isLoading}
+        isRefreshing={isFetching}
+        limit={500}
+        onRefresh={() => refetch()}
+      />
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="flex items-center gap-1 font-semibold text-sm">
+            Video processing
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  aria-label="About video processing time"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  type="button"
+                >
+                  <Info className="size-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64">
+                Time is the wall clock the transcoder actually spent on the
+                job, not the length of your video. It is the exact quantity
+                billed, so this figure and your Video processing usage always
+                agree.
+              </TooltipContent>
+            </Tooltip>
+          </h3>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Every transcode this account has run, with the processing time each
+            one was charged for.
+          </p>
+        </div>
+        <UsageTable
+          columns={jobColumns}
+          empty="No video has been processed yet."
+          isError={isError}
+          isLoading={isLoading}
+          rowKey={(job) => job.id}
+          rows={videoJobs}
+        />
+      </section>
 
       {showCost && (
         <p className="text-muted-foreground text-xs">

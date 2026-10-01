@@ -29,13 +29,13 @@ export default function HeaderBar({
   const [folderPath, setFolderPath] = useQueryState("folder");
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b">
       <div className="flex items-center justify-between w-full px-4">
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1 md:hidden" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-2 data-[orientation=vertical]:h-4 md:hidden"
           />
           <Breadcrumb>
             <BreadcrumbList>
@@ -92,11 +92,11 @@ export default function HeaderBar({
           {view === "grid" && (
             <ColumnCountSlider value={columns} onChange={onColumnsChange} />
           )}
-          <div className="flex items-center rounded-md border border-border p-0.5">
+          <div className="flex items-center rounded-[11px] border border-border p-px shadow-xs">
             <Button
               variant={view === "grid" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="size-8"
               onClick={() => onViewChange?.("grid")}
               aria-label="Grid view"
             >
@@ -105,7 +105,7 @@ export default function HeaderBar({
             <Button
               variant={view === "list" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="size-8"
               onClick={() => onViewChange?.("list")}
               aria-label="List view"
             >

@@ -55,7 +55,7 @@ export function UploaderNudge({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div
       className={cn(
-        "mb-1 overflow-hidden rounded-lg border bg-black/[0.04] group-data-[collapsible=icon]:hidden dark:bg-black/20",
+        "overflow-hidden rounded-lg border bg-black/[0.04] dark:bg-black/20",
         FADE_IN,
       )}
     >

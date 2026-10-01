@@ -1,7 +1,7 @@
 "use client"
 
-import { useQueryState } from "nuqs"
-import { ChevronsUpDown } from "lucide-react"
+import { ChevronDown } from "lucide-react"
+import Image from "next/image"
 import { useSession } from "@/lib/auth-client"
 import {
   DropdownMenu,
@@ -12,42 +12,26 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { UserAvatar } from "@openinary/ui"
+import { useOnboardingState } from "@/components/onboarding-gate"
 import { UserDropdown } from "./user-dropdown"
-import { SettingsDialog } from "./settings-dialog"
 
 export function NavUser() {
   const { data, isPending } = useSession()
-  const [, setTab] = useQueryState("settings")
+  const workspace = useOnboardingState().data?.workspace
 
   const user = data?.user
   const userName = user?.name || user?.email?.split("@")[0] || "User"
   const userEmail = user?.email || ""
   const userAvatar = user?.image || ""
 
-  const handleAccountClick = () => {
-    setTab("account")
-  }
-
-  const handleApiKeysClick = () => {
-    setTab("api-keys")
-  }
-
-  const handleStorageClick = () => {
-    setTab("storage")
-  }
-
   // Show loading state or nothing if no user
   if (isPending) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled>
-            <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-              <div className="h-3 w-32 bg-muted rounded animate-pulse mt-1" />
-            </div>
+          <SidebarMenuButton disabled className="group-data-[collapsible=icon]:p-1.5!">
+            <div className="size-5 shrink-0 rounded-full bg-muted animate-pulse" />
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -59,43 +43,39 @@ export function NavUser() {
   }
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="min-w-0 flex-1">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <UserAvatar
-                name={userName}
-                email={userEmail}
-                image={userAvatar}
-                className="h-8 w-8 rounded-lg"
-              />
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{userName}</span>
-                <span className="truncate text-xs">{userEmail}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+            <SidebarMenuButton className="w-fit max-w-full text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!">
+              {workspace?.logo ? (
+                <img
+                  src={workspace.logo}
+                  alt=""
+                  className="size-5 shrink-0 rounded-md object-cover"
+                />
+              ) : (
+                <Image
+                  src="/icon.svg"
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="size-5 shrink-0 dark:invert"
+                />
+              )}
+              <span className="truncate font-medium">
+                {workspace?.name ?? "Openinary"}
+              </span>
+              <ChevronDown className="size-3.5!" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <UserDropdown
             userName={userName}
             userEmail={userEmail}
             userAvatar={userAvatar}
-            onAccountClick={handleAccountClick}
-            onApiKeysClick={handleApiKeysClick}
-            onStorageClick={handleStorageClick}
           />
         </DropdownMenu>
       </SidebarMenuItem>
-
-      <SettingsDialog
-        userName={userName}
-        userEmail={userEmail}
-        userAvatar={userAvatar}
-      />
     </SidebarMenu>
   )
 }

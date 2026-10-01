@@ -136,7 +136,7 @@
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.945 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
@@ -202,4 +202,125 @@ span:has(> [data-slot="slider-thumb"]) {
   transition:
     left 150ms ease-out,
     right 150ms ease-out;
+}
+
+/* The FileUploader demo on Get started (uploader-card.tsx). One 7s cycle, one
+   set of keyframes: the second file re-runs all of these with a delay rather
+   than owning any of its own. Percentages are of the 7s, so read them as a
+   timeline - drop at 0.6s, rows in at ~1.5s, filling until ~3.2s, done, gone
+   at 6.5s. Nudge one and its neighbours have to move with it. */
+@keyframes uploader-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.92);
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(-14px) scale(1);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  17%,
+  100% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+
+/* The press, at the frame the file lands. Sits on the arrow alone so the label
+   beside it doesn't rock, and anchored top-left so the tip stays put. */
+@keyframes uploader-cursor {
+  0%,
+  9% {
+    transform: none;
+  }
+  12% {
+    transform: scale(0.86);
+  }
+  15%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes uploader-zone {
+  0%,
+  4% {
+    border-color: var(--input);
+    background-color: transparent;
+  }
+  9%,
+  15% {
+    border-color: var(--primary);
+    background-color: var(--accent);
+  }
+  22%,
+  100% {
+    border-color: var(--input);
+    background-color: transparent;
+  }
+}
+
+@keyframes uploader-row {
+  0%,
+  15% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  22%,
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  97%,
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@keyframes uploader-fill {
+  0%,
+  22% {
+    width: 0%;
+  }
+  44%,
+  100% {
+    width: 100%;
+  }
+}
+
+/* Full at 44%, held for a beat, then swapped for "Uploaded" - the bar has to
+   land before it fades or the upload reads as cut short. */
+@keyframes uploader-progress {
+  0%,
+  46% {
+    opacity: 1;
+  }
+  52%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes uploader-done {
+  0%,
+  46% {
+    opacity: 0;
+  }
+  52%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Unlayered, so it beats the animate-[...] utilities without !important. The
+   markup's own resting state is the finished upload, so cutting the animation
+   leaves a still of two uploaded files rather than an empty box. */
+@media (prefers-reduced-motion: reduce) {
+  [data-uploader-demo] * {
+    animation: none;
+  }
 }

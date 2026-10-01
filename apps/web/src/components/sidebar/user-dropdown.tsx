@@ -1,13 +1,6 @@
 "use client"
 
-import {
-  Globe,
-  HardDrive,
-  KeyRound,
-  LogOut,
-  Settings,
-  Star,
-} from "lucide-react"
+import { Globe, LogOut, Star } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signOut } from "@/lib/auth-client"
@@ -18,27 +11,21 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { useSidebar } from "@/components/ui/sidebar"
-import { UserAvatar } from "@openinary/ui"
 
 interface UserDropdownProps {
   userName: string
   userEmail: string
   userAvatar: string
-  onAccountClick: () => void
-  onApiKeysClick: () => void
-  onStorageClick: () => void
 }
+
+// Only what the sidebar doesn't already link to: Settings sits in its footer,
+// API keys, Logs and Storage in its navigation.
 
 export function UserDropdown({
   userName,
   userEmail,
   userAvatar,
-  onAccountClick,
-  onApiKeysClick,
-  onStorageClick,
 }: UserDropdownProps) {
-  const { isMobile } = useSidebar()
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -52,40 +39,18 @@ export function UserDropdown({
 
   return (
     <DropdownMenuContent
-      className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-      side={isMobile ? "bottom" : "right"}
-      align="end"
+      // The sidebar's own width, flush under the trigger, so the menu reads as
+      // the header opening rather than as a popup beside it.
+      className="w-58"
+      side="bottom"
+      align="start"
       sideOffset={4}
     >
-      <DropdownMenuLabel className="p-0 font-normal">
-        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-          <UserAvatar
-            name={userName}
-            email={userEmail}
-            image={userAvatar}
-            className="h-8 w-8 rounded-lg"
-          />
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{userName}</span>
-            <span className="truncate text-xs">{userEmail}</span>
-          </div>
-        </div>
+      <DropdownMenuLabel className="truncate">
+        Signed in as {userEmail || userName}
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
-        <DropdownMenuItem onClick={onAccountClick}>
-          <Settings />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onApiKeysClick}>
-          <KeyRound />
-          API Keys
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onStorageClick}>
-          <HardDrive />
-          Storage
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="https://github.com/openinary/openinary" target="_blank" rel="noopener noreferrer">
             <Star />

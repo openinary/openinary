@@ -138,7 +138,9 @@ export async function getUsage(
     features[featureId] = balance
       ? {
           granted: balance.granted,
-          used: balance.usage,
+          // Negative when a balance was credited past its grant (a manual
+          // top-up, or deletes refunded after a reset). Nothing was used.
+          used: Math.max(0, balance.usage),
           remaining: balance.remaining,
           unlimited: balance.unlimited,
           resetsAt: balance.nextResetAt ?? null,
@@ -314,6 +316,54 @@ export type AdminBilling = {
     hostedInvoiceUrl: string | null;
   }[];
 };
+
+/**
+ * Daily consumption of the features that reset monthly, from `start` until
+ * now: what the billing page draws its spend curve from. Storage is left out
+ * on purpose: it is cumulative and goes down on deletes, so its daily sums are
+ * net changes, not consumption. Bins are UTC days (autumn-js 1.2.43 has no
+ * timezone option), and values are units, not money.
+ */
+export async function getUsageHistory(
+  userId: string,
+  start: number,
+): Promise<{ day: number; values: Partial<Record<UsageFeatureId, number>> }[]> {
+  const { list } = await autumn.events.aggregate({
+    customerId: userId,
+    featureId: USAGE_FEATURE_IDS.filter((id) => id !== "storage_mb"),
+    customRange: { start, end: Date.now() },
+    binSize: "day",
+  });
+  return list.map((bin) => ({ day: bin.period, values: bin.values }));
+}
+
+/**
+ * The card on file, for the plan card. Autumn hands back Stripe's own
+ * PaymentMethod object untyped, so this reads it defensively: anything but a
+ * card (Link, SEPA, bank account) comes back as just its type.
+ */
+export async function getPaymentMethod(
+  userId: string,
+): Promise<{
+  type: string;
+  brand: string | null;
+  last4: string | null;
+} | null> {
+  const customer = await autumn.customers.get({
+    customerId: userId,
+    expand: ["payment_method"],
+  });
+  const method = customer.paymentMethod as
+    | { type?: string; card?: { brand?: string; last4?: string } }
+    | null
+    | undefined;
+  if (!method?.type) return null;
+  return {
+    type: method.type,
+    brand: method.card?.brand ?? null,
+    last4: method.card?.last4 ?? null,
+  };
+}
 
 /**
  * The billing facts the customer's own plan tab never shows: invoice history

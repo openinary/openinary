@@ -92,6 +92,10 @@ export class UsageMeter extends DurableObject<Env> {
   // token, i.e. one their own app sent rather than one dropped into our
   // dashboard. Onboarding, not money - see markApiUpload.
   #apiUpload = false;
+  // Whether the account has been through the first-run questionnaire. Same
+  // reasoning as #apiUpload: per-account, read with the Get started state,
+  // one write ever.
+  #onboarded = false;
 
   constructor(ctx: DurableObjectState<Env>, env: Env) {
     super(ctx, env);
@@ -107,6 +111,7 @@ export class UsageMeter extends DurableObject<Env> {
       this.#unconfirmed =
         (await ctx.storage.get<Unconfirmed>("unconfirmed")) ?? {};
       this.#apiUpload = (await ctx.storage.get<boolean>("apiUpload")) ?? false;
+      this.#onboarded = (await ctx.storage.get<boolean>("onboarded")) ?? false;
       this.#alarmAt = await ctx.storage.getAlarm();
     });
   }
@@ -229,6 +234,16 @@ export class UsageMeter extends DurableObject<Env> {
     return this.#apiUpload;
   }
 
+  async markOnboarded(): Promise<void> {
+    if (this.#onboarded) return;
+    this.#onboarded = true;
+    await this.ctx.storage.put("onboarded", true);
+  }
+
+  async onboarded(): Promise<boolean> {
+    return this.#onboarded;
+  }
+
   /**
    * Drops everything this instance holds for the account. Called only when an
    * admin deletes the account outright (see DELETE /admin/users/:userId in
@@ -247,6 +262,7 @@ export class UsageMeter extends DurableObject<Env> {
     this.#seen.clear();
     this.#unconfirmed = {};
     this.#apiUpload = false;
+    this.#onboarded = false;
     this.#flushDueAt = 0;
     this.#alarmAt = null;
     await this.ctx.storage.deleteAlarm();

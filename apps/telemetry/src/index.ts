@@ -21,6 +21,8 @@ export interface Env {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COUNT_BUCKETS = new Set(["0", "1-10", "11-100", "101-1000", "1000+"]);
 const MAX_STRING_LEN = 64;
+// Onboarding answers are option ids, never free text.
+const SLUG_RE = /^[a-z0-9-]{1,40}$/;
 
 type Validator = (properties: Record<string, unknown>) => boolean;
 
@@ -59,6 +61,18 @@ const EVENT_SCHEMAS: Record<string, Validator> = {
       (p.storage_backend === "s3" || p.storage_backend === "local") &&
       typeof p.video_jobs_bucket === "string" &&
       COUNT_BUCKETS.has(p.video_jobs_bucket)
+    );
+  },
+  onboarding_completed: (p) => {
+    if (!sameKeys(p, ["role", "use_cases", "source"])) return false;
+    return (
+      typeof p.role === "string" &&
+      SLUG_RE.test(p.role) &&
+      Array.isArray(p.use_cases) &&
+      p.use_cases.length <= 20 &&
+      p.use_cases.every((v) => typeof v === "string" && SLUG_RE.test(v)) &&
+      typeof p.source === "string" &&
+      SLUG_RE.test(p.source)
     );
   },
 };

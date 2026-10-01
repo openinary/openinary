@@ -7,7 +7,7 @@ import posthog from "posthog-js";
 import { Suspense, useEffect, useRef } from "react";
 
 import { DashboardOpeninaryProvider } from "@/components/dashboard-openinary-provider";
-import { SettingsDialog } from "@/components/settings-dialog";
+import { OnboardingGate } from "@/components/onboarding-gate";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { BucketSwitchProvider } from "@/components/sidebar/bucket-switch-context";
 import SignInForm from "@/components/sign-in-form";
@@ -41,9 +41,6 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Lives here rather than in a page: every route can deep-link the
-          dialog through ?settings=..., and /get-started/integrate does. */}
-      <SettingsDialog />
       <AppSidebar onMediaSelect={handleMediaSelect} />
       <SidebarInset>{children}</SidebarInset>
     </>
@@ -111,6 +108,7 @@ export function AppShell({
             >
               <ShellContent>{children}</ShellContent>
             </Suspense>
+            <OnboardingGate />
           </BucketSwitchProvider>
         </SidebarProvider>
       </DashboardOpeninaryProvider>

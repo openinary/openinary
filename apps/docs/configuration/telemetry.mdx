@@ -3,7 +3,7 @@ title: "Telemetry"
 description: "Exactly what anonymous usage data Openinary sends, where it goes, and how to turn it off"
 ---
 
-Openinary sends two anonymous events with a fixed set of properties. No file names, media content, URLs, or user data, ever. Turn it off with one variable:
+Openinary sends three anonymous events with a fixed set of properties. No file names, media content, URLs, or user data, ever. Turn it off with one variable:
 
 ```bash
 OPENINARY_TELEMETRY=false
@@ -17,10 +17,13 @@ Any value other than the exact string `false` leaves it on. The rest of this pag
 | --- | --- | --- |
 | `instance_started` | Once, on an instance's first ever boot | `version`, `deployment_mode`, `storage_backend`, `os_platform`, `os_arch`, `node_version` |
 | `daily_heartbeat` | Every ~24h while the process runs | `version`, `deployment_mode`, `storage_backend`, `video_jobs_bucket` |
+| `onboarding_completed` | Once per account, when it finishes the first-run questionnaire | `role`, `use_cases`, `source` |
+
+The onboarding answers are the ids of the options picked (for example `solo`, `images`, `github`), or `skipped`. The name, workspace name and pictures typed into the same form stay on your instance.
 
 Counts are never raw numbers. They are bucketed into `0`, `1-10`, `11-100`, `101-1000` and `1000+`.
 
-Both events carry an `instance_id`, a UUID that cannot be reversed into anything about you or your data. When `BETTER_AUTH_SECRET` is at least 32 characters and not the known placeholder, the id is a salted SHA-256 of that secret, truncated into UUID shape. That is the normal case, and because it is derived rather than stored it survives a database wipe, which stops one instance being counted as many. Otherwise a random UUID is generated once and stored locally. Rotating the secret produces a new id and the old one simply stops reporting.
+Every event carries an `instance_id`, a UUID that cannot be reversed into anything about you or your data. When `BETTER_AUTH_SECRET` is at least 32 characters and not the known placeholder, the id is a salted SHA-256 of that secret, truncated into UUID shape. That is the normal case, and because it is derived rather than stored it survives a database wipe, which stops one instance being counted as many. Otherwise a random UUID is generated once and stored locally. Rotating the secret produces a new id and the old one simply stops reporting.
 
 ## Where it goes
 

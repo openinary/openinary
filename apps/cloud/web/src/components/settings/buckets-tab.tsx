@@ -1,13 +1,21 @@
 "use client";
 
-import { DefaultDialog, formatFileSize, Spinner } from "@openinary/ui";
+import {
+  DefaultDialog,
+  formatFileSize,
+  SettingsActions,
+  SettingsField,
+  SettingsList,
+  SettingsSection,
+  Spinner,
+} from "@openinary/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { BucketAvatar } from "@/components/bucket-avatar";
-import { useSettingsDialog } from "@/components/settings/use-settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +64,7 @@ export function BucketsTab() {
   const queryClient = useQueryClient();
   const buckets = useQuery(orpc.bucket.list.queryOptions());
   const quota = useQuery(orpc.bucket.quota.queryOptions());
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const { isSwitching, switchingToId, switchToBucket } = useBucketSwitch();
 
   const [newName, setNewName] = useState("");
@@ -146,19 +154,12 @@ export function BucketsTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="font-medium text-sm">Buckets</p>
-        <p className="mt-1 text-muted-foreground text-xs">
-          Each bucket is a separate space for your media - files, folders and
-          transforms never cross between them. Only one is active at a time; API
-          keys are pinned to a single bucket at creation.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <form onSubmit={handleCreate} className="flex items-end gap-2">
-          <label className="flex-1 space-y-1">
-            <span className="text-muted-foreground text-xs">New bucket</span>
+      <form onSubmit={handleCreate}>
+        <SettingsSection
+          title="Create a bucket"
+          description="Each bucket is a separate space for your media - files, folders and transforms never cross between them. Only one is active at a time; API keys are pinned to a single bucket at creation."
+        >
+          <SettingsField label="Bucket name">
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -166,17 +167,7 @@ export function BucketsTab() {
               maxLength={60}
               disabled={!canCreate}
             />
-          </label>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={
-              create.isPending || isSwitching || !canCreate || !newName.trim()
-            }
-          >
-            {create.isPending || isSwitching ? "Creating…" : "Create"}
-          </Button>
-        </form>
+          </SettingsField>
         {!quota.data && (
           <p className="text-muted-foreground text-xs">
             {quota.isError
@@ -194,7 +185,7 @@ export function BucketsTab() {
                 <button
                   type="button"
                   className="underline underline-offset-2 hover:text-foreground"
-                  onClick={() => setSettingsTab("plan")}
+                  onClick={() => setSettingsTab("billing")}
                 >
                   Upgrade for more
                 </button>
@@ -203,36 +194,49 @@ export function BucketsTab() {
             )}
           </p>
         )}
-      </div>
+          <SettingsActions>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                create.isPending || isSwitching || !canCreate || !newName.trim()
+              }
+            >
+              {create.isPending || isSwitching ? "Creating…" : "Create bucket"}
+            </Button>
+          </SettingsActions>
+        </SettingsSection>
+      </form>
 
       <Separator />
 
-      <div>
-        <p className="font-medium text-sm">Your buckets</p>
+      <SettingsSection
+        title="Your buckets"
+        description="Click a name to rename it. Deleting a bucket deletes its files."
+      >
         {buckets.isLoading ? (
-          <div className="mt-3 space-y-2">
+          <div className="space-y-2">
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
           </div>
         ) : buckets.isError ? (
-          <p className="mt-3 text-destructive text-sm">
+          <p className="text-destructive text-sm">
             Failed to load buckets.
           </p>
         ) : (
-          <div className="mt-3 overflow-hidden rounded-lg border">
+          <SettingsList>
             {buckets.data?.map((bucket) => (
               <div
                 key={bucket.id}
-                className="flex items-center gap-3 border-b px-3 py-2.5 text-xs last:border-0"
+                className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm"
               >
-                <BucketAvatar name={bucket.name} size={28} />
+                <BucketAvatar id={bucket.id} size={28} />
                 <div className="min-w-0 flex-1">
                   {renamingId === bucket.id ? (
                     <Input
                       autoFocus
                       value={renameValue}
                       maxLength={60}
-                      className="text-xs"
                       onChange={(e) => setRenameValue(e.target.value)}
                       onBlur={() => commitRename(bucket.id, bucket.name)}
                       onKeyDown={(e) => {
@@ -257,14 +261,14 @@ export function BucketsTab() {
                       )}
                     </button>
                   )}
-                  <p className="mt-0.5 truncate px-1 text-muted-foreground">
+                  <p className="mt-0.5 truncate px-1 text-[13px] text-muted-foreground">
                     {describeFootprint(bucket)} · created{" "}
                     {new Date(bucket.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {bucket.active ? (
-                    <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                    <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs">
                       Active
                     </span>
                   ) : (
@@ -305,9 +309,9 @@ export function BucketsTab() {
                 </div>
               </div>
             ))}
-          </div>
+          </SettingsList>
         )}
-      </div>
+      </SettingsSection>
 
       {/* DeleteConfirmDialog has no type-to-confirm field, and this one is
           worth the friction: it takes every file in the bucket with it. */}

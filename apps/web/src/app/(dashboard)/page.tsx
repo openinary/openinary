@@ -112,7 +112,7 @@ function HomePageContent() {
               />
               <div
                 ref={scrollContainerRef}
-                className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto h-[calc(100vh-64px)] overflow-y-scoll"
+                className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto h-[calc(100vh-48px)] overflow-y-scoll"
               >
                 <MediaGrid
                   onMediaSelect={handleMediaSelect}
