@@ -13,7 +13,7 @@ export default function TermsPage() {
   return (
     <PageShell>
       <PageIntro
-        eyebrow="Last updated July 24, 2026"
+        eyebrow="Last updated October 1, 2026"
         title="Terms of Service"
         lede="These terms govern your use of the Openinary Cloud service."
       />
@@ -110,6 +110,10 @@ export default function TermsPage() {
               <li>
                 Child sexual abuse material, which we report to the competent authorities without
                 notice
+              </li>
+              <li>
+                Pornographic or sexually explicit content, even where it is legal and involves
+                consenting adults
               </li>
               <li>
                 Content that infringes copyright, trademarks, privacy or any other third party
