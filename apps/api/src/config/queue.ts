@@ -16,9 +16,10 @@ import { getDb } from "shared/db";
  * module is imported at load time (server.ts imports `videoJobQueue`
  * before initDb() has run), but the client only exists after initDb()
  * succeeds. Deferring getDb() keeps module-import order from crashing
- * boot; server.ts awaits initDb() before serving traffic, and a worker
- * poll that races ahead of init fails soft and retries on the next tick
- * (getNextPendingJob et al. catch + log, per VideoJobStore contract).
+ * boot; server.ts main() invokes videoJobQueue.initialize() only after
+ * await initDb() and before serve(), so no store access precedes DB init
+ * (method calls that would still race fail soft and retry on the next
+ * tick — getNextPendingJob et al. catch + log, per VideoJobStore contract).
  */
 function createLazyStore(): VideoJobStore {
   let inner: PrismaVideoJobStore | undefined;

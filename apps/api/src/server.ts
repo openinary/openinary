@@ -45,9 +45,6 @@ dirs.forEach((dir) => {
   }
 });
 
-// Initialize video job queue with storage client
-videoJobQueue.initialize(getSharedStorage());
-
 // Initialize authentication and generate API key if needed (only in standalone mode)
 async function initializeAuth() {
   try {
@@ -145,6 +142,9 @@ async function main() {
   // Apply migrations + connect + construct better-auth BEFORE serving traffic.
   const { initDb } = await import("shared/db");
   await initDb();
+
+  // Must run after initDb(): VideoWorker.start() hits the store synchronously.
+  videoJobQueue.initialize(getSharedStorage());
 
   // Start server so healthcheck can respond quickly
   serve({
