@@ -3,7 +3,7 @@
 The self-hosted Openinary dashboard: a Next.js 15 app for browsing media,
 managing API keys and watching the video queue. It talks to `apps/api` over
 HTTP and shares auth configuration with it through `packages/shared`, so both
-read the same SQLite database.
+read the same PostgreSQL database.
 
 Most of the interface comes from [`@openinary/ui`](../../packages/ui). Fix a
 component there and it lands here and in the Cloud dashboard at once.

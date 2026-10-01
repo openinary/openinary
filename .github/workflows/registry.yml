@@ -81,6 +81,12 @@ jobs:
       - name: Test the upload signature the registry helper depends on
         run: pnpm --filter @openinary/core test
 
+      - name: Test api (health)
+        run: pnpm --filter api test
+
+      - name: Test web (setup routes)
+        run: pnpm --filter web test
+
       # The output is not committed: marketing's prebuild regenerates public/r
       # on every build, so this only proves the registry builds from source.
       - name: Build registry

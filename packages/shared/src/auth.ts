@@ -16,8 +16,8 @@ import { getDb } from "./db/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// projectRoot = packages/shared/src -> repo root (used only for the root .env fallback)
-const projectRoot = path.resolve(__dirname, "../../../..");
+// projectRoot = packages/shared/{src|dist} -> repo root (used only for the root .env fallback)
+const projectRoot = path.resolve(__dirname, "../../..");
 
 // Load BETTER_AUTH_SECRET from root .env if not already in process.env.
 // This avoids duplicating the secret in each app's individual .env file.
