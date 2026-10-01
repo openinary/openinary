@@ -131,8 +131,13 @@ function toVideoJob(row: VideoJobRow): VideoJob {
  *   boundary. The claimed row records `claimed_by` (this store instance's
  *   worker id) and `heartbeat_at` (claim time).
  * - **Leases**: a claimed job keeps its lease by refreshing `heartbeat_at`.
- *   `updateJobStatus(jobId, "processing", progress)` refreshes the heartbeat
- *   on every progress callback, so a live worker's rows stay fresh.
+ *   The worker runs a per-job interval (60s in video-worker.ts) calling
+ *   `updateJobStatus(jobId, "processing")`; each such update refreshes
+ *   `heartbeat_at` and is FENCED — it only applies when `claimed_by` still
+ *   matches this store's worker id (or is NULL), so a heartbeat from a worker
+ *   whose lease was lost no-ops rather than resurrecting a stolen row.
+ *   Jobs outliving one heartbeat interval therefore stay fresh through
+ *   `resetOrphanedProcessingJobs`.
  * - **Stale reclaim** (`resetOrphanedProcessingJobs`) only resets
  *   `processing` rows whose heartbeat is older than `LEASE_TTL_MS` (or
  *   NULL — rows claimed before leases existed / reset paths). Fresh rows
@@ -298,7 +303,19 @@ export class PrismaVideoJobStore implements VideoJobStore {
       }
 
       values.push(jobId);
-      const query = `UPDATE video_jobs SET ${sets.join(", ")} WHERE id = $${values.length}`;
+      let query = `UPDATE video_jobs SET ${sets.join(", ")} WHERE id = $${values.length}`;
+
+      // Lease fencing for heartbeats: a "processing" update may only refresh
+      // a row this store's worker still holds (or one no one holds). A
+      // heartbeat arriving after the lease was lost (row reclaimed by another
+      // worker) no-ops instead of resurrecting the stolen row. Terminal and
+      // pending transitions stay unfenced — external routes (retry/cancel)
+      // and convergence depend on them.
+      if (status === "processing") {
+        query += ` AND (claimed_by = $${values.length + 1} OR claimed_by IS NULL)`;
+        values.push(this.workerId);
+      }
+
       await this.db.$executeRawUnsafe(query, ...values);
 
       logger.debug({ jobId, status, progress }, "Updated job status");

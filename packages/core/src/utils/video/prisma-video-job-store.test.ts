@@ -171,7 +171,7 @@ describeDb("PrismaVideoJobStore — method parity", () => {
   });
 
   it("heartbeat: updateJobStatus(processing) refreshes heartbeat_at", async () => {
-    await insertRow(client, { id: "j-hb", heartbeat_at: BigInt(1), claimed_by: "old-worker" });
+    await insertRow(client, { id: "j-hb", heartbeat_at: BigInt(1) });
     const before = await rawRow(client, "j-hb");
     await new Promise((r) => setTimeout(r, 5));
     await store.updateJobStatus("j-hb", "processing", 10);
@@ -365,6 +365,60 @@ describeDb("PrismaVideoJobStore — lease safety", () => {
 
     const bystander = await rawRow(client, "j-pending-bystander");
     assert.equal(bystander.status, "pending");
+  });
+
+  it("heartbeat keeps a live claimed row fresh through another instance's resetOrphanedProcessingJobs", async () => {
+    await cleanTable(client);
+    await insertRow(client, { id: "j-lease-live" });
+    // Instance A claims via the real claim path (sets claimed_by + heartbeat).
+    const storeA = new PrismaVideoJobStore(client, "worker-a");
+    const claimed = await storeA.getNextPendingJob();
+    assert.ok(claimed, "claim should find the pending row");
+    // Fresh heartbeat like the worker's interval would produce.
+    await storeA.updateJobStatus(claimed.id, "processing", 42);
+
+    const storeB = new PrismaVideoJobStore(client, "worker-b");
+    const reset = await storeB.resetOrphanedProcessingJobs();
+    assert.equal(reset, 0, "fresh leased row must not be reclaimed");
+
+    const row = await rawRow(client, claimed.id);
+    assert.equal(row.status, "processing");
+    assert.equal(row.claimed_by, "worker-a");
+    assert.equal(row.progress, 42);
+  });
+
+  it("fencing: foreign worker's processing update no-ops; owner's refreshes", async () => {
+    await cleanTable(client);
+    await insertRow(client, { id: "j-fence" });
+    const storeA = new PrismaVideoJobStore(client, "worker-a");
+    const claimed = await storeA.getNextPendingJob();
+    assert.ok(claimed);
+    const before = await rawRow(client, claimed.id);
+    assert.equal(before.claimed_by, "worker-a");
+    assert.ok(before.heartbeat_at);
+
+    // Worker B (lost the race / stale heartbeat) must not touch A's row.
+    const storeB = new PrismaVideoJobStore(client, "worker-b");
+    await storeB.updateJobStatus(claimed.id, "processing", 99);
+    const fenced = await rawRow(client, claimed.id);
+    assert.equal(fenced.claimed_by, "worker-a", "claim stays with A");
+    assert.equal(fenced.status, "processing");
+    assert.equal(fenced.progress, before.progress, "no fields overwritten");
+    assert.equal(
+      String(fenced.heartbeat_at),
+      String(before.heartbeat_at),
+      "heartbeat unchanged",
+    );
+
+    // A's own heartbeat DOES apply.
+    await new Promise((r) => setTimeout(r, 5));
+    await storeA.updateJobStatus(claimed.id, "processing", 50);
+    const refreshed = await rawRow(client, claimed.id);
+    assert.equal(refreshed.progress, 50);
+    assert.ok(
+      Number(refreshed.heartbeat_at) > Number(before.heartbeat_at),
+      "owner's heartbeat refreshes",
+    );
   });
 });
 

@@ -7,6 +7,13 @@ import type { VideoJob, VideoJobStore } from "./queue-store";
 import { MAX_CONCURRENT_JOBS, WORKER_POLL_INTERVAL_MS } from "./config";
 import { contentTypeForFormat, determineOutputFormat } from "./format";
 
+/**
+ * How often a job being processed refreshes its lease heartbeat. Must stay
+ * well under LEASE_TTL_MS (300s) in prisma-video-job-store.ts so a long job
+ * never looks dead to resetOrphanedProcessingJobs.
+ */
+const JOB_HEARTBEAT_INTERVAL_MS = 60_000;
+
 export interface WorkerEvents {
   "job:created": (job: VideoJob) => void;
   "job:started": (job: VideoJob) => void;
@@ -168,6 +175,21 @@ export class VideoWorker extends EventEmitter {
     // Emit started event
     this.emit("job:started", job);
 
+    // Keep the lease alive while the job runs: refresh heartbeat_at so no
+    // replica's resetOrphanedProcessingJobs steals a long-running job.
+    const hb = setInterval(() => {
+      this.store
+        .updateJobStatus(job.id, "processing")
+        .catch((error) => {
+          logger.error(
+            { error: serializeError(error), jobId: job.id },
+            "Failed to refresh job lease heartbeat",
+          );
+        });
+    }, JOB_HEARTBEAT_INTERVAL_MS);
+    // Mirror the poll-interval discipline: never hold the process open.
+    hb.unref();
+
     try {
       // Parse params from JSON
       const params = JSON.parse(job.params_json);
@@ -257,6 +279,8 @@ export class VideoWorker extends EventEmitter {
           error as Error,
         );
       }
+    } finally {
+      clearInterval(hb);
     }
   }
 
