@@ -48,6 +48,25 @@ const DAY = 86_400_000;
 // would turn one busy afternoon into an alarming number.
 const MIN_DAYS_TO_PROJECT = 2;
 
+/**
+ * The same moment one month earlier, clamped to the end of a shorter month the
+ * way billing anchors are: a period ending Oct 31 began Sep 30, where a bare
+ * setMonth would overflow to Oct 1.
+ */
+function monthBefore(ms: number) {
+  const date = new Date(ms);
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() - 1);
+  const lastDay = new Date(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    0,
+  ).getDate();
+  date.setDate(Math.min(day, lastDay));
+  return date.getTime();
+}
+
 // Autumn timestamps are epoch milliseconds.
 const shortDate = (ms: number) =>
   new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -79,6 +98,158 @@ const TONE_FILL: Record<Tone, string> = {
   warning: "bg-amber-500",
   danger: "bg-destructive",
 };
+
+/**
+ * The period on one axis: the line so far, a dashed run to where the current
+ * pace lands at the end, and, on a capped plan, where the allowance stops.
+ * Drawn in a 0-100 viewBox stretched to fit; dots and labels are HTML so they
+ * keep their shape at any width.
+ */
+function PeriodChart({
+  points,
+  start,
+  end,
+  projected,
+  limit,
+  format,
+}: {
+  points: { t: number; v: number }[];
+  start: number;
+  end: number;
+  projected: number | null;
+  limit: number | null;
+  format: (value: number) => string;
+}) {
+  const last = points[points.length - 1];
+  const top =
+    Math.max(...points.map((p) => p.v), projected ?? 0, limit ?? 0) * 1.15 ||
+    1;
+  const x = (t: number) => ((t - start) / (end - start)) * 100;
+  const y = (v: number) => 100 - (v / top) * 100;
+  const line = points
+    .map((p, i) => `${i ? "L" : "M"}${x(p.t)},${y(p.v)}`)
+    .join(" ");
+  const ticks: number[] = [];
+  for (let t = start; t < end - 5 * DAY; t += 7 * DAY) ticks.push(t);
+  ticks.push(end);
+
+  return (
+    <div className="mt-6">
+      <div className="flex gap-3">
+        <div className="relative h-36 flex-1">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="absolute inset-0 size-full overflow-visible"
+            aria-hidden
+          >
+            <path
+              d={`${line} L${x(last.t)},100 L${x(points[0].t)},100 Z`}
+              className="fill-foreground/5"
+            />
+            <line
+              x1="0"
+              x2="100"
+              y1="100"
+              y2="100"
+              className="stroke-border"
+              vectorEffect="non-scaling-stroke"
+            />
+            {limit !== null && (
+              <line
+                x1="0"
+                x2="100"
+                y1={y(limit)}
+                y2={y(limit)}
+                className="stroke-amber-500"
+                strokeDasharray="2 3"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+            {projected !== null && (
+              <line
+                x1={x(last.t)}
+                y1={y(last.v)}
+                x2="100"
+                y2={y(projected)}
+                className="stroke-muted-foreground"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+            <path
+              d={line}
+              fill="none"
+              className="stroke-foreground/70"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          <span
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground"
+            style={{ left: `${x(last.t)}%`, top: `${y(last.v)}%` }}
+          />
+          {projected !== null && (
+            <span
+              className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted-foreground"
+              style={{ left: "100%", top: `${y(projected)}%` }}
+            />
+          )}
+        </div>
+        <div className="relative w-16 shrink-0 text-[11px] text-muted-foreground tabular-nums">
+          {limit !== null && (
+            <span
+              className="absolute -translate-y-1/2 truncate text-amber-600 dark:text-amber-500"
+              style={{ top: `${y(limit)}%` }}
+            >
+              {format(limit)}
+            </span>
+          )}
+          {projected !== null && (
+            <span
+              className="absolute -translate-y-1/2 truncate"
+              style={{ top: `${y(projected)}%` }}
+            >
+              {format(projected)}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="relative mt-2 mr-19 h-4 text-[11px] text-muted-foreground">
+        {ticks.map((t, i) => (
+          <span
+            key={t}
+            className={cn(
+              "absolute whitespace-nowrap",
+              i === 0
+                ? ""
+                : i === ticks.length - 1
+                  ? "-translate-x-full"
+                  : "-translate-x-1/2",
+            )}
+            style={{ left: `${x(t)}%` }}
+          >
+            {shortDate(t)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const STORAGE = FEATURES.find((feature) => feature.id === "storage_mb");
+
+// The allowances read "1,000 / mo" in the catalog; inside a list already
+// headed "each month" the suffix is noise.
+const perMonth = (value: string) => value.replace(" / mo", "");
+// "Image transformations" -> "image transformations", "CDN requests" stays.
+const inSentence = (label: string) =>
+  label.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase());
+
+const capitalize = (value: string) =>
+  value.charAt(0).toUpperCase() + value.slice(1).replaceAll("_", " ");
 
 export function BillingTab() {
   const queryClient = useQueryClient();
@@ -128,9 +299,7 @@ export function BillingTab() {
     ) ??
     data?.renewsAt ??
     null;
-  const periodStart = periodEnd
-    ? new Date(periodEnd).setMonth(new Date(periodEnd).getMonth() - 1)
-    : null;
+  const periodStart = periodEnd ? monthBefore(periodEnd) : null;
   const now = Date.now();
   const totalDays =
     periodEnd && periodStart ? Math.round((periodEnd - periodStart) / DAY) : 0;
@@ -199,6 +368,72 @@ export function BillingTab() {
   const nearest = rows
     .filter((row) => row.capped)
     .sort((a, b) => b.ratio - a.ratio)[0];
+
+  const history = useQuery(
+    orpc.usage.history.queryOptions({
+      input: { start: periodStart ?? 0 },
+      enabled: periodStart !== null,
+    }),
+  );
+  const paymentMethod = useQuery({
+    ...orpc.billing.paymentMethod.queryOptions(),
+    enabled: isMetered,
+  });
+
+  // The curve: on a metered plan, what the period has cost so far; on a
+  // capped one, how far into its tightest monthly allowance it has gone.
+  const chartRow = isMetered
+    ? undefined
+    : rows
+        .filter((row) => row.capped && row.usage?.resetsAt !== null)
+        .sort((a, b) => b.ratio - a.ratio)[0];
+  // Storage has no daily history (see getUsageHistory), so its share of the
+  // bill is held at today's figure across the whole curve.
+  const storageCost =
+    isMetered && STORAGE
+      ? overUnits(data?.features.storage_mb) * STORAGE.rate
+      : 0;
+  const valueAt = (used: Partial<Record<string, number>>) =>
+    isMetered
+      ? monthly +
+        storageCost +
+        FEATURES.reduce((total, feature) => {
+          const usage = data?.features[feature.id];
+          if (!usage || feature.id === "storage_mb") return total;
+          return (
+            total +
+            overUnits({ ...usage, used: used[feature.id] ?? 0 }) * feature.rate
+          );
+        }, 0)
+      : chartRow
+        ? (used[chartRow.feature.id] ?? 0)
+        : 0;
+  let chartPoints: { t: number; v: number }[] | null = null;
+  if (periodStart !== null && history.data) {
+    const used: Record<string, number> = {};
+    chartPoints = [{ t: periodStart, v: valueAt(used) }];
+    for (const bin of [...history.data].sort((a, b) => a.day - b.day)) {
+      for (const [id, value] of Object.entries(bin.values)) {
+        used[id] = (used[id] ?? 0) + (value ?? 0);
+      }
+      chartPoints.push({ t: Math.min(now, bin.day + DAY), v: valueAt(used) });
+    }
+    // End on the live figure: the balances already count traffic that
+    // Autumn's event store has yet to aggregate.
+    chartPoints.push({
+      t: now,
+      v: isMetered ? spent : (chartRow?.usage?.used ?? 0),
+    });
+  }
+
+  const card = paymentMethod.data;
+  const cardText = card
+    ? card.last4
+      ? `${capitalize(card.brand ?? "card")} ending ${card.last4}`
+      : `${capitalize(card.type)} on file`
+    : paymentMethod.isSuccess
+      ? "No card on file"
+      : null;
 
   const handleUpgrade = async () => {
     const { paymentUrl } = await checkout.mutateAsync({});
@@ -284,6 +519,30 @@ export function BillingTab() {
             </p>
           )}
 
+          {chartPoints && periodStart !== null && periodEnd !== null && (
+            <>
+              {chartRow && (
+                <p className="mt-6 -mb-3 text-muted-foreground text-xs">
+                  {chartRow.feature.label} against the monthly allowance
+                </p>
+              )}
+              <PeriodChart
+                points={chartPoints}
+                start={periodStart}
+                end={periodEnd}
+                projected={
+                  !canProject
+                    ? null
+                    : isMetered
+                      ? projectedSpend
+                      : (chartRow?.projected ?? null)
+                }
+                limit={chartRow?.usage?.granted ?? null}
+                format={isMetered ? formatUsd : (chartRow?.feature.format ?? String)}
+              />
+            </>
+          )}
+
           <p className="mt-auto flex items-start gap-2 pt-6 text-sm">
             {exhausted ? (
               <>
@@ -348,6 +607,18 @@ export function BillingTab() {
                 : periodEnd
                   ? `Allowances reset ${shortDate(periodEnd)}`
                   : null}
+            {cardText && (
+              <>
+                {" · "}
+                <span
+                  className={cn(
+                    !card && "text-amber-600 dark:text-amber-500",
+                  )}
+                >
+                  {cardText}
+                </span>
+              </>
+            )}
           </p>
 
           {cancelsAt && (
@@ -373,10 +644,12 @@ export function BillingTab() {
                 <li key={feature.label} className="flex items-center gap-2">
                   <Check className="size-4 shrink-0 text-muted-foreground" />
                   <span className="tabular-nums">
-                    {isMetered ? feature[planColumn] : feature[paidPlan.column]}
+                    {perMonth(
+                      isMetered ? feature[planColumn] : feature[paidPlan.column],
+                    )}
                   </span>
                   <span className="text-muted-foreground">
-                    {feature.label.toLowerCase()}
+                    {inSentence(feature.label)}
                   </span>
                 </li>
               ))}
@@ -533,6 +806,9 @@ export function BillingTab() {
         {/* Plans */}
         <Card className="self-start">
           <p className="font-medium text-sm">Plans</p>
+          <p className="mt-1 text-muted-foreground text-[13px]">
+            Allowances are monthly, except storage and buckets.
+          </p>
           <div className="mt-4 text-sm">
             <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 border-b pb-2 text-muted-foreground">
               <span />
@@ -546,10 +822,10 @@ export function BillingTab() {
               >
                 <span className="truncate">{feature.label}</span>
                 <span className="w-16 text-right text-muted-foreground tabular-nums">
-                  {feature.free}
+                  {perMonth(feature.free)}
                 </span>
                 <span className="w-20 text-right tabular-nums">
-                  {feature[paidPlan.column]}
+                  {perMonth(feature[paidPlan.column])}
                 </span>
               </div>
             ))}

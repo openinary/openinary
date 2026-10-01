@@ -4,7 +4,9 @@ import { db } from "../db/index.js";
 import { captureEvent } from "../lib/analytics.js";
 import { videoJob } from "../db/schema/video-job.js";
 import {
+  getPaymentMethod,
   getUsage,
+  getUsageHistory,
   openBillingPortal,
   startUpgradeCheckout,
 } from "../lib/autumn.js";
@@ -52,6 +54,28 @@ export const usageRouter = {
     }
     return summary;
   }),
+
+  /**
+   * Daily usage since the start of the current period, for the spend curve.
+   * The client sends the start it already derives from usage.get, rather than
+   * this costing a second customer lookup; it is clamped to the last 35 days,
+   * which is all a monthly period can span.
+   */
+  history: protectedProcedure
+    .input(z.object({ start: z.number().int() }))
+    .handler(async ({ context, input }) => {
+      const earliest = Date.now() - 35 * 24 * 60 * 60 * 1000;
+      try {
+        return await getUsageHistory(
+          context.session.user.id,
+          Math.max(input.start, earliest),
+        );
+      } catch (error) {
+        // The curve is a nicety: without it the page still has every figure.
+        console.error("Failed to read usage history", error);
+        return [];
+      }
+    }),
 
   /**
    * The one Get started step nothing else can answer: has this account's own
@@ -226,6 +250,11 @@ export const billingRouter = {
     );
     return { paymentUrl };
   }),
+
+  /** Card brand and last four, or null without one on file. */
+  paymentMethod: protectedProcedure.handler(({ context }) =>
+    getPaymentMethod(context.session.user.id),
+  ),
 
   portal: protectedProcedure.handler(async ({ context }) => {
     const url = await openBillingPortal(
