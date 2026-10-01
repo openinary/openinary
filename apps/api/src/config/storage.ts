@@ -18,6 +18,10 @@ export function getStorageConfigFromEnv(): {
     bucketName: process.env.STORAGE_BUCKET_NAME || "",
     endpoint: process.env.STORAGE_ENDPOINT,
     publicUrl: process.env.STORAGE_PUBLIC_URL,
+    // Left undefined when unset so the default "public/" layout is preserved.
+    // Set STORAGE_PREFIX="" to store media at the bucket root, which is what
+    // lets Openinary serve a bucket whose layout it does not own.
+    prefix: process.env.STORAGE_PREFIX,
   };
 
   const clientOptions: StorageClientOptions = {

@@ -62,7 +62,7 @@ export function createDownloadFolderRoute(deps: RouteDeps) {
 
       if (storage) {
         // Cloud storage: list all objects under the prefix
-        const prefix = `public/${folderPath}/`;
+        const prefix = storage.mediaKey(`${folderPath}/`);
         const objects = await storage.list(prefix);
 
         if (objects.length === 0) {
@@ -70,8 +70,8 @@ export function createDownloadFolderRoute(deps: RouteDeps) {
         }
 
         for (const obj of objects) {
-          // obj.key looks like "public/videos/clip.mp4"
-          const relPath = obj.key.replace(`public/${folderPath}/`, "");
+          // obj.key looks like "<mediaPrefix>videos/clip.mp4"
+          const relPath = obj.key.replace(prefix, "");
           // Skip folder marker objects (empty keys or keys ending in /)
           if (!relPath || relPath.endsWith("/")) continue;
 
