@@ -27,7 +27,7 @@ export const FEATURES = [
     cloud: "50,000 / mo",
     overage: "$0.40 / 1,000",
     rate: 0.4 / 1000,
-    format: (n: number) => n.toLocaleString("en-US"),
+    format: (n: number) => Math.round(n).toLocaleString("en-US"),
   },
   {
     // Metered in seconds of container processing time, not source runtime -
@@ -53,7 +53,7 @@ export const FEATURES = [
     cloud: "1,500,000 / mo",
     overage: "$0.50 / 100,000",
     rate: 0.5 / 100_000,
-    format: (n: number) => n.toLocaleString("en-US"),
+    format: (n: number) => Math.round(n).toLocaleString("en-US"),
   },
 ] as const;
 
