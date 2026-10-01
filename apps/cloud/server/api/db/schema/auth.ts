@@ -45,9 +45,10 @@ export const session = pgTable("session", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  // Never written: impersonation is deliberately not exposed (see
-  // routers/admin.ts). The admin plugin declares the field regardless, and the
-  // drizzle adapter selects every declared field, so the column has to exist.
+  // Set on the sessions the admin panel opens to support a customer (better
+  // auth's /admin/impersonate-user): the admin's user id. The customer
+  // dashboard reads it to show its "viewing as" banner and to stay out of the
+  // customer's analytics and support identity.
   impersonatedBy: text("impersonated_by"),
 });
 
