@@ -2,7 +2,7 @@
 // (CI/local: docker pg + `prisma migrate deploy`). The missing-DATABASE_URL
 // case always runs.
 import assert from "node:assert/strict";
-import { after, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 // Fresh module instance per test group: node:test runs each file in its own
 // process, but initDb/getDb hold module state — import once and reset env
@@ -10,9 +10,11 @@ import { after, describe, it } from "node:test";
 import { getDb, initDb } from "./index";
 
 const originalUrl = process.env.DATABASE_URL;
+const originalSecret = process.env.BETTER_AUTH_SECRET;
 
 after(() => {
   process.env.DATABASE_URL = originalUrl;
+  process.env.BETTER_AUTH_SECRET = originalSecret;
 });
 
 describe("initDb — missing DATABASE_URL", () => {
@@ -34,6 +36,11 @@ const dbUrl = process.env.TEST_DATABASE_URL;
 const describeDb = dbUrl ? describe : describe.skip;
 
 describeDb("initDb — migrated postgres (TEST_DATABASE_URL)", () => {
+  before(() => {
+    process.env.BETTER_AUTH_SECRET =
+      process.env.BETTER_AUTH_SECRET || "test-secret-0123456789abcdef0123456789abcdef";
+  });
+
   it("resolves, getDb() usable, VideoJob round-trips", async () => {
     process.env.DATABASE_URL = dbUrl;
     await initDb();

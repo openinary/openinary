@@ -9,8 +9,8 @@
 // - ApiKey: the plugin's canonical owner column is `referenceId` (owner =
 //   user id). apps/api/src/routes/api-keys.ts currently queries
 //   `WHERE userId = ?`, so the DB column is named `userId` and the plugin is
-//   mapped to it via `@map` on the model + better-auth `apiKey.model.fields`
-//   mapping in todo 4. Both surfaces see a userId-shaped field.
+//   mapped to it in todo 4 via the plugin's `schema.apikey.fields.referenceId`
+//   option. Both surfaces see a userId-shaped field.
 // - VideoJob: columns mirror packages/core/src/utils/video/queue-store.ts
 //   VideoJob interface EXACTLY (snake_case via @map) + lease columns
 //   claimed_by/heartbeat_at for multi-replica claiming (todo 5).
@@ -110,17 +110,17 @@ model ApiKey {
   configId            String   @default("default")
   refillInterval      Int?
   refillAmount        Int?
-  lastRefillAt        BigInt?
+  lastRefillAt        DateTime?
   enabled             Boolean  @default(true)
   rateLimitEnabled    Boolean  @default(true)
   rateLimitTimeWindow Int?
   rateLimitMax        Int?
   requestCount        Int      @default(0)
   remaining           Int?
-  lastRequest         BigInt?
-  expiresAt           BigInt?
-  createdAt           BigInt
-  updatedAt           BigInt
+  lastRequest         DateTime?
+  expiresAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt @default(now())
   permissions         String?
   metadata            String?
 
