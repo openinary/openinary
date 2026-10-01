@@ -1096,11 +1096,23 @@ async function serveCdnRequest(
   // container's cold start - the transform request never reached it, no
   // derivative was ever written, and every retry answered the same 202,
   // forever. The catch is also the only trace a transform request that fails
-  // outright leaves anywhere.
+  // outright leaves anywhere, and the status check the only trace of one the
+  // container refused: both 202 branches below have already answered, so a
+  // container 404 or 500 otherwise reads as "processing" on every retry with
+  // nothing in the error logs - which is how core 404ing every key with a
+  // comma, "&" or "@" in it (decodeRequestPath) went unnoticed.
   ctx.waitUntil(
-    pending.catch((error) => {
-      console.error(`Transform request failed for ${url.pathname}`, error);
-    }),
+    pending.then(
+      (response) => {
+        if (!response.ok)
+          console.error(
+            `Transform request for ${url.pathname} answered ${response.status}`,
+          );
+      },
+      (error) => {
+        console.error(`Transform request failed for ${url.pathname}`, error);
+      },
+    ),
   );
   delivery.cache = "MISS";
   // A non-thumbnail video transform is asynchronous on the other side: core's
