@@ -28,6 +28,15 @@ export type UsageEvent = {
   extra?: Record<string, string>;
 };
 
+/** Deliveries of one kind over one stretch of time (an hour, server-side). */
+export type UsageCount = {
+  /** Epoch ms at the start of the stretch. */
+  time: number;
+  kind: string;
+  delivered: number;
+  failed: number;
+};
+
 export type UsageColumn<Row> = {
   header: string;
   className?: string;
@@ -41,6 +50,7 @@ const RANGES = [
 ] as const;
 
 const isFailure = (status: number) => status >= 400;
+const HOUR_MS = 3_600_000;
 
 /** One filter of the toolbar: a select that always has a value. */
 function FilterSelect({
@@ -273,11 +283,13 @@ export function UsageCell({
 
 /**
  * The delivery log as a dashboard: filters, deliveries over time, four
- * figures, then the lines themselves. Everything is computed here from the
- * events it is handed, so the figures can only describe what the log holds.
+ * figures, then the lines themselves. The chart and figures come from
+ * `counts` when the host keeps them, and otherwise from the events, in which
+ * case they can only describe what the log holds.
  */
 export function UsageDashboard({
   events,
+  counts,
   limit,
   isLoading,
   isError,
@@ -285,6 +297,8 @@ export function UsageDashboard({
   onRefresh,
 }: {
   events: UsageEvent[];
+  /** Every delivery, tallied, for hosts whose log keeps fewer lines than they serve. */
+  counts?: UsageCount[];
   /** How many events the log keeps, to say so once it is full. */
   limit: number;
   isLoading?: boolean;
@@ -303,13 +317,26 @@ export function UsageDashboard({
   useEffect(() => setMounted(true), []);
 
   const range = RANGES.find(({ id }) => id === rangeId) ?? RANGES[1];
+  // Without counts from the host, each event is a count of one.
+  const tallies = useMemo<UsageCount[]>(
+    () =>
+      counts ??
+      events.map((event) => ({
+        time: event.time,
+        kind: event.kind,
+        delivered: isFailure(event.status) ? 0 : 1,
+        failed: isFailure(event.status) ? 1 : 0,
+      })),
+    [counts, events],
+  );
   const kinds = useMemo(
-    () => [...new Set(events.map((event) => event.kind))].sort(),
-    [events],
+    () => [...new Set(tallies.map((tally) => tally.kind))].sort(),
+    [tallies],
   );
 
   const view = useMemo(() => {
-    const end = Date.now();
+    // Ends on the hour so hourly counts fill whole buckets.
+    const end = Math.ceil(Date.now() / HOUR_MS) * HOUR_MS;
     const start = end - range.ms;
     const width = range.ms / range.buckets;
     const rows = events.filter(
@@ -324,31 +351,38 @@ export function UsageDashboard({
       start: start + index * width,
       ok: 0,
       failed: 0,
-      transformed: 0,
-      files: new Set<string>(),
+      image: 0,
+      video: 0,
     }));
-    for (const event of rows) {
+    for (const tally of tallies) {
+      if (tally.time < start || (kind !== "all" && tally.kind !== kind)) {
+        continue;
+      }
+      const ok = outcome === "failed" ? 0 : tally.delivered;
+      const failed = outcome === "ok" ? 0 : tally.failed;
       const bucket =
         buckets[
-          Math.min(range.buckets - 1, Math.floor((event.time - start) / width))
+          Math.min(range.buckets - 1, Math.floor((tally.time - start) / width))
         ];
-      if (isFailure(event.status)) bucket.failed++;
-      else bucket.ok++;
-      if (event.transform) bucket.transformed++;
-      bucket.files.add(event.file);
+      bucket.ok += ok;
+      bucket.failed += failed;
+      if (tally.kind === "image") bucket.image += ok + failed;
+      if (tally.kind === "video") bucket.video += ok + failed;
     }
 
-    const failed = rows.filter((event) => isFailure(event.status)).length;
+    const sum = (key: "ok" | "failed" | "image" | "video") =>
+      buckets.reduce((total, bucket) => total + bucket[key], 0);
     return {
       rows,
       buckets,
-      failed,
-      ok: rows.length - failed,
-      files: new Set(rows.map((event) => event.file)).size,
-      transformed: rows.filter((event) => event.transform).length,
+      ok: sum("ok"),
+      failed: sum("failed"),
+      images: sum("image"),
+      videos: sum("video"),
       peak: Math.max(...buckets.map((b) => b.ok + b.failed), 1),
     };
-  }, [events, range, kind, outcome]);
+  }, [events, tallies, range, kind, outcome]);
+  const total = view.ok + view.failed;
 
   const extraHeaders = Object.keys(events[0]?.extra ?? {});
   const columns: UsageColumn<UsageEvent>[] = [
@@ -503,17 +537,18 @@ export function UsageDashboard({
         <Stat
           label="Total deliveries"
           series={view.buckets.map((b) => b.ok + b.failed)}
-          value={String(view.rows.length)}
+          value={String(total)}
         />
         <Stat
-          label="Unique files"
-          series={view.buckets.map((b) => b.files.size)}
-          value={String(view.files)}
+          label="Images"
+          series={view.buckets.map((b) => b.image)}
+          value={String(view.images)}
         />
         <Stat
-          label="Transformed"
-          series={view.buckets.map((b) => b.transformed)}
-          value={String(view.transformed)}
+          label="Videos"
+          series={view.buckets.map((b) => b.video)}
+          tone="text-violet-500"
+          value={String(view.videos)}
         />
         <Stat
           label="Failure rate"
@@ -521,17 +556,16 @@ export function UsageDashboard({
           tone="text-red-500"
           unit="%"
           value={
-            view.rows.length === 0
-              ? "0"
-              : String(Math.round((view.failed / view.rows.length) * 100))
+            total === 0 ? "0" : String(Math.round((view.failed / total) * 100))
           }
         />
       </div>
 
       {events.length >= limit && (
         <p className="text-xs text-muted-foreground">
-          The log keeps the latest {limit} deliveries, so these figures stop
-          at the oldest one it still holds.
+          {counts
+            ? `The table below keeps the latest ${limit} deliveries. The chart and figures above count every one.`
+            : `The log keeps the latest ${limit} deliveries, so these figures stop at the oldest one it still holds.`}
         </p>
       )}
 

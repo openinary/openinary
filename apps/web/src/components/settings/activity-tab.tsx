@@ -3,6 +3,7 @@
 import {
   type UsageColumn,
   UsageCell,
+  type UsageCount,
   UsageDashboard,
   type UsageEvent,
   UsageTable,
@@ -19,6 +20,14 @@ type Delivery = {
   p: string;
   k: "image" | "video" | "other";
   s: number;
+};
+
+// Hourly tallies of every delivery, same wire format and file as Delivery.
+type DeliveryCount = {
+  t: number;
+  k: Delivery["k"];
+  d: number;
+  f: number;
 };
 
 // As stored by the queue, see packages/core/src/utils/video/queue-store.ts.
@@ -111,7 +120,8 @@ export function ActivityTab() {
 
   const deliveries = useQuery({
     queryKey: ["openinary", "activity", apiBaseUrl],
-    queryFn: () => get<{ deliveries: Delivery[] }>("/activity"),
+    queryFn: () =>
+      get<{ deliveries: Delivery[]; counts: DeliveryCount[] }>("/activity"),
     refetchInterval: 10_000,
   });
   const jobs = useQuery({
@@ -130,9 +140,19 @@ export function ActivityTab() {
     }),
   );
 
+  const counts: UsageCount[] | undefined = deliveries.data?.counts?.map(
+    (count) => ({
+      time: count.t,
+      kind: count.k,
+      delivered: count.d,
+      failed: count.f,
+    }),
+  );
+
   return (
     <div className="space-y-8">
       <UsageDashboard
+        counts={counts}
         events={events}
         isError={deliveries.isError}
         isLoading={deliveries.isLoading}

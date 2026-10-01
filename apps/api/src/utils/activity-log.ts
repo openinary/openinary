@@ -1,6 +1,6 @@
-// What one publicly served asset looks like in the dashboard's Usage page, the
-// rules deciding whether a request is worth a line there, and the two facts
-// the Get started checklist reads.
+// What one publicly served asset looks like in the dashboard's Logs page, the
+// rules deciding whether a request is worth a line there, the hourly counts
+// its chart reads, and the two facts the Get started checklist reads.
 //
 // Takes its database as an argument rather than importing shared/auth, which
 // opens the real one on import: every rule below runs against an in-memory
@@ -20,7 +20,23 @@ export type DeliveryEvent = {
   s: number;
 };
 
+/** One hour of deliveries of one kind. Wire format, like DeliveryEvent. */
+export type DeliveryCount = {
+  /** Epoch ms at the start of the hour. */
+  t: number;
+  k: DeliveryKind;
+  /** Delivered (status under 400). */
+  d: number;
+  /** Failed (400 and up), same split as the dashboard's. */
+  f: number;
+};
+
 export const LOG_LIMIT = 500;
+
+const HOUR_MS = 3_600_000;
+// The log keeps lines for the table; the counts keep the chart honest past
+// them, at one row per hour and kind whatever the traffic.
+const COUNTS_RETENTION_MS = 365 * 24 * HOUR_MS;
 
 // Long enough for a real nested path with a transformation in front of it.
 const PATH_MAX = 200;
@@ -88,6 +104,7 @@ export function isDashboardTraffic(cookie: string | undefined): boolean {
 export class ActivityLog {
   #db: Database;
   #seen = new Map<string, number>();
+  #prunedHour = 0;
 
   constructor(db: Database) {
     this.#db = db;
@@ -103,16 +120,34 @@ export class ActivityLog {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS delivery_counts (
+        hour INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        delivered INTEGER NOT NULL,
+        failed INTEGER NOT NULL,
+        PRIMARY KEY (hour, kind)
+      );
     `);
+    // An instance upgrading to counts starts them from the lines it already
+    // holds, so its chart doesn't open empty.
+    if (!db.prepare("SELECT 1 FROM delivery_counts LIMIT 1").get()) {
+      db.exec(`
+        INSERT INTO delivery_counts (hour, kind, delivered, failed)
+        SELECT (t / ${HOUR_MS}) * ${HOUR_MS}, kind,
+               SUM(status < 400), SUM(status >= 400)
+        FROM delivery_log GROUP BY 1, 2
+      `);
+    }
   }
 
   /**
-   * Records one delivery unless it is a repeat of one just recorded.
-   * `viewer` tells visitors apart, so two people opening the same asset are
-   * two lines.
+   * Records one delivery unless it is a repeat of one just recorded: a line
+   * in the log and one more in its hour's count. `viewer` tells visitors
+   * apart, so two people opening the same asset are two lines.
    */
-  // ponytail: one synchronous insert per public delivery. Batch behind a
-  // timer if an instance ever serves enough traffic for that to show.
+  // ponytail: one synchronous transaction per public delivery. Batch the
+  // counts in memory behind a timer if an instance ever serves enough traffic
+  // for that to show.
   recordDelivery(
     event: Omit<DeliveryEvent, "k" | "t"> & { t?: number },
     viewer: string,
@@ -121,14 +156,44 @@ export class ActivityLog {
     if (seenRecently(this.#seen, `${viewer}|${event.p}`, t)) return;
 
     const path = event.p.slice(0, PATH_MAX);
-    const { lastInsertRowid } = this.#db
+    const kind = deliveryKind(path);
+    const hour = Math.floor(t / HOUR_MS) * HOUR_MS;
+    const failed = event.s >= 400 ? 1 : 0;
+
+    this.#db.transaction(() => {
+      const { lastInsertRowid } = this.#db
+        .prepare(
+          "INSERT INTO delivery_log (t, path, kind, status) VALUES (?, ?, ?, ?)",
+        )
+        .run(t, path, kind, event.s);
+      this.#db
+        .prepare("DELETE FROM delivery_log WHERE id <= ?")
+        .run(Number(lastInsertRowid) - LOG_LIMIT);
+      this.#db
+        .prepare(
+          `INSERT INTO delivery_counts (hour, kind, delivered, failed) VALUES (?, ?, ?, ?)
+           ON CONFLICT(hour, kind) DO UPDATE SET
+             delivered = delivered + excluded.delivered,
+             failed = failed + excluded.failed`,
+        )
+        .run(hour, kind, 1 - failed, failed);
+      // Once per hour is plenty to keep the table at a year.
+      if (hour !== this.#prunedHour) {
+        this.#prunedHour = hour;
+        this.#db
+          .prepare("DELETE FROM delivery_counts WHERE hour < ?")
+          .run(hour - COUNTS_RETENTION_MS);
+      }
+    })();
+  }
+
+  /** Hourly counts from `since` (epoch ms) on, oldest first. */
+  counts(since: number): DeliveryCount[] {
+    return this.#db
       .prepare(
-        "INSERT INTO delivery_log (t, path, kind, status) VALUES (?, ?, ?, ?)",
+        "SELECT hour AS t, kind AS k, delivered AS d, failed AS f FROM delivery_counts WHERE hour >= ? ORDER BY hour",
       )
-      .run(t, path, deliveryKind(path), event.s);
-    this.#db
-      .prepare("DELETE FROM delivery_log WHERE id <= ?")
-      .run(Number(lastInsertRowid) - LOG_LIMIT);
+      .all(Math.floor(since / HOUR_MS) * HOUR_MS) as DeliveryCount[];
   }
 
   /** Newest first. */

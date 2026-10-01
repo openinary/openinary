@@ -47,6 +47,37 @@ test("the API upload flag sticks", () => {
   assert.equal(log.apiUploadSeen(), true);
 });
 
+test("counts tally every delivery by hour and kind, past the log's limit", () => {
+  const log = new ActivityLog(new Database(":memory:"));
+  const hour = 3_600_000;
+  const at = 10 * hour;
+  for (let i = 0; i < LOG_LIMIT + 50; i++) {
+    log.recordDelivery({ p: `photo-${i}.jpg`, s: 200, t: at + i }, "v");
+  }
+  log.recordDelivery({ p: "missing.jpg", s: 404, t: at }, "v");
+  log.recordDelivery({ p: "clip.mp4", s: 200, t: at + hour + 5 }, "v");
+  // A repeat inside the dedupe window is neither a line nor a count.
+  log.recordDelivery({ p: "clip.mp4", s: 200, t: at + hour + 6 }, "v");
+
+  assert.equal(log.deliveries().length, LOG_LIMIT);
+  assert.deepEqual(log.counts(at), [
+    { t: at, k: "image", d: LOG_LIMIT + 50, f: 1 },
+    { t: at + hour, k: "video", d: 1, f: 0 },
+  ]);
+  assert.deepEqual(log.counts(at + hour), [
+    { t: at + hour, k: "video", d: 1, f: 0 },
+  ]);
+});
+
+test("counts start from the lines an upgrading instance already has", () => {
+  const db = new Database(":memory:");
+  new ActivityLog(db).recordDelivery({ p: "a.png", s: 200, t: 7_200_000 }, "v");
+  db.exec("DELETE FROM delivery_counts");
+  assert.deepEqual(new ActivityLog(db).counts(0), [
+    { t: 7_200_000, k: "image", d: 1, f: 0 },
+  ]);
+});
+
 test("state documents round-trip and overwrite", () => {
   const log = new ActivityLog(new Database(":memory:"));
   assert.equal(log.getState("workspace"), undefined);

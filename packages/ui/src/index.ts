@@ -105,6 +105,7 @@ export {
   UsageTable,
   UsageTime,
   type UsageColumn,
+  type UsageCount,
   type UsageEvent,
 } from "./settings/usage-dashboard";
 export { StorageTab } from "./settings/storage-tab";
