@@ -1,6 +1,7 @@
 import os from "os";
 import fs from "fs";
-import { db } from "shared/auth";
+import { getDb } from "shared/db";
+import type { PrismaClient } from "shared/db";
 import { logger } from "@openinary/core";
 import { getStorageConfigFromEnv } from "../config/storage";
 import { canDeriveFrom, deriveInstanceId } from "./telemetry-id";
@@ -35,34 +36,39 @@ function bucketCount(n: number): CountBucket {
   return "1000+";
 }
 
-function ensureTelemetryTable() {
-  db.exec(
+function ensureTelemetryTable(): Promise<void> {
+  return getDb().$executeRawUnsafe(
     `CREATE TABLE IF NOT EXISTS _telemetry_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
-  );
+  ).then(() => {});
 }
 
-function getConfig(key: string): string | undefined {
-  const row = db
-    .prepare("SELECT value FROM _telemetry_config WHERE key = ?")
-    .get(key) as { value: string } | undefined;
-  return row?.value;
+async function getConfig(db: PrismaClient, key: string): Promise<string | undefined> {
+  const row = (await db.$queryRawUnsafe(
+    `SELECT value FROM _telemetry_config WHERE key = $1`,
+    key,
+  )) as { value: string }[] | undefined;
+  return row?.[0]?.value;
 }
 
-function setConfig(key: string, value: string) {
-  db.prepare(
-    "INSERT INTO _telemetry_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-  ).run(key, value);
+function setConfig(db: PrismaClient, key: string, value: string): Promise<void> {
+  return db
+    .$executeRawUnsafe(
+      `INSERT INTO _telemetry_config (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      key,
+      value,
+    )
+    .then(() => {});
 }
 
-function getOrCreateInstanceId(): string {
-  const existing = getConfig("instance_id");
+async function getOrCreateInstanceId(db: PrismaClient): Promise<string> {
+  const existing = await getConfig(db, "instance_id");
   if (existing) return existing;
   // Prefer an id derived from BETTER_AUTH_SECRET (salted one-way hash): the
   // secret lives in the deployment env, so the id survives DB wipes and
   // redeploys without a volume. Random UUID otherwise (dev, placeholder secret).
   const secret = process.env.BETTER_AUTH_SECRET;
   const id = canDeriveFrom(secret) ? deriveInstanceId(secret) : crypto.randomUUID();
-  setConfig("instance_id", id);
+  await setConfig(db, "instance_id", id);
   return id;
 }
 
@@ -91,12 +97,9 @@ function getStorageBackend(): "s3" | "local" {
   return getStorageConfigFromEnv().config.bucketName ? "s3" : "local";
 }
 
-function getVideoJobCount(): number {
+async function getVideoJobCount(): Promise<number> {
   try {
-    const row = db.prepare("SELECT COUNT(*) as count FROM video_jobs").get() as
-      | { count: number }
-      | undefined;
-    return row?.count ?? 0;
+    return await getDb().videoJob.count();
   } catch {
     return 0;
   }
@@ -160,15 +163,15 @@ function buildBaseProperties() {
   };
 }
 
-async function sendHeartbeat(instanceId: string) {
+async function sendHeartbeat(db: PrismaClient, instanceId: string) {
   await send(instanceId, {
     event: "daily_heartbeat",
     properties: {
       ...buildBaseProperties(),
-      video_jobs_bucket: bucketCount(getVideoJobCount()),
+      video_jobs_bucket: bucketCount(await getVideoJobCount()),
     },
   });
-  setConfig("last_heartbeat_at", Date.now().toString());
+  await setConfig(db, "last_heartbeat_at", Date.now().toString());
 }
 
 /**
@@ -176,19 +179,20 @@ async function sendHeartbeat(instanceId: string) {
  * `daily_heartbeat` roughly every 24h for the lifetime of the process.
  * No-op (besides logging) if OPENINARY_TELEMETRY=false.
  */
-export function initTelemetry() {
+export async function initTelemetry() {
   if (!TELEMETRY_ENABLED) {
     logger.info("Telemetry disabled (OPENINARY_TELEMETRY=false)");
     return;
   }
 
   try {
-    ensureTelemetryTable();
-    const instanceId = getOrCreateInstanceId();
+    await ensureTelemetryTable();
+    const db = getDb();
+    const instanceId = await getOrCreateInstanceId(db);
 
-    if (!getConfig("first_started_at")) {
-      setConfig("first_started_at", Date.now().toString());
-      send(instanceId, {
+    if (!(await getConfig(db, "first_started_at"))) {
+      await setConfig(db, "first_started_at", Date.now().toString());
+      await send(instanceId, {
         event: "instance_started",
         properties: {
           ...buildBaseProperties(),
@@ -204,7 +208,7 @@ export function initTelemetry() {
     // first send is jittered (thundering-herd protection); the steady-state
     // period stays exact so a live instance never drifts out of a rolling
     // 24h "active instances" window.
-    const lastHeartbeatAt = Number(getConfig("last_heartbeat_at") || 0);
+    const lastHeartbeatAt = Number((await getConfig(db, "last_heartbeat_at")) || 0);
     const dueIn = Math.max(
       0,
       HEARTBEAT_INTERVAL_MS - (Date.now() - lastHeartbeatAt),
@@ -212,9 +216,9 @@ export function initTelemetry() {
     const jitter = Math.floor(Math.random() * HEARTBEAT_JITTER_MS);
 
     setTimeout(() => {
-      sendHeartbeat(instanceId);
+      sendHeartbeat(db, instanceId);
       setInterval(() => {
-        sendHeartbeat(instanceId);
+        sendHeartbeat(db, instanceId);
       }, HEARTBEAT_INTERVAL_MS).unref();
     }, dueIn + jitter).unref();
 

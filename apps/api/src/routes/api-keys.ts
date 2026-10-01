@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { auth } from "shared/auth";
+import { getDb } from "shared/db";
 import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import { logger, serializeError } from "@openinary/core";
 
@@ -91,16 +92,22 @@ apiKeys.get("/list", async (c) => {
       );
     }
 
-    // Get all API keys for this user
-    const db = auth.options.database;
-    const keys = db
-      .prepare(
-        `SELECT id, name, start, prefix, enabled, expiresAt, createdAt, updatedAt, remaining, rateLimitEnabled 
-         FROM apiKey 
-         WHERE userId = ? 
-         ORDER BY createdAt DESC`
-      )
-      .all(user.id);
+    const keys = await getDb().apiKey.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        start: true,
+        prefix: true,
+        enabled: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+        remaining: true,
+        rateLimitEnabled: true,
+      },
+    });
 
     return c.json({
       success: true,
@@ -138,10 +145,10 @@ apiKeys.delete("/:keyId", async (c) => {
     }
 
     // Verify the key belongs to this user
-    const db = auth.options.database;
-    const key = db
-      .prepare("SELECT userId FROM apiKey WHERE id = ?")
-      .get(keyId) as { userId: string } | undefined;
+    const key = await getDb().apiKey.findUnique({
+      where: { id: keyId },
+      select: { userId: true },
+    });
 
     if (!key) {
       return c.json(
@@ -208,10 +215,10 @@ apiKeys.patch("/:keyId", async (c) => {
     }
 
     // Verify the key belongs to this user
-    const db = auth.options.database;
-    const key = db
-      .prepare("SELECT userId FROM apiKey WHERE id = ?")
-      .get(keyId) as { userId: string } | undefined;
+    const key = await getDb().apiKey.findUnique({
+      where: { id: keyId },
+      select: { userId: true },
+    });
 
     if (!key) {
       return c.json(
