@@ -10,6 +10,9 @@ import {
   serializeEnv,
   upsertVar,
 } from "./env.js";
+import { resolveTemplatesDir } from "./template.js";
+import fs from "fs-extra";
+import path from "node:path";
 
 const SAMPLE = `# Comment line
 IMAGE_TAG=latest
@@ -107,5 +110,18 @@ describe("generateApiSecret", () => {
 
   it("produces different secrets on each call", () => {
     expect(generateApiSecret()).not.toBe(generateApiSecret());
+  });
+});
+
+describe("project env template", () => {
+  it("declares DATABASE_URL as an active var and has no DB_PATH", async () => {
+    const templatePath = path.join(resolveTemplatesDir(), "project", "env.template");
+    const template = parseEnv(await fs.readFile(templatePath, "utf8"));
+
+    expect(getVar(template, "DATABASE_URL")).toBe(
+      "postgres://openinary:openinary@postgres:5432/openinary",
+    );
+    expect(getActiveKeys(template).has("DB_PATH")).toBe(false);
+    expect(serializeEnv(template)).not.toContain("DB_PATH");
   });
 });
