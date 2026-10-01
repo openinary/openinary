@@ -1,42 +1,24 @@
 import { NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
+import { initDb } from "shared/db";
+import { hasAdminAccount } from "shared/auth";
 import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // Use the same database path as the API server / Better Auth
-    // In Docker, the database lives at /app/data/auth.db (controlled by DB_PATH)
-    // In development, fall back to the previous relative path behaviour
-    const isDocker = process.env.DOCKER_CONTAINER === "true";
-    const defaultDbPath = isDocker
-      ? "/app/data/auth.db"
-      : path.join(process.cwd(), "../../data/auth.db");
-    const dbPath = process.env.DB_PATH || defaultDbPath;
-    
-    // Check if database file exists and has users
-    try {
-      const db = new Database(dbPath, { readonly: true });
-      const result = db.prepare("SELECT COUNT(*) as count FROM user").get() as { count: number };
-      db.close();
+    // Ensure the shared Prisma-backed database is initialized, then check
+    // whether any user (admin) already exists.
+    await initDb();
 
-      return NextResponse.json({
-        setupComplete: result.count > 0,
-      });
-    } catch {
-      // Database doesn't exist or table doesn't exist - setup not complete
-      return NextResponse.json({
-        setupComplete: false,
-      });
-    }
+    return NextResponse.json({
+      setupComplete: await hasAdminAccount(),
+    });
   } catch (error) {
     logger.error("Error checking setup status", { error });
     return NextResponse.json(
       { error: "Failed to check setup status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

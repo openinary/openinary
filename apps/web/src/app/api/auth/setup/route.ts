@@ -1,32 +1,10 @@
 import { NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
+import { initDb } from "shared/db";
+import { hasAdminAccount } from "shared/auth";
 import logger from "@/lib/logger";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-
-// Helper function to check if any admin account exists
-function hasAdminAccount(): boolean {
-  try {
-    // Use the same database path as the API server / Better Auth
-    // In Docker, the database lives at /app/data/auth.db (controlled by DB_PATH)
-    // In development, fall back to the previous relative path behaviour
-    const isDocker = process.env.DOCKER_CONTAINER === "true";
-    const defaultDbPath = isDocker
-      ? "/app/data/auth.db"
-      : path.join(process.cwd(), "../../data/auth.db");
-    const dbPath = process.env.DB_PATH || defaultDbPath;
-    const db = new Database(dbPath, { readonly: true });
-    const result = db.prepare("SELECT COUNT(*) as count FROM user").get() as {
-      count: number;
-    };
-    db.close();
-    return result.count > 0;
-  } catch {
-    return false;
-  }
-}
 
 export async function POST(request: Request) {
   const betterAuthUrl =
@@ -37,8 +15,11 @@ export async function POST(request: Request) {
     })();
 
   try {
+    // shared auth/db throw until initDb() has succeeded.
+    await initDb();
+
     // Security check: Prevent account creation if an admin already exists
-    if (hasAdminAccount()) {
+    if (await hasAdminAccount()) {
       return NextResponse.json(
         { error: "Setup already completed. Account creation is disabled." },
         { status: 403 },

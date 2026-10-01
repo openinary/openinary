@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "es6"],
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -20,9 +20,7 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "shared": ["../../packages/shared/src/index.ts"],
-      "shared/*": ["../../packages/shared/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
@@ -32,5 +30,5 @@
     ".next/types/**/*.ts",
     "../../packages/shared/src/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "../../packages/shared/src/**/*.test.ts"]
 }

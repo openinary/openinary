@@ -33,7 +33,7 @@
     }
   },
   "scripts": {
-    "build": "prisma generate && tsc && cp -R src/generated dist/generated && node scripts/add-js-extensions.cjs",
+    "build": "prisma generate && tsc && rm -rf dist/generated && cp -R src/generated dist/generated && node scripts/add-js-extensions.cjs",
     "type-check": "prisma generate && tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 src/db/*.test.ts src/auth.prisma.test.ts",
     "db:generate": "prisma generate",

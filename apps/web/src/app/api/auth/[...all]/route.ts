@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   // We specifically guard the email/password sign-up endpoint
   if (url.pathname.endsWith("/sign-up/email")) {
     try {
-      if (hasAdminAccount()) {
+      if (await hasAdminAccount()) {
         logger.warn("[Auth] Sign-up attempt blocked: admin already exists", {
           pathname: url.pathname,
         });
