@@ -88,10 +88,10 @@ FROM node:20-slim
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
 ARG IMAGE_TAG="latest"
 
-# Install nginx, ffmpeg, supervisor, cron, sqlite3 and jemalloc for process management
+# Install nginx, ffmpeg, supervisor, cron and jemalloc for process management
 # jemalloc replaces glibc malloc to avoid RSS bloat from arena fragmentation under
 # sharp/libvips and ffmpeg workloads (freed memory not returned to the OS)
-RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg supervisor cron sqlite3 libjemalloc2 && \
+RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg supervisor cron libjemalloc2 && \
     rm -rf /var/lib/apt/lists/* && \
     ln -sf "$(dpkg -L libjemalloc2 | grep 'libjemalloc\.so\.2$')" /usr/lib/libjemalloc.so.2
 
@@ -151,6 +151,6 @@ ENV MODE="fullstack"
 ENV DOCKER_CONTAINER="true"
 
 # Run init script wrapper to set env vars, run security script before starting supervisor
-# Source the wrapper script to export env vars, then run secure-db and start supervisor
-CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && cd /app && node scripts/secure-db.js && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+# Source the wrapper script to export env vars, then start supervisor
+CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && cd /app && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
 

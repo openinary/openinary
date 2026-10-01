@@ -58,7 +58,7 @@ packages/core/src/
 ├── services/         # TransformService, the entry point for every delivery request
 └── utils/
     ├── image/        # Sharp-based image pipeline
-    ├── video/        # FFmpeg pipeline, job queue and SQLite job store
+    ├── video/        # FFmpeg pipeline, job queue and Postgres job store
     ├── storage/      # S3-compatible client (AWS, R2, MinIO…)
     ├── cache.ts      # Cache path resolution and lookups
     ├── parser.ts     # URL transformation parameter parser
@@ -66,7 +66,7 @@ packages/core/src/
     └── upload-validation.ts  # Accepted types and magic-byte checks
 ```
 
-**Key dependencies:** `sharp`, `fluent-ffmpeg`, `@aws-sdk/client-s3`, `@webtoon/psd`, `fflate`, `hono`, `better-sqlite3`, `pino`
+**Key dependencies:** `sharp`, `fluent-ffmpeg`, `@aws-sdk/client-s3`, `@webtoon/psd`, `fflate`, `hono`, `pino`
 
 ## apps/api
 
@@ -82,7 +82,7 @@ apps/api/src/
 └── utils/            # Database init, telemetry
 ```
 
-**Key dependencies:** `hono`, `@openinary/core`, `shared`, `better-sqlite3`, `heic-convert`, `zod`
+**Key dependencies:** `hono`, `@openinary/core`, `shared`, `heic-convert`, `zod`
 
 ## apps/web
 
@@ -108,27 +108,28 @@ apps/web/src/app/
 
 ## packages/shared
 
-Consumed by both `api` and `web`. It keeps auth configuration and the SQLite
-instance in one place, so both apps always use the same database.
+Consumed by both `api` and `web`. It keeps auth configuration and the Prisma
+client in one place, so both apps always use the same database.
 
 ```bash
 packages/shared/src/
-├── auth.ts             # Better Auth config, API key plugin, and the SQLite instance
+├── auth.ts             # Better Auth config, API key plugin, and the Prisma adapter
 ├── auth-client.ts      # Client-side auth helpers
 ├── auth-client-only.ts # Browser-only entry point
+├── db/                 # PrismaClient singleton, migrations on boot
 ├── types.ts            # Shared TypeScript types
 └── index.ts
 ```
 
-The SQLite instance is created inside `auth.ts`; there is no separate `db.ts`.
-Both apps import through the `"shared"` and `"shared/*"` path aliases defined in
-`packages/shared/package.json`.
+The database schema is managed by Prisma (`packages/shared/prisma/`), applied
+with `prisma migrate deploy` at startup. Both apps import through the `"shared"`
+and `"shared/*"` path aliases defined in `packages/shared/package.json`.
 
 ## Dependency flow
 
 ```
 api  →  @openinary/core  →  sharp, fluent-ffmpeg, @aws-sdk/client-s3
-api  →  shared           →  better-auth, @better-auth/api-key, better-sqlite3
+api  →  shared           →  better-auth, @better-auth/api-key, @prisma/client
 web  →  @openinary/ui
 web  →  shared
 ```

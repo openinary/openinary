@@ -1,11 +1,12 @@
 ---
 title: "Server Configuration"
-description: "Environment variables for server mode, secrets, CORS, upload limits, rate limiting and the admin bootstrap."
+description: "Environment variables for the database, server mode, secrets, CORS, upload limits, rate limiting and the admin bootstrap."
 ---
 
-Set these in your `.env`, your Docker environment, or your platform's environment settings. Only `BETTER_AUTH_SECRET` is required.
+Set these in your `.env`, your Docker environment, or your platform's environment settings. `DATABASE_URL` and `BETTER_AUTH_SECRET` are required.
 
 ```bash
+DATABASE_URL=postgres://user:password@db-host:5432/openinary
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 BETTER_AUTH_URL=https://media.example.com
 NEXT_PUBLIC_API_BASE_URL=https://media.example.com
@@ -16,6 +17,7 @@ API_SECRET=$(openssl rand -hex 32)
 
 | Variable | Default | Description |
 | --- | --- | --- |
+| `DATABASE_URL` | **required** | PostgreSQL connection string. The only database Openinary supports. Startup fails without it |
 | `BETTER_AUTH_SECRET` | **required** | Signs sessions and tokens. Use 32+ characters. Startup fails only if it is unset or left at the build placeholder, so the length is on you |
 | `MODE` | `fullstack` | `fullstack` runs API and dashboard. `api` runs the API alone and generates a key on first boot |
 | `PORT` | `3000` | Port the API listens on. See [ports under Docker](#ports-under-docker) |
@@ -23,7 +25,20 @@ API_SECRET=$(openssl rand -hex 32)
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3000` | Base URL the browser uses to reach the API. Baked in as `/api` in the bundled `full` image, since nginx proxies the API there |
 | `CORS_ORIGIN` | | Extra allowed origins, comma-separated. `http://localhost:3001` and `http://localhost:3000` are always allowed. Avoid `*` |
 | `API_SECRET` | | Signs [signed URLs](/media-transformations/signed-urls) and presigned uploads. At least 16 characters; `openssl rand -hex 32` gives a strong one. Required for `/authenticated/*` and [presigned uploads](/guides/file-uploader) |
-| `DB_PATH` | `/app/data/auth.db` | SQLite database path. Only needed for a non-standard mount |
+
+## Database
+
+The Compose file ships a required `postgres` service and wires `DATABASE_URL` to both app profiles, so Docker deploys need no extra setup.
+
+At startup the server runs pending migrations (`prisma migrate deploy`), then connects. If `DATABASE_URL` is missing or unreachable, startup fails with the reason in the log.
+
+Self-hosted databases are provisioned by you. The Compose defaults are not tuned passwords — set your own credentials in the connection string.
+
+<Warning>
+  The job queue claims work with `FOR UPDATE SKIP LOCKED`, which needs a real
+  Postgres session. Transaction-mode PgBouncer breaks it. Use session pooling
+  or direct connections.
+</Warning>
 
 ## Upload and rate limiting
 

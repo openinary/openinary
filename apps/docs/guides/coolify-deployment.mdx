@@ -52,9 +52,12 @@ Then expose port `3000`, set the environment variables, and add the volumes. You
 
     | Name | Destination path | Stores |
     | --- | --- | --- |
-    | `db-data` | `/app/data` | The internal database: admin accounts, API keys, metadata. Always required |
     | `public-files` | `/app/apps/api/public` | Original uploaded assets and media files. Skip if you use S3 |
     | `cache-data` | `/app/apps/api/cache` | Optimized and transformed assets, cached for faster delivery. Skip if you use S3 |
+
+    Set `DATABASE_URL` to a PostgreSQL instance (see
+    [Server configuration](/configuration/server#database)) — it is the required
+    database and migrations run automatically at startup.
   </Step>
   <Step title="Deploy">
     Click **Deploy** and watch the deployment logs to confirm everything starts correctly.
