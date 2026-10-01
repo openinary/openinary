@@ -23,6 +23,13 @@ const planSettingsUrl = () =>
 /** Option ids from the onboarding form, never free text. */
 const slug = z.string().regex(/^[a-z0-9-]{1,40}$/);
 
+/**
+ * Accounts that existed before the questionnaire shipped never see it: they
+ * set themselves up long ago, and a form between them and their library would
+ * be a toll, not an onboarding.
+ */
+const ONBOARDING_SHIPPED_AT = Date.parse("2026-10-01T00:00:00Z");
+
 /** Matches UsageMeter's own MAX_EVENTS - there is never more than this to show. */
 const MAX_DELIVERIES = 500;
 // Video jobs are far rarer than deliveries and stored permanently, so the tab
@@ -84,10 +91,12 @@ export const usageRouter = {
    * other signal, cdn_requests, comes off the usage.get it already runs.
    */
   onboarding: protectedProcedure.handler(async ({ context }) => {
-    const userId = context.session.user.id;
+    const { id: userId, createdAt } = context.session.user;
+    const predatesOnboarding =
+      new Date(createdAt).getTime() < ONBOARDING_SHIPPED_AT;
     const [uploaded, onboarded] = await Promise.all([
       apiUploadSeen(context.env, userId),
-      readOnboarded(context.env, userId),
+      predatesOnboarding || readOnboarded(context.env, userId),
     ]);
     return { uploaded, onboarded };
   }),
