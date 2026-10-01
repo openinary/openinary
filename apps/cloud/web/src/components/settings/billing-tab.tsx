@@ -122,8 +122,7 @@ function PeriodChart({
 }) {
   const last = points[points.length - 1];
   const top =
-    Math.max(...points.map((p) => p.v), projected ?? 0, limit ?? 0) * 1.15 ||
-    1;
+    Math.max(...points.map((p) => p.v), projected ?? 0, limit ?? 0) * 1.15 || 1;
   const x = (t: number) => ((t - start) / (end - start)) * 100;
   const y = (v: number) => 100 - (v / top) * 100;
   const line = points
@@ -538,7 +537,9 @@ export function BillingTab() {
                       : (chartRow?.projected ?? null)
                 }
                 limit={chartRow?.usage?.granted ?? null}
-                format={isMetered ? formatUsd : (chartRow?.feature.format ?? String)}
+                format={
+                  isMetered ? formatUsd : (chartRow?.feature.format ?? String)
+                }
               />
             </>
           )}
@@ -611,9 +612,7 @@ export function BillingTab() {
               <>
                 {" · "}
                 <span
-                  className={cn(
-                    !card && "text-amber-600 dark:text-amber-500",
-                  )}
+                  className={cn(!card && "text-amber-600 dark:text-amber-500")}
                 >
                   {cardText}
                 </span>
@@ -627,8 +626,8 @@ export function BillingTab() {
               <span>
                 Subscription cancelled. {planName} stays active until{" "}
                 <span className="font-medium">{longDate(cancelsAt)}</span>, then
-                the account returns to Free. Resubscribe from the billing
-                portal to keep it.
+                the account returns to Free. Resubscribe from the billing portal
+                to keep it.
               </span>
             </p>
           )}
@@ -645,7 +644,9 @@ export function BillingTab() {
                   <Check className="size-4 shrink-0 text-muted-foreground" />
                   <span className="tabular-nums">
                     {perMonth(
-                      isMetered ? feature[planColumn] : feature[paidPlan.column],
+                      isMetered
+                        ? feature[planColumn]
+                        : feature[paidPlan.column],
                     )}
                   </span>
                   <span className="text-muted-foreground">
@@ -699,12 +700,20 @@ export function BillingTab() {
             {rows.map(({ feature, usage, capped, projected, ratio, tone }) => {
               // The bar's scale stretches to fit a projection past the
               // allowance, and a tick marks where the allowance ends.
-              const scale = Math.max(usage?.granted ?? 0, projected, 1);
+              // Past the allowance, the bar splits at the tick: what was
+              // included, then the overage in the row's tone.
+              const scale = Math.max(
+                usage?.granted ?? 0,
+                usage?.used ?? 0,
+                projected,
+                1,
+              );
               const usedPct = usage ? (usage.used / scale) * 100 : 0;
               const projectedPct = (projected / scale) * 100;
               const limitPct =
                 capped && usage ? (usage.granted / scale) * 100 : 100;
               const over = capped && usage ? projected / usage.granted - 1 : 0;
+              const overUsed = overUnits(usage);
               return (
                 <div key={feature.id}>
                   <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -739,7 +748,12 @@ export function BillingTab() {
                       <Skeleton className="h-4 w-24" />
                     ) : (
                       <span className="shrink-0 tabular-nums">
-                        <span className="font-medium">
+                        <span
+                          className={cn(
+                            "font-medium",
+                            overUsed > 0 && TONE_TEXT[tone],
+                          )}
+                        >
                           {feature.format(usage.used)}
                         </span>
                         {capped && (
@@ -765,10 +779,22 @@ export function BillingTab() {
                     <div
                       className={cn(
                         "absolute inset-y-0 left-0 rounded-full transition-all",
-                        TONE_FILL[tone],
+                        TONE_FILL[overUsed > 0 ? "neutral" : tone],
                       )}
-                      style={{ width: `${Math.min(100, usedPct)}%` }}
+                      style={{ width: `${Math.min(usedPct, limitPct)}%` }}
                     />
+                    {overUsed > 0 && (
+                      <div
+                        className={cn(
+                          "absolute inset-y-0 rounded-r-full",
+                          TONE_FILL[tone],
+                        )}
+                        style={{
+                          left: `${limitPct}%`,
+                          width: `${usedPct - limitPct}%`,
+                        }}
+                      />
+                    )}
                     {limitPct < 100 && (
                       <div
                         className="absolute inset-y-0 w-0.5 bg-background"
@@ -778,23 +804,27 @@ export function BillingTab() {
                   </div>
 
                   <div className="mt-1.5 flex justify-between gap-3 text-muted-foreground text-xs">
-                    <span>
+                    <span className={cn(overUsed > 0 && TONE_TEXT[tone])}>
                       {!usage
                         ? null
-                        : usage.resetsAt === null
-                          ? "Cumulative, never resets"
-                          : !canProject
-                            ? "Projection after day 2"
-                            : over > 0
-                              ? `Projected ${feature.format(projected)}, ${Math.round(over * 100)}% over`
-                              : `Projected ${feature.format(projected)}`}
+                        : overUsed > 0
+                          ? `${feature.format(overUsed)} over the allowance`
+                          : usage.resetsAt === null
+                            ? "Cumulative, never resets"
+                            : !canProject
+                              ? "Projection after day 2"
+                              : over > 0
+                                ? `Projected ${feature.format(projected)}, ${Math.round(over * 100)}% over`
+                                : `Projected ${feature.format(projected)}`}
                     </span>
                     <span className="shrink-0 text-right">
-                      {isMetered
-                        ? feature.overage.replace(" / ", " per ")
-                        : ratio >= 1
-                          ? "Paused until reset"
-                          : "Pauses at the limit"}
+                      {isMetered && overUsed > 0
+                        ? `${formatUsd(overUsed * feature.rate)} at ${feature.overage.replace(" / ", " per ")}`
+                        : isMetered
+                          ? feature.overage.replace(" / ", " per ")
+                          : ratio >= 1
+                            ? "Paused until reset"
+                            : "Pauses at the limit"}
                     </span>
                   </div>
                 </div>

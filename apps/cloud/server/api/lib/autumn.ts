@@ -138,7 +138,9 @@ export async function getUsage(
     features[featureId] = balance
       ? {
           granted: balance.granted,
-          used: balance.usage,
+          // Negative when a balance was credited past its grant (a manual
+          // top-up, or deletes refunded after a reset). Nothing was used.
+          used: Math.max(0, balance.usage),
           remaining: balance.remaining,
           unlimited: balance.unlimited,
           resetsAt: balance.nextResetAt ?? null,
@@ -342,7 +344,11 @@ export async function getUsageHistory(
  */
 export async function getPaymentMethod(
   userId: string,
-): Promise<{ type: string; brand: string | null; last4: string | null } | null> {
+): Promise<{
+  type: string;
+  brand: string | null;
+  last4: string | null;
+} | null> {
   const customer = await autumn.customers.get({
     customerId: userId,
     expand: ["payment_method"],
