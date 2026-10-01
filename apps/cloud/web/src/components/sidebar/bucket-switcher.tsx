@@ -2,7 +2,7 @@
 
 import { Spinner } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronDown, LogOut, Settings, Settings2 } from "lucide-react";
+import { Check, ChevronDown, LogOut, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
@@ -119,10 +119,6 @@ export function BucketSwitcher() {
               <UsagePanel />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => setSettingsTab("appearance")}>
-              <Settings />
-              Settings
-            </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
               onSelect={() => {

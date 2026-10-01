@@ -21,7 +21,6 @@ const pct = (used: number, granted: number) =>
 
 export function UsagePanel() {
   const { data, isLoading } = useQuery(orpc.usage.get.queryOptions());
-  const setSettingsTab = useSettingsPage();
   const isMetered = isMeteredPlan(data?.planId);
 
   if (isLoading || !data) {
@@ -72,18 +71,6 @@ export function UsagePanel() {
           </div>
         );
       })}
-      {data.planId === "free" && (
-        <div className="px-1 pt-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => setSettingsTab("billing")}
-          >
-            Upgrade
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

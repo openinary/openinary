@@ -1,13 +1,6 @@
 "use client"
 
-import {
-  Globe,
-  HardDrive,
-  KeyRound,
-  LogOut,
-  Settings,
-  Star,
-} from "lucide-react"
+import { Globe, LogOut, Star } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signOut } from "@/lib/auth-client"
@@ -23,18 +16,15 @@ interface UserDropdownProps {
   userName: string
   userEmail: string
   userAvatar: string
-  onAccountClick: () => void
-  onApiKeysClick: () => void
-  onStorageClick: () => void
 }
+
+// Only what the sidebar doesn't already link to: Settings sits in its footer,
+// API keys, Logs and Storage in its navigation.
 
 export function UserDropdown({
   userName,
   userEmail,
   userAvatar,
-  onAccountClick,
-  onApiKeysClick,
-  onStorageClick,
 }: UserDropdownProps) {
   const router = useRouter()
 
@@ -61,19 +51,6 @@ export function UserDropdown({
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
-        <DropdownMenuItem onClick={onAccountClick}>
-          <Settings />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onApiKeysClick}>
-          <KeyRound />
-          API Keys
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onStorageClick}>
-          <HardDrive />
-          Storage
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="https://github.com/openinary/openinary" target="_blank" rel="noopener noreferrer">
             <Star />

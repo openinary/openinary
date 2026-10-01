@@ -1,6 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 import Image from "next/image"
 import { useSession } from "@/lib/auth-client"
@@ -19,25 +18,11 @@ import { UserDropdown } from "./user-dropdown"
 export function NavUser() {
   const { data, isPending } = useSession()
   const workspace = useOnboardingState().data?.workspace
-  const router = useRouter()
-  const setTab = (tab: string) => router.push(`/settings/${tab}`)
 
   const user = data?.user
   const userName = user?.name || user?.email?.split("@")[0] || "User"
   const userEmail = user?.email || ""
   const userAvatar = user?.image || ""
-
-  const handleAccountClick = () => {
-    setTab("account")
-  }
-
-  const handleApiKeysClick = () => {
-    setTab("api-keys")
-  }
-
-  const handleStorageClick = () => {
-    setTab("storage")
-  }
 
   // Show loading state or nothing if no user
   if (isPending) {
@@ -88,9 +73,6 @@ export function NavUser() {
             userName={userName}
             userEmail={userEmail}
             userAvatar={userAvatar}
-            onAccountClick={handleAccountClick}
-            onApiKeysClick={handleApiKeysClick}
-            onStorageClick={handleStorageClick}
           />
         </DropdownMenu>
       </SidebarMenuItem>
