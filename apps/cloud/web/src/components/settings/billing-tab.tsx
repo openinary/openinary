@@ -366,7 +366,7 @@ export function BillingTab() {
             <p className="text-sm">
               {isMetered
                 ? "Included each month, then billed per use:"
-                : `${paidPlan.name} doubles every allowance and keeps things running past it:`}
+                : `${paidPlan.name} ${paidPlan.column === "early" ? "doubles" : "raises"} every allowance and keeps things running past it:`}
             </p>
             <ul className="mt-3 space-y-2 text-sm">
               {[...FEATURES, BUCKET_ROW].map((feature) => (
