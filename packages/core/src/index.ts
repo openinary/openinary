@@ -13,7 +13,7 @@ export type {
   VideoJob as VideoJobRecord,
   JobStats,
 } from "./utils/video/queue-store";
-export { SqliteVideoJobStore } from "./utils/video/sqlite-video-job-store";
+export { PrismaVideoJobStore, LEASE_TTL_MS, type VideoJobDbClient } from "./utils/video/prisma-video-job-store";
 export {
   THUMBNAIL_PRIORITY,
   TRANSFORMATION_PRIORITY,

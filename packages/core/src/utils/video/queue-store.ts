@@ -34,8 +34,8 @@ export interface JobStats {
 /**
  * Persistence contract for the video transformation queue. Every method is
  * async so a network-backed store (Postgres, Cloudflare D1, ...) can
- * implement it. The self-hosted app backs this with SQLite (see
- * sqlite-video-job-store.ts) without touching VideoJobQueue, VideoWorker, or
+ * implement it. The self-hosted app backs this with Postgres (see
+ * prisma-video-job-store.ts) without touching VideoJobQueue, VideoWorker, or
  * any route that depends on this interface instead of a concrete database.
  */
 export interface VideoJobStore {
