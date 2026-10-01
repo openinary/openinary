@@ -42,11 +42,11 @@
   "dependencies": {
     "@better-auth/api-key": "1.6.23",
     "@prisma/client": "^6.17.0",
-    "better-auth": "^1.6.23"
+    "better-auth": "^1.6.23",
+    "prisma": "^6.17.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "prisma": "^6.17.0",
     "tsx": "^4.19.2",
     "typescript": "^5.0.0"
   }

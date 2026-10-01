@@ -45,8 +45,8 @@ COPY apps/cloud/admin/package.json ./apps/cloud/admin/
 RUN pnpm install --frozen-lockfile --filter api... --filter shared...
 
 # Create necessary directories with proper ownership (only writable dirs, chown -R /app is prohibitively slow)
-RUN mkdir -p apps/api/cache apps/api/public /app/data && \
-    chown -R node:node apps/api/cache apps/api/public /app/data
+RUN mkdir -p apps/api/cache apps/api/public && \
+    chown -R node:node apps/api/cache apps/api/public
 
 # Make wrapper script executable and fix line endings (CRLF to LF)
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
