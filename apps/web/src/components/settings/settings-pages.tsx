@@ -68,8 +68,8 @@ export const SETTINGS_PAGES: {
     content: StorageTab,
   },
   {
-    value: "activity",
-    label: "Usage",
+    value: "logs",
+    label: "Logs",
     description: "The deliveries and video jobs behind your traffic.",
     icon: ScrollText,
     content: ActivityTab,

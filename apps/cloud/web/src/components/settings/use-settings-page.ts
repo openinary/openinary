@@ -7,8 +7,8 @@ export const SETTINGS_TABS = [
   "buckets",
   "storage",
   "api-keys",
-  "plan",
-  "activity",
+  "billing",
+  "logs",
 ] as const;
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
 

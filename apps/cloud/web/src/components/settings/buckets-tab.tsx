@@ -185,7 +185,7 @@ export function BucketsTab() {
                 <button
                   type="button"
                   className="underline underline-offset-2 hover:text-foreground"
-                  onClick={() => setSettingsTab("plan")}
+                  onClick={() => setSettingsTab("billing")}
                 >
                   Upgrade for more
                 </button>

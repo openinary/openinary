@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
         destination: "/settings/:tab",
         permanent: false,
       },
+      // Plan and Usage became Usage & billing and Logs. Links already out in
+      // emails and quota errors still say ?settings=plan.
+      { source: "/settings/plan", destination: "/settings/billing", permanent: false },
+      { source: "/settings/activity", destination: "/settings/logs", permanent: false },
     ];
   },
   async rewrites() {

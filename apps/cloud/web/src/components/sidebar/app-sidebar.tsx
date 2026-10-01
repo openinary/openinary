@@ -5,12 +5,12 @@ import {
   BookOpen,
   Boxes,
   ChartColumn,
-  CreditCard,
   Image as ImageIcon,
   KeyRound,
   LayoutGrid,
   Palette,
   Plug,
+  ScrollText,
   Upload,
   UploadCloud,
   Video,
@@ -43,8 +43,8 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
 
   const mainItems: NavItem[] = [
     { title: "Assets", icon: LayoutGrid, url: "/" },
-    { title: "Usage", icon: ChartColumn, url: "/settings/activity" },
-    { title: "Plan", icon: CreditCard, url: "/settings/plan" },
+    { title: "Usage", icon: ChartColumn, url: "/settings/billing" },
+    { title: "Logs", icon: ScrollText, url: "/settings/logs" },
     { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
   ];
 

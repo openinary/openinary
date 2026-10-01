@@ -12,7 +12,7 @@ import {
 import { ActivityTab } from "@/components/settings/activity-tab";
 import { ApiKeysTab } from "@/components/settings/api-keys-tab";
 import { BucketsTab } from "@/components/settings/buckets-tab";
-import { PlanTab } from "@/components/settings/plan-tab";
+import { BillingTab } from "@/components/settings/billing-tab";
 import type { SettingsTab } from "@/components/settings/use-settings-page";
 
 export const SETTINGS_PAGES: {
@@ -53,15 +53,15 @@ export const SETTINGS_PAGES: {
     content: ApiKeysTab,
   },
   {
-    value: "plan",
-    label: "Plan",
-    description: "Your plan, what it includes and what usage costs.",
+    value: "billing",
+    label: "Usage & billing",
+    description: "What you've used this period, what it costs and your plan.",
     icon: CreditCard,
-    content: PlanTab,
+    content: BillingTab,
   },
   {
-    value: "activity",
-    label: "Usage",
+    value: "logs",
+    label: "Logs",
     description: "The deliveries and video jobs behind your usage.",
     icon: ScrollText,
     content: ActivityTab,

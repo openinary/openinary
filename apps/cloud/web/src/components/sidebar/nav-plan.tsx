@@ -78,7 +78,7 @@ export function UsagePanel() {
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={() => setSettingsTab("plan")}
+            onClick={() => setSettingsTab("billing")}
           >
             Upgrade
           </Button>
@@ -114,7 +114,7 @@ export function NavSettings() {
           <Button
             size="sm"
             className="h-6 px-2 text-xs group-data-[collapsible=icon]:hidden"
-            onClick={() => setSettingsTab("plan")}
+            onClick={() => setSettingsTab("billing")}
           >
             Upgrade
           </Button>

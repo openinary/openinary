@@ -79,7 +79,7 @@ export function ActivityTab() {
     refetchInterval: 10_000,
   });
 
-  // Pay as you go needs a metered plan (see plan-tab): on Free nothing served
+  // Pay as you go needs a metered plan (see billing-tab): on Free nothing served
   // here can ever cost anything, so a column of $0.00 would be noise at best
   // and a scare at worst. Shares its cache with the Plan tab, so this costs no
   // round-trip.

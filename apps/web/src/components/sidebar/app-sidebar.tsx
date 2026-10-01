@@ -3,13 +3,13 @@
 import { type MediaFile, type QuickAction, QuickActions } from "@openinary/ui";
 import {
   BookOpen,
-  ChartColumn,
   HardDrive,
   Image as ImageIcon,
   KeyRound,
   LayoutGrid,
   Palette,
   Plug,
+  ScrollText,
   Settings,
   UploadCloud,
   User,
@@ -47,7 +47,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   const version = useVersion();
   const mainItems: NavItem[] = [
     { title: "Assets", icon: LayoutGrid, url: "/" },
-    { title: "Usage", icon: ChartColumn, url: "/settings/activity" },
+    { title: "Logs", icon: ScrollText, url: "/settings/logs" },
     { title: "Storage", icon: HardDrive, url: "/settings/storage" },
     { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
   ];

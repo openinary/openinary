@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
         destination: "/settings/:tab",
         permanent: false,
       },
+      // Usage was renamed Logs.
+      { source: "/settings/activity", destination: "/settings/logs", permanent: false },
     ];
   },
   eslint: {

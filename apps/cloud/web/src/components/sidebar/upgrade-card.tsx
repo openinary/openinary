@@ -109,7 +109,7 @@ export function UpgradeCard() {
         <Button
           size="sm"
           className="mt-3 h-7 w-full text-xs"
-          onClick={() => setSettingsTab("plan")}
+          onClick={() => setSettingsTab("billing")}
         >
           Upgrade to Alpha
         </Button>
