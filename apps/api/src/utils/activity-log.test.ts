@@ -78,6 +78,12 @@ test("counts start from the lines an upgrading instance already has", () => {
   ]);
 });
 
+test("since is set once and survives a restart", () => {
+  const db = new Database(":memory:");
+  assert.equal(new ActivityLog(db).since("onboarding_since", 1000), 1000);
+  assert.equal(new ActivityLog(db).since("onboarding_since", 5000), 1000);
+});
+
 test("state documents round-trip and overwrite", () => {
   const log = new ActivityLog(new Database(":memory:"));
   assert.equal(log.getState("workspace"), undefined);

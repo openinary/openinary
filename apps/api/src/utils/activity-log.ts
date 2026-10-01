@@ -229,6 +229,17 @@ export class ActivityLog {
       .get();
   }
 
+  /**
+   * When `key` was first asked for: stored on the first call, read back on
+   * every one after, across restarts.
+   */
+  since(key: string, now = Date.now()): number {
+    this.#db
+      .prepare("INSERT OR IGNORE INTO app_state (key, value) VALUES (?, ?)")
+      .run(key, JSON.stringify(now));
+    return this.getState<number>(key) ?? now;
+  }
+
   /** A JSON document kept in app_state, e.g. onboarding answers. */
   getState<T>(key: string): T | undefined {
     const row = this.#db
