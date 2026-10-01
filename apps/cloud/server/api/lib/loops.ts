@@ -11,7 +11,7 @@
 // Every failure is swallowed, exactly like captureEvent in lib/analytics.ts:
 // a marketing platform being down must never cost a signup.
 
-import { count, eq, max } from "drizzle-orm";
+import { count, eq, isNull, max } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { apikey, session, user } from "../db/schema/auth.js";
 import { bucket } from "../db/schema/bucket.js";
@@ -183,9 +183,12 @@ export async function syncLifecycle(): Promise<void> {
       .select({ userId: apikey.referenceId, total: count() })
       .from(apikey)
       .groupBy(apikey.referenceId),
+    // Impersonation sessions are the admin looking, not the customer coming
+    // back, so they must not hold off a re-engagement email.
     db
       .select({ userId: session.userId, at: max(session.updatedAt) })
       .from(session)
+      .where(isNull(session.impersonatedBy))
       .groupBy(session.userId),
   ]);
   const bucketCounts = new Map(buckets.map((row) => [row.userId, row.total]));

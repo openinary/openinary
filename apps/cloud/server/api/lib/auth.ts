@@ -210,6 +210,12 @@ export const auth = betterAuth({
     // and adminUserIds grants every admin operation on its own. An unset
     // ADMIN_USER_ID leaves the list holding "", which no row can match, so
     // the endpoints stay closed rather than open.
+    //
+    // Impersonation (support: see the customer dashboard as they see it) uses
+    // the plugin's own endpoints, called straight from the browser. The
+    // admin's session waits in a signed `admin_session` cookie, and the
+    // borrowed one lasts the plugin's default hour. Admins themselves cannot
+    // be impersonated.
     admin({ adminUserIds: [process.env.ADMIN_USER_ID ?? ""] }),
     /**
      * Onboarding only. Nothing in either dashboard calls this - the admin panel

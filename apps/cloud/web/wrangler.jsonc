@@ -9,7 +9,9 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "NEXT_PUBLIC_SERVER_URL": "https://cdn.openinary.dev"
+    "NEXT_PUBLIC_SERVER_URL": "https://cdn.openinary.dev",
+    // Where "Stop impersonating" returns the admin (see app-shell.tsx).
+    "NEXT_PUBLIC_ADMIN_URL": "https://admin.openinary.dev"
   },
   "observability": {
     "enabled": true
