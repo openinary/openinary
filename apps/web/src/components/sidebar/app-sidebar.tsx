@@ -79,9 +79,12 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
     },
   ];
 
-  const quickActions: QuickAction[] = [
-    ...[...mainItems, ...toolItems].map((item) => ({
+  // One palette entry per sidebar link, filed under the section it sits in.
+  const toAction =
+    (group: string) =>
+    (item: NavItem): QuickAction => ({
       label: item.title,
+      group,
       icon: item.icon,
       onSelect:
         item.onSelect ??
@@ -89,19 +92,26 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           item.url?.startsWith("http")
             ? window.open(item.url, "_blank", "noreferrer")
             : router.push(item.url ?? "/")),
-    })),
+    });
+
+  const quickActions: QuickAction[] = [
+    ...mainItems.map(toAction("Pages")),
+    ...toolItems.map(toAction("Tools")),
     {
       label: "Account",
+      group: "Settings",
       icon: User,
       onSelect: () => router.push("/settings/account"),
     },
     {
       label: "Appearance",
+      group: "Settings",
       icon: Palette,
       onSelect: () => router.push("/settings/appearance"),
     },
     {
       label: "Documentation",
+      group: "Help",
       icon: BookOpen,
       onSelect: () => window.open(DOCS_URL, "_blank", "noreferrer"),
     },

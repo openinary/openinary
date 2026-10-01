@@ -75,14 +75,12 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
     },
   ];
 
-  const quickActions: QuickAction[] = [
-    {
-      label: "Upload files",
-      icon: Upload,
-      onSelect: () => router.push("/?upload=true"),
-    },
-    ...[...mainItems, ...toolItems].map((item) => ({
+  // One palette entry per sidebar link, filed under the section it sits in.
+  const toAction =
+    (group: string) =>
+    (item: NavItem): QuickAction => ({
       label: item.title,
+      group,
       icon: item.icon,
       onSelect:
         item.onSelect ??
@@ -90,19 +88,32 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
           item.url?.startsWith("http")
             ? window.open(item.url, "_blank", "noreferrer")
             : router.push(item.url ?? "/")),
-    })),
+    });
+
+  const quickActions: QuickAction[] = [
+    {
+      label: "Upload files",
+      group: "Actions",
+      icon: Upload,
+      onSelect: () => router.push("/?upload=true"),
+    },
+    ...mainItems.map(toAction("Pages")),
+    ...toolItems.map(toAction("Tools")),
     {
       label: "Manage buckets",
+      group: "Settings",
       icon: Boxes,
       onSelect: () => setSettingsTab("buckets"),
     },
     {
       label: "Appearance",
+      group: "Settings",
       icon: Palette,
       onSelect: () => setSettingsTab("appearance"),
     },
     {
       label: "Documentation",
+      group: "Help",
       icon: BookOpen,
       onSelect: () =>
         window.open("https://docs.openinary.dev", "_blank", "noreferrer"),

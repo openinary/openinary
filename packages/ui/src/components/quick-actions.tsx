@@ -1,24 +1,33 @@
 "use client";
 
-import { Command, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Command as CommandIcon, type LucideIcon } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 
 import { cn } from "../lib/utils";
-import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "../ui/command";
 
 export type QuickAction = {
   label: string;
+  /** Section heading in the palette; sections keep the order they first appear in. */
+  group: string;
   icon?: LucideIcon;
   onSelect: () => void;
 };
 
 /**
  * The sidebar's search-shaped button and the palette it opens (also on
- * Cmd/Ctrl+K). The list is whatever the host app passes in, filtered by
- * substring.
+ * Cmd/Ctrl+K): shadcn's command menu, one section per group the host app
+ * gives its actions, fuzzy-filtered by cmdk.
  */
-// ponytail: substring match over a flat list. Swap for cmdk when the list
-// needs groups, fuzzy ranking or async results.
 export function QuickActions({
   actions,
   className,
@@ -27,8 +36,6 @@ export function QuickActions({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -41,19 +48,13 @@ export function QuickActions({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const matches = actions.filter((action) =>
-    action.label.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const groups = new Map<string, QuickAction[]>();
+  for (const action of actions) {
+    groups.set(action.group, [...(groups.get(action.group) ?? []), action]);
+  }
 
-  const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    setQuery("");
-    setActive(0);
-  };
-
-  const run = (action?: QuickAction) => {
-    if (!action) return;
-    handleOpenChange(false);
+  const run = (action: QuickAction) => {
+    setOpen(false);
     action.onSelect();
   };
 
@@ -69,7 +70,7 @@ export function QuickActions({
           className,
         )}
       >
-        <Command className="size-3.5 shrink-0" />
+        <CommandIcon className="size-3.5 shrink-0" />
         <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">
           Quick actions
         </span>
@@ -78,57 +79,37 @@ export function QuickActions({
         </kbd>
       </button>
 
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="top-[20%] max-w-md translate-y-0 gap-0 overflow-hidden p-0 [&>button]:hidden">
-          <DialogTitle className="sr-only">Quick actions</DialogTitle>
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setActive(0);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
-                setActive((i) => Math.min(i + 1, matches.length - 1));
-              } else if (event.key === "ArrowUp") {
-                event.preventDefault();
-                setActive((i) => Math.max(i - 1, 0));
-              } else if (event.key === "Enter") {
-                event.preventDefault();
-                run(matches[active]);
-              }
-            }}
-            placeholder="Search actions..."
-            aria-label="Search actions"
-            className="h-11 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
-          />
-          <ul className="max-h-72 overflow-y-auto p-1.5">
-            {matches.map((action, index) => (
-              <li key={action.label}>
-                <button
-                  type="button"
-                  onClick={() => run(action)}
-                  onMouseMove={() => setActive(index)}
-                  className={cn(
-                    "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm [&>svg]:size-4 [&>svg]:text-muted-foreground",
-                    index === active && "bg-accent text-accent-foreground",
-                  )}
-                >
-                  {action.icon && <action.icon />}
-                  <span className="truncate">{action.label}</span>
-                </button>
-              </li>
+      <CommandDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Quick actions"
+        description="Search for a page, a tool or an action"
+        className="max-w-md"
+      >
+        <Command>
+          <CommandInput placeholder="Type a command or search..." />
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            {[...groups].map(([heading, items], index) => (
+              <Fragment key={heading}>
+                {index > 0 && <CommandSeparator />}
+                <CommandGroup heading={heading}>
+                  {items.map((action) => (
+                    <CommandItem
+                      key={action.label}
+                      value={action.label}
+                      onSelect={() => run(action)}
+                    >
+                      {action.icon && <action.icon />}
+                      <span className="truncate">{action.label}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Fragment>
             ))}
-            {matches.length === 0 && (
-              <li className="px-2 py-6 text-center text-muted-foreground text-sm">
-                No matching action
-              </li>
-            )}
-          </ul>
-        </DialogContent>
-      </Dialog>
+          </CommandList>
+        </Command>
+      </CommandDialog>
     </>
   );
 }
