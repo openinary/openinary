@@ -328,11 +328,12 @@ export function BillingTab() {
     const capped = !!usage && !usage.unlimited && usage.granted > 0;
     const projected = usage ? project(usage) : 0;
     const ratio = capped && usage ? usage.used / usage.granted : 0;
-    const tone: Tone =
-      ratio >= 1
-        ? isMetered
-          ? "warning"
-          : "danger"
+    // Only a capped plan warns: past the allowance on a metered one is the
+    // plan working as sold, so it reads as billing, not as a problem.
+    const tone: Tone = isMetered
+      ? "neutral"
+      : ratio >= 1
+        ? "danger"
         : ratio >= 0.8 || (capped && projected > (usage?.granted ?? 0))
           ? "warning"
           : "neutral";
@@ -779,7 +780,7 @@ export function BillingTab() {
                     <div
                       className={cn(
                         "absolute inset-y-0 left-0 rounded-full transition-all",
-                        TONE_FILL[overUsed > 0 ? "neutral" : tone],
+                        overUsed > 0 ? "bg-foreground/25" : TONE_FILL[tone],
                       )}
                       style={{ width: `${Math.min(usedPct, limitPct)}%` }}
                     />
