@@ -1,3 +1,20 @@
+/**
+ * The request path as a storage key. Hono's c.req.path is only decodeURI'd,
+ * which leaves reserved characters (, & @ + = ; : $) percent-encoded, while
+ * every write path stores keys fully decoded: "a, b.png" requested as
+ * /t/a%2C%20b.png was looked up as "a%2C b.png" and 404'd. Same second pass
+ * the storage and download routes already apply. Safe on an already-decoded
+ * path because Hono keeps "%25" encoded, so a literal "%" is only decoded once.
+ */
+export const decodeRequestPath = (path: string): string => {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    // Malformed escape sequence: keep it as sent, like the storage routes.
+    return path;
+  }
+};
+
 export const parseParams = (path: string) => {
   const segments = path.split("/");
   const params: Record<string, string> = {};

@@ -4,13 +4,14 @@ import type { RouteDeps } from "../config/deps";
 import { remoteSourceUrl } from "./transform-helpers";
 import { contentTypeForExt } from "../utils/upload-validation";
 import logger, { serializeError } from "../utils/logger";
+import { decodeRequestPath } from "../utils/parser";
 
 export function createTransformRoute(deps: RouteDeps) {
   const transformService = new TransformService(deps.storage, deps.queue);
   const t = new Hono();
 
   t.get("/*", async (c) => {
-    const path = c.req.path;
+    const path = decodeRequestPath(c.req.path);
     const userAgent = c.req.header("User-Agent") ?? "";
     const acceptHeader = c.req.header("Accept");
 
