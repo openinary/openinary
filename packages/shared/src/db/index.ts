@@ -9,6 +9,9 @@ export type { PrismaClient } from "../generated/prisma/client.js";
 
 let client: PrismaClient | undefined;
 let initError: Error | undefined;
+// In-flight/successful init. Concurrent callers share this promise; it resets
+// to undefined on failure so a later retry actually retries (F2 major-4).
+let initPromise: Promise<void> | undefined;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // prisma/migrations lives next to src/'s parent (packages/shared/prisma).
@@ -49,44 +52,65 @@ function runMigrateDeploy(databaseUrl: string): void {
  * Create the PrismaClient singleton, apply pending migrations, verify
  * connectivity, and initialize the auth layer. Fail-fast with an actionable
  * message when DATABASE_URL is missing or the database is unreachable.
- * Idempotent: a second call no-ops.
+ * Concurrent callers share a single init; after success a second call no-ops;
+ * after failure the memoized promise is dropped so a retry actually retries.
  */
 export async function initDb(): Promise<void> {
   if (client) return;
-  // Clear any previous failed-init error before retrying.
-  initError = undefined;
+  if (initPromise) return initPromise;
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    initError = new Error(
-      "DATABASE_URL is not set. Openinary requires PostgreSQL. " +
-        "Set DATABASE_URL (e.g. postgres://user:password@localhost:5432/openinary) in your environment."
-    );
-    throw initError;
-  }
+  initPromise = (async () => {
+    // Clear any previous failed-init error before retrying.
+    initError = undefined;
 
-  runMigrateDeploy(databaseUrl);
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      initError = new Error(
+        "DATABASE_URL is not set. Openinary requires PostgreSQL. " +
+          "Set DATABASE_URL (e.g. postgres://user:password@localhost:5432/openinary) in your environment."
+      );
+      throw initError;
+    }
 
-  const created = new PrismaClient();
+    runMigrateDeploy(databaseUrl);
+
+    const created = new PrismaClient();
+    try {
+      await created.$queryRaw`SELECT 1`;
+    } catch (err) {
+      await created.$disconnect().catch(() => {});
+      initError = new Error(
+        `Cannot connect to PostgreSQL via DATABASE_URL (${databaseUrl.replace(/:[^:@/]+@/, ":***@")}). ` +
+          `Ensure the database is running and reachable. ` +
+          (err instanceof Error ? `Underlying error: ${err.message}` : String(err)),
+        { cause: err }
+      );
+      throw initError;
+    }
+
+    // Auth is part of the DB lifecycle now (todo 4): construct better-auth on
+    // the Prisma adapter and run the secret-hash check after migrations.
+    // initAuth resolves the shared client via getDb(), so `client` is
+    // assigned before it runs — but on initAuth failure the client is torn
+    // down and unset, so a retry re-runs the whole init instead of wedging
+    // forever on a half-initialized singleton (F2 major-4).
+    client = created;
+    try {
+      const { initAuth } = await import("../auth.js");
+      await initAuth();
+    } catch (err) {
+      client = undefined;
+      await created.$disconnect().catch(() => {});
+      throw err;
+    }
+  })();
+
   try {
-    await created.$queryRaw`SELECT 1`;
+    await initPromise;
   } catch (err) {
-    await created.$disconnect().catch(() => {});
-    initError = new Error(
-      `Cannot connect to PostgreSQL via DATABASE_URL (${databaseUrl.replace(/:[^:@/]+@/, ":***@")}). ` +
-        `Ensure the database is running and reachable. ` +
-        (err instanceof Error ? `Underlying error: ${err.message}` : String(err)),
-      { cause: err }
-    );
-    throw initError;
+    initPromise = undefined;
+    throw err;
   }
-
-  client = created;
-
-  // Auth is part of the DB lifecycle now (todo 4): construct better-auth on
-  // the Prisma adapter and run the secret-hash check after migrations.
-  const { initAuth } = await import("../auth.js");
-  await initAuth();
 }
 
 /**
