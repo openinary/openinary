@@ -1,0 +1,203 @@
+---
+title: "Migrate from Cloudinary"
+description: "Copy your files, switch your uploads and update your URLs. Five steps, the same for ten images or a million."
+---
+
+Openinary speaks the same URL language as Cloudinary. Moving over mostly means copying your files and changing the start of your URLs:
+
+```diff
+- res.cloudinary.com/acme/image/upload/w_400,c_fill/v17/jane.jpg
++ cdn.openinary.dev/b/BUCKET_ID/t/w_400,c_fill/jane.jpg
+```
+
+## Before you start
+
+Openinary covers resizing, cropping, formats, quality and video trimming. It does not have effects (`e_`), overlays (`l_`), AI features, adaptive streaming or webhooks yet. If you rely on one of these, read the [full comparison](/cloudinary-comparison) first.
+
+## Migrate in five steps
+
+<Steps>
+  <Step title="Create your Openinary account">
+    Sign up for [Openinary Cloud](/cloud/quickstart) and create an API key under **Settings → API keys**. You can also [self-host](/quickstart).
+
+    The Free plan includes 1 GB of storage. If your Cloudinary library is bigger, switch to the Alpha plan first. See [plans](/cloud/overview#plans-and-limits).
+  </Step>
+
+  <Step title="Copy your files">
+    Our migration script copies every file from Cloudinary to Openinary and keeps the same paths. Find your Cloudinary API key and secret in the Cloudinary console settings, then run:
+
+    ```bash
+    curl -O https://raw.githubusercontent.com/openinary/openinary/main/apps/docs/scripts/migrate-from-cloudinary.mjs
+
+    export CLOUDINARY_CLOUD_NAME=your-cloud-name
+    export CLOUDINARY_API_KEY=your-cloudinary-key
+    export CLOUDINARY_API_SECRET=your-cloudinary-secret
+    export OPENINARY_API_KEY=oik_your_api_key
+
+    node migrate-from-cloudinary.mjs
+    ```
+
+    Add `--dry-run` to see what would be copied without uploading anything. If the script stops, run it again: it picks up where it left off.
+
+    When it finishes, keep `cloudinary-migration.jsonl`. It lists every file with its old and new URL.
+  </Step>
+
+  <Step title="Send new uploads to Openinary">
+    Replace your Cloudinary upload call with a request to [`POST /upload`](/api-reference/files/upload):
+
+    ```js
+    const form = new FormData();
+    form.set("folder", "products");
+    form.append("files", file);
+
+    const res = await fetch("https://cdn.openinary.dev/upload", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENINARY_API_KEY}` },
+      body: form,
+    });
+    const { files } = await res.json(); // files[0].path replaces public_id
+    ```
+
+    Uploading from the browser, like with the Upload Widget? Use the [File Uploader](/guides/file-uploader) for [Next.js](/guides/integrate/nextjs) or [React](/guides/integrate/react).
+
+    Then run the migration script once more, to copy anything uploaded to Cloudinary in the meantime.
+  </Step>
+
+  <Step title="Update your URLs">
+    Replace the start of your Cloudinary URLs with your Openinary one, and remove the version (`v1712345678`). Your bucket ID is in the `to` column of the migration log.
+
+    Most transformations stay exactly the same. A few need a change, see [transformations that change](#transformations-that-change) below.
+
+    <Warning>
+      Remove any transformation Openinary doesn't support. A single unknown parameter, like `e_blur` in `w_400,e_blur:300`, makes the whole URL return `404`.
+    </Warning>
+
+    URLs saved in a database? Use the [conversion function](#convert-stored-urls) below.
+  </Step>
+
+  <Step title="Test, then switch">
+    Open your main pages on a preview deployment and check that images and videos load. A `404` in the network tab almost always means an unsupported parameter is left in a URL.
+
+    Then deploy. Each image size is generated once, on its first visit, so the first loads are a little slower.
+
+    Keep your Cloudinary account for 30 days, so old links in emails and caches keep working.
+  </Step>
+</Steps>
+
+## Transformations that change
+
+| Cloudinary | On Openinary |
+| --- | --- |
+| `q_auto:good`, `g_auto:subject` | `q_auto`, `g_auto` |
+| `dpr_2` | Double `w` instead |
+| `t_thumbnail` (named transformation) | Write its parameters in the URL |
+| `e_`, `l_`, `u_`, `fl_`, `d_`, `bo_`, `x_`, `y_`, `z_`, `vc_` | Not supported, remove them |
+
+Everything else you likely use, `w`, `h`, `c`, `g`, `f`, `q`, `ar`, `a`, `r`, `b`, `so`, `eo`, works as is. See the [transformation reference](/api-reference/media/transform).
+
+## More help
+
+<AccordionGroup>
+  <Accordion title="Replacing the SDK in your code">
+    You don't need an SDK. A small helper builds your URLs:
+
+    ```js
+    const BASE = "https://cdn.openinary.dev/b/YOUR_BUCKET_ID";
+
+    export const media = (path, transformations) =>
+      transformations ? `${BASE}/t/${transformations}/${path}` : `${BASE}/t/${path}`;
+
+    media("avatars/jane.jpg", "w_400,c_fill"); // was cloudinary.url("avatars/jane", ...)
+    ```
+
+    Note that Openinary paths include the file extension.
+  </Accordion>
+
+  <Accordion title="Replacing CldImage in Next.js">
+    Use Next.js's own `<Image>` with this loader:
+
+    ```js openinary-loader.js
+    export default function openinaryLoader({ src, width, quality }) {
+      return `https://cdn.openinary.dev/b/YOUR_BUCKET_ID/t/w_${width},q_${quality ?? "auto"}/${src}`;
+    }
+    ```
+
+    ```js next.config.js
+    module.exports = {
+      images: { loader: "custom", loaderFile: "./openinary-loader.js" },
+    };
+    ```
+
+    Each width Next.js asks for is a new transformation. Trim `images.deviceSizes` to the widths you really use.
+  </Accordion>
+
+  <Accordion title="Convert stored URLs" id="convert-stored-urls">
+    Run each saved Cloudinary URL through this function. It changes the prefix, drops the version and keeps only the parameters Openinary supports.
+
+    ```js to-openinary.js
+    const BASE = "https://cdn.openinary.dev/b/YOUR_BUCKET_ID";
+
+    const SUPPORTED = {
+      w: /^(\d+|auto)$/,
+      h: /^(\d+|auto)$/,
+      c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
+      g: /^(center|north|south|east|west|[cnsew]|faces?|faces?_center|north_center|south_center|auto)$/,
+      q: /^(\d+|auto)$/,
+      f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
+      a: /^(-?\d+|auto)$/,
+      ar: /^(\d+:\d+|\d+(\.\d+)?)$/,
+      b: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8})$/,
+      r: /^(max|\d+(:\d+){0,3})$/,
+      so: /^\d+(\.\d+)?$/,
+      eo: /^\d+(\.\d+)?$/,
+    };
+
+    export function toOpeninary(url) {
+      const match = url.match(/^https?:\/\/res\.cloudinary\.com\/[^/]+\/(?:image|video|raw)\/upload\/(.+)$/);
+      if (!match) return url;
+
+      // Transformations sit before the version (v1712345678). Without a version,
+      // they are the leading segments shaped like "w_400,c_fill".
+      const segments = match[1].split("/");
+      const version = segments.findIndex((s) => /^v\d+$/.test(s));
+      const start = version !== -1
+        ? version
+        : segments.findIndex((s) => !s.split(",").every((p) => /^[a-z]{1,4}_/.test(p)));
+      const transforms = segments.slice(0, start);
+      const path = segments.slice(version !== -1 ? start + 1 : start).join("/");
+
+      const params = new Map();
+      for (const part of transforms.join(",").split(",")) {
+        const [key, ...rest] = part.split("_");
+        let value = rest.join("_");
+        if (!["ar", "b", "r"].includes(key)) value = value.split(":")[0]; // q_auto:good -> q_auto
+        if (SUPPORTED[key]?.test(value)) params.set(key, value);
+      }
+
+      const t = [...params].map(([key, value]) => `${key}_${value}`).join(",");
+      return `${BASE}/t/${t ? `${t}/` : ""}${path}`;
+    }
+    ```
+
+    If a URL has no file extension, find the right path in the migration log.
+  </Accordion>
+
+  <Accordion title="Large libraries">
+    The script copies four files at a time. For hundreds of thousands of files, run several copies in parallel, one per folder, each with its own log:
+
+    ```bash
+    MIGRATION_LOG=products.jsonl node migrate-from-cloudinary.mjs --prefix=products/
+    ```
+
+    Self-hosting? Raise `MAX_FILE_SIZE_MB` above your largest file first. The default is 50 MB.
+  </Accordion>
+
+  <Accordion title="What the script doesn't copy">
+    - Private and authenticated files
+    - Tags and metadata
+    - File types Openinary doesn't accept, like SVG, PDF or TIFF. They are listed as `unsupported` in the log.
+    - Upload presets, named transformations and webhooks. Recreate what you need by hand.
+  </Accordion>
+</AccordionGroup>
+
+Stuck? [Ask in the discussions](https://github.com/openinary/openinary/discussions), we read every migration question.

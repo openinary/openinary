@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc && tsc-alias",
     "type-check": "tsc --noEmit",
-    "test": "tsx worker/transform-cache.test.ts && tsx worker/bucket-delete.test.ts && tsx worker/rename-cache-purge.test.ts && tsx worker/delivery-log.test.ts && tsx worker/video-metering.test.ts && tsx worker/admin-suspend.test.ts && tsx worker/loops-lifecycle.test.ts && tsx worker/loops-collisions.test.ts && tsx worker/url-hostile-keys.test.ts && tsx worker/signup-attribution.test.ts",
+    "test": "tsx worker/transform-cache.test.ts && tsx worker/bucket-delete.test.ts && tsx worker/rename-cache-purge.test.ts && tsx worker/delivery-log.test.ts && tsx worker/video-metering.test.ts && tsx worker/admin-suspend.test.ts && tsx worker/loops-lifecycle.test.ts && tsx worker/loops-collisions.test.ts && tsx worker/url-hostile-keys.test.ts && tsx worker/signup-attribution.test.ts && tsx worker/sign-in-probe.test.ts",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./api/index.ts --outfile server",
     "dev": "wrangler dev --port 3100",
     "dev:local": "wrangler dev --port 3100 --local",

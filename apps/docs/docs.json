@@ -26,7 +26,8 @@
             "pages": [
               "index",
               "cloud/quickstart",
-              "quickstart"
+              "quickstart",
+              "migrate-from-cloudinary"
             ]
           },
           {
