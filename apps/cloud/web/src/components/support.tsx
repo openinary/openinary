@@ -4,6 +4,7 @@ import {
   IdentifySupportVisitor,
   Support,
   SupportProvider,
+  useVisitor,
 } from "@cossistant/next";
 import { useQuery } from "@tanstack/react-query";
 
@@ -41,9 +42,16 @@ function IdentifyAccount() {
   const { data: session } = authClient.useSession();
   const { data: usage } = useQuery(orpc.usage.get.queryOptions());
   const { data: buckets } = useQuery(orpc.bucket.list.queryOptions());
+  const { visitor } = useVisitor();
 
   const user = session?.user;
-  if (!user) return null;
+  // Mounted only once the visitor exists. IdentifySupportVisitor tries
+  // identify() once per mount and marks it done whatever the outcome, and
+  // SupportProvider only starts fetching the visitor in its own effect, which
+  // React runs after this child's. Mounted right away, that single attempt
+  // always found no visitor ("identify skipped") and never retried, so every
+  // conversation reached the inbox as an anonymous visitor.
+  if (!user || !visitor) return null;
 
   const consumption: Record<string, string | null> = Object.fromEntries(
     FEATURES.map((feature): [string, string | null] => {
