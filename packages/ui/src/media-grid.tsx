@@ -1334,7 +1334,9 @@ export function MediaGrid({
             {view === "list" && (
               <div
                 ref={folderListWrapperRef}
-                className="rounded-lg border border-border overflow-hidden"
+                // A container, so the columns below drop out as the list
+                // narrows (type first, then size) and the name keeps room.
+                className="@container rounded-lg border border-border overflow-hidden"
                 style={{
                   height: folderListVirtualizer.getTotalSize(),
                   position: "relative",
@@ -1450,10 +1452,10 @@ export function MediaGrid({
                             >
                               {folder.name}
                             </p>
-                            <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
+                            <span className="hidden w-32 shrink-0 text-right text-xs text-muted-foreground @xl:block">
                               Folder
                             </span>
-                            <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                            <span className="hidden w-24 shrink-0 text-right text-xs text-muted-foreground @md:block">
                               {itemCountLabel}{" "}
                               {summary &&
                               summary.itemCount === 1 &&
@@ -1461,7 +1463,7 @@ export function MediaGrid({
                                 ? "item"
                                 : "items"}
                             </span>
-                            <div className="flex w-28 shrink-0 items-center justify-end">
+                            <div className="flex w-20 shrink-0 items-center justify-end @md:w-28">
                               {isFolderHovered ? (
                                 <div className="flex items-center gap-3">
                                   <button
@@ -1769,7 +1771,9 @@ export function MediaGrid({
             {files.length > 0 && view === "list" && (
               <div
                 ref={listWrapperRef}
-                className="rounded-lg border border-border overflow-hidden"
+                // A container, so the columns below drop out as the list
+                // narrows (type first, then size) and the name keeps room.
+                className="@container rounded-lg border border-border overflow-hidden"
                 style={{
                   height: listVirtualizer.getTotalSize(),
                   position: "relative",
@@ -1865,13 +1869,13 @@ export function MediaGrid({
                             >
                               {media.name}
                             </p>
-                            <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">
+                            <span className="hidden w-32 shrink-0 text-right text-xs text-muted-foreground @xl:block">
                               {getMimeType(media.name)}
                             </span>
-                            <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                            <span className="hidden w-24 shrink-0 text-right text-xs text-muted-foreground @md:block">
                               {formatListSize(media.size)}
                             </span>
-                            <div className="flex w-28 shrink-0 items-center justify-end">
+                            <div className="flex w-20 shrink-0 items-center justify-end @md:w-28">
                               {isHovered ? (
                                 <div className="flex items-center gap-3">
                                   <button
