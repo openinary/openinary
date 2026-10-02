@@ -46,7 +46,7 @@ export function Why() {
   return (
     <Section>
       <div className={`${gutter} pb-9 pt-14 md:pt-20`}>
-        <Eyebrow>Why Openinary</Eyebrow>
+        <Eyebrow as="h2">Why Openinary</Eyebrow>
       </div>
 
       {/* The 1px gap over a muted ground draws the grid hairlines, so cells stay

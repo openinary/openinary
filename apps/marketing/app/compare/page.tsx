@@ -8,9 +8,10 @@ import { focusRing, pressable } from "@/components/home/cta-button";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Compare Openinary vs Competitors — Open-source Media Platform",
+  title: "Compare Openinary vs Competitors | Open-source Media Platform",
   description:
     "See how Openinary compares to Cloudinary, ImageKit, Uploadcare and other media management platforms. Open-source, self-hostable, no vendor lock-in.",
+  alternates: { canonical: "/compare" },
 };
 
 export default function CompareIndexPage() {
