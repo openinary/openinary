@@ -295,6 +295,13 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
         "hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",
+        // Inset: the line traces the page sheet's left edge, at its height and
+        // with its radius, so it reads as that edge lighting up rather than a
+        // rule through the gutter.
+        "group-data-[variant=inset]:after:inset-y-2 group-data-[variant=inset]:after:w-3 group-data-[variant=inset]:after:rounded-l-xl group-data-[variant=inset]:after:border-transparent group-data-[variant=inset]:after:border-l-2 group-data-[variant=inset]:hover:after:border-sidebar-border group-data-[variant=inset]:hover:after:bg-transparent",
+        // Collapsed, the container runs 2px wider than its gap (see
+        // sidebar-container), which pushes the rail 2px past the sheet edge.
+        "group-data-[variant=inset]:group-data-[collapsible=icon]:after:-translate-x-0.5",
         "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
         className,
@@ -310,7 +317,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
       data-slot="sidebar-inset"
       className={cn(
         "bg-background relative flex w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+        "md:peer-data-[variant=inset]:bg-transparent",
         className,
       )}
       {...props}

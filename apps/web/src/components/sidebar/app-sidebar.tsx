@@ -118,7 +118,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   ];
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
           <NavUser />
