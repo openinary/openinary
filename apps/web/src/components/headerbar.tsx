@@ -3,6 +3,7 @@
 import { LayoutGrid, List } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { ColumnCountSlider, DeleteFolderButton, UploadButtonWithDialog } from "@openinary/ui";
+import { HistoryNav } from "./history-nav";
 import { Button } from "./ui/button";
 import {
   Breadcrumb,
@@ -12,7 +13,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./ui/breadcrumb";
-import { Separator } from "./ui/separator";
 import { SidebarTrigger } from "./ui/sidebar";
 
 export default function HeaderBar({
@@ -30,20 +30,18 @@ export default function HeaderBar({
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b">
-      <div className="flex items-center justify-between w-full px-4">
+      <div className="flex items-center justify-between w-full px-1.5">
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1 md:hidden" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4 md:hidden"
-          />
+          <SidebarTrigger className="md:hidden" />
+          <HistoryNav />
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink
                   onClick={() => setFolderPath(null)}
-                  className="cursor-pointer"
+                  className="flex cursor-pointer items-center gap-1.5"
                 >
+                  <LayoutGrid className="size-3.5" />
                   Assets
                 </BreadcrumbLink>
               </BreadcrumbItem>

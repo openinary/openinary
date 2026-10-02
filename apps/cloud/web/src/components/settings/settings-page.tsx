@@ -1,11 +1,12 @@
 "use client";
 
+import { Settings } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PageHeader, Sheet } from "@/components/page";
 import { SETTINGS_PAGES } from "@/components/settings/settings-pages";
 import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,12 +19,16 @@ export function SettingsPage({ tab }: { tab: string }) {
   if (!page) notFound();
 
   return (
-    <div className="h-screen w-full overflow-auto">
-      <div className="px-4 pt-5 pb-16 sm:px-6">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1 md:hidden" />
-          <h1 className="font-semibold text-lg">Settings</h1>
-        </div>
+    <Sheet>
+      <PageHeader
+        breadcrumb={[
+          { label: "Settings", icon: Settings },
+          { label: page.label },
+        ]}
+        icon={page.icon}
+      />
+      <div className="min-h-0 flex-1 overflow-auto px-4 pt-2 pb-16 sm:px-6">
+        <h1 className="font-semibold text-lg">Settings</h1>
 
         {/* The rule is an inset shadow, not a border: the nav scrolls
             sideways on narrow screens, and overflow would clip a border the
@@ -53,6 +58,6 @@ export function SettingsPage({ tab }: { tab: string }) {
           <page.content />
         </div>
       </div>
-    </div>
+    </Sheet>
   );
 }

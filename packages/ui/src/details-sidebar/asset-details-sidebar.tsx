@@ -1,16 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { X, FileImage } from "lucide-react";
+import { FileImage } from "lucide-react";
+import { cn } from "../lib/utils";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Button } from "../ui/button";
-import { Separator } from "../ui/separator";
 import { useAssetDetails } from "./use-asset-details";
 import { AssetPreview } from "./asset-preview";
-import { AssetDetailsTab } from "./asset-details-tab";
+import { AssetActions } from "./asset-actions";
+import { AssetDeliverTab } from "./asset-deliver-tab";
 import { AssetTransformationsTab } from "./asset-transformations-tab";
-import { AssetMetadataTab } from "./asset-metadata-tab";
+import { AssetInfoTab } from "./asset-info-tab";
 import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 
 export function AssetDetailsSidebar({
@@ -18,12 +18,16 @@ export function AssetDetailsSidebar({
   onAssetIdChange,
   open,
   onOpenChange,
+  hideClose,
+  className,
   ...props
 }: {
   assetId: string | null;
   onAssetIdChange: (assetId: string | null) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** For hosts that close the panel themselves, like a bottom sheet's handle. */
+  hideClose?: boolean;
 } & React.ComponentProps<"div">) {
   const {
     asset,
@@ -34,33 +38,52 @@ export function AssetDetailsSidebar({
     mediaUrl,
     previewUrl,
     transformBaseUrl,
-    handleCopyUrl,
     handleDownload,
     handleOpenInNewTab,
     handleClose,
+    handleRename,
+    handleMove,
     handleDeleteRequest,
     handleDeleteDialogClose,
     handleDelete,
   } = useAssetDetails(assetId, onAssetIdChange, onOpenChange);
 
+  // Escape closes the panel - unless it is closing something on top of it
+  // (a dialog, menu or select), which has focus while open, so the key
+  // press comes from inside it.
+  const closeRef = React.useRef(handleClose);
+  closeRef.current = handleClose;
+  React.useEffect(() => {
+    if (!assetId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        target?.closest(
+          '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
+        )
+      )
+        return;
+      closeRef.current();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [assetId]);
+
   return (
     <div
-      className="h-[100dvh] flex flex-col border-l bg-sidebar text-sidebar-foreground min-w-0"
+      // The shell's 8px gutter on the outside, 8px more inside: content sits
+      // 16px from the page sheet and from the window, like the main sidebar's.
+      className={cn(
+        "h-[100dvh] flex flex-col py-2 pr-2 text-sidebar-foreground min-w-0",
+        className,
+      )}
       {...props}
     >
-      <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
-        <h2 className="text-lg font-semibold">Asset Details</h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={handleClose}
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </Button>
-      </div>
-      <ScrollArea className="flex-1">
+      {/* Radix lays the viewport's content out as a table, which grows to
+          its widest line: a long file name would push the whole panel past
+          its edge instead of truncating. */}
+      <ScrollArea className="min-h-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
         {!asset ? (
           <div className="p-4 text-center text-muted-foreground">
             <FileImage className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -70,38 +93,54 @@ export function AssetDetailsSidebar({
             </p>
           </div>
         ) : (
-          <div className="p-4 space-y-4">
-            <AssetPreview asset={asset} previewUrl={previewUrl} />
+          <div className="px-2 pb-4 space-y-4">
+            <AssetPreview
+              asset={asset}
+              previewUrl={previewUrl}
+              fileSize={fileSize}
+              onClose={hideClose ? undefined : handleClose}
+            />
 
-            <Separator />
+            <AssetActions
+              asset={asset}
+              isDeleting={isDeleting}
+              onDownload={handleDownload}
+              onOpenInNewTab={handleOpenInNewTab}
+              onRename={handleRename}
+              onMove={handleMove}
+              onDelete={handleDeleteRequest}
+            />
 
-            <Tabs defaultValue="details" className="w-full">
+            <Tabs defaultValue="deliver" className="gap-3">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="transformations">Transformations</TabsTrigger>
-                <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                <TabsTrigger value="deliver" className="h-8 text-sm">Deliver</TabsTrigger>
+                <TabsTrigger value="transform" className="h-8 text-sm">Transform</TabsTrigger>
+                <TabsTrigger value="info" className="h-8 text-sm">Info</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="details" className="space-y-4 mt-4">
-                <AssetDetailsTab
+              <TabsContent value="deliver">
+                <AssetDeliverTab
                   asset={asset}
-                  fileSize={fileSize}
-                  createdAt={createdAt}
                   mediaUrl={mediaUrl}
-                  isDeleting={isDeleting}
-                  onCopyUrl={handleCopyUrl}
-                  onDownload={handleDownload}
                   onOpenInNewTab={handleOpenInNewTab}
-                  onDelete={handleDeleteRequest}
                 />
               </TabsContent>
 
-              <TabsContent value="transformations" className="space-y-4 mt-4">
-                <AssetTransformationsTab asset={asset} apiBaseUrl={transformBaseUrl} />
+              <TabsContent value="transform">
+                {/* Keyed on the type: image and video take different settings. */}
+                <AssetTransformationsTab
+                  key={asset.type}
+                  asset={asset}
+                  transformBaseUrl={transformBaseUrl}
+                />
               </TabsContent>
 
-              <TabsContent value="metadata" className="space-y-4 mt-4">
-                <AssetMetadataTab asset={asset} />
+              <TabsContent value="info">
+                <AssetInfoTab
+                  asset={asset}
+                  fileSize={fileSize}
+                  createdAt={createdAt}
+                />
               </TabsContent>
             </Tabs>
           </div>

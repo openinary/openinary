@@ -57,7 +57,7 @@ function ResizableHandle({
       {...props}
     >
       {withHandle && (
-        <div className="z-10 flex h-6 w-3.5 items-center justify-center rounded-sm bg-sidebar shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_1px_2px_0_oklch(0_0_0/0.06)] dark:shadow-[0_0_0_1px_oklch(1_0_0/0.1),0_1px_2px_0_oklch(0_0_0/0.4)]">
+        <div className="z-10 flex h-6 w-3.5 shrink-0 items-center justify-center rounded-sm bg-sidebar shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_1px_2px_0_oklch(0_0_0/0.06)] dark:shadow-[0_0_0_1px_oklch(1_0_0/0.1),0_1px_2px_0_oklch(0_0_0/0.4)]">
           <GripVerticalIcon className="size-2.5" />
         </div>
       )}
