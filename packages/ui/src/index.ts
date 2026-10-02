@@ -29,6 +29,7 @@ export {
   SelectValue,
 } from "./ui/select";
 export { DefaultDialog } from "./components/default-dialog";
+export { BottomSheet } from "./components/bottom-sheet";
 export { QuickActions, type QuickAction } from "./components/quick-actions";
 export { DeleteConfirmDialog } from "./components/delete-confirm-dialog";
 export { RenameSection } from "./components/rename-section";
@@ -53,10 +54,8 @@ export { QueueTable, type QueueJob as QueueTableJob } from "./queue/queue-table"
 
 // Asset details tabs
 export { formatFileSize, formatDate, getFileType } from "./details-sidebar/utils";
-export { AssetMetadataTab } from "./details-sidebar/asset-metadata-tab";
 export { AssetTransformationsTab } from "./details-sidebar/asset-transformations-tab";
 export { AssetPreview } from "./details-sidebar/asset-preview";
-export { AssetDetailsTab } from "./details-sidebar/asset-details-tab";
 export { AssetDetailsSidebar } from "./details-sidebar/asset-details-sidebar";
 export { useAssetDetails } from "./details-sidebar/use-asset-details";
 

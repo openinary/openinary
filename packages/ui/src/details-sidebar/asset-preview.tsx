@@ -1,17 +1,40 @@
 "use client";
 
+import { X } from "lucide-react";
 import { VideoThumbnail } from "../components/video-thumbnail";
 import type { MediaFile } from "../types";
+import { formatFileSize } from "./utils";
 
 interface AssetPreviewProps {
   asset: MediaFile;
   previewUrl: string;
+  fileSize: number | null;
+  /** Shows a close button on the heading's row, sized to the heading. */
+  onClose?: () => void;
 }
 
-export function AssetPreview({ asset, previewUrl }: AssetPreviewProps) {
+export function AssetPreview({
+  asset,
+  previewUrl,
+  fileSize,
+  onClose,
+}: AssetPreviewProps) {
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold">Preview</h3>
+    <div>
+      {/* As tall as the page header beside it, so the two rows line up. */}
+      <div className="flex h-12 items-center justify-between">
+        <h3 className="text-sm font-semibold">Preview</h3>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="relative rounded-sm text-muted-foreground transition-colors before:absolute before:-inset-2 before:content-[''] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
       <div className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
         {/*
           Both media types go through the same component, which owns the
@@ -32,6 +55,15 @@ export function AssetPreview({ asset, previewUrl }: AssetPreviewProps) {
           loading="eager"
           errorLabel="Failed to load preview"
         />
+      </div>
+      <div className="mt-3 space-y-0.5 text-center">
+        <p className="truncate text-sm font-medium" title={asset.name}>
+          {asset.name}
+        </p>
+        <p className="font-mono text-xs text-muted-foreground">
+          {asset.name.split(".").pop()?.toUpperCase()}
+          {fileSize !== null && ` / ${formatFileSize(fileSize)}`}
+        </p>
       </div>
     </div>
   );

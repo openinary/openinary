@@ -128,6 +128,65 @@ export function useAssetDetails(
     }
   };
 
+  // Rename and move change the path, which is the asset's id, so the panel
+  // follows the file to its new path once the server confirms it.
+  const relocate = async (
+    request: Promise<Response>,
+    messages: { loading: string; success: string; error: string },
+  ) => {
+    const run = async () => {
+      const response = await request;
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || messages.error);
+      return data?.path as string | undefined;
+    };
+    try {
+      const newPath = await toast
+        .promise(run(), {
+          ...messages,
+          error: (error) => (error instanceof Error ? error.message : messages.error),
+        })
+        .unwrap();
+      invalidateStorage(queryClient);
+      if (newPath) onAssetIdChange(newPath);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleRename = (newName: string) => {
+    if (!asset) return Promise.resolve(false);
+    return relocate(
+      fetch(`${apiBaseUrl}/storage/${encodePath(asset.path)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      }),
+      {
+        loading: `Renaming "${asset.name}"...`,
+        success: `Renamed to "${newName}"`,
+        error: `Failed to rename "${asset.name}"`,
+      },
+    );
+  };
+
+  const handleMove = (destination: string) => {
+    if (!asset) return Promise.resolve(false);
+    return relocate(
+      fetch(`${apiBaseUrl}/storage/${encodePath(asset.path)}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination }),
+      }),
+      {
+        loading: `Moving "${asset.name}"...`,
+        success: `Moved to "${destination || "Root"}"`,
+        error: `Failed to move "${asset.name}"`,
+      },
+    );
+  };
+
   const handleClose = () => {
     onAssetIdChange(null);
     onOpenChange?.(false);
@@ -227,6 +286,8 @@ export function useAssetDetails(
     handleDownload,
     handleOpenInNewTab,
     handleClose,
+    handleRename,
+    handleMove,
     handleDeleteRequest,
     handleDeleteDialogClose,
     handleDelete,
