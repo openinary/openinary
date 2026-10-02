@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Terms of Service | Openinary",
   description:
     "The terms that govern your use of the Openinary Cloud service, billing, acceptable use, and account termination.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

@@ -23,13 +23,15 @@ export function Section({
 /** Horizontal inset used by every section: 24px on phones, 40px from md up. */
 export const gutter = "px-6 md:px-10";
 
+/** `as="h2"` when the eyebrow is the section's only heading, so the outline has no gap. */
 export function Eyebrow({
+  as: Tag = "p",
   className,
   children,
   ...props
-}: React.ComponentProps<"p">) {
+}: React.ComponentProps<"p"> & { as?: "p" | "h2" }) {
   return (
-    <p
+    <Tag
       className={cn(
         "text-[11px] font-normal uppercase leading-[1.5] tracking-[0.14em] text-muted-foreground/80",
         className,
@@ -37,7 +39,7 @@ export function Eyebrow({
       {...props}
     >
       {children}
-    </p>
+    </Tag>
   );
 }
 

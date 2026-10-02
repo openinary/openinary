@@ -143,9 +143,9 @@ export function BookTitle({
   className = "",
 }: BookTitleProps) {
   return (
-    <h1 className={`font-bold select-none mt-3 mb-1 text-balance ${className}`}>
+    <h3 className={`font-bold select-none mt-3 mb-1 text-balance ${className}`}>
       {children}
-    </h1>
+    </h3>
   );
 }
 

@@ -5,9 +5,15 @@ import { Eyebrow, Section, gutter } from "@/components/home/section";
 import { focusRing, pressable } from "@/components/home/cta-button";
 import { cn } from "@/lib/utils";
 
-const faqs: { question: string; answer: React.ReactNode }[] = [
+/** `text` is the plain-text answer for FAQPage JSON-LD, needed when `answer` is JSX. */
+export const faqs: {
+  question: string;
+  answer: React.ReactNode;
+  text?: string;
+}[] = [
   {
     question: "How do I deploy Openinary with Docker?",
+    text: "Openinary is fully Dockerized and runs on any infrastructure, with no external dependencies beyond an S3-compatible bucket. Clone the repository, set your environment variables, run docker compose up, then point it at your storage. Every step is in the documentation at docs.openinary.dev.",
     answer: (
       <>
         Openinary is fully Dockerized and runs on any infrastructure, with no
@@ -39,6 +45,7 @@ const faqs: { question: string; answer: React.ReactNode }[] = [
   },
   {
     question: "Is the Cloud version available?",
+    text: "Yes, Openinary Cloud is live as a public alpha at app.openinary.dev. The free plan includes 2 GB of storage, 1,000 image transformations, 30 minutes of video processing and 50,000 CDN requests per month, no credit card required. When you outgrow it, the pay-as-you-go plan bills only what you use past the included quotas.",
     answer: (
       <>
         Yes, Openinary Cloud is live as a public alpha.{" "}
@@ -71,7 +78,7 @@ export function Faq() {
   return (
     <Section>
       <div className={`${gutter} pb-14 pt-14 md:pb-20 md:pt-20`}>
-        <Eyebrow>Questions</Eyebrow>
+        <Eyebrow as="h2">Questions</Eyebrow>
 
         <div className="mt-6 max-w-[672px]">
           {faqs.map(({ question, answer }) => (
@@ -86,7 +93,7 @@ export function Faq() {
                   pressable,
                 )}
               >
-                {question}
+                <h3>{question}</h3>
                 <ChevronDown
                   className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                   aria-hidden

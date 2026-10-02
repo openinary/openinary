@@ -96,6 +96,7 @@ export function StorageStrip() {
                 alt={provider.name}
                 width={size.width}
                 height={size.height}
+                loading="eager"
                 style={{ height: size.height, width: "auto" }}
               />
             </li>

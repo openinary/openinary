@@ -15,10 +15,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const description =
+  "Open-source, self-hostable alternative to Cloudinary. Upload, transform and deliver images and videos from the edge, on S3, R2 or MinIO.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://openinary.dev"),
   title: "Openinary | Open-source, self-hostable alternative to Cloudinary",
-  description:
-    "Open-source, self-hostable alternative to Cloudinary. Self-hosted, no vendor lock-in, works with S3/R2/MinIO. Upload, transform, and deliver images and videos from the edge.",
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Openinary",
+    title: "Openinary | Open-source, self-hostable alternative to Cloudinary",
+    description,
+    images: [{ url: "/og.png", width: 1200, height: 630 }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 export default function RootLayout({
   children,
