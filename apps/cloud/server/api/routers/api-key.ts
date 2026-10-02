@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { captureEvent } from "../lib/analytics.js";
 import { auth } from "../lib/auth.js";
 import { assertOwnsBucket } from "../lib/bucket.js";
 import { protectedProcedure } from "../lib/orpc.js";
@@ -71,6 +72,10 @@ export const apiKeyRouter = {
           expiresIn: input.expiresInDays * DAY_SECONDS,
           metadata: { bucketId: input.bucketId },
         },
+      });
+      // The Get started checklist's "Connect your app".
+      await captureEvent("api_key_created", context.session.user.id, {
+        expires_in_days: input.expiresInDays,
       });
       // The only time the plaintext key is ever readable.
       return { key: created.key };

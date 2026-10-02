@@ -56,6 +56,26 @@ export function trackIntegrationDocsOpened(variant: "nextjs" | "react") {
   posthog.capture("integration_docs_opened", { variant });
 }
 
-export function trackOnboardingStepCompleted(step: string) {
-  posthog.capture("onboarding_step_completed", { step });
+/** The questionnaire was put in front of the user (once per page load). */
+export function trackOnboardingStarted() {
+  posthog.capture("onboarding_started");
+}
+
+/**
+ * One per questionnaire step left forwards, so answers are kept even for
+ * users who never reach onboarding_completed, and drop-off reads per step.
+ * `step` is the number funnels filter on; `step_name` is for humans.
+ */
+export function trackOnboardingStepCompleted(props: {
+  step: 0 | 1 | 2 | 3;
+  step_name: "profile" | "bucket" | "use_cases" | "source";
+  skipped: boolean;
+  role?: string;
+  has_avatar?: boolean;
+  bucket_renamed?: boolean;
+  has_description?: boolean;
+  use_cases?: string[];
+  source?: string | null;
+}) {
+  posthog.capture("onboarding_step_completed", props);
 }

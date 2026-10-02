@@ -47,6 +47,12 @@ export interface OnboardingProps {
   note?: ReactNode;
   /** Persists the answers. A throw keeps the user on the last step with a toast. */
   onComplete: (answers: OnboardingAnswers) => Promise<void>;
+  /** Fires each time a step is left forwards, for analytics. Steps are 0-3. */
+  onStepComplete?: (
+    step: number,
+    answers: OnboardingAnswers,
+    skipped: boolean,
+  ) => void;
 }
 
 // Values are what gets stored and tracked, so they stay stable slugs even when
@@ -254,6 +260,7 @@ export function Onboarding({
   workspaceMark,
   note,
   onComplete,
+  onStepComplete,
 }: OnboardingProps) {
   const copy = COPY[variant];
   const [step, setStep] = useState(0);
@@ -278,7 +285,8 @@ export function Onboarding({
     !!answers.source,
   ][step];
 
-  const advance = async (final: OnboardingAnswers) => {
+  const advance = async (final: OnboardingAnswers, skipped = false) => {
+    onStepComplete?.(step, final, skipped);
     if (step === 0 && !final.workspaceName.trim()) {
       set({
         workspaceName: copy.defaultName(final.name.trim().split(/\s+/)[0]),
@@ -308,7 +316,7 @@ export function Onboarding({
     const skipped =
       step === 2 ? { useCases: [] } : { source: null as string | null };
     set(skipped);
-    void advance({ ...answers, ...skipped });
+    void advance({ ...answers, ...skipped }, true);
   };
 
   const toggleUseCase = (value: string) =>

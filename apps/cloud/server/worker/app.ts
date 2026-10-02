@@ -1500,6 +1500,9 @@ app.post("/upload", async (c) => {
     c.executionCtx.waitUntil(
       c.env.USAGE_METER.get(c.env.USAGE_METER.idFromName(token.userId))
         .markApiUpload()
+        .then(
+          (first) => first && captureEvent("first_app_upload", token.userId),
+        )
         .catch((error) =>
           console.error(`Failed to mark API upload for ${token.userId}`, error),
         ),
@@ -1650,6 +1653,7 @@ app.post("/upload", async (c) => {
       captureEvent("asset_uploaded", userId, {
         files: uploaded.length,
         total_mb: totalMb,
+        via: token ? "presigned" : apiKeyFrom(c) ? "api_key" : "dashboard",
       }),
     );
     return c.json({ success: true, files: uploaded });

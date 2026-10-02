@@ -3,8 +3,13 @@
 import { Onboarding } from "@openinary/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { BucketAvatar } from "@/components/bucket-avatar";
+import {
+  trackOnboardingStarted,
+  trackOnboardingStepCompleted,
+} from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
 
@@ -23,7 +28,11 @@ export function OnboardingGate() {
   const router = useRouter();
 
   const bucket = buckets.data?.find((b) => b.active) ?? buckets.data?.[0];
-  if (!user || !bucket || state.data?.onboarded !== false) return null;
+  const shown = !!user && !!bucket && state.data?.onboarded === false;
+  useEffect(() => {
+    if (shown) trackOnboardingStarted();
+  }, [shown]);
+  if (!shown) return null;
 
   return (
     <Onboarding
@@ -31,6 +40,39 @@ export function OnboardingGate() {
       user={user}
       workspace={{ name: bucket.name }}
       workspaceMark={<BucketAvatar id={bucket.id} size={24} />}
+      onStepComplete={(step, answers, skipped) => {
+        if (step === 0) {
+          trackOnboardingStepCompleted({
+            step,
+            step_name: "profile",
+            skipped,
+            role: answers.role,
+            has_avatar: !!answers.image,
+          });
+        } else if (step === 1) {
+          trackOnboardingStepCompleted({
+            step,
+            step_name: "bucket",
+            skipped,
+            bucket_renamed: answers.workspaceName.trim() !== bucket.name,
+            has_description: !!answers.workspaceDescription.trim(),
+          });
+        } else if (step === 2) {
+          trackOnboardingStepCompleted({
+            step,
+            step_name: "use_cases",
+            skipped,
+            use_cases: answers.useCases,
+          });
+        } else {
+          trackOnboardingStepCompleted({
+            step: 3,
+            step_name: "source",
+            skipped,
+            source: answers.source,
+          });
+        }
+      }}
       onComplete={async (answers) => {
         const updated = await authClient.updateUser({
           name: answers.name,
