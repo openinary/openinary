@@ -47,9 +47,10 @@ export function AssetDeliverTab({
       </DetailsCard>
 
       <DetailsCard title="Use it in your code">
-        {/* Pulled out by the links' own padding, so their text lines up with the
-            card's title while the hover fills sit 4px inside its edge. */}
-        <ul className="-mx-2 -mb-1">
+        {/* Pulled out by the links' own padding, so their text lines up with
+            the card's title while the hover fills sit 4px inside its edges,
+            the bottom one included. */}
+        <ul className="-mx-2 -mb-2">
           {guides.map((guide) => (
             <li key={guide.href}>
               <a
