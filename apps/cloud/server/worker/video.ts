@@ -8,7 +8,7 @@
 import { and, desc, eq, like } from "drizzle-orm";
 import { db } from "../api/db/index.js";
 import { videoJob } from "../api/db/schema/video-job.js";
-import { generateCacheKey, parseParams } from "./transform-cache.js";
+import { generateCacheKey, resolveStatusTarget } from "./transform-cache.js";
 
 // Mirrors PgVideoJobStore's serializeParams (video-job-store.ts): a plain
 // JSON.stringify, in parseTransform's insertion order. Both used to sort the
@@ -24,8 +24,7 @@ export async function videoStatusResponse(
   tenantRoot: string,
   clientPath: string,
 ): Promise<Response> {
-  const filePath = `${tenantRoot}/${clientPath}`;
-  const params = parseParams(`/t/${clientPath}`);
+  const { filePath, params } = resolveStatusTarget(tenantRoot, clientPath);
   const paramsJson = JSON.stringify(params);
 
   const [job] = await db
@@ -69,10 +68,8 @@ export async function videoSizeResponse(
   tenantRoot: string,
   clientPath: string,
 ): Promise<Response> {
-  const filePath = `${tenantRoot}/${clientPath}`;
-  const cached = await env.MEDIA_BUCKET.head(
-    generateCacheKey(filePath, parseParams(`/t/${clientPath}`)),
-  );
+  const { filePath, params } = resolveStatusTarget(tenantRoot, clientPath);
+  const cached = await env.MEDIA_BUCKET.head(generateCacheKey(filePath, params));
   if (cached) return Response.json({ size: cached.size, status: "ready" });
   return Response.json(
     { status: "not_found", message: "Optimized video not found" },
