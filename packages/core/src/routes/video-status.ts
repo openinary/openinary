@@ -256,12 +256,27 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     // Only return error status if the job has actually failed (not just if error field exists)
     const status = job.status === "error" && job.error ? "error" : job.status;
 
+    // Same estimate the transform URL's 202 carries, so a client following
+    // statusUrl learns when to look again too
+    const estimate =
+      status === "pending" || status === "processing"
+        ? await videoJobQueue.estimate(filePath, params, `./public/${filePath}`)
+        : null;
+
     return c.json({
       status,
       progress: job.progress || 0,
       startedAt: job.startedAt,
       completedAt: job.completedAt,
       error: job.error,
+      ...(estimate
+        ? {
+            phase: estimate.phase,
+            estimatedSeconds: estimate.estimatedSeconds,
+            estimatedRange: estimate.estimatedRange,
+            retryAfter: estimate.retryAfter,
+          }
+        : {}),
     });
   });
 

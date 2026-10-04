@@ -2,6 +2,25 @@ import ffmpeg, { FfmpegCommand } from 'fluent-ffmpeg';
 import { readFile, unlink, rmdir } from 'fs/promises';
 import type { VideoContext, TransformFunction } from './types';
 import { FFMPEG_THREADS, FFMPEG_NICENESS } from './config';
+import { expectedOutputSeconds } from '../../eta';
+
+/**
+ * How far an encode has got. outputSeconds is the duration of the video being
+ * produced (the source's, trimmed), which is what the fraction is measured
+ * against.
+ */
+export interface EncodeProgress {
+  fraction: number;
+  outputSeconds: number;
+}
+
+/** "HH:MM:SS.xx", as ffmpeg prints durations and timemarks, in seconds */
+function parseTimemark(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const parts = value.split(':').map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  return parts[0] * 3600 + parts[1] * 60 + parts[2];
+}
 
 /**
  * Builder class for constructing and executing ffmpeg commands
@@ -45,8 +64,12 @@ export class VideoCommandBuilder {
    * Execute the ffmpeg command and return the output buffer
    * Handles cleanup of temporary files
    * Includes a 5-minute timeout to handle large videos (4K, 8K)
+   *
+   * onProgress is measured against the output's own duration rather than
+   * fluent-ffmpeg's `percent`, which divides by the *input* duration and so
+   * never gets past a fraction of the way on a trimmed video.
    */
-  async execute(): Promise<Buffer> {
+  async execute(onProgress?: (progress: EncodeProgress) => void): Promise<Buffer> {
     const TIMEOUT_MS = 300000; // 5 minutes (increased for 8K videos)
     
     return new Promise((resolve, reject) => {
@@ -56,6 +79,25 @@ export class VideoCommandBuilder {
         reject(new Error('Video processing timeout: exceeded 5 minutes. Try reducing video resolution or duration.'));
       }, TIMEOUT_MS);
       
+      if (onProgress) {
+        let outputSeconds: number | null = null;
+        this.command
+          .on('codecData', (data: { duration?: string }) => {
+            outputSeconds = expectedOutputSeconds(
+              parseTimemark(data.duration),
+              this.context.params,
+            );
+          })
+          .on('progress', (progress: { timemark?: string }) => {
+            const done = parseTimemark(progress.timemark);
+            if (!outputSeconds || done === null) return;
+            onProgress({
+              fraction: Math.min(1, Math.max(0, done / outputSeconds)),
+              outputSeconds,
+            });
+          });
+      }
+
       this.command
         .on('end', async () => {
           clearTimeout(timeoutId);

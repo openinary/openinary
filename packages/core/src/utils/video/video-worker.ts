@@ -6,6 +6,20 @@ import logger, { serializeError } from "../logger";
 import type { VideoJob, VideoJobStore } from "./queue-store";
 import { MAX_CONCURRENT_JOBS, WORKER_POLL_INTERVAL_MS } from "./config";
 import { contentTypeForFormat, determineOutputFormat } from "./format";
+import {
+  summarizeVideoSamples,
+  videoCodecFamily,
+  type VideoTimingSample,
+  type VideoTimingStats,
+} from "../../eta";
+
+// Progress is a write per update (a Postgres upsert in the cloud store), so
+// it is persisted at most this often - enough for a 202 or a status poll to
+// extrapolate from, without turning an encode into a stream of writes.
+const PROGRESS_WRITE_INTERVAL_MS = 2000;
+// Finished jobs remembered for estimates. Recent ones are what predicts the
+// next: same machine, same load.
+const MAX_TIMING_SAMPLES = 50;
 
 export interface WorkerEvents {
   "job:created": (job: VideoJob) => void;
@@ -25,6 +39,7 @@ export class VideoWorker extends EventEmitter {
   private storage: CloudStorage | null;
   private store: VideoJobStore;
   private isAcquiring: boolean = false;
+  private timingSamples: VideoTimingSample[] = [];
 
   constructor(storage: CloudStorage | null, store: VideoJobStore) {
     super();
@@ -61,6 +76,8 @@ export class VideoWorker extends EventEmitter {
       );
     }
 
+    this.seedTimingSamples();
+
     // Start polling for jobs
     this.intervalId = setInterval(() => {
       this.fillAvailableSlots().catch((error) => {
@@ -78,6 +95,42 @@ export class VideoWorker extends EventEmitter {
         "Error in initial job processing",
       );
     });
+  }
+
+  /**
+   * Jobs the store still remembers from before this process started. Their
+   * output duration was never recorded, so they only inform the whole-job
+   * figure; the per-codec speed is relearned from the first jobs this run.
+   */
+  private seedTimingSamples(): void {
+    try {
+      for (const job of this.store.getJobsByStatus("completed", MAX_TIMING_SAMPLES)) {
+        if (!job.started_at || !job.completed_at) continue;
+        this.timingSamples.push({
+          codec: videoCodecFamily(JSON.parse(job.params_json)),
+          wallSeconds: (job.completed_at - job.started_at) / 1000,
+          outputSeconds: null,
+        });
+      }
+    } catch (error) {
+      logger.warn(
+        { error: serializeError(error) },
+        "Could not seed video timing samples",
+      );
+    }
+  }
+
+  private recordTimingSample(sample: VideoTimingSample): void {
+    this.timingSamples.unshift(sample);
+    this.timingSamples.length = Math.min(
+      this.timingSamples.length,
+      MAX_TIMING_SAMPLES,
+    );
+  }
+
+  /** How long recent jobs took, for processing-time estimates */
+  getTimingStats(): VideoTimingStats {
+    return summarizeVideoSamples(this.timingSamples);
   }
 
   /**
@@ -183,8 +236,35 @@ export class VideoWorker extends EventEmitter {
         }
       }
 
-      // Process video
-      const buffer = await transformVideo(sourcePath, params);
+      // Process video, persisting how far it has got so a 202 or a status
+      // poll can tell the caller when it will be done
+      let outputSeconds: number | null = null;
+      let lastPercent = 0;
+      let lastWriteAt = 0;
+      const buffer = await transformVideo(sourcePath, params, (progress) => {
+        outputSeconds = progress.outputSeconds;
+        // 100 is the store's "done" and only completion may write it
+        const percent = Math.min(99, Math.floor(progress.fraction * 100));
+        const now = Date.now();
+        if (
+          percent <= lastPercent ||
+          now - lastWriteAt < PROGRESS_WRITE_INTERVAL_MS
+        ) {
+          return;
+        }
+        lastPercent = percent;
+        lastWriteAt = now;
+        try {
+          this.store.updateJobStatus(job.id, "processing", percent);
+          this.emit("job:progress", { ...job, progress: percent }, percent);
+        } catch (error) {
+          // Progress is advisory: losing one update must not fail the encode
+          logger.warn(
+            { error: serializeError(error), jobId: job.id },
+            "Failed to record video job progress",
+          );
+        }
+      });
 
       // Save to cache
       await saveToCache(job.cache_path, buffer);
@@ -199,6 +279,14 @@ export class VideoWorker extends EventEmitter {
 
       // Mark as completed
       this.store.updateJobStatus(job.id, "completed", 100);
+
+      if (job.started_at) {
+        this.recordTimingSample({
+          codec: videoCodecFamily(params),
+          wallSeconds: (Date.now() - job.started_at) / 1000,
+          outputSeconds,
+        });
+      }
 
       logger.info(
         { jobId: job.id, filePath: job.file_path },

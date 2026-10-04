@@ -119,7 +119,7 @@ https://cdn.openinary.dev/b/{bucketId}/t/w_400,h_400,c_fill/products/photo.jpg
   </Tab>
 </Tabs>
 
-The first request queues the transformation and answers `202 {"status":"processing"}` rather than image bytes. Request it again a moment later and you get the result, served from the CDN cache from then on. The parameter list is exactly the same as the self-hosted version, see [Image transformations](/media-transformations/image-transformations) and [Video transformations](/media-transformations/video-transformations).
+The first request queues the transformation and answers `202 {"status":"processing"}` rather than image bytes. Request it again once its `Retry-After` has passed (a few seconds more if the processing server was idle and has to wake up first, see [waiting on a 202](/api-reference/media/transform#waiting-on-a-202)) and you get the result, served from the CDN cache from then on. The parameter list is exactly the same as the self-hosted version, see [Image transformations](/media-transformations/image-transformations) and [Video transformations](/media-transformations/video-transformations).
 
 Open that URL in a browser: the first load may show the `202` JSON rather than the picture. Reload once and the image appears. That is the pipeline working, not a failure.
 

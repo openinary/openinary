@@ -20,6 +20,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./eta": {
+      "types": "./dist/eta.d.ts",
+      "import": "./dist/eta.js",
+      "default": "./dist/eta.js"
     }
   },
   "scripts": {
