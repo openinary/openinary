@@ -26,6 +26,7 @@ import {
   isVideoOutputExt,
   parseParams,
   resolveAutoFormat,
+  resolveStatusTarget,
   validateUploadFileType,
   videoOutputExt,
 } from "./transform-cache.js";
@@ -253,6 +254,29 @@ for (const name of [
     coreStripUrlHostile(name),
     `strippers disagree on ${JSON.stringify(name)}`,
   );
+}
+
+// /video-status has to land on the job and cache key the matching /t/ URL
+// wrote: the transform segment goes into params, never into the file path.
+// Keeping it in the path made every status URL with params answer not_found.
+{
+  const { filePath, params } = resolveStatusTarget(
+    "ugc/user_123/bucket_abc",
+    "w_720,h_720,c_fill,q_80,f_webm/Videos/flowers.mp4",
+  );
+  assert.equal(filePath, "ugc/user_123/bucket_abc/Videos/flowers.mp4");
+  assert.deepEqual(
+    params,
+    parseParams("/t/w_720,h_720,c_fill,q_80,f_webm/Videos/flowers.mp4"),
+  );
+  assert.equal(
+    JSON.stringify(params),
+    '{"quality":"80","format":"webm","width":"720","height":"720","resize":"720x720","crop":"fill"}',
+  );
+  // A folder that merely looks like a transform key stays part of the path.
+  const plain = resolveStatusTarget("ugc/u/b", "w_photos/clip.mp4");
+  assert.equal(plain.filePath, "ugc/u/b/w_photos/clip.mp4");
+  assert.deepEqual(plain.params, {});
 }
 
 console.log("transform-cache: dashboard thumbnail keys agree on both sides");
