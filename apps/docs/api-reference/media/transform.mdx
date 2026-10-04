@@ -88,10 +88,9 @@ Videos also apply fixed limits: 720p maximum when you request no explicit `w` or
 **Input:** MP4 (H.264/H.265), MOV, WebM (VP8/VP9) · **Output:** MP4, WebM, MOV
 
 <Warning>
-  A video transformation that is not cached yet answers `202` with a
-  `statusUrl`, not the original. Poll that URL until it reports `completed`,
-  then request the transform again. Keep its transformation segment: jobs are
-  keyed on the path **and** its parameters. For assets you know you will serve,
+  A video transformation that is not cached yet answers `202`, not the
+  original. Wait for `Retry-After` and request the same URL again, see
+  [Waiting on a 202](#waiting-on-a-202). For assets you know you will serve,
   [prewarm at upload](/media-transformations/upload-and-prewarm) so the first
   visitor never sees the `202`.
 </Warning>
@@ -114,10 +113,58 @@ Returns the binary content, with `Cache-Control` set for browser caching and `X-
 | Code | Meaning |
 | --- | --- |
 | `200` | File returned |
-| `202` | Video transformation still processing. Body carries `statusUrl`, response carries `Retry-After` |
+| `202` | Transformation still processing. Carries an estimate of when it will be ready, see below |
 | `400` | Transformation parameters on a non-transformable type |
 | `404` | File not found |
 | `500` | Processing error |
+
+## Waiting on a 202
+
+A `202` means the variant is being generated and nothing is wrong. It always says when to come back:
+
+```http
+HTTP/1.1 202 Accepted
+Retry-After: 6
+X-Processing-Phase: processing
+X-Processing-Eta: 6
+```
+
+```json
+{
+  "status": "processing",
+  "message": "Video transformation is being processed",
+  "phase": "processing",
+  "progress": 0.42,
+  "estimatedSeconds": 6,
+  "estimatedRange": [6, 9],
+  "retryAfter": 6,
+  "statusUrl": "/video-status/w_640/videos/clip.mp4"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `phase` | string | `waking`: the processing server is starting up (Cloud only, after it has been idle). `queued`: waiting behind other videos. `processing`: being encoded |
+| `progress` | number | From `0` to `1`. Measured from the encoder for videos, `0` until it reports |
+| `estimatedSeconds` | number | Typical time left, in seconds |
+| `estimatedRange` | `[number, number]` | Typical and pessimistic time left. Show the second as an upper bound |
+| `retryAfter` | number | Same as the `Retry-After` header: when asking again is worth it. Capped at 30 seconds, so a long job keeps refining its estimate |
+| `statusUrl` | string | Videos only. See [video status](/api-reference/video/status) |
+
+The simplest client honours `Retry-After` and requests the **same URL** again until it gets a `200`. Every retry returns a fresh estimate, sharper as the job advances: once a video encode has started, the estimate comes from its own measured speed. Retrying sooner than `Retry-After` is harmless but cannot make the transformation finish faster.
+
+```ts
+async function fetchVariant(url: string): Promise<Response> {
+  for (;;) {
+    const response = await fetch(url);
+    if (response.status !== 202) return response;
+    const seconds = Number(response.headers.get("Retry-After")) || 2;
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+  }
+}
+```
+
+Estimates are learned from the transformations your deployment has already run, so they get more accurate with use. Before that they fall back to conservative defaults.
 
 ## Gotchas
 

@@ -39,17 +39,25 @@ While a job exists. Note that `completedAt` and `error` are absent here rather t
 {
   "status": "processing",
   "progress": 62,
-  "startedAt": "2026-03-15T10:30:00.000Z"
+  "startedAt": "2026-03-15T10:30:00.000Z",
+  "phase": "processing",
+  "estimatedSeconds": 8,
+  "estimatedRange": [8, 10],
+  "retryAfter": 8
 }
 ```
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `status` | string | `pending` `processing` `completed` `error` `cancelled`, or `not_found` on the `404` response |
-| `progress` | number | Processing progress from 0 to 100. `0` when the job has not started |
+| `progress` | number | Processing progress from 0 to 100, measured from the encoder. `0` when the job has not started |
 | `startedAt` | string | ISO 8601 timestamp when processing started. Omitted while the job is still queued |
 | `completedAt` | string | ISO 8601 timestamp when processing finished. Omitted until then |
 | `error` | string | Error message when `status` is `error`. Omitted otherwise |
+| `phase` | string | `waking`, `queued` or `processing`, while the job is `pending` or `processing`. Omitted otherwise |
+| `estimatedSeconds` | number | Typical seconds left, while the job is `pending` or `processing` |
+| `estimatedRange` | `[number, number]` | Typical and pessimistic seconds left |
+| `retryAfter` | number | When polling again is worth it, in seconds |
 
 Absent values are omitted from the JSON rather than sent as `null`. Test with `"startedAt" in response`, not `response.startedAt !== null`.
 

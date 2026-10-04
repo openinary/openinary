@@ -17,6 +17,7 @@ import {
   performPeriodicCacheCleanup,
 } from "../routes/transform-helpers";
 import { TRANSFORMATION_PRIORITY } from "../utils/video/config";
+import { processingBody, processingHeaders } from "../eta";
 import {
   VIDEO_FORMATS,
   contentTypeForFormat,
@@ -583,23 +584,26 @@ export class TransformService {
 
     // Never fall back to the original while the transform is pending: it would
     // ship content whose transformations (watermark, crop, trim) have not been
-    // applied yet. Answer 202 and let the client poll /video-status.
+    // applied yet. Answer 202 and let the client poll /video-status, or simply
+    // retry this URL once Retry-After has passed.
+    const estimate = await this.queue.estimate(filePath, params, localPath);
     return {
       buffer: Buffer.from(
-        JSON.stringify({
-          status: "processing",
-          message: "Video transformation is being processed",
-          // Keeps the transformation segment: /video-status resolves the job
-          // from the same path + params the transform URL carries
-          statusUrl: requestPath.replace(/^\/t\//, "/video-status/"),
-        }),
+        JSON.stringify(
+          processingBody(estimate, {
+            message: "Video transformation is being processed",
+            // Keeps the transformation segment: /video-status resolves the job
+            // from the same path + params the transform URL carries
+            statusUrl: requestPath.replace(/^\/t\//, "/video-status/"),
+          }),
+        ),
       ),
       contentType: "application/json",
       status: 202,
       headers: {
         "X-Video-Status": "processing",
         "Cache-Control": "no-store",
-        "Retry-After": "5",
+        ...processingHeaders(estimate),
       },
       isProcessing: true,
     };

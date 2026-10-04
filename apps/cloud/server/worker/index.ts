@@ -1,5 +1,6 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { getContainer } from "@cloudflare/containers";
+import { processingBody, processingHeaders } from "@openinary/core/eta";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../api/db/index.js";
 import { mediaDuration } from "../api/db/schema/media-duration.js";
@@ -26,6 +27,10 @@ import { probeSignIn } from "../api/lib/sign-in-probe.js";
 import { billableJob } from "../api/lib/video-metering.js";
 import { app, parseRangeHeader } from "./app.js";
 import { MediaContainer } from "./container.js";
+import {
+  imageProcessingEstimate,
+  videoProcessingEstimate,
+} from "./processing-eta.js";
 import {
   downloadOriginal,
   downloadOriginalRange,
@@ -1133,22 +1138,30 @@ async function serveCdnRequest(
   if (info?.isVideoExt && !info.isThumbnailRequest) {
     // Same reason as the container's own 202 below: no media was delivered.
     delivery.quiet = true;
+    // Read from Postgres and the container's Durable Object, never from the
+    // container itself: answering this must not cost the wake it predicts.
+    const estimate = await videoProcessingEstimate(
+      env,
+      `${tenantRoot}/${info.relativePath}`,
+      derivativeParams(request, info),
+    );
     return new Response(
-      JSON.stringify({
-        status: "processing",
-        message: "Video transformation is being processed",
-        // core builds this from the path it received, which by then carries the
-        // tenant root - a URL that both leaks ugc/{userId}/{bucketId} and 404s
-        // against the Worker's /video-status, since that route splices the root
-        // in itself. Built from the client's own path here instead.
-        statusUrl: transformPath.replace(/^\/t\//, "/video-status/"),
-      }),
+      JSON.stringify(
+        processingBody(estimate, {
+          message: "Video transformation is being processed",
+          // core builds this from the path it received, which by then carries
+          // the tenant root - a URL that both leaks ugc/{userId}/{bucketId} and
+          // 404s against the Worker's /video-status, since that route splices
+          // the root in itself. Built from the client's own path here instead.
+          statusUrl: transformPath.replace(/^\/t\//, "/video-status/"),
+        }),
+      ),
       {
         status: 202,
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
-          "Retry-After": "5",
+          ...processingHeaders(estimate),
           "Access-Control-Allow-Origin": "*",
           "X-Video-Status": "processing",
           "X-Openinary-Cache": "MISS",
@@ -1181,19 +1194,29 @@ async function serveCdnRequest(
   // every retry. It is logged below rather than surfaced, which is the trade
   // for never holding a caller - see the non-ok branch under waitUntil.
   // Quiet and unbilled, exactly like core's video 202 below: no bytes went out.
+  //
+  // Retry-After used to be a flat 1s, which on a cold start had a client
+  // retry five or ten times before the container was even up. The estimate
+  // knows whether it is asleep and how long this kind of image takes.
   if (info?.isImageExt) {
     delivery.quiet = true;
+    const estimate = await imageProcessingEstimate(
+      env,
+      rewritten.pathname,
+      derivativeParams(request, info).format ?? info.ext,
+    );
     return new Response(
-      JSON.stringify({
-        status: "processing",
-        message: "Image transformation is being generated",
-      }),
+      JSON.stringify(
+        processingBody(estimate, {
+          message: "Image transformation is being generated",
+        }),
+      ),
       {
         status: 202,
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
-          "Retry-After": "1",
+          ...processingHeaders(estimate),
           "Access-Control-Allow-Origin": "*",
           "X-Openinary-Cache": "MISS",
         },

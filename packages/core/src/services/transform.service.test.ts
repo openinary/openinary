@@ -18,8 +18,17 @@ const fakeStorage = (): any => ({
   }),
 });
 
+const fakeEstimate = {
+  phase: "processing",
+  progress: 0.42,
+  estimatedSeconds: 6,
+  estimatedRange: [6, 9],
+  retryAfter: 6,
+};
+
 const fakeQueue = (job?: unknown): any => ({
   getJobByPath: () => job,
+  estimate: async () => fakeEstimate,
   addJob: async () => "job-1",
   getStore: () => ({ updateJobStatus: () => {} }),
 });
@@ -128,7 +137,14 @@ test("a pending video transform answers 202 instead of the original", async () =
 
   assert.equal(result.status, 202);
   assert.equal(result.stream, undefined, "must not fall back to the original");
-  assert.equal(JSON.parse(result.buffer!.toString()).status, "processing");
+  const body = JSON.parse(result.buffer!.toString());
+  assert.equal(body.status, "processing");
+  // The estimate drives both the body and Retry-After, so a client that only
+  // honours the header still comes back at the right time
+  assert.equal(body.estimatedSeconds, 6);
+  assert.deepEqual(body.estimatedRange, [6, 9]);
+  assert.equal(result.headers?.["Retry-After"], "6");
+  assert.equal(result.headers?.["X-Processing-Phase"], "processing");
 });
 
 test("the 202 status URL resolves to the job the transform queued", async () => {
@@ -160,6 +176,10 @@ test("the 202 status URL resolves to the job the transform queued", async () => 
   assert.deepEqual(await response.json(), {
     status: "processing",
     progress: 42,
+    phase: "processing",
+    estimatedSeconds: 6,
+    estimatedRange: [6, 9],
+    retryAfter: 6,
   });
   // Same key the transform used: the transformation segment is params, not path
   assert.deepEqual(lookups.at(-1), {
