@@ -196,8 +196,9 @@ export async function trackOnboardingCompleted(properties: {
 }) {
   if (!TELEMETRY_ENABLED) return;
   try {
-    ensureTelemetryTable();
-    await send(getOrCreateInstanceId(), {
+    await ensureTelemetryTable();
+    const instanceId = await getOrCreateInstanceId(getDb());
+    await send(instanceId, {
       event: "onboarding_completed",
       properties: { ...properties, source: properties.source ?? "skipped" },
     });

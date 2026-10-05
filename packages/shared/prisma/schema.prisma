@@ -161,3 +161,35 @@ model AuthConfig {
 
   @@map("auth_config")
 }
+
+/// Upstream's public-delivery log (dashboard Logs page). Newest LOG_LIMIT rows.
+model DeliveryLog {
+  id     Int      @id @default(autoincrement())
+  t      DateTime @db.Timestamp(3)
+  path   String
+  kind   String
+  status Int
+
+  @@map("delivery_log")
+}
+
+/// One row per hour and delivery kind: keeps the usage chart honest past the
+/// log's row cap. `hour` is the epoch-ms bucket start stored as a timestamp.
+model DeliveryCount {
+  hour      DateTime @db.Timestamp(3)
+  kind      String
+  delivered Int
+  failed    Int
+
+  @@id([hour, kind])
+  @@map("delivery_counts")
+}
+
+/// Upstream's `app_state` table: small JSON documents keyed by name
+/// (onboarding answers, workspace name/logo, first-seen timestamps).
+model AppState {
+  key   String @id
+  value String
+
+  @@map("app_state")
+}
