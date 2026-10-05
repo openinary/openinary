@@ -25,21 +25,32 @@ const answersKey = (userId: string) => `onboarding:${userId}`;
 // questionnaire never see it: Cloud's rule, but per instance, since each one
 // upgrades on its own day. The minute of slack keeps a fresh install's first
 // admin in, even one created from OPENINARY_ADMIN_* while the server boots.
-const onboardingSince = activityLog.since("onboarding_since") - 60_000;
+//
+// Computed on first use, not at import: `activityLog` sits on the lazy db
+// Proxy, which throws until initDb() has run — a module-scope call would
+// break importing this file. The promise is kept so the (once-per-boot DB
+// round trip) still happens exactly once.
+let onboardingSinceP: Promise<number> | undefined;
+const onboardingSince = () =>
+  (onboardingSinceP ??= activityLog
+    .since("onboarding_since")
+    .then((v) => v - 60_000));
 
-function predatesOnboarding(userId: string): boolean {
-  const row = db
-    .prepare("SELECT createdAt FROM user WHERE id = ?")
-    .get(userId) as { createdAt: string | number } | undefined;
-  return !!row && new Date(row.createdAt).getTime() < onboardingSince;
+async function predatesOnboarding(userId: string): Promise<boolean> {
+  const row = await db.user.findUnique({
+    where: { id: userId },
+    select: { createdAt: true },
+  });
+  return !!row && row.createdAt.getTime() < (await onboardingSince());
 }
 
-onboarding.get("/", (c) => {
+onboarding.get("/", async (c) => {
   const userId = c.get("user")?.id ?? "";
   return c.json({
     completed:
-      !!activityLog.getState(answersKey(userId)) || predatesOnboarding(userId),
-    workspace: activityLog.getState<Workspace>("workspace") ?? null,
+      !!(await activityLog.getState(answersKey(userId))) ||
+      (await predatesOnboarding(userId)),
+    workspace: (await activityLog.getState<Workspace>("workspace")) ?? null,
     telemetry: telemetryEnabled,
   });
 });
@@ -71,8 +82,8 @@ onboarding.post("/", async (c) => {
     return c.json({ error: "Invalid onboarding answers" }, 400);
   }
 
-  activityLog.setState("workspace", { name, logo } satisfies Workspace);
-  activityLog.setState(answersKey(userId), {
+  await activityLog.setState("workspace", { name, logo } satisfies Workspace);
+  await activityLog.setState(answersKey(userId), {
     role,
     useCases,
     source,

@@ -122,3 +122,5 @@ Thumbs.db
 
 # Built registry mirrored into the marketing site (source of truth is /r)
 apps/marketing/public/r/
+# agent workspace — never commit
+.omo/

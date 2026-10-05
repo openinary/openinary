@@ -3,10 +3,10 @@
 // its chart reads, and the two facts the Get started checklist reads.
 //
 // Takes its database as an argument rather than importing shared/auth, which
-// opens the real one on import: every rule below runs against an in-memory
-// database in activity-log.test.ts.
+// opens the real one on import: every rule below runs against a test database
+// in activity-log.test.ts.
 
-import type { Database } from "better-sqlite3";
+import type { PrismaClient } from "shared/db";
 
 export type DeliveryKind = "image" | "video" | "other";
 
@@ -102,42 +102,19 @@ export function isDashboardTraffic(cookie: string | undefined): boolean {
 }
 
 export class ActivityLog {
-  #db: Database;
+  #db: PrismaClient;
   #seen = new Map<string, number>();
   #prunedHour = 0;
 
-  constructor(db: Database) {
+  /**
+   * Stores nothing at construction: `db` may be the lazy Proxy from
+   * shared/auth, which throws until initDb() has run. The tables are created
+   * by migration 20261004120000_activity_log, not by runtime DDL — and there
+   * is no sqlite-era backfill of delivery_counts from old log rows, because
+   * this repo has never stored them in sqlite.
+   */
+  constructor(db: PrismaClient) {
     this.#db = db;
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS delivery_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        t INTEGER NOT NULL,
-        path TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        status INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS app_state (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS delivery_counts (
-        hour INTEGER NOT NULL,
-        kind TEXT NOT NULL,
-        delivered INTEGER NOT NULL,
-        failed INTEGER NOT NULL,
-        PRIMARY KEY (hour, kind)
-      );
-    `);
-    // An instance upgrading to counts starts them from the lines it already
-    // holds, so its chart doesn't open empty.
-    if (!db.prepare("SELECT 1 FROM delivery_counts LIMIT 1").get()) {
-      db.exec(`
-        INSERT INTO delivery_counts (hour, kind, delivered, failed)
-        SELECT (t / ${HOUR_MS}) * ${HOUR_MS}, kind,
-               SUM(status < 400), SUM(status >= 400)
-        FROM delivery_log GROUP BY 1, 2
-      `);
-    }
   }
 
   /**
@@ -145,114 +122,117 @@ export class ActivityLog {
    * in the log and one more in its hour's count. `viewer` tells visitors
    * apart, so two people opening the same asset are two lines.
    */
-  // ponytail: one synchronous transaction per public delivery. Batch the
-  // counts in memory behind a timer if an instance ever serves enough traffic
-  // for that to show.
-  recordDelivery(
+  // ponytail: one transaction per public delivery. Batch the counts in
+  // memory behind a timer if an instance ever serves enough traffic for that
+  // to show.
+  async recordDelivery(
     event: Omit<DeliveryEvent, "k" | "t"> & { t?: number },
     viewer: string,
-  ): void {
+  ): Promise<void> {
     const t = event.t ?? Date.now();
     if (seenRecently(this.#seen, `${viewer}|${event.p}`, t)) return;
 
     const path = event.p.slice(0, PATH_MAX);
     const kind = deliveryKind(path);
     const hour = Math.floor(t / HOUR_MS) * HOUR_MS;
-    const failed = event.s >= 400 ? 1 : 0;
+    const failed = event.s >= 400;
 
-    this.#db.transaction(() => {
-      const { lastInsertRowid } = this.#db
-        .prepare(
-          "INSERT INTO delivery_log (t, path, kind, status) VALUES (?, ?, ?, ?)",
-        )
-        .run(t, path, kind, event.s);
-      this.#db
-        .prepare("DELETE FROM delivery_log WHERE id <= ?")
-        .run(Number(lastInsertRowid) - LOG_LIMIT);
-      this.#db
-        .prepare(
-          `INSERT INTO delivery_counts (hour, kind, delivered, failed) VALUES (?, ?, ?, ?)
-           ON CONFLICT(hour, kind) DO UPDATE SET
-             delivered = delivered + excluded.delivered,
-             failed = failed + excluded.failed`,
-        )
-        .run(hour, kind, 1 - failed, failed);
+    await this.#db.$transaction(async (tx) => {
+      const { id } = await tx.deliveryLog.create({
+        data: { t: new Date(t), path, kind, status: event.s },
+        select: { id: true },
+      });
+      await tx.deliveryLog.deleteMany({ where: { id: { lte: id - LOG_LIMIT } } });
+      await tx.deliveryCount.upsert({
+        where: { hour_kind: { hour: new Date(hour), kind } },
+        create: { hour: new Date(hour), kind, delivered: failed ? 0 : 1, failed: failed ? 1 : 0 },
+        update: failed ? { failed: { increment: 1 } } : { delivered: { increment: 1 } },
+      });
       // Once per hour is plenty to keep the table at a year.
       if (hour !== this.#prunedHour) {
         this.#prunedHour = hour;
-        this.#db
-          .prepare("DELETE FROM delivery_counts WHERE hour < ?")
-          .run(hour - COUNTS_RETENTION_MS);
+        await tx.deliveryCount.deleteMany({
+          where: { hour: { lt: new Date(hour - COUNTS_RETENTION_MS) } },
+        });
       }
-    })();
+    });
   }
 
   /** Hourly counts from `since` (epoch ms) on, oldest first. */
-  counts(since: number): DeliveryCount[] {
-    return this.#db
-      .prepare(
-        "SELECT hour AS t, kind AS k, delivered AS d, failed AS f FROM delivery_counts WHERE hour >= ? ORDER BY hour",
-      )
-      .all(Math.floor(since / HOUR_MS) * HOUR_MS) as DeliveryCount[];
+  async counts(since: number): Promise<DeliveryCount[]> {
+    const rows = await this.#db.deliveryCount.findMany({
+      where: { hour: { gte: new Date(Math.floor(since / HOUR_MS) * HOUR_MS) } },
+      orderBy: { hour: "asc" },
+    });
+    return rows.map((r) => ({
+      t: r.hour.getTime(),
+      k: r.kind as DeliveryKind,
+      d: r.delivered,
+      f: r.failed,
+    }));
   }
 
   /** Newest first. */
-  deliveries(): DeliveryEvent[] {
-    return this.#db
-      .prepare(
-        "SELECT t, path AS p, kind AS k, status AS s FROM delivery_log ORDER BY id DESC LIMIT ?",
-      )
-      .all(LOG_LIMIT) as DeliveryEvent[];
+  async deliveries(): Promise<DeliveryEvent[]> {
+    const rows = await this.#db.deliveryLog.findMany({
+      orderBy: { id: "desc" },
+      take: LOG_LIMIT,
+    });
+    return rows.map((r) => ({
+      t: r.t.getTime(),
+      p: r.path,
+      k: r.kind as DeliveryKind,
+      s: r.status,
+    }));
   }
 
   /** True once anything was served to the public with a 2xx. */
-  hasDelivered(): boolean {
-    return !!this.#db
-      .prepare(
-        "SELECT 1 FROM delivery_log WHERE status BETWEEN 200 AND 299 LIMIT 1",
-      )
-      .get();
+  async hasDelivered(): Promise<boolean> {
+    const found = await this.#db.deliveryLog.findFirst({
+      where: { status: { gte: 200, lte: 299 } },
+      select: { id: true },
+    });
+    return !!found;
   }
 
   /** An upload that came from an app (API key or signature), not from here. */
-  markApiUpload(): void {
-    this.#db
-      .prepare(
-        "INSERT OR IGNORE INTO app_state (key, value) VALUES ('api_upload_seen', '1')",
-      )
-      .run();
+  async markApiUpload(): Promise<void> {
+    await this.#db.appState.upsert({
+      where: { key: "api_upload_seen" },
+      create: { key: "api_upload_seen", value: "1" },
+      update: {},
+    });
   }
 
-  apiUploadSeen(): boolean {
-    return !!this.#db
-      .prepare("SELECT 1 FROM app_state WHERE key = 'api_upload_seen'")
-      .get();
+  async apiUploadSeen(): Promise<boolean> {
+    const row = await this.#db.appState.findUnique({ where: { key: "api_upload_seen" } });
+    return !!row;
   }
 
   /**
    * When `key` was first asked for: stored on the first call, read back on
    * every one after, across restarts.
    */
-  since(key: string, now = Date.now()): number {
-    this.#db
-      .prepare("INSERT OR IGNORE INTO app_state (key, value) VALUES (?, ?)")
-      .run(key, JSON.stringify(now));
-    return this.getState<number>(key) ?? now;
+  async since(key: string, now = Date.now()): Promise<number> {
+    await this.#db.appState.upsert({
+      where: { key },
+      create: { key, value: JSON.stringify(now) },
+      update: {},
+    });
+    return (await this.getState<number>(key)) ?? now;
   }
 
   /** A JSON document kept in app_state, e.g. onboarding answers. */
-  getState<T>(key: string): T | undefined {
-    const row = this.#db
-      .prepare("SELECT value FROM app_state WHERE key = ?")
-      .get(key) as { value: string } | undefined;
+  async getState<T>(key: string): Promise<T | undefined> {
+    const row = await this.#db.appState.findUnique({ where: { key } });
     return row ? (JSON.parse(row.value) as T) : undefined;
   }
 
-  setState(key: string, value: unknown): void {
-    this.#db
-      .prepare(
-        "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-      )
-      .run(key, JSON.stringify(value));
+  async setState(key: string, value: unknown): Promise<void> {
+    await this.#db.appState.upsert({
+      where: { key },
+      create: { key, value: JSON.stringify(value) },
+      update: { value: JSON.stringify(value) },
+    });
   }
 }
