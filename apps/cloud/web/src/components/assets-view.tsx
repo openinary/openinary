@@ -3,6 +3,7 @@
 import {
   AssetDetailsSidebar,
   BorderBeam,
+  BottomSheet,
   DefaultDialog,
   type MediaFile,
   MediaGrid,
@@ -17,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 
 import HeaderBar from "@/components/headerbar";
+import { Sheet } from "@/components/page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { ThumbnailGenerator } from "@/components/thumbnail-generator";
 import { Button } from "@/components/ui/button";
@@ -26,8 +28,10 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { useBucketIsEmpty } from "@/hooks/use-bucket-empty";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
+const SIDEBAR_MIN_WIDTH_PX = 320;
 const SIDEBAR_MAX_WIDTH_PX = 500;
 const COLUMNS_STORAGE_KEY = "openinary:media-grid-columns";
 const VIEW_STORAGE_KEY = "openinary:media-grid-view";
@@ -126,7 +130,12 @@ export function AssetsView() {
   const panelGroupRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   useInternalLinkRouting(scrollContainerRef);
+  const [sidebarMinSize, setSidebarMinSize] = useState(25);
   const [sidebarMaxSize, setSidebarMaxSize] = useState(50);
+  // Below md the details open as a bottom sheet instead, and the side panel
+  // stays collapsed.
+  const isMobile = useIsMobile();
+  const sidePanelOpen = assetSidebarOpen && !isMobile;
   const [isResizing, setIsResizing] = useState(false);
   const [animated, setAnimated] = useState(false);
 
@@ -145,12 +154,13 @@ export function AssetsView() {
   useEffect(() => {
     const panel = sidebarPanelRef.current;
     if (!panel) return;
-    if (assetSidebarOpen) {
-      if (panel.isCollapsed()) panel.expand(Math.min(30, sidebarMaxSize));
+    if (sidePanelOpen) {
+      if (panel.isCollapsed())
+        panel.expand(Math.max(sidebarMinSize, Math.min(30, sidebarMaxSize)));
     } else if (!panel.isCollapsed()) {
       panel.collapse();
     }
-  }, [assetSidebarOpen, sidebarMaxSize]);
+  }, [sidePanelOpen, sidebarMinSize, sidebarMaxSize]);
 
   useEffect(() => {
     const container = panelGroupRef.current;
@@ -159,6 +169,9 @@ export function AssetsView() {
     const updateMaxSize = (width: number) => {
       if (width === 0) return;
       const maxPercent = Math.min(100, (SIDEBAR_MAX_WIDTH_PX / width) * 100);
+      // The px floor keeps the tabs and buttons from cramping on a tablet,
+      // where 25% of the window is barely 200px.
+      setSidebarMinSize(Math.min(maxPercent, (SIDEBAR_MIN_WIDTH_PX / width) * 100));
       setSidebarMaxSize(maxPercent);
       const panel = sidebarPanelRef.current;
       if (panel && panel.getSize() > maxPercent) {
@@ -200,7 +213,7 @@ export function AssetsView() {
     animated &&
       !isResizing &&
       "transition-[flex-grow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
-    animated && !isResizing && !assetSidebarOpen && "delay-100",
+    animated && !isResizing && !sidePanelOpen && "delay-100",
   );
 
   return (
@@ -226,89 +239,99 @@ export function AssetsView() {
           id="main-panel"
           className={cn("@container/main", panelWidthTransition)}
         >
-          <HeaderBar
-            columns={columns}
-            onColumnsChange={handleColumnsChange}
-            view={view}
-            onViewChange={handleViewChange}
-            showControls={!showsEmptyState}
-          />
-          <div
-            ref={scrollContainerRef}
-            aria-busy={isSwitching}
-            className={cn(
-              "h-[calc(100vh-64px)] space-y-6 overflow-auto @2xl/main:px-6 px-4 @2xl/main:py-8 py-6 transition-opacity",
-              isSwitching && "pointer-events-none opacity-50",
-            )}
-          >
-            <ThumbnailGenerator folderPath={folderPath} />
-            <MediaGrid
-              onMediaSelect={handleMediaSelect}
-              sidebarOpen={assetSidebarOpen}
+          <Sheet>
+            <HeaderBar
               columns={columns}
+              onColumnsChange={handleColumnsChange}
               view={view}
-              scrollContainerRef={scrollContainerRef}
-              folderPath={folderPath}
-              onFolderPathChange={setFolderPath}
-              // Cloud's empty state: the beam pushes onboarding, not upload,
-              // and the docs link goes to the Cloud manual. Replaces what
-              // used to be a pnpm patch on the package.
-              emptyActions={
-                <div className="flex gap-2">
-                  <BorderBeam
-                    size="pulse-outside"
-                    colorVariant={
-                      resolvedTheme === "light" ? "mono" : "colorful"
-                    }
-                    strength={0.7}
-                    theme={resolvedTheme === "light" ? "light" : "dark"}
-                  >
-                    <Button variant="outline" className="gap-2" asChild>
-                      <a href="/get-started">
-                        <Plug className="h-4 w-4" />
-                        Get started
-                      </a>
-                    </Button>
-                  </BorderBeam>
-                  <UploadButtonWithDialog />
-                </div>
-              }
-              emptyFooter={
-                <Button
-                  variant="link"
-                  asChild
-                  className="text-muted-foreground"
-                  size="sm"
-                >
-                  <a
-                    href="https://docs.openinary.dev/cloud/overview"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Documentation <ArrowUpRight className="ml-1 h-4 w-4" />
-                  </a>
-                </Button>
-              }
+              onViewChange={handleViewChange}
+              showControls={!showsEmptyState}
             />
-          </div>
+            <div
+              ref={scrollContainerRef}
+              aria-busy={isSwitching}
+              className={cn(
+                "min-h-0 flex-1 space-y-6 overflow-auto @2xl/main:p-6 p-4 transition-opacity",
+                isSwitching && "pointer-events-none opacity-50",
+              )}
+            >
+              <ThumbnailGenerator folderPath={folderPath} />
+              <MediaGrid
+                onMediaSelect={handleMediaSelect}
+                sidebarOpen={assetSidebarOpen}
+                columns={columns}
+                view={view}
+                scrollContainerRef={scrollContainerRef}
+                folderPath={folderPath}
+                onFolderPathChange={setFolderPath}
+                // Cloud's empty state: the beam pushes onboarding, not upload,
+                // and the docs link goes to the Cloud manual. Replaces what
+                // used to be a pnpm patch on the package.
+                emptyActions={
+                  <div className="flex gap-2">
+                    <BorderBeam
+                      size="pulse-outside"
+                      colorVariant={
+                        resolvedTheme === "light" ? "mono" : "colorful"
+                      }
+                      strength={0.7}
+                      theme={resolvedTheme === "light" ? "light" : "dark"}
+                    >
+                      <Button variant="outline" className="gap-2" asChild>
+                        <a href="/get-started">
+                          <Plug className="h-4 w-4" />
+                          Get started
+                        </a>
+                      </Button>
+                    </BorderBeam>
+                    <UploadButtonWithDialog />
+                  </div>
+                }
+                emptyFooter={
+                  <Button
+                    variant="link"
+                    asChild
+                    className="text-muted-foreground"
+                    size="sm"
+                  >
+                    <a
+                      href="https://docs.openinary.dev/cloud/overview"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Documentation <ArrowUpRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </Button>
+                }
+              />
+            </div>
+          </Sheet>
         </ResizablePanel>
+        {/* Pulled back across the sheet's right margin and border (8 + 1px)
+            so the 1px handle lies on that border and the grip centres on it;
+            -mr-px gives back the 1px it takes from the layout.
+            It lights that edge up (radius included) instead
+            of drawing a straight rule - the same as the main sidebar's rail. */}
         <ResizableHandle
           withHandle
-          disabled={!assetSidebarOpen}
+          disabled={!sidePanelOpen}
           onDragging={setIsResizing}
           className={cn(
-            "transition-opacity duration-200 ease-[cubic-bezier(0.2,0,0,1)]",
-            !assetSidebarOpen && "pointer-events-none opacity-0",
+            "bg-transparent transition-opacity duration-200 ease-[cubic-bezier(0.2,0,0,1)] md:-mr-px md:-translate-x-[9px]",
+            "before:absolute before:inset-y-2 before:right-0 before:w-3 before:rounded-r-xl before:border-transparent before:border-r-2 hover:bg-transparent hover:before:border-sidebar-border data-[resize-handle-state=drag]:bg-transparent data-[resize-handle-state=drag]:before:border-sidebar-border",
+            !sidePanelOpen && "pointer-events-none opacity-0",
           )}
         />
         <ResizablePanel
           ref={sidebarPanelRef}
           defaultSize={openOnFirstPaint ? Math.min(30, sidebarMaxSize) : 0}
-          minSize={Math.min(25, sidebarMaxSize)}
+          minSize={sidebarMinSize}
           maxSize={sidebarMaxSize}
           collapsible={true}
           collapsedSize={0}
-          onCollapse={() => setAssetId(null)}
+          // On mobile the panel is collapsed on purpose, with the asset
+          // shown in the bottom sheet: that collapse must not deselect it.
+          onCollapse={() => !isMobile && setAssetId(null)}
           id="sidebar-panel"
           className={cn("overflow-hidden", panelWidthTransition)}
         >
@@ -322,20 +345,38 @@ export function AssetsView() {
             className={cn(
               "h-full",
               !isResizing && "transition-opacity motion-reduce:transition-none",
-              assetSidebarOpen
+              sidePanelOpen
                 ? "opacity-100 delay-150 duration-200 ease-out"
                 : "opacity-0 duration-100 ease-in",
             )}
           >
-            <AssetDetailsSidebar
-              assetId={assetId}
-              onAssetIdChange={setAssetId}
-              open={assetSidebarOpen}
-              onOpenChange={setAssetSidebarOpen}
-            />
+            {!isMobile && (
+              <AssetDetailsSidebar
+                assetId={assetId}
+                onAssetIdChange={setAssetId}
+                open={assetSidebarOpen}
+                onOpenChange={setAssetSidebarOpen}
+              />
+            )}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      {isMobile && (
+        <BottomSheet
+          open={!!assetId}
+          onOpenChange={(open) => !open && setAssetId(null)}
+          title="Asset details"
+        >
+          <AssetDetailsSidebar
+            assetId={assetId}
+            onAssetIdChange={setAssetId}
+            open={assetSidebarOpen}
+            onOpenChange={setAssetSidebarOpen}
+            hideClose
+            className="h-auto min-h-0 flex-1 p-0 px-2"
+          />
+        </BottomSheet>
+      )}
     </div>
   );
 }

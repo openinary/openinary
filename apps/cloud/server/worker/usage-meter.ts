@@ -92,6 +92,15 @@ export class UsageMeter extends DurableObject<Env> {
   // token, i.e. one their own app sent rather than one dropped into our
   // dashboard. Onboarding, not money - see markApiUpload.
   #apiUpload = false;
+  // Whether the account has been through the first-run questionnaire. Same
+  // reasoning as #apiUpload: per-account, read with the Get started state,
+  // one write ever.
+  #onboarded = false;
+  // Whether this account has ever had a billable delivery: the Get started
+  // checklist's "Serve it back". Only here so hit() can say "first" once.
+  // ponytail: accounts that delivered before this flag existed report one
+  // spurious first delivery; funnels anchored on signup never include them.
+  #delivered = false;
 
   constructor(ctx: DurableObjectState<Env>, env: Env) {
     super(ctx, env);
@@ -107,6 +116,8 @@ export class UsageMeter extends DurableObject<Env> {
       this.#unconfirmed =
         (await ctx.storage.get<Unconfirmed>("unconfirmed")) ?? {};
       this.#apiUpload = (await ctx.storage.get<boolean>("apiUpload")) ?? false;
+      this.#onboarded = (await ctx.storage.get<boolean>("onboarded")) ?? false;
+      this.#delivered = (await ctx.storage.get<boolean>("delivered")) ?? false;
       this.#alarmAt = await ctx.storage.getAlarm();
     });
   }
@@ -153,13 +164,15 @@ export class UsageMeter extends DurableObject<Env> {
    * stream, so it is dropped outright rather than logged with cdn 0 - the
    * activity tab applies the same rule as the invoice, or a customer reading
    * two lines against one charge would be right to call it overbilling.
+   * @returns true for the account's first billable delivery ever.
    */
   async hit(
     event: DeliveryEvent,
     quiet = false,
     dedupeKey?: string,
-  ): Promise<void> {
-    if (dedupeKey && seenRecently(this.#seen, dedupeKey, Date.now())) return;
+  ): Promise<boolean> {
+    if (dedupeKey && seenRecently(this.#seen, dedupeKey, Date.now()))
+      return false;
 
     if (quiet) {
       this.#quiet = appendCapped(this.#quiet, event, MAX_EVENTS);
@@ -169,6 +182,11 @@ export class UsageMeter extends DurableObject<Env> {
       // customer has to be able to see them) but must never reach Autumn.
       this.#count += event.cdn;
       this.#pending = appendCapped(this.#pending, event, MAX_EVENTS);
+    }
+    const first = !quiet && event.cdn > 0 && !this.#delivered;
+    if (first) {
+      this.#delivered = true;
+      await this.ctx.storage.put("delivered", true);
     }
 
     const now = Date.now();
@@ -182,6 +200,7 @@ export class UsageMeter extends DurableObject<Env> {
     }
 
     await this.#arm(now + PERSIST_INTERVAL_MS);
+    return first;
   }
 
   /**
@@ -217,16 +236,28 @@ export class UsageMeter extends DurableObject<Env> {
    * per-account thing the Get started page reads (see pending()), so it costs
    * no migration and no extra round trip. One storage write per account, ever:
    * the guard makes every upload after the first free.
+   * @returns true the first time, so the caller can report it once.
    */
-  async markApiUpload(): Promise<void> {
-    if (this.#apiUpload) return;
+  async markApiUpload(): Promise<boolean> {
+    if (this.#apiUpload) return false;
     this.#apiUpload = true;
     await this.ctx.storage.put("apiUpload", true);
+    return true;
   }
 
   /** Whether markApiUpload has ever been called for this account. */
   async apiUploadSeen(): Promise<boolean> {
     return this.#apiUpload;
+  }
+
+  async markOnboarded(): Promise<void> {
+    if (this.#onboarded) return;
+    this.#onboarded = true;
+    await this.ctx.storage.put("onboarded", true);
+  }
+
+  async onboarded(): Promise<boolean> {
+    return this.#onboarded;
   }
 
   /**
@@ -247,6 +278,8 @@ export class UsageMeter extends DurableObject<Env> {
     this.#seen.clear();
     this.#unconfirmed = {};
     this.#apiUpload = false;
+    this.#onboarded = false;
+    this.#delivered = false;
     this.#flushDueAt = 0;
     this.#alarmAt = null;
     await this.ctx.storage.deleteAlarm();

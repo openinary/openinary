@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-export function VersionDisplay() {
+export function useVersion() {
   const [version, setVersion] = useState<string>("latest");
-  
+
   useEffect(() => {
     // Fetch IMAGE_TAG from API route (runtime value)
     fetch("/api/version")
@@ -12,10 +12,6 @@ export function VersionDisplay() {
       .then((data) => setVersion(data.version))
       .catch(() => setVersion("latest"));
   }, []);
-  
-  return (
-    <div className="px-2 py-1 text-center text-[11px] text-muted-foreground opacity-75">
-      Version: {version}
-    </div>
-  );
+
+  return version;
 }

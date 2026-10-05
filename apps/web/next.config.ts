@@ -30,6 +30,19 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
     NEXT_PUBLIC_IMAGE_TAG: process.env.IMAGE_TAG || "latest",
   },
+  // Settings used to be a dialog opened by ?settings=<tab>; keep old links.
+  async redirects() {
+    return [
+      {
+        source: "/",
+        has: [{ type: "query", key: "settings", value: "(?<tab>[a-z-]+)" }],
+        destination: "/settings/:tab",
+        permanent: false,
+      },
+      // Usage was renamed Logs.
+      { source: "/settings/activity", destination: "/settings/logs", permanent: false },
+    ];
+  },
   eslint: {
     // Disable ESLint during build for Docker
     ignoreDuringBuilds: true,

@@ -230,6 +230,30 @@ export default function UserPage() {
             />
           )}
 
+          {/* Straight to better-auth's endpoint rather than through oRPC: the
+              answer *is* the Set-Cookie that swaps this browser's session, and
+              the dashboard's banner is the way back. A banned account cannot
+              get a session at all, so the button would only ever error. */}
+          <ConfirmAction
+            label="Impersonate"
+            disabled={act.isPending || Boolean(user.banned)}
+            title="Open the dashboard as this account?"
+            description="Signs this browser in as them on the customer dashboard, to see exactly what they see."
+            consequences={[
+              "Everything you do there is done as them, on their live account.",
+              "This panel stays locked until you click “Stop impersonating” in the dashboard.",
+              "The impersonation ends on its own after one hour, and you sign in again.",
+            ]}
+            confirmLabel="Impersonate"
+            onConfirm={async () => {
+              await adminFetch("/api/auth/admin/impersonate-user", {
+                method: "POST",
+                body: JSON.stringify({ userId }),
+              });
+              window.location.assign(process.env.NEXT_PUBLIC_APP_URL ?? "/");
+            }}
+          />
+
           <ConfirmAction
             label="Change plan"
             disabled={act.isPending}

@@ -4,6 +4,8 @@ import { gutter } from "@/components/home/section";
 
 const legalLinks = [
   { href: "/compare", label: "Compare" },
+  { href: "https://github.com/openinary/openinary", label: "GitHub" },
+  { href: "mailto:support@openinary.dev", label: "Contact" },
   { href: "/legal", label: "Legal Notice" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy Policy" },

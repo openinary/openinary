@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
-import { parseParams, isTransformSegment } from "../utils/parser";
+import {
+  decodeRequestPath,
+  parseParams,
+  isTransformSegment,
+} from "../utils/parser";
 import { getCachePath, existsInCache } from "../utils/cache";
 import logger, { serializeError } from "../utils/logger";
 
@@ -11,7 +15,7 @@ import logger, { serializeError } from "../utils/logger";
  * the params, not to the file path the job is keyed on.
  */
 function resolveStatusTarget(requestPath: string) {
-  const segments = requestPath.split("/").slice(2); // drop '/video-status'
+  const segments = decodeRequestPath(requestPath).split("/").slice(2); // drop '/video-status'
   const hasTransform = segments.length > 0 && isTransformSegment(segments[0]);
   const fullPath = `/t/${segments.join("/")}`;
 

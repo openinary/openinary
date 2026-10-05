@@ -2,6 +2,7 @@
 
 import { AssetDetailsSidebar } from "@/components/details-sidebar";
 import HeaderBar from "@/components/headerbar";
+import { Sheet } from "@/components/page";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import {
   ResizableHandle,
@@ -11,12 +12,14 @@ import {
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/auth-client";
-import { MediaGrid, type MediaFile } from "@openinary/ui";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { BottomSheet, MediaGrid, type MediaFile } from "@openinary/ui";
 import { useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { Suspense, useEffect, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 
+const SIDEBAR_MIN_WIDTH_PX = 320;
 const SIDEBAR_MAX_WIDTH_PX = 500;
 const COLUMNS_STORAGE_KEY = "openinary:media-grid-columns";
 const VIEW_STORAGE_KEY = "openinary:media-grid-view";
@@ -55,7 +58,10 @@ function HomePageContent() {
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
   const panelGroupRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [sidebarMinSize, setSidebarMinSize] = useState(25);
   const [sidebarMaxSize, setSidebarMaxSize] = useState(50);
+  // Below md the details open as a bottom sheet instead of a side panel.
+  const isMobile = useIsMobile();
 
   // Sync sidebar open state with asset selection
   useEffect(() => {
@@ -73,6 +79,9 @@ function HomePageContent() {
     const updateMaxSize = (width: number) => {
       if (width === 0) return;
       const maxPercent = Math.min(100, (SIDEBAR_MAX_WIDTH_PX / width) * 100);
+      // The px floor keeps the tabs and buttons from cramping on a tablet,
+      // where 25% of the window is barely 200px.
+      setSidebarMinSize(Math.min(maxPercent, (SIDEBAR_MIN_WIDTH_PX / width) * 100));
       setSidebarMaxSize(maxPercent);
       const panel = sidebarPanelRef.current;
       if (panel && panel.getSize() > maxPercent) {
@@ -100,10 +109,11 @@ function HomePageContent() {
         <div ref={panelGroupRef} className="h-screen w-full">
           <ResizablePanelGroup direction="horizontal" className="h-screen">
             <ResizablePanel
-              defaultSize={assetSidebarOpen ? 70 : 100}
+              defaultSize={assetSidebarOpen && !isMobile ? 70 : 100}
               minSize={30}
               id="main-panel"
             >
+              <Sheet>
               <HeaderBar
                 columns={columns}
                 onColumnsChange={handleColumnsChange}
@@ -112,7 +122,7 @@ function HomePageContent() {
               />
               <div
                 ref={scrollContainerRef}
-                className="px-4 sm:px-6 py-6 sm:py-8 space-y-6 overflow-auto h-[calc(100vh-64px)] overflow-y-scoll"
+                className="min-h-0 flex-1 p-4 sm:p-6 space-y-6 overflow-auto"
               >
                 <MediaGrid
                   onMediaSelect={handleMediaSelect}
@@ -124,14 +134,21 @@ function HomePageContent() {
                   onFolderPathChange={setFolderPath}
                 />
               </div>
+              </Sheet>
             </ResizablePanel>
-            {assetSidebarOpen && (
+            {assetSidebarOpen && !isMobile && (
               <>
-                <ResizableHandle withHandle />
+                {/* Pulled back across the sheet's right margin and border
+                    (8 + 1px) so the grip centres on that border, and lights that edge up (radius
+                    included) the same as the main sidebar's rail. */}
+                <ResizableHandle
+                  withHandle
+                  className="bg-transparent md:-mr-px md:-translate-x-[9px] before:absolute before:inset-y-2 before:right-0 before:w-3 before:rounded-r-xl before:border-transparent before:border-r-2 hover:bg-transparent hover:before:border-sidebar-border data-[resize-handle-state=drag]:bg-transparent data-[resize-handle-state=drag]:before:border-sidebar-border"
+                />
                 <ResizablePanel
                   ref={sidebarPanelRef}
-                  defaultSize={Math.min(30, sidebarMaxSize)}
-                  minSize={Math.min(25, sidebarMaxSize)}
+                  defaultSize={Math.max(sidebarMinSize, Math.min(30, sidebarMaxSize))}
+                  minSize={sidebarMinSize}
                   maxSize={sidebarMaxSize}
                   collapsible={true}
                   collapsedSize={0}
@@ -148,6 +165,22 @@ function HomePageContent() {
               </>
             )}
           </ResizablePanelGroup>
+          {isMobile && (
+            <BottomSheet
+              open={!!assetId}
+              onOpenChange={(open) => !open && setAssetId(null)}
+              title="Asset details"
+            >
+              <AssetDetailsSidebar
+                assetId={assetId}
+                onAssetIdChange={setAssetId}
+                open={assetSidebarOpen}
+                onOpenChange={setAssetSidebarOpen}
+                hideClose
+                className="h-auto min-h-0 flex-1 p-0 px-2"
+              />
+            </BottomSheet>
+          )}
         </div>
       </SidebarInset>
     </>

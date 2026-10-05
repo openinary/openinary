@@ -29,8 +29,9 @@ export function generateMetadata({
       ];
     if (!competitor) return {};
     return {
-      title: `Openinary vs ${competitor.name} — Open-source Alternative Comparison`,
+      title: `Openinary vs ${competitor.name} | Open-source Alternative Comparison`,
       description: `Compare Openinary with ${competitor.name}. See how the open-source, self-hostable media platform stacks up against ${competitor.name} on features, pricing, and developer experience.`,
+      alternates: { canonical: `/compare/${slug}` },
     };
   });
 }

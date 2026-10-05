@@ -4,7 +4,10 @@
    and inherits the shadcn tokens defined below. */
 @import "@cossistant/next/support.css";
 
-@source "../node_modules/@openinary/ui/dist";
+/* The package's source, not its dist: the dev server does not rescan dist
+   when the package is rebuilt, so new classes silently went missing until the
+   build cache was cleared. Same path apps/web scans. */
+@source "../../../../packages/ui/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -75,7 +78,7 @@ body {
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.945 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
@@ -165,14 +168,6 @@ body {
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
   }
-}
-
-/* ponytail: @openinary/ui SettingsDialog hardcodes its size and takes no
-   className prop — unlayered so it beats the utilities layer. Drop this
-   when the package exposes a className. */
-[data-slot="dialog-content"].h-\[520px\] {
-  height: min(600px, calc(100dvh - 4rem));
-  max-width: 56rem;
 }
 
 /* The FileUploader demo on Get started (uploader-card.tsx). One 7s cycle, one

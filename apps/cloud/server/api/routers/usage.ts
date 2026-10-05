@@ -1,8 +1,12 @@
 import { desc, like } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "../db/index.js";
+import { captureEvent } from "../lib/analytics.js";
 import { videoJob } from "../db/schema/video-job.js";
 import {
+  getPaymentMethod,
   getUsage,
+  getUsageHistory,
   openBillingPortal,
   startUpgradeCheckout,
 } from "../lib/autumn.js";
@@ -15,6 +19,16 @@ const planSettingsUrl = () =>
   process.env.CORS_ORIGIN
     ? `${process.env.CORS_ORIGIN}/?settings=plan`
     : undefined;
+
+/** Option ids from the onboarding form, never free text. */
+const slug = z.string().regex(/^[a-z0-9-]{1,40}$/);
+
+/**
+ * Accounts that existed before the questionnaire shipped never see it: they
+ * set themselves up long ago, and a form between them and their library would
+ * be a toll, not an onboarding.
+ */
+const ONBOARDING_SHIPPED_AT = Date.parse("2026-10-01T00:00:00Z");
 
 /** Matches UsageMeter's own MAX_EVENTS - there is never more than this to show. */
 const MAX_DELIVERIES = 500;
@@ -49,14 +63,75 @@ export const usageRouter = {
   }),
 
   /**
+   * Daily usage since the start of the current period, for the spend curve.
+   * The client sends the start it already derives from usage.get, rather than
+   * this costing a second customer lookup; it is clamped to the last 35 days,
+   * which is all a monthly period can span.
+   */
+  history: protectedProcedure
+    .input(z.object({ start: z.number().int() }))
+    .handler(async ({ context, input }) => {
+      const earliest = Date.now() - 35 * 24 * 60 * 60 * 1000;
+      try {
+        return await getUsageHistory(
+          context.session.user.id,
+          Math.max(input.start, earliest),
+        );
+      } catch (error) {
+        // The curve is a nicety: without it the page still has every figure.
+        console.error("Failed to read usage history", error);
+        return [];
+      }
+    }),
+
+  /**
    * The one Get started step nothing else can answer: has this account's own
    * app ever uploaded, as opposed to the customer dropping a file into our
    * dashboard? One Durable Object read and no Autumn call - the checklist's
    * other signal, cdn_requests, comes off the usage.get it already runs.
    */
-  onboarding: protectedProcedure.handler(async ({ context }) => ({
-    uploaded: await apiUploadSeen(context.env, context.session.user.id),
-  })),
+  onboarding: protectedProcedure.handler(async ({ context }) => {
+    const { id: userId, createdAt } = context.session.user;
+    const predatesOnboarding =
+      new Date(createdAt).getTime() < ONBOARDING_SHIPPED_AT;
+    const [uploaded, onboarded] = await Promise.all([
+      apiUploadSeen(context.env, userId),
+      predatesOnboarding || readOnboarded(context.env, userId),
+    ]);
+    return { uploaded, onboarded };
+  }),
+
+  /**
+   * The first-run questionnaire's answers. Name, picture and bucket name are
+   * saved by the client through the endpoints that already own them; this
+   * records the rest in PostHog, from the server so an ad blocker can't drop
+   * it, and as person properties so every later event can be broken down by
+   * them. Then it stops the questionnaire from showing again.
+   */
+  completeOnboarding: protectedProcedure
+    .input(
+      z.object({
+        role: slug,
+        useCases: z.array(slug).max(20),
+        source: slug.nullable(),
+        bucketDescription: z.string().trim().max(280),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const userId = context.session.user.id;
+      const answers = {
+        role: input.role,
+        use_cases: input.useCases,
+        source: input.source ?? "skipped",
+      };
+      await captureEvent("onboarding_completed", userId, {
+        ...answers,
+        bucket_description: input.bucketDescription || undefined,
+        $set: answers,
+      });
+      await meterFor(context.env, userId).markOnboarded();
+      return { success: true };
+    }),
 
   /**
    * Every publicly served asset this account delivered recently, and every
@@ -77,6 +152,17 @@ export const usageRouter = {
 
 const meterFor = (env: Bindings, userId: string) =>
   env.USAGE_METER.get(env.USAGE_METER.idFromName(userId));
+
+async function readOnboarded(env: Bindings, userId: string): Promise<boolean> {
+  try {
+    return await meterFor(env, userId).onboarded();
+  } catch (error) {
+    // True is the safe direction here: an unreachable meter must not lock
+    // anyone out of their dashboard behind the questionnaire.
+    console.error(`Failed to read onboarded flag for ${userId}`, error);
+    return true;
+  }
+}
 
 // The four below take a userId rather than reading it off the session, so the
 // admin panel answers with the same code path - and therefore the same
@@ -173,6 +259,11 @@ export const billingRouter = {
     );
     return { paymentUrl };
   }),
+
+  /** Card brand and last four, or null without one on file. */
+  paymentMethod: protectedProcedure.handler(({ context }) =>
+    getPaymentMethod(context.session.user.id),
+  ),
 
   portal: protectedProcedure.handler(async ({ context }) => {
     const url = await openBillingPortal(

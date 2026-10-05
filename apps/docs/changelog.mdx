@@ -3,6 +3,36 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="October 1, 2026" description="v0.5.0" tags={["Feature", "Improvement", "Fix"]}>
+  ## New features
+
+**A redesigned dashboard**, A compact sidebar, settings as their own pages, and Quick actions on `Cmd/Ctrl+K`, grouped into actions, pages, tools, settings and help.
+
+**Logs**, Every public delivery is now logged and charted. The table keeps the latest 500 deliveries, while the chart and figures (total, images, videos, failure rate) come from hourly counts kept for a year, so a busy instance still sees its whole week. Recent video processing jobs are listed alongside.
+
+**Get started, playgrounds and Integrate**, The image and video playgrounds, the integration guide and a three-step checklist now ship with self-hosted too, pointed at your instance.
+
+**First-run onboarding**, New accounts get a short questionnaire after sign-in that sets your workspace name and logo, shown at the top of the sidebar. Accounts that existed before the upgrade skip it. With telemetry on, the multiple-choice answers are sent anonymously as option ids only, see [telemetry](/configuration/telemetry). `OPENINARY_TELEMETRY=false` keeps them on your server.
+
+## Bug fixes
+
+- **Transforms no longer hang on some file names**, Files whose names contain `,`, `&` or `@` stayed on "processing" forever.
+- **Camera JPEGs that libvips rejects are served instead of failing**, When a JPEG can't be decoded, the original is streamed with `X-Transform-Fallback: original` and is never cached as a transform. Thanks to [benjaminstary](https://github.com/benjaminstary).
+- **Large uploads from the dashboard go through**, Selections are sent in batches of 20 with retries on `429`, instead of one request that could time out. Thanks to [benjaminstary](https://github.com/benjaminstary).
+- **Signed authenticated URLs work in the Docker image**, nginx now proxies `/authenticated` to the API. Thanks to [diveshagarwal213](https://github.com/diveshagarwal213).
+</Update>
+
+<Update label="August 11, 2026" description="v0.4.0" tags={["Feature", "Fix"]}>
+  ## New features
+
+**Create the admin account from environment variables**, Set `OPENINARY_ADMIN_EMAIL` and `OPENINARY_ADMIN_PASSWORD` (and optionally `OPENINARY_ADMIN_NAME`) and the account exists on first boot, with no visit to `/setup`. `OPENINARY_GENERATE_API_KEY=true` also creates an API key and prints it to the logs, and an `api` mode instance gets one on first boot regardless. See [admin bootstrap](/configuration/server#admin-bootstrap). Thanks to [KesSaft](https://github.com/KesSaft).
+
+## Bug fixes
+
+- **Transform parameters on a file that can't be transformed return a 400**, A URL such as `/t/w_500/doc.pdf` came back as an unlabeled 500. It now answers `400` with a message pointing at the bare `/t/<path>` URL, which streams the original. Thanks to [brian-soltani](https://github.com/brian-soltani).
+- **`MAX_FILE_SIZE_MB` is the only upload limit in the Docker image**, The full image's nginx capped uploads at 100 MB whatever the setting and answered with its own bare 413. The API's limit and error message now apply. Expect an oversized upload to be received in full before it is rejected.
+</Update>
+
 <Update label="August 9, 2026" description="v0.3.1" tags={["Feature", "Fix"]}>
   ## New features
 

@@ -4,14 +4,16 @@ import type { MediaFile } from "@openinary/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import posthog from "posthog-js";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { DashboardOpeninaryProvider } from "@/components/dashboard-openinary-provider";
-import { SettingsDialog } from "@/components/settings-dialog";
+import { OnboardingGate } from "@/components/onboarding-gate";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { BucketSwitchProvider } from "@/components/sidebar/bucket-switch-context";
 import SignInForm from "@/components/sign-in-form";
 import { SupportWidget } from "@/components/support";
+import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
@@ -41,12 +43,51 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Lives here rather than in a page: every route can deep-link the
-          dialog through ?settings=..., and /get-started/integrate does. */}
-      <SettingsDialog />
       <AppSidebar onMediaSelect={handleMediaSelect} />
       <SidebarInset>{children}</SidebarInset>
     </>
+  );
+}
+
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL;
+
+/**
+ * Shown while the admin panel has this browser signed in as a customer
+ * (support). Stopping hands the admin's own session back and returns to that
+ * customer's page in the panel, which stays locked until then.
+ */
+function ImpersonationBanner({
+  user,
+}: {
+  user: { id: string; email: string };
+}) {
+  const [stopping, setStopping] = useState(false);
+
+  return (
+    <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border bg-background py-1.5 pr-1.5 pl-3.5 text-sm shadow-lg">
+      <span className="truncate">
+        Viewing as <span className="font-medium">{user.email}</span>
+      </span>
+      <Button
+        size="sm"
+        variant="destructive"
+        disabled={stopping}
+        onClick={async () => {
+          setStopping(true);
+          const { error } = await authClient.admin.stopImpersonating();
+          if (error) {
+            setStopping(false);
+            toast.error(error.message ?? "Could not stop impersonating");
+            return;
+          }
+          window.location.assign(
+            ADMIN_URL ? `${ADMIN_URL}/users/${user.id}` : "/",
+          );
+        }}
+      >
+        Stop impersonating
+      </Button>
+    </div>
   );
 }
 
@@ -78,12 +119,17 @@ export function AppShell({
   // Ties the browser's anonymous journey (marketing site included, via the
   // shared .openinary.dev cookie) to the account. Same id the server uses
   // for cloud_account_created / asset_uploaded, so funnels line up.
+  //
+  // Not while impersonating: that is the admin's browser, and identifying it
+  // as the customer would merge the admin's journey into theirs. Events keep
+  // landing on the admin's own id instead.
   const user = session?.user;
+  const impersonating = Boolean(session?.session.impersonatedBy);
   useEffect(() => {
-    if (user) {
+    if (user && !impersonating) {
       posthog.identify(user.id, { email: user.email, name: user.name });
     }
-  }, [user]);
+  }, [user, impersonating]);
 
   if (isPending && !sessionKnown.current) {
     return (
@@ -111,12 +157,21 @@ export function AppShell({
             >
               <ShellContent>{children}</ShellContent>
             </Suspense>
+            {/* Answering it would write the admin's answers onto the
+                customer's profile and bucket. */}
+            {impersonating ? null : <OnboardingGate />}
           </BucketSwitchProvider>
         </SidebarProvider>
       </DashboardOpeninaryProvider>
       {/* Outside DashboardOpeninaryProvider on purpose: that one renders null
-          until the bucket list lands, and support shouldn't wait on it. */}
-      <SupportWidget />
+          until the bucket list lands, and support shouldn't wait on it.
+          Swapped for the banner while impersonating: identifying the admin's
+          browser as the customer would tie the two in the support inbox. */}
+      {impersonating ? (
+        <ImpersonationBanner user={session.user} />
+      ) : (
+        <SupportWidget />
+      )}
     </>
   );
 }

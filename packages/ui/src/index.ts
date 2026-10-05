@@ -18,7 +18,19 @@ export {
 
 // Leaf components
 export { CopyInput } from "./ui/copy-input";
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 export { DefaultDialog } from "./components/default-dialog";
+export { BottomSheet } from "./components/bottom-sheet";
+export { QuickActions, type QuickAction } from "./components/quick-actions";
 export { DeleteConfirmDialog } from "./components/delete-confirm-dialog";
 export { RenameSection } from "./components/rename-section";
 export { ColumnCountSlider, MIN_COLUMNS, MAX_COLUMNS } from "./components/column-count-slider";
@@ -42,10 +54,8 @@ export { QueueTable, type QueueJob as QueueTableJob } from "./queue/queue-table"
 
 // Asset details tabs
 export { formatFileSize, formatDate, getFileType } from "./details-sidebar/utils";
-export { AssetMetadataTab } from "./details-sidebar/asset-metadata-tab";
 export { AssetTransformationsTab } from "./details-sidebar/asset-transformations-tab";
 export { AssetPreview } from "./details-sidebar/asset-preview";
-export { AssetDetailsTab } from "./details-sidebar/asset-details-tab";
 export { AssetDetailsSidebar } from "./details-sidebar/asset-details-sidebar";
 export { useAssetDetails } from "./details-sidebar/use-asset-details";
 
@@ -78,7 +88,43 @@ export { MediaGrid, type MediaGridProps } from "./media-grid";
 // Settings dialog (composable shell + portable tabs)
 export { SettingsDialog, type SettingsDialogProps, type SettingsNavItem } from "./settings/settings-dialog";
 export { AppearanceTab } from "./settings/appearance-tab";
+export {
+  SettingsActions,
+  SettingsField,
+  SettingsFields,
+  SettingsList,
+  SettingsRow,
+  SettingsSection,
+  settingsFieldClass,
+  settingsFieldLabelClass,
+} from "./settings/settings-section";
+export {
+  UsageCell,
+  UsageDashboard,
+  UsageTable,
+  UsageTime,
+  type UsageColumn,
+  type UsageCount,
+  type UsageEvent,
+} from "./settings/usage-dashboard";
 export { StorageTab } from "./settings/storage-tab";
+export {
+  ApiKeyScope,
+  ApiKeysCard,
+  CreateApiKeyDialog,
+  type ApiKeyItem,
+} from "./settings/api-keys-card";
+
+// First-run onboarding (cloud and self-hosted)
+export {
+  Onboarding,
+  ONBOARDING_ROLES,
+  ONBOARDING_SOURCES,
+  ONBOARDING_USE_CASES,
+  type OnboardingAnswers,
+  type OnboardingProps,
+  type OnboardingVariant,
+} from "./onboarding/onboarding";
 
 // File uploader (presigned direct upload)
 export { FileUploader, type FileUploaderProps } from "./file-uploader/file-uploader";

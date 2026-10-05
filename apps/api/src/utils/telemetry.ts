@@ -22,6 +22,8 @@ import { canDeriveFrom, deriveInstanceId } from "./telemetry-id";
 const TELEMETRY_ENDPOINT =
   process.env.TELEMETRY_ENDPOINT || "https://telemetry.openinary.dev/collect";
 const TELEMETRY_ENABLED = process.env.OPENINARY_TELEMETRY !== "false";
+/** Read by the onboarding form, which says where its answers go. */
+export const telemetryEnabled = TELEMETRY_ENABLED;
 const HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 const HEARTBEAT_JITTER_MS = 60 * 60 * 1000; // boot-time spread of up to 1h, avoids thundering herd
 const SEND_TIMEOUT_MS = 3000;
@@ -127,6 +129,14 @@ type TelemetryEvent =
         storage_backend: "s3" | "local";
         video_jobs_bucket: CountBucket;
       };
+    }
+  | {
+      event: "onboarding_completed";
+      properties: {
+        role: string;
+        use_cases: string[];
+        source: string;
+      };
     };
 
 async function send(instanceId: string, payload: TelemetryEvent) {
@@ -172,6 +182,28 @@ async function sendHeartbeat(db: PrismaClient, instanceId: string) {
     },
   });
   await setConfig(db, "last_heartbeat_at", Date.now().toString());
+}
+
+/**
+ * The first-run questionnaire's multiple-choice answers: option ids only,
+ * never the name, workspace or pictures typed alongside them. Once per user,
+ * when they finish it.
+ */
+export async function trackOnboardingCompleted(properties: {
+  role: string;
+  use_cases: string[];
+  source: string | null;
+}) {
+  if (!TELEMETRY_ENABLED) return;
+  try {
+    ensureTelemetryTable();
+    await send(getOrCreateInstanceId(), {
+      event: "onboarding_completed",
+      properties: { ...properties, source: properties.source ?? "skipped" },
+    });
+  } catch (error) {
+    logger.debug({ error }, "Telemetry send failed (ignored)");
+  }
 }
 
 /**

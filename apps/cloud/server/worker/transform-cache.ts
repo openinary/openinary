@@ -308,6 +308,23 @@ export function parseParams(path: string): TransformParams {
   return {};
 }
 
+// Mirrors core's resolveStatusTarget (routes/video-status.ts): the transform
+// segment of a status path belongs to the params, not to the file path the
+// job and the R2 cache key are built from. Prepending the whole client path
+// to the tenant root keyed every lookup with a transform on
+// "{root}/w_720,.../file.mp4" - a file_path no job ever has - so any status
+// URL carrying params answered not_found while its /t/ URL kept answering
+// "processing".
+export function resolveStatusTarget(tenantRoot: string, clientPath: string) {
+  const segments = clientPath.split("/");
+  const hasTransform = isTransformSegment(segments[0]);
+  const relativePath = (hasTransform ? segments.slice(1) : segments).join("/");
+  return {
+    filePath: `${tenantRoot}/${relativePath}`,
+    params: parseParams(`/t/${clientPath}`),
+  };
+}
+
 // Substitutes a concrete format for f_auto in a "/t/<transform>/<file>" path,
 // touching the transform segment only - a file may legitimately be called
 // f_auto.png, and isTransformSegment is what tells the two apart.

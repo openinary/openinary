@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Legal Notice | Openinary",
   description:
     "Publisher, hosting provider and registration details for the Openinary website and Cloud service.",
+  alternates: { canonical: "/legal" },
 };
 
 export default function LegalNoticePage() {

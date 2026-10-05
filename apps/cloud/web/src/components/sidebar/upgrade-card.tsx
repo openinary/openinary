@@ -4,12 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { useOnboarding } from "@/components/get-started/use-onboarding";
-import { useSettingsDialog } from "@/components/settings-dialog";
+import { useSettingsPage } from "@/components/settings/use-settings-page";
 import {
   UploaderNudge,
   useUploaderNudge,
 } from "@/components/sidebar/uploader-nudge";
 import { Button } from "@/components/ui/button";
+import { CircularProgress } from "@/components/ui/circular-progress";
 import { CLOUD_AVAILABLE, isMeteredPlan, usageRatio } from "@/lib/usage";
 import { cn, FADE_IN } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -28,7 +29,7 @@ const UPSELL_AT = 0.35;
  *   1. onboarding incomplete  ->  the checklist
  *   2. past UPSELL_AT         ->  the full Free -> Alpha card
  *   3. nudge not dismissed    ->  the FileUploader card
- *   4. done, usage still low  ->  one outline button, no pitch
+ *   4. done, usage still low  ->  nothing here, Upgrade sits on the plan row
  *
  * Read as priority, not as a timeline: the upsell outranks the nudge because a
  * limit in sight is the more urgent thing to say, and every state is one card
@@ -52,7 +53,7 @@ const UPSELL_AT = 0.35;
  */
 export function UpgradeCard() {
   const { data } = useQuery(orpc.usage.get.queryOptions());
-  const [, setSettingsTab] = useSettingsDialog();
+  const setSettingsTab = useSettingsPage();
   const { completed, total, isComplete, isReady } = useOnboarding();
   const [nudgeDismissed, dismissNudge] = useUploaderNudge();
 
@@ -67,31 +68,20 @@ export function UpgradeCard() {
       <Link
         href="/get-started"
         className={cn(
-          "mb-1 block rounded-lg border bg-sidebar-accent/40 p-3 transition-colors hover:bg-sidebar-accent/70 group-data-[collapsible=icon]:hidden",
+          "flex h-9 items-center gap-2 rounded-lg border bg-background px-2.5 shadow-xs transition-colors hover:bg-accent",
           FADE_IN,
         )}
       >
-        <div className="flex items-center justify-between">
-          <p className="font-medium text-sm">Get started</p>
-          <p className="text-muted-foreground text-xs tabular-nums">
-            {completed}/{total}
-          </p>
-        </div>
-        <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
-          Connect your app, send us a file, then show it anywhere.
+        <CircularProgress
+          value={(completed / total) * 100}
+          size={16}
+          thickness={2}
+          className="shrink-0 text-primary"
+        />
+        <p className="flex-1 truncate font-medium text-sm">Getting started</p>
+        <p className="text-muted-foreground text-xs tabular-nums">
+          {completed} of {total}
         </p>
-        {/* Segments rather than a bar: three discrete steps, and it stays
-            readable at the sidebar's width without a label per step. */}
-        <div className="mt-3 flex gap-1">
-          {Array.from({ length: total }).map((_, i) => (
-            <span
-              key={`step-${i + 1}`}
-              className={`h-1 flex-1 rounded-full ${
-                i < completed ? "bg-primary" : "bg-primary/15"
-              }`}
-            />
-          ))}
-        </div>
       </Link>
     );
   }
@@ -107,7 +97,7 @@ export function UpgradeCard() {
     return (
       <div
         className={cn(
-          "mb-1 rounded-lg border bg-sidebar-accent/40 p-3 group-data-[collapsible=icon]:hidden",
+          "rounded-lg border bg-background p-3 shadow-xs",
           FADE_IN,
         )}
       >
@@ -119,7 +109,7 @@ export function UpgradeCard() {
         <Button
           size="sm"
           className="mt-3 h-7 w-full text-xs"
-          onClick={() => setSettingsTab("plan")}
+          onClick={() => setSettingsTab("billing")}
         >
           Upgrade to Alpha
         </Button>
@@ -129,19 +119,6 @@ export function UpgradeCard() {
 
   if (!nudgeDismissed) return <UploaderNudge onDismiss={dismissNudge} />;
 
-  if (!free) return null;
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={cn(
-        "mb-1 h-7 w-full text-xs group-data-[collapsible=icon]:hidden",
-        FADE_IN,
-      )}
-      onClick={() => setSettingsTab("plan")}
-    >
-      Enable pay as you go
-    </Button>
-  );
+  // State 4 is the Upgrade button on the plan row (nav-plan.tsx).
+  return null;
 }

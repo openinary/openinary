@@ -3,6 +3,7 @@
 import { LayoutGrid, List } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { ColumnCountSlider, DeleteFolderButton, UploadButtonWithDialog } from "@openinary/ui";
+import { HistoryNav } from "./history-nav";
 import { Button } from "./ui/button";
 import {
   Breadcrumb,
@@ -12,7 +13,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./ui/breadcrumb";
-import { Separator } from "./ui/separator";
 import { SidebarTrigger } from "./ui/sidebar";
 
 export default function HeaderBar({
@@ -29,21 +29,19 @@ export default function HeaderBar({
   const [folderPath, setFolderPath] = useQueryState("folder");
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-      <div className="flex items-center justify-between w-full px-4">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b">
+      <div className="flex items-center justify-between w-full px-1.5">
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
-          />
+          <SidebarTrigger className="md:hidden" />
+          <HistoryNav />
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink
                   onClick={() => setFolderPath(null)}
-                  className="cursor-pointer"
+                  className="flex cursor-pointer items-center gap-1.5"
                 >
+                  <LayoutGrid className="size-3.5" />
                   Assets
                 </BreadcrumbLink>
               </BreadcrumbItem>
@@ -92,11 +90,11 @@ export default function HeaderBar({
           {view === "grid" && (
             <ColumnCountSlider value={columns} onChange={onColumnsChange} />
           )}
-          <div className="flex items-center rounded-md border border-border p-0.5">
+          <div className="flex items-center rounded-[11px] border border-border p-px shadow-xs">
             <Button
               variant={view === "grid" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="size-8"
               onClick={() => onViewChange?.("grid")}
               aria-label="Grid view"
             >
@@ -105,7 +103,7 @@ export default function HeaderBar({
             <Button
               variant={view === "list" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="size-8"
               onClick={() => onViewChange?.("list")}
               aria-label="List view"
             >

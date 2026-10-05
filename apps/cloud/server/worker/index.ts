@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../api/db/index.js";
 import { mediaDuration } from "../api/db/schema/media-duration.js";
 import { videoJob } from "../api/db/schema/video-job.js";
+import { captureEvent } from "../api/lib/analytics.js";
 import {
   checkFeature,
   quotaError,
@@ -808,11 +809,14 @@ async function handleCdnRequest(
     const viewer = request.headers.get("CF-Connecting-IP") ?? "unknown";
     const dedupeKey = `${viewer}|${delivery.bucketId}|${delivery.path}`;
     ctx.waitUntil(
-      env.USAGE_METER.get(env.USAGE_METER.idFromName(userId)).hit(
-        event,
-        delivery.quiet,
-        dedupeKey,
-      ),
+      env.USAGE_METER.get(env.USAGE_METER.idFromName(userId))
+        .hit(event, delivery.quiet, dedupeKey)
+        // The Get started checklist's "Serve it back", as a funnel step.
+        .then(
+          (first) =>
+            first &&
+            captureEvent("first_cdn_delivery", userId, { kind: delivery.kind }),
+        ),
     );
   }
   // SVGs predate upload validation (core 1.2.0's validateUploadFileType now
@@ -1096,11 +1100,23 @@ async function serveCdnRequest(
   // container's cold start - the transform request never reached it, no
   // derivative was ever written, and every retry answered the same 202,
   // forever. The catch is also the only trace a transform request that fails
-  // outright leaves anywhere.
+  // outright leaves anywhere, and the status check the only trace of one the
+  // container refused: both 202 branches below have already answered, so a
+  // container 404 or 500 otherwise reads as "processing" on every retry with
+  // nothing in the error logs - which is how core 404ing every key with a
+  // comma, "&" or "@" in it (decodeRequestPath) went unnoticed.
   ctx.waitUntil(
-    pending.catch((error) => {
-      console.error(`Transform request failed for ${url.pathname}`, error);
-    }),
+    pending.then(
+      (response) => {
+        if (!response.ok)
+          console.error(
+            `Transform request for ${url.pathname} answered ${response.status}`,
+          );
+      },
+      (error) => {
+        console.error(`Transform request failed for ${url.pathname}`, error);
+      },
+    ),
   );
   delivery.cache = "MISS";
   // A non-thumbnail video transform is asynchronous on the other side: core's
