@@ -27,7 +27,13 @@ export function logDelivery(prefix: string) {
 
       const path = decodeURIComponent(c.req.path.slice(prefix.length + 1));
       if (!path) return;
-      activityLog.recordDelivery({ p: path, s: c.res.status }, viewerOf(c));
+      // Deliberately not awaited — the surrounding try/catch is sync and
+      // cannot see the promise, so failures are caught here instead.
+      activityLog
+        .recordDelivery({ p: path, s: c.res.status }, viewerOf(c))
+        .catch((error) =>
+          logger.error({ error: serializeError(error) }, "Failed to record delivery"),
+        );
     } catch (error) {
       logger.error(
         { error: serializeError(error) },
@@ -47,7 +53,11 @@ export async function noteApiUpload(c: Context<AuthVariables>, next: Next) {
   await next();
   try {
     if (c.req.method !== "POST" || c.req.path !== "/upload" || !c.res.ok) return;
-    if (c.get("apiKey") || !c.get("user")) activityLog.markApiUpload();
+    if (c.get("apiKey") || !c.get("user")) {
+      activityLog.markApiUpload().catch((error) =>
+        logger.error({ error: serializeError(error) }, "Failed to note upload"),
+      );
+    }
   } catch (error) {
     logger.error({ error: serializeError(error) }, "Failed to note upload");
   }

@@ -8,17 +8,17 @@ const activity = new Hono();
 // The chart's longest period is 30 days; older counts stay for later.
 const COUNTS_WINDOW_MS = 30 * 24 * 3_600_000;
 
-activity.get("/", (c) =>
+activity.get("/", async (c) =>
   c.json({
-    deliveries: activityLog.deliveries(),
-    counts: activityLog.counts(Date.now() - COUNTS_WINDOW_MS),
+    deliveries: await activityLog.deliveries(),
+    counts: await activityLog.counts(Date.now() - COUNTS_WINDOW_MS),
   }),
 );
 
-activity.get("/onboarding", (c) =>
+activity.get("/onboarding", async (c) =>
   c.json({
-    uploaded: activityLog.apiUploadSeen(),
-    delivered: activityLog.hasDelivered(),
+    uploaded: await activityLog.apiUploadSeen(),
+    delivered: await activityLog.hasDelivered(),
   }),
 );
 

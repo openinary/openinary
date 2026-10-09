@@ -16,6 +16,11 @@
       "import": "./dist/types.js",
       "default": "./dist/types.js"
     },
+    "./db": {
+      "types": "./src/db/index.ts",
+      "import": "./dist/db/index.js",
+      "default": "./dist/db/index.js"
+    },
     "./auth": {
       "types": "./src/auth.ts",
       "import": "./dist/auth.js",
@@ -28,17 +33,21 @@
     }
   },
   "scripts": {
-    "build": "tsc && node scripts/add-js-extensions.cjs",
-    "type-check": "tsc --noEmit"
+    "build": "prisma generate && tsc && rm -rf dist/generated && cp -R src/generated dist/generated && node scripts/add-js-extensions.cjs",
+    "type-check": "prisma generate && tsc --noEmit",
+    "test": "node --import tsx --test --test-concurrency=1 src/db/*.test.ts src/auth.prisma.test.ts",
+    "db:generate": "prisma generate",
+    "db:migrate-deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",
+    "@prisma/client": "^6.17.0",
     "better-auth": "^1.6.23",
-    "better-sqlite3": "^12.6.2"
+    "prisma": "^6.17.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.0.0"
   }
 }

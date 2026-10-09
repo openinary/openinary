@@ -12,10 +12,10 @@ export const storage = createStorageClient({
 
 // Openinary's TransformService needs a video job queue even for image-only
 // usage. PgVideoJobStore mirrors jobs to Neon in the background so they
-// survive a restart, while staying synchronous on the hot path (required by
-// VideoJobQueue/VideoWorker - see video-job-store.ts for why). The Worker
-// (worker/video.ts) reads these same video_job rows to serve status/SSE
-// without ever waking this container.
+// survive a restart, keeping the in-memory Map as the hot-path source of
+// truth (see video-job-store.ts). The Worker (worker/video.ts) reads these
+// same video_job rows to serve status/SSE without ever waking this
+// container.
 const videoJobStore = new PgVideoJobStore(db);
 await videoJobStore.hydrate();
 export const queue = new VideoJobQueue(videoJobStore);

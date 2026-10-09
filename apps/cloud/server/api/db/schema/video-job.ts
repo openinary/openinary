@@ -1,12 +1,12 @@
 import { bigint, integer, pgTable, text } from "drizzle-orm/pg-core";
 
 /**
- * Durable mirror of the video transformation job queue. @openinary/core's
- * VideoJobQueue/VideoWorker call every VideoJobStore method synchronously
- * (no `await`), so this table is never queried directly on the request
- * path - PgVideoJobStore (see lib/video-job-store.ts) keeps an in-memory
- * Map as the source of truth and mirrors every mutation here in the
- * background, purely so jobs survive a server restart/redeploy.
+ * Durable mirror of the video transformation job queue. The
+ * VideoJobStore interface is async (see @openinary/core's queue-store),
+ * but this table is still never queried directly on the request path -
+ * PgVideoJobStore (see lib/video-job-store.ts) keeps an in-memory Map as
+ * the source of truth and mirrors every mutation here in the background,
+ * purely so jobs survive a server restart/redeploy.
  */
 export const videoJob = pgTable("video_job", {
   id: text("id").primaryKey(),

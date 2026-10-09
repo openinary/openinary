@@ -1,9 +1,31 @@
 services:
+  # PostgreSQL - Required database for both profiles (no profile: always runs)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=openinary
+      - POSTGRES_PASSWORD=openinary
+      - POSTGRES_DB=openinary
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openinary -d openinary"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - openinary-network
+    restart: unless-stopped
+
   # API Only - Profile: api
   api:
     profiles: ["api"]
     image: openinary/openinary-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "${OPENINARY_PORT:-3000}:3000"
     volumes:
@@ -11,11 +33,10 @@ services:
       - cache-data:/app/apps/api/cache
       # Mount public folder for static files
       - public-files:/app/apps/api/public
-      # Mount data folder for shared auth database
-      - db-data:/app/data
     environment:
       - NODE_ENV=production
       - MODE=api
+      - DATABASE_URL=postgres://openinary:openinary@postgres:5432/openinary
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - API_SECRET=${API_SECRET:-}
@@ -41,6 +62,9 @@ services:
     profiles: ["full"]
     image: openinary/openinary:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "${OPENINARY_PORT:-3000}:3000"
     volumes:
@@ -48,13 +72,10 @@ services:
       - cache-data:/app/apps/api/cache
       # Mount public folder for static files
       - public-files:/app/apps/api/public
-      # Mount shared data folder for auth database persistence
-      - db-data:/app/data
-      # Also mount for web standalone path (for backwards compatibility)
-      - db-data:/app/web-standalone/data
     environment:
       - NODE_ENV=production
       - MODE=fullstack
+      - DATABASE_URL=postgres://openinary:openinary@postgres:5432/openinary
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-/api}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
@@ -84,4 +105,4 @@ networks:
 volumes:
   cache-data:
   public-files:
-  db-data:
+  pg-data:

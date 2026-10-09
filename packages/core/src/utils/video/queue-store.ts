@@ -32,11 +32,11 @@ export interface JobStats {
 }
 
 /**
- * Persistence contract for the video transformation queue. The self-hosted
- * app backs this with SQLite (see sqlite-video-job-store.ts); a multi-tenant
- * deployment can implement the same contract against a different backend
- * (e.g. Cloudflare D1) without touching VideoJobQueue, VideoWorker, or any
- * route that depends on this interface instead of a concrete database.
+ * Persistence contract for the video transformation queue. Every method is
+ * async so a network-backed store (Postgres, Cloudflare D1, ...) can
+ * implement it. The self-hosted app backs this with Postgres (see
+ * prisma-video-job-store.ts) without touching VideoJobQueue, VideoWorker, or
+ * any route that depends on this interface instead of a concrete database.
  */
 export interface VideoJobStore {
   createJob(
@@ -44,43 +44,43 @@ export interface VideoJobStore {
     params: ReturnType<typeof parseParams>,
     cachePath: string,
     priority?: number,
-  ): string;
+  ): Promise<string>;
 
   /** Atomically claims and returns the next pending job, or null if none. */
-  getNextPendingJob(): VideoJob | null;
+  getNextPendingJob(): Promise<VideoJob | null>;
 
   updateJobStatus(
     jobId: string,
     status: JobStatus,
     progress?: number,
     error?: string,
-  ): void;
+  ): Promise<void>;
 
   getJobByFileAndParams(
     filePath: string,
     params: ReturnType<typeof parseParams>,
-  ): VideoJob | null;
+  ): Promise<VideoJob | null>;
 
-  getJobById(jobId: string): VideoJob | null;
+  getJobById(jobId: string): Promise<VideoJob | null>;
 
-  getJobStats(): JobStats;
+  getJobStats(): Promise<JobStats>;
 
-  getRecentJobs(limit?: number, offset?: number): VideoJob[];
+  getRecentJobs(limit?: number, offset?: number): Promise<VideoJob[]>;
 
-  getJobsByStatus(status: JobStatus, limit?: number): VideoJob[];
+  getJobsByStatus(status: JobStatus, limit?: number): Promise<VideoJob[]>;
 
-  countProcessingJobs(): number;
+  countProcessingJobs(): Promise<number>;
 
-  cleanupOldJobs(olderThanHours?: number): number;
+  cleanupOldJobs(olderThanHours?: number): Promise<number>;
 
-  retryFailedJob(jobId: string): boolean;
+  retryFailedJob(jobId: string): Promise<boolean>;
 
-  cancelJob(jobId: string): boolean;
+  cancelJob(jobId: string): Promise<boolean>;
 
-  deleteJob(jobId: string): boolean;
+  deleteJob(jobId: string): Promise<boolean>;
 
   /** Resets jobs orphaned by a crash/restart (stuck in "processing") back to "pending". */
-  resetOrphanedProcessingJobs(): number;
+  resetOrphanedProcessingJobs(): Promise<number>;
 
-  deleteJobsByFilePath(filePath: string): number;
+  deleteJobsByFilePath(filePath: string): Promise<number>;
 }

@@ -4,7 +4,7 @@ description: "Auth model, API keys, upload validation, container users and incid
 ---
 
 Openinary authenticates two ways: Better Auth sessions for the web dashboard, and
-API keys for everything programmatic. Both live in one SQLite file. A key travels
+API keys for everything programmatic. Both live in PostgreSQL. A key travels
 as a bearer token:
 
 ```bash
@@ -12,7 +12,7 @@ curl -H "Authorization: Bearer sk_your_key_here" \
   http://localhost:3000/upload
 ```
 
-The auth layer is [Better Auth](https://www.better-auth.com) 1.6 on a SQLite backend.
+The auth layer is [Better Auth](https://www.better-auth.com) 1.6 on a Prisma/PostgreSQL backend.
 
 ## API keys
 
@@ -38,10 +38,11 @@ defaults and options.
 
 ## Database
 
-All auth data sits in a single SQLite file at `/app/data/auth.db`, configurable
-via [`DB_PATH`](/configuration/server#core). On startup, `scripts/secure-db.js`
-sets its permissions to `600`, owner read/write only. It runs in both Docker
-images, before the server starts.
+All auth data lives in PostgreSQL, configured via
+[`DATABASE_URL`](/configuration/server#core). Credentials live in that one
+connection string — there is no database file on the app container and no
+file-permission script. The Compose file ships a `postgres` service and wires
+the variable for you.
 
 | Table          | Contents                          |
 | -------------- | --------------------------------- |
@@ -105,10 +106,11 @@ Create a new key and update all services that used the compromised one.
 <Accordion title="Database integrity check">
 
 ```bash
-docker compose exec api sqlite3 /app/data/auth.db "PRAGMA integrity_check;"
+docker compose exec postgres pg_isready -U openinary
 ```
 
-A healthy database returns `ok`. If it reports errors, restore from your most recent backup and restart.
+`accepting connections` means the database is up. For a deeper check, use your
+Postgres backup routine and restore if anything looks wrong.
 
 </Accordion>
 </AccordionGroup>

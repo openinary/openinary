@@ -2,7 +2,7 @@ FROM node:20-slim
 
 # Install ffmpeg for video processing, openssl for Prisma/better-auth, and jemalloc
 # to avoid RSS bloat from glibc arena fragmentation under sharp/libvips and ffmpeg workloads
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg sqlite3 libjemalloc2 && \
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg libjemalloc2 && \
     rm -rf /var/lib/apt/lists/* && \
     ln -sf "$(dpkg -L libjemalloc2 | grep 'libjemalloc\.so\.2$')" /usr/lib/libjemalloc.so.2
 
@@ -45,8 +45,8 @@ COPY apps/cloud/admin/package.json ./apps/cloud/admin/
 RUN pnpm install --frozen-lockfile --filter api... --filter shared...
 
 # Create necessary directories with proper ownership (only writable dirs, chown -R /app is prohibitively slow)
-RUN mkdir -p apps/api/cache apps/api/public /app/data && \
-    chown -R node:node apps/api/cache apps/api/public /app/data
+RUN mkdir -p apps/api/cache apps/api/public && \
+    chown -R node:node apps/api/cache apps/api/public
 
 # Make wrapper script executable and fix line endings (CRLF to LF)
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
@@ -80,4 +80,4 @@ WORKDIR /app/apps/api
 
 # Run init script wrapper to set env vars, run security script and start server
 # Run from /app root so turbo can find turbo.json, then use pnpm filter to start only the API
-CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && cd /app && pnpm --filter api start"]
+CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && cd /app && pnpm --filter api start"]

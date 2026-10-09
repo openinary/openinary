@@ -24,6 +24,11 @@
 > Please keep in mind that Openinary is still under active development
 > and therefore full backward compatibility is not guaranteed before reaching v1.0.0.
 
+> [!IMPORTANT]
+> **PostgreSQL is now required.** SQLite support has been removed. Configure the
+> database with `DATABASE_URL`; there is no migration tool from SQLite data —
+> deploy fresh on PostgreSQL. This is pre-1.0, per our backward-compatibility policy.
+
 ## Quick Start
 
 <p align="left">

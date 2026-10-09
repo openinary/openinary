@@ -15,6 +15,17 @@ const nextConfig: NextConfig = {
   // Workspace-linked package: Next must run its own transform pipeline over
   // it (not treat it as opaque node_modules code) to respect "use client".
   transpilePackages: ["@openinary/ui"],
+  serverExternalPackages: ["@prisma/client"],
+  // Standalone output must carry the shared package's prisma dir (schema +
+  // migrations — db/index.ts resolves ../../prisma from its dist location)
+  // and the Prisma CLI (initDb shells out to `npx prisma migrate deploy`;
+  // the CLI is never imported, so tracing alone misses it).
+  outputFileTracingIncludes: {
+    "/api/**": [
+      "../../packages/shared/prisma/**",
+      "../../packages/shared/node_modules/prisma/**",
+    ],
+  },
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
     NEXT_PUBLIC_IMAGE_TAG: process.env.IMAGE_TAG || "latest",

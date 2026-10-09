@@ -13,6 +13,11 @@ openinary upgrade   # update to the latest compatible version
 openinary reset      # wipe local data and start fresh (destructive)
 ```
 
+## Database
+
+Your instance runs on PostgreSQL in Docker (`postgres:16-alpine`); data lives in
+the `pg-data` volume. Migrations run automatically at startup.
+
 ## Dashboard
 
 Once started, visit http://localhost:{{PORT}} to create your admin account

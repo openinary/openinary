@@ -117,4 +117,49 @@ describe("scaffoldFromEmbeddedTemplate", () => {
     expect(env).toContain("STORAGE_BUCKET_NAME=your-bucket");
     expect(env).not.toContain("# STORAGE_BUCKET_NAME=your-bucket");
   });
+
+  it("scaffolds a postgres-only compose file", async () => {
+    await scaffoldFromEmbeddedTemplate(tmpDir, {
+      projectName: "my-project",
+      mode: "full",
+      port: 3000,
+      authSecret: "x".repeat(32),
+      authUrl: "http://localhost:3000",
+      apiSecret: "y".repeat(64),
+      imageTag: "v0.1.3",
+    });
+
+    const compose = await fs.readFile(path.join(tmpDir, "docker-compose.yml"), "utf8");
+
+    expect(compose).toMatch(/^\s+postgres:$/m);
+    expect(compose).toContain("image: postgres:16-alpine");
+    expect(compose).toContain("pg-data:/var/lib/postgresql/data");
+    expect(compose).toMatch(/^  pg-data:$/m);
+
+    const databaseUrlCount = compose.match(/^\s*- DATABASE_URL=/gm)?.length ?? 0;
+    expect(databaseUrlCount).toBe(2);
+    expect(compose).toContain("DATABASE_URL=postgres://openinary:openinary@postgres:5432/openinary");
+    expect(compose.match(/^\s+condition: service_healthy$/gm)?.length).toBe(2);
+
+    expect(compose).not.toContain("db-data");
+    expect(compose).not.toContain("DB_PATH");
+    expect(compose).not.toContain("sqlite");
+  });
+
+  it("writes a DATABASE_URL entry in the rendered env", async () => {
+    await scaffoldFromEmbeddedTemplate(tmpDir, {
+      projectName: "my-project",
+      mode: "api",
+      port: 3000,
+      authSecret: "x".repeat(32),
+      authUrl: "http://localhost:3000",
+      apiSecret: "y".repeat(64),
+      imageTag: "v0.1.3",
+    });
+
+    const env = await fs.readFile(path.join(tmpDir, ".env"), "utf8");
+    expect(env).toContain("DATABASE_URL=postgres://openinary:openinary@postgres:5432/openinary");
+    expect(env).not.toContain("DB_PATH");
+    expect(env).not.toContain("db-data");
+  });
 });

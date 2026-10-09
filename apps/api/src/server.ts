@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import app from "./index";
 import { getSharedStorage } from "./config/storage";
 import { auth } from "shared/auth";
+import { getDb } from "shared/db";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -44,21 +45,16 @@ dirs.forEach((dir) => {
   }
 });
 
-// Initialize video job queue with storage client
-videoJobQueue.initialize(getSharedStorage());
-
 // Initialize authentication and generate API key if needed (only in standalone mode)
 async function initializeAuth() {
   try {
     const mode = process.env.MODE?.toLowerCase().trim() || "fullstack";
-    const db = auth.options.database;
-    const users = db.prepare("SELECT COUNT(*) as count FROM user").get() as {
-      count: number;
-    };
+    const db = getDb();
+    const users = await db.user.count();
 
-    if (users.count > 0)
+    if (users > 0)
       return logger.info(
-        { userCount: users.count },
+        { userCount: users },
         `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
       );
 
@@ -101,7 +97,7 @@ async function initializeAuth() {
 
     if (!generateApiKey && mode === "fullstack")
       return logger.info(
-        { userCount: users.count },
+        { userCount: users },
         `Database initialized (FULLSTACK mode)`,
       );
 
@@ -115,16 +111,9 @@ async function initializeAuth() {
     });
 
     if (!apiKeyResult || !("key" in apiKeyResult)) {
-      const deleteResult = db
-        .prepare(`DELETE FROM user WHERE id=${signUpResult.user.id}`)
-        .get() as {
-        rowsAffected: number;
-      };
-
-      if (deleteResult.rowsAffected === 0)
-        throw new Error(
-          "Initial API Key could not be generated. Deleting user for cleanup failed.",
-        );
+      await db.user
+        .delete({ where: { id: signUpResult.user.id } })
+        .catch(() => {});
 
       throw new Error(
         "Initial API Key could not be generated. User was removed again.",
@@ -138,7 +127,7 @@ async function initializeAuth() {
         "                                   │\n│                                                                 │\n│  Save this key now! It will not be shown again.                 │\n│                                                                 │\n└─────────────────────────────────────────────────────────────────┘",
     );
     logger.info(
-      { userCount: users.count },
+      { userCount: users },
       `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
     );
   } catch (error: any) {
@@ -149,20 +138,34 @@ async function initializeAuth() {
 
 const port = Number(process.env.PORT) || 3000;
 
-// Start server immediately so healthcheck can respond quickly
-serve({
-  fetch: app.fetch,
-  port,
+async function main() {
+  // Apply migrations + connect + construct better-auth BEFORE serving traffic.
+  const { initDb } = await import("shared/db");
+  await initDb();
+
+  // Must run after initDb(): VideoWorker.start() hits the store synchronously.
+  videoJobQueue.initialize(getSharedStorage());
+
+  // Start server so healthcheck can respond quickly
+  serve({
+    fetch: app.fetch,
+    port,
+  });
+
+  logger.info({ port }, "Server running");
+
+  // Anonymous usage telemetry (non-blocking, opt-out via OPENINARY_TELEMETRY=false)
+  initTelemetry();
+
+  // Initialize auth in background (non-blocking)
+  // This allows the server to respond to healthchecks immediately
+  initializeAuth();
+}
+
+main().catch((error) => {
+  logger.error({ error: serializeError(error) }, "Fatal startup error");
+  process.exit(1);
 });
-
-logger.info({ port }, "Server running");
-
-// Anonymous usage telemetry (non-blocking, opt-out via OPENINARY_TELEMETRY=false)
-initTelemetry();
-
-// Initialize auth in background (non-blocking)
-// This allows the server to respond to healthchecks immediately
-initializeAuth();
 
 // Graceful shutdown
 process.on("SIGTERM", () => {

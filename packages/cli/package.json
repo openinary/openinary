@@ -1,6 +1,6 @@
 {
   "name": "create-openinary",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Create and manage a self-hosted Openinary instance",
   "type": "module",
   "bin": {

@@ -7,6 +7,13 @@ import type { VideoJob, VideoJobStore } from "./queue-store";
 import { MAX_CONCURRENT_JOBS, WORKER_POLL_INTERVAL_MS } from "./config";
 import { contentTypeForFormat, determineOutputFormat } from "./format";
 
+/**
+ * How often a job being processed refreshes its lease heartbeat. Must stay
+ * well under LEASE_TTL_MS (300s) in prisma-video-job-store.ts so a long job
+ * never looks dead to resetOrphanedProcessingJobs.
+ */
+const JOB_HEARTBEAT_INTERVAL_MS = 60_000;
+
 export interface WorkerEvents {
   "job:created": (job: VideoJob) => void;
   "job:started": (job: VideoJob) => void;
@@ -53,13 +60,23 @@ export class VideoWorker extends EventEmitter {
 
     // Reset any orphaned "processing" jobs from previous crashes/restarts
     // These are jobs marked as "processing" but not actually being processed
-    const resetCount = this.store.resetOrphanedProcessingJobs();
-    if (resetCount > 0) {
-      logger.info(
-        { resetCount },
-        "Reset orphaned processing jobs on worker start",
-      );
-    }
+    // Fire-and-forget: start() stays sync, same as the initial fill below.
+    this.store
+      .resetOrphanedProcessingJobs()
+      .then((resetCount) => {
+        if (resetCount > 0) {
+          logger.info(
+            { resetCount },
+            "Reset orphaned processing jobs on worker start",
+          );
+        }
+      })
+      .catch((error) => {
+        logger.error(
+          { error: serializeError(error) },
+          "Failed to reset orphaned processing jobs on worker start",
+        );
+      });
 
     // Start polling for jobs
     this.intervalId = setInterval(() => {
@@ -112,7 +129,7 @@ export class VideoWorker extends EventEmitter {
       this.isAcquiring = true;
 
       while (true) {
-        const processingCount = this.store.countProcessingJobs();
+        const processingCount = await this.store.countProcessingJobs();
         if (processingCount >= this.maxConcurrent) {
           logger.debug(
             { processingCount, maxConcurrent: this.maxConcurrent },
@@ -122,7 +139,7 @@ export class VideoWorker extends EventEmitter {
         }
 
         // Get next pending job (atomically marks it as processing)
-        const job = this.store.getNextPendingJob();
+        const job = await this.store.getNextPendingJob();
         if (!job) {
           break; // No more pending jobs
         }
@@ -157,6 +174,21 @@ export class VideoWorker extends EventEmitter {
   private async processJob(job: VideoJob): Promise<void> {
     // Emit started event
     this.emit("job:started", job);
+
+    // Keep the lease alive while the job runs: refresh heartbeat_at so no
+    // replica's resetOrphanedProcessingJobs steals a long-running job.
+    const hb = setInterval(() => {
+      this.store
+        .updateJobStatus(job.id, "processing")
+        .catch((error) => {
+          logger.error(
+            { error: serializeError(error), jobId: job.id },
+            "Failed to refresh job lease heartbeat",
+          );
+        });
+    }, JOB_HEARTBEAT_INTERVAL_MS);
+    // Mirror the poll-interval discipline: never hold the process open.
+    hb.unref();
 
     try {
       // Parse params from JSON
@@ -198,7 +230,7 @@ export class VideoWorker extends EventEmitter {
       }
 
       // Mark as completed
-      this.store.updateJobStatus(job.id, "completed", 100);
+      await this.store.updateJobStatus(job.id, "completed", 100);
 
       logger.info(
         { jobId: job.id, filePath: job.file_path },
@@ -236,29 +268,31 @@ export class VideoWorker extends EventEmitter {
         );
 
         // IMPORTANT: Mark as error first, then retry will reset it to pending
-        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
-        this.store.retryFailedJob(job.id);
+        await this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        await this.store.retryFailedJob(job.id);
       } else {
         // Mark as error if max retries reached
-        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        await this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
         this.emit(
           "job:error",
           { ...job, status: "error", error: errorMessage },
           error as Error,
         );
       }
+    } finally {
+      clearInterval(hb);
     }
   }
 
   /**
    * Get worker statistics
    */
-  getStats() {
+  async getStats() {
     return {
       maxConcurrent: this.maxConcurrent,
       pollInterval: this.pollInterval,
       isRunning: !!this.intervalId,
-      processingCount: this.store.countProcessingJobs(),
+      processingCount: await this.store.countProcessingJobs(),
     };
   }
 }

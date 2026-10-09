@@ -1,22 +1,23 @@
+// Auth layer on Prisma + better-auth's official Prisma adapter (todo 4).
+//
+// No import-time side effects: the module only defines configuration and
+// helpers. Call `initAuth()` (from `initDb()` in ./db) before touching `auth`
+// or `db` — both are exposed via lazy accessors that throw a clear pre-init
+// error instead of silently opening a database at import time.
 import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey } from "@better-auth/api-key";
-import Database from "better-sqlite3";
+import crypto from "crypto";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
-import fs from "fs";
-import crypto from "crypto";
+import type { PrismaClient } from "./generated/prisma/client.js";
+import { getDb } from "./db/index.js";
 
-// Get the project root directory (3 levels up from this file)
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const projectRoot = path.resolve(__dirname, "../../../");
-
-// Configurable database path via environment variable
-const dataDir = process.env.DB_PATH
-  ? path.dirname(process.env.DB_PATH)
-  : path.join(projectRoot, "data");
-const dbPath = process.env.DB_PATH || path.join(dataDir, "auth.db");
+const __dirname = path.dirname(__filename);
+// projectRoot = packages/shared/{src|dist} -> repo root (used only for the root .env fallback)
+const projectRoot = path.resolve(__dirname, "../../..");
 
 // Load BETTER_AUTH_SECRET from root .env if not already in process.env.
 // This avoids duplicating the secret in each app's individual .env file.
@@ -38,303 +39,43 @@ if (!process.env.BETTER_AUTH_SECRET) {
 const isProduction = process.env.NODE_ENV === "production";
 const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" ||
                     process.env.npm_lifecycle_event === "build";
-const secret = process.env.BETTER_AUTH_SECRET;
 
-// Only validate secrets at runtime, not during build
-if (isProduction && !isBuildTime) {
-  // Critical: Secret must be defined in production
-  if (!secret) {
+function validateSecret(secret: string | undefined) {
+  // Only validate secrets at runtime, not during build
+  if (isProduction && !isBuildTime) {
+    // Critical: Secret must be defined in production
+    if (!secret) {
+      throw new Error(
+        "🚨 SECURITY ERROR: BETTER_AUTH_SECRET must be set in production!\n" +
+        "Generate one with: openssl rand -hex 32"
+      );
+    }
+
+    // Critical: Secret must not be the build-time placeholder
+    if (secret === "build-time-secret-will-be-replaced") {
+      throw new Error(
+        "🚨 SECURITY ERROR: BETTER_AUTH_SECRET is still set to the build-time placeholder!\n" +
+        "You must set a unique secret in production."
+      );
+    }
+
+    // Warning: Secret should be strong (at least 32 characters)
+    if (secret.length < 32) {
+      console.warn(
+        "WARNING: BETTER_AUTH_SECRET is shorter than 32 characters.\n" +
+        "For better security, use: openssl rand -hex 32"
+      );
+    }
+  } else if (!isProduction && !isBuildTime && !secret) {
     throw new Error(
-      "🚨 SECURITY ERROR: BETTER_AUTH_SECRET must be set in production!\n" +
+      "🚨 BETTER_AUTH_SECRET is not set.\n" +
+      "Add it to your root .env file: BETTER_AUTH_SECRET=<your-secret>\n" +
       "Generate one with: openssl rand -hex 32"
     );
+  } else if (isBuildTime && secret === "build-time-secret-will-be-replaced") {
+    console.warn("Build phase detected - using placeholder secret (will be validated at runtime)");
   }
-
-  // Critical: Secret must not be the build-time placeholder
-  if (secret === "build-time-secret-will-be-replaced") {
-    throw new Error(
-      "🚨 SECURITY ERROR: BETTER_AUTH_SECRET is still set to the build-time placeholder!\n" +
-      "You must set a unique secret in production."
-    );
-  }
-
-  // Warning: Secret should be strong (at least 32 characters)
-  if (secret.length < 32) {
-    console.warn(
-      "WARNING: BETTER_AUTH_SECRET is shorter than 32 characters.\n" +
-      "For better security, use: openssl rand -hex 32"
-    );
-  }
-} else if (!isProduction && !isBuildTime && !secret) {
-  throw new Error(
-    "🚨 BETTER_AUTH_SECRET is not set.\n" +
-    "Add it to your root .env file: BETTER_AUTH_SECRET=<your-secret>\n" +
-    "Generate one with: openssl rand -hex 32"
-  );
-} else if (isBuildTime && secret === "build-time-secret-will-be-replaced") {
-  console.warn("Build phase detected - using placeholder secret (will be validated at runtime)");
 }
-
-// Ensure data directory exists before creating database
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-  console.log(`Created data directory: ${dataDir}`);
-}
-
-// Create database instance
-const db = new Database(dbPath);
-
-// Initialize database tables automatically
-function initializeTables() {
-  const tableExists = (tableName: string): boolean => {
-    try {
-      const result = db
-        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
-        .get(tableName);
-      return !!result;
-    } catch {
-      return false;
-    }
-  };
-
-  const requiredTables = ["user", "session", "account", "verification", "apiKey", "video_jobs"];
-  const missingTables = requiredTables.filter((table) => !tableExists(table));
-
-  if (missingTables.length === 0) {
-    // check if the apiKey has the correct schema
-    const hasReferenceId = db.prepare("SELECT COUNT(*) as count FROM pragma_table_info('apiKey') WHERE name='referenceId'").get() as { count: number };
-    
-    // Migration: add referenceId column if missing (required by @better-auth/api-key v1.5.x)
-    // Creates a apiKey_new table with the correct schema
-    // Copies data from the current apiKey table into the apiKey_new table
-    // Drops the apiKey table
-    // Renames apiKey_new -> apiKey 
-    if (!hasReferenceId.count) {
-      db.transaction(() => {
-        db.exec(`
-          CREATE TABLE apiKey_new (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            start TEXT,
-            prefix TEXT,
-            key TEXT NOT NULL,
-            referenceId TEXT NOT NULL,
-            configId TEXT NOT NULL DEFAULT 'default',
-            refillInterval INTEGER,
-            refillAmount INTEGER,
-            lastRefillAt INTEGER,
-            enabled INTEGER NOT NULL DEFAULT 1,
-            rateLimitEnabled INTEGER NOT NULL DEFAULT 1,
-            rateLimitTimeWindow INTEGER,
-            rateLimitMax INTEGER,
-            requestCount INTEGER NOT NULL DEFAULT 0,
-            remaining INTEGER,
-            lastRequest INTEGER,
-            expiresAt INTEGER,
-            createdAt INTEGER NOT NULL,
-            updatedAt INTEGER NOT NULL,
-            permissions TEXT,
-            metadata TEXT,
-            FOREIGN KEY (referenceId) REFERENCES user(id) ON DELETE CASCADE
-          );
-
-          INSERT INTO apiKey_new SELECT 
-            id, name, start, prefix, key,
-            userId as referenceId,
-            'default' as configId,
-            refillInterval, refillAmount, lastRefillAt,
-            enabled, rateLimitEnabled, rateLimitTimeWindow, rateLimitMax,
-            requestCount, remaining, lastRequest, expiresAt,
-            createdAt, updatedAt, permissions, metadata
-          FROM apiKey;
-
-          DROP TABLE apiKey;
-
-          ALTER TABLE apiKey_new RENAME TO apiKey;
-        `);
-      })();
-    }
-
-    return; // Tables already exist
-  }
-
-  console.log(`Initializing database tables: ${missingTables.join(", ")}...`);
-
-  // User table
-  if (!tableExists("user")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS user (
-        id TEXT PRIMARY KEY,
-        email TEXT NOT NULL UNIQUE,
-        emailVerified INTEGER NOT NULL DEFAULT 0,
-        name TEXT NOT NULL,
-        createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL,
-        image TEXT,
-        twoFactorEnabled INTEGER DEFAULT 0
-      );
-    `);
-  }
-
-  // SECURITY: Enforce a hard limit of a single user/admin at the database level.
-  // This closes any race-condition window where two sign-ups could occur concurrently.
-  // We implement this via a BEFORE INSERT trigger that aborts when at least one row exists.
-  try {
-    const triggerExists = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='trigger' AND name='prevent_multiple_users'"
-      )
-      .get();
-
-    if (!triggerExists) {
-      db.exec(`
-        CREATE TRIGGER prevent_multiple_users
-        BEFORE INSERT ON user
-        WHEN (SELECT COUNT(*) FROM user) >= 1
-        BEGIN
-          SELECT RAISE(ABORT, 'Only one user account is allowed in this deployment');
-        END;
-      `);
-    }
-  } catch {
-    // If we cannot create the trigger (older SQLite, read-only, etc.),
-    // we still rely on higher-level guards to prevent additional admins.
-  }
-
-  // Session table
-  if (!tableExists("session")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS session (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        expiresAt INTEGER NOT NULL,
-        token TEXT NOT NULL UNIQUE,
-        createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL,
-        ipAddress TEXT,
-        userAgent TEXT,
-        FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
-      );
-    `);
-  }
-
-  // Account table
-  if (!tableExists("account")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS account (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        accountId TEXT NOT NULL,
-        providerId TEXT NOT NULL,
-        accessToken TEXT,
-        refreshToken TEXT,
-        idToken TEXT,
-        accessTokenExpiresAt INTEGER,
-        refreshTokenExpiresAt INTEGER,
-        scope TEXT,
-        password TEXT,
-        createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL,
-        FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
-      );
-    `);
-  }
-
-  // Verification table
-  if (!tableExists("verification")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS verification (
-        id TEXT PRIMARY KEY,
-        identifier TEXT NOT NULL,
-        value TEXT NOT NULL,
-        expiresAt INTEGER NOT NULL,
-        createdAt INTEGER,
-        updatedAt INTEGER
-      );
-    `);
-  }
-
-  // API Key table
-  if (!tableExists("apiKey")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS apiKey (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        start TEXT,
-        prefix TEXT,
-        key TEXT NOT NULL,
-        referenceId TEXT NOT NULL,
-        configId TEXT NOT NULL DEFAULT 'default',
-        refillInterval INTEGER,
-        refillAmount INTEGER,
-        lastRefillAt INTEGER,
-        enabled INTEGER NOT NULL DEFAULT 1,
-        rateLimitEnabled INTEGER NOT NULL DEFAULT 1,
-        rateLimitTimeWindow INTEGER,
-        rateLimitMax INTEGER,
-        requestCount INTEGER NOT NULL DEFAULT 0,
-        remaining INTEGER,
-        lastRequest INTEGER,
-        expiresAt INTEGER,
-        createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL,
-        permissions TEXT,
-        metadata TEXT,
-        FOREIGN KEY (referenceId) REFERENCES user(id) ON DELETE CASCADE
-      );
-    `);
-  }
-
-  // Video Jobs table for queue management
-  if (!tableExists("video_jobs")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS video_jobs (
-        id TEXT PRIMARY KEY,
-        file_path TEXT NOT NULL,
-        params_json TEXT NOT NULL,
-        cache_path TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'completed', 'error', 'cancelled')),
-        priority INTEGER NOT NULL DEFAULT 2,
-        progress INTEGER NOT NULL DEFAULT 0,
-        error TEXT,
-        retry_count INTEGER NOT NULL DEFAULT 0,
-        max_retries INTEGER NOT NULL DEFAULT 3,
-        created_at INTEGER NOT NULL,
-        started_at INTEGER,
-        completed_at INTEGER
-      );
-      
-      CREATE INDEX IF NOT EXISTS idx_video_jobs_status_priority ON video_jobs(status, priority, created_at);
-      CREATE INDEX IF NOT EXISTS idx_video_jobs_file_params ON video_jobs(file_path, params_json);
-    `);
-  }
-
-  console.log("Database tables initialized!\n");
-}
-
-// Initialize tables before creating Better Auth instance
-initializeTables();
-
-// Validate that the secret hasn't changed between processes or restarts.
-// Stores a SHA-256 hash of the secret in the DB on first use; throws if it
-// differs on subsequent startups (would invalidate all existing sessions).
-(function validateSecretConsistency() {
-  if (!secret || isBuildTime) return;
-
-  db.exec(`CREATE TABLE IF NOT EXISTS _auth_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-
-  const hash = crypto.createHash("sha256").update(secret).digest("hex");
-  const row = db.prepare("SELECT value FROM _auth_config WHERE key = 'secret_hash'").get() as { value: string } | undefined;
-
-  if (!row) {
-    db.prepare("INSERT INTO _auth_config (key, value) VALUES ('secret_hash', ?)").run(hash);
-  } else if (row.value !== hash) {
-    throw new Error(
-      "🚨 BETTER_AUTH_SECRET mismatch: the secret has changed since the database was created.\n" +
-      "All existing sessions will be invalid. If this is intentional, delete the _auth_config table row with key='secret_hash' and restart."
-    );
-  }
-})();
 
 const publicAuthUrl = process.env.BETTER_AUTH_URL;
 const internalAuthUrl = process.env.BETTER_AUTH_INTERNAL_URL;
@@ -349,18 +90,9 @@ const trustedOrigins = [
   publicAuthUrl,
 ].filter(Boolean) as string[];
 
-// Log auth configuration for debugging
-console.log("🔐 Better Auth Configuration:");
-console.log(`  - Base URL: ${baseURL}`);
-console.log(`  - Public URL: ${publicAuthUrl || "(not set)"}`);
-console.log(`  - Internal URL: ${internalAuthUrl || "(not set)"}`);
-console.log(`  - Trusted Origins: ${trustedOrigins.join(", ")}`);
-console.log(`  - Environment: ${process.env.NODE_ENV}`);
-console.log(`  - Database: ${dbPath}`);
-
 // Warn if URLs are not configured in production
-if (isProduction && !isBuildTime) {
-  if (!process.env.BETTER_AUTH_URL) {
+function warnIfUrlMissingInProduction() {
+  if (isProduction && !isBuildTime && !process.env.BETTER_AUTH_URL) {
     console.warn(
       "⚠️  WARNING: BETTER_AUTH_URL is not set in production!\n" +
       "   This may cause authentication and CORS issues. Set it to your app's URL."
@@ -368,74 +100,186 @@ if (isProduction && !isBuildTime) {
   }
 }
 
-export const auth = betterAuth({
-  database: db,
-  emailAndPassword: {
-    enabled: true,
-    disableSignUp: false, // Allow signup (will be checked manually in the setup page)
-  },
-  secret: secret,
-  baseURL: baseURL,
-  // Trust proxy headers for HTTPS detection behind reverse proxies
-  // This is important for Coolify/Docker deployments where nginx terminates SSL
-  trustHost: true,
-  // Origins allowed to perform authenticated operations (sign-in, sign-out, etc.)
-  // In production, this should be configured via environment variables so it
-  // matches the real frontend / API origins.
-  trustedOrigins: trustedOrigins,
-  // Configure secure cookies only when explicitly using HTTPS
-  advanced: {
-    defaultCookieAttributes: {
-      secure: cookieOriginUrl.startsWith("https://"), // Use the public origin when deciding cookie security
-      httpOnly: true, // Prevent client-side JavaScript access
-      sameSite: "lax", // CSRF protection
+/**
+ * Validate that the secret hasn't changed between processes or restarts.
+ * Stores a SHA-256 hash of the secret in the AuthConfig table on first use;
+ * throws if it differs on subsequent startups (would invalidate all
+ * existing sessions). Same semantics as the old sqlite `_auth_config` check.
+ */
+async function validateSecretConsistency(db: PrismaClient, secret: string) {
+  if (!secret || isBuildTime) return;
+
+  const hash = crypto.createHash("sha256").update(secret).digest("hex");
+  const row = await db.authConfig.findUnique({ where: { key: "secret_hash" } });
+
+  if (!row) {
+    await db.authConfig.create({ data: { key: "secret_hash", value: hash } });
+  } else if (row.value !== hash) {
+    throw new Error(
+      "🚨 BETTER_AUTH_SECRET mismatch: the secret has changed since the database was created.\n" +
+      "All existing sessions will be invalid. If this is intentional, delete the auth_config table row with key='secret_hash' and restart."
+    );
+  }
+}
+
+// Derive from the instance (not better-auth's generic `Auth`) so apiKey
+// plugin endpoints stay visible on auth.api.
+function createAuthBody(secret: string) {
+  const db = getDb();
+  return betterAuth({
+    database: prismaAdapter(db, { provider: "postgresql" }),
+    emailAndPassword: {
+      enabled: true,
+      disableSignUp: false, // Allow signup (will be checked manually in the setup page)
     },
-  },
-  session: {
-    // SECURITY: Disable cookie cache to force database validation on every request
-    // This prevents deleted users from accessing the system via cached session data
-    cookieCache: {
-      enabled: false, // Must verify against DB every time
+    secret: secret,
+    baseURL: baseURL,
+    // Trust proxy headers for HTTPS detection behind reverse proxies
+    // This is important for Coolify/Docker deployments where nginx terminates SSL
+    trustHost: true,
+    // Origins allowed to perform authenticated operations (sign-in, sign-out, etc.)
+    // In production, this should be configured via environment variables so it
+    // matches the real frontend / API origins.
+    trustedOrigins: trustedOrigins,
+    // Configure secure cookies only when explicitly using HTTPS
+    advanced: {
+      defaultCookieAttributes: {
+        secure: cookieOriginUrl.startsWith("https://"), // Use the public origin when deciding cookie security
+        httpOnly: true, // Prevent client-side JavaScript access
+        sameSite: "lax", // CSRF protection
+      },
     },
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // Update every 24 hours
-  },
-  plugins: [
-    apiKey({
-      references: "user", // Associate API keys with user accounts
-      // Enable API key functionality
-      permissions: {
-        // Default permissions for newly created API keys
-        defaultPermissions: {
-          api: ["read", "write"],
+    session: {
+      // SECURITY: Disable cookie cache to force database validation on every request
+      // This prevents deleted users from accessing the system via cached session data
+      cookieCache: {
+        enabled: false, // Must verify against DB every time
+      },
+      expiresIn: 60 * 60 * 24 * 7, // 7 days
+      updateAge: 60 * 60 * 24, // Update every 24 hours
+    },
+    plugins: [
+      apiKey({
+        references: "user", // Associate API keys with user accounts
+        // Map the plugin's `apikey` model onto our Prisma models:
+        // - modelName "apiKey" = Prisma model/property ApiKey (adapter does db[model])
+        // - referenceId -> userId column (apps/api queries WHERE userId = ?)
+        schema: {
+          apikey: {
+            modelName: "apiKey",
+            fields: {
+              referenceId: "userId",
+            },
+          },
         },
-      },
-      // Key expiration configuration
-      keyExpiration: {
-        maxExpiresIn: 3650, // 10 years maximum
-      },
-      // Rate limiting configuration
-      rateLimit: {
-        enabled: true,
-        timeWindow: 60000, // 1 minute
-        maxRequests: 100,
-      },
-    }),
-  ],
+        // Enable API key functionality
+        permissions: {
+          // Default permissions for newly created API keys
+          defaultPermissions: {
+            api: ["read", "write"],
+          },
+        },
+        // Key expiration configuration
+        keyExpiration: {
+          maxExpiresIn: 3650, // 10 years maximum
+        },
+        // Rate limiting configuration
+        rateLimit: {
+          enabled: true,
+          timeWindow: 60000, // 1 minute
+          maxRequests: 100,
+        },
+      }),
+    ],
+  });
+}
+
+let authInstance: ReturnType<typeof createAuthBody> | undefined;
+
+/**
+ * Construct the better-auth instance bound to the shared PrismaClient via
+ * the official Prisma adapter, and run the secret-consistency check.
+ * Idempotent: a second call no-ops. Called from initDb() after the client
+ * exists and migrations are applied.
+ */
+export async function initAuth(): Promise<void> {
+  if (authInstance) return;
+
+  const secret = process.env.BETTER_AUTH_SECRET;
+  validateSecret(secret);
+
+  console.log("🔐 Better Auth Configuration:");
+  console.log(`  - Base URL: ${baseURL}`);
+  console.log(`  - Public URL: ${publicAuthUrl || "(not set)"}`);
+  console.log(`  - Internal URL: ${internalAuthUrl || "(not set)"}`);
+  console.log(`  - Trusted Origins: ${trustedOrigins.join(", ")}`);
+  console.log(`  - Environment: ${process.env.NODE_ENV}`);
+  warnIfUrlMissingInProduction();
+
+  const db = getDb();
+  // Reject a changed BETTER_AUTH_SECRET before serving any auth traffic.
+  await validateSecretConsistency(db, secret as string);
+
+  authInstance = createAuthBody(secret as string);
+}
+
+type Auth = ReturnType<typeof createAuthBody>;
+
+function requireAuth(): Auth {
+  if (!authInstance) {
+    throw new Error(
+      "Auth not initialized. Call and await initDb() (from @openinary/shared/db) before accessing auth."
+    );
+  }
+  return authInstance;
+}
+
+/**
+ * The better-auth instance. Lazy accessor — throws until initDb()/initAuth()
+ * has run (keeps the historical `import { auth } from "shared/auth"` surface).
+ */
+export const auth: Auth = new Proxy({} as Auth, {
+  get(_target, prop, receiver) {
+    return Reflect.get(requireAuth(), prop, receiver);
+  },
+  has(_target, prop) {
+    return prop in requireAuth();
+  },
+  ownKeys() {
+    return Reflect.ownKeys(requireAuth());
+  },
+  getOwnPropertyDescriptor(_target, prop) {
+    const desc = Reflect.getOwnPropertyDescriptor(requireAuth(), prop);
+    return desc ? { ...desc, configurable: true } : undefined;
+  },
 });
 
-// Helper function to check if any admin account exists
-export function hasAdminAccount(): boolean {
+/**
+ * Check if any admin account exists (single-admin product constraint).
+ * Prisma count on the user table. Errors surface as false, matching the old
+ * sqlite behavior.
+ */
+export async function hasAdminAccount(): Promise<boolean> {
   try {
-    const result = db.prepare("SELECT COUNT(*) as count FROM user").get() as { count: number };
-    return result.count > 0;
-  } catch (error) {
+    const count = await getDb().user.count();
+    return count > 0;
+  } catch {
     return false;
   }
 }
 
-export type AuthSession = typeof auth.$Infer.Session.session;
-export type AuthUser = typeof auth.$Infer.Session.user;
+export type AuthSession = Auth["$Infer"]["Session"]["session"];
+export type AuthUser = Auth["$Infer"]["Session"]["user"];
 
-// Export database instance for other modules (e.g., video queue)
-export { db };
+/**
+ * The shared PrismaClient. Lazy accessor over the db singleton — throws
+ * until initDb() has run. Same historical surface as the old sqlite export.
+ */
+export const db: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getDb(), prop, receiver);
+  },
+  has(_target, prop) {
+    return prop in getDb();
+  },
+}) as PrismaClient;

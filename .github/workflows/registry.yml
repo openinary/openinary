@@ -23,6 +23,22 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
+      BETTER_AUTH_SECRET: ci-test-secret-0123456789abcdef0123456789abcdef
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,6 +53,17 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter shared db:generate
+
+      - name: Apply Prisma migrations
+        run: pnpm --filter shared db:migrate-deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Test shared (db core + auth on Prisma)
+        run: pnpm --filter shared test
 
       - name: Sync file-uploader block from @openinary/ui
         run: node scripts/sync-registry-block.mjs
@@ -53,6 +80,12 @@ jobs:
 
       - name: Test the upload signature the registry helper depends on
         run: pnpm --filter @openinary/core test
+
+      - name: Test api (health)
+        run: pnpm --filter api test
+
+      - name: Test web (setup routes)
+        run: pnpm --filter web test
 
       # The output is not committed: marketing's prebuild regenerates public/r
       # on every build, so this only proves the registry builds from source.

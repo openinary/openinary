@@ -5,7 +5,7 @@ description: "Check server and database availability"
 
 **Self-hosted only.** Not available on Cloud.
 
-Two probes. `GET /health` is a public liveness check, `GET /health/database` needs an API key and reports on the SQLite file.
+Two probes. `GET /health` is a public liveness check, `GET /health/database` needs an API key and reports the PostgreSQL connection.
 
 ```bash
 curl https://media.example.com/health
@@ -44,7 +44,7 @@ curl https://media.example.com/health/database \
 
 **Auth:** API Key required
 
-Detailed diagnostic, checks the SQLite database connection, file permissions, and table record counts.
+Detailed diagnostic, checks the PostgreSQL connection and reports its latency.
 
 ```json
 {
@@ -52,16 +52,7 @@ Detailed diagnostic, checks the SQLite database connection, file permissions, an
   "timestamp": "2024-03-15T10:30:00.000Z",
   "database": {
     "connected": true,
-    "path": "/app/data/openinary.db",
-    "size": "2.4 MB",
-    "permissions": "644",
-    "tables": {
-      "user": 1,
-      "session": 3,
-      "account": 1,
-      "verification": 0,
-      "apiKey": 2
-    }
+    "latencyMs": 2
   }
 }
 ```
@@ -69,13 +60,6 @@ Detailed diagnostic, checks the SQLite database connection, file permissions, an
 | Field                        | Type      | Description                                                                             |
 | ---------------------------- | --------- | ----------------------------------------------------------------------------------------- |
 | `database.connected`         | `boolean` | Whether the database connection is active                                               |
-| `database.path`              | `string`  | Absolute path to the database file                                                      |
-| `database.size`              | `string`  | Database file size                                                                      |
-| `database.permissions`       | `string`  | Octal file permissions, three digits with no leading zero (for example `600` or `644`)  |
-| `database.tables`            | `object`  | Record counts per table. Useful for verifying migrations applied correctly              |
-| `database.warning`           | `string`  | Present only when the database file is larger than 1 GB. Permission problems are reported in `security_warning` instead |
-| `database.security_warning`  | `string`  | Present when the database file's permissions are less restrictive than `600`             |
-| `database.file_error`        | `string`  | Present if the database file's permissions or size couldn't be read                     |
-| `database.table_error`       | `string`  | Present if table record counts couldn't be retrieved                                    |
+| `database.latencyMs`         | `number`  | Round-trip time of the connectivity probe, in milliseconds                              |
 
 **Status codes:** `200` healthy · `503` database connection failed

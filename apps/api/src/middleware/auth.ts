@@ -123,10 +123,11 @@ export async function authenticateRequest(
       if (sessionResult && sessionResult.session && sessionResult.user) {
         // SECURITY FIX: Verify that the user actually exists in the database
         // Better Auth may return session data from signed cookies without DB validation
-        const { db } = await import("shared/auth");
-        const userExists = db
-          .prepare("SELECT id FROM user WHERE id = ?")
-          .get(sessionResult.user.id);
+        const { getDb } = await import("shared/db");
+        const userExists = await getDb().user.findUnique({
+          where: { id: sessionResult.user.id },
+          select: { id: true },
+        });
 
         if (!userExists) {
           // User was deleted from database - reject the session
