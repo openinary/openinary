@@ -110,7 +110,11 @@ export const transformVideo = async (
     inputPath,
     outputPath,
     tmpDir,
-    params,
+    // A copy: staging the overlay below rewrites overlayPath to a temp file,
+    // and the caller (the video worker) keys the cloud cache upload on its
+    // own params. Mutating them uploaded every overlaid video under a random
+    // key, so no other instance, and no restart, ever found it again.
+    params: { ...params },
     isImageOutput,
     isThumbnail,
   };
