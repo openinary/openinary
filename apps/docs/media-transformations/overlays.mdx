@@ -42,12 +42,14 @@ Tiled video overlays are limited to 400 tiles, so pick a tile size and spacing t
 **A watermarked video thumbnail**
 
 ```http
-GET /t/f_jpg,so_3,l_logo.png,lg_northwest/videos/preview.mp4
+GET /t/t_1,tt_3,f_jpg,l_logo.png,lg_northwest/videos/preview.mp4
 ```
+
+`t_1` asks for a thumbnail, which is extracted right away instead of queued, and `tt_3` picks the frame at 3 seconds.
 
 ## Good to know
 
-- Videos with an overlay are processed in the background like any other video transformation: the first request answers `202` until the job is done.
+- Videos with an overlay (other than `t_1` thumbnails) are processed in the background like any other video transformation: the first request answers `202` until the job is done.
 - A pending watermarked video is never served without its watermark.
 - An invalid combination, such as `lx_` without `ly_`, or an `l_` file that does not exist, answers `400` with the reason.
 - Transformed results are cached by URL. If you replace the overlay file under the same name, invalidate the cache of the assets that use it, or use a new file name.
