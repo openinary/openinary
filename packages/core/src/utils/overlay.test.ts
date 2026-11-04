@@ -213,3 +213,30 @@ test("video overlay honours lg_southeast", { skip: !hasFfmpeg && "ffmpeg not ins
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("overlay sizes are bounded in the URL", () => {
+  assert.equal(isTransformSegment("l_wm.png,lw_8192"), true);
+  assert.equal(isTransformSegment("l_wm.png,lw_8193"), false);
+  assert.equal(isTransformSegment("l_wm.png,lh_0"), false);
+});
+
+test("a tiled video overlay with tiny tiles is refused before compositing", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
+  const { dir, wm } = await fixtures();
+  const cwd = process.cwd();
+  try {
+    process.chdir(dir);
+    execFileSync("mkdir", ["-p", "public"]);
+    await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
+    const src = join(dir, "base.mp4");
+    execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=blue:size=1280x720:rate=25", "-t", "1", "-pix_fmt", "yuv420p", src]);
+    const started = Date.now();
+    await assert.rejects(
+      transformVideo(src, parseParams("/t/l_wm.png,lt_1,lw_1,lh_1/base.mp4"), null),
+    );
+    assert.ok(Date.now() - started < 5000, "should fail fast");
+  } finally {
+    process.chdir(cwd);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
