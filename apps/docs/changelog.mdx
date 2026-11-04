@@ -3,6 +3,17 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="November 4, 2026" description="v0.7.0" tags={["Feature", "Fix"]}>
+  ## New features
+
+**Image and video overlays**, Put a logo or watermark on any image or video straight from the URL with `l_`, for example `/t/l_logos:watermark.png,lo_50,lg_southeast/photo.jpg`. Set the opacity (`lo_`), position (`lg_`, `lx_`, `ly_`), size (`lw_`, `lh_`) or repeat it across the asset (`lt_`, `ls_`). Video thumbnails can carry the overlay too, and a pending watermarked video is never served without its watermark. Overlays only come from your own storage. See [overlays & watermarks](/media-transformations/overlays). Thanks to [KesSaft](https://github.com/KesSaft).
+
+## Bug fixes
+
+- **Cached images keep their real type**, From the second request on, a negotiated AVIF or WebP was labelled with the source's type (e.g. `image/jpeg`), and its ETag changed between the first and cached responses. Both now match the bytes actually served. Thanks to [meditatingsurgeon](https://github.com/meditatingsurgeon) for the report.
+- **Cached videos aren't transcoded again on S3**, A video with two or more params (e.g. `w_320,h_240`, or any overlay) was transcoded again whenever the local cache was empty, even though the result was already in the bucket. Existing multi-param entries are regenerated once.
+</Update>
+
 <Update label="November 4, 2026" description="v0.6.0" tags={["Improvement", "Fix"]}>
   ## Improvements
 
