@@ -3,6 +3,17 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="November 4, 2026" description="v0.6.0" tags={["Improvement", "Fix"]}>
+  ## Improvements
+
+**A tidier asset details panel**, The panel opens on the asset itself with its actions in one row, and is split into Deliver, Transform and Info. Transform has presets and a small URL builder whose preview costs no transformation.
+
+## Bug fixes
+
+- **Docker images run on Node.js 22**, Node.js 20 is end-of-life and no longer gets security patches. The self-hosted images now build and run on a patched Node.js 22.
+- **`f_webm` videos encode**, Every `f_webm` transform failed within a second because H.264 and AAC can't go in a WebM container. WebM output is now encoded with VP9 and Opus.
+</Update>
+
 <Update label="October 1, 2026" description="v0.5.0" tags={["Feature", "Improvement", "Fix"]}>
   ## New features
 
