@@ -1,14 +1,16 @@
 import { createStorageClient, VideoJobQueue } from "@openinary/core";
 import { db } from "../db/index.js";
+import { withCloudCacheKeys } from "./cache-params.js";
 import { PgVideoJobStore } from "./video-job-store.js";
 
-export const storage = createStorageClient({
+// Keyed with the Worker's params - see cache-params.ts.
+export const storage = withCloudCacheKeys(createStorageClient({
   region: "auto",
   accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
   secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
   bucketName: process.env.R2_BUCKET_NAME ?? "",
   endpoint: process.env.R2_ENDPOINT,
-});
+}));
 
 // Openinary's TransformService needs a video job queue even for image-only
 // usage. PgVideoJobStore mirrors jobs to Neon in the background so they

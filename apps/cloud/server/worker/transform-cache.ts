@@ -127,7 +127,138 @@ const TRANSFORM_VALUE_PATTERNS: Record<string, RegExp> = {
   t: /^(true|1|\d+)$/,
   tt: /^\d+(?:\.\d+)?$/,
   r: /^max$|^\d+(?::\d+){0,3}$/,
+  // Overlays (core >= the v0.7.0 overlays commit, bc54443). Patterns copied
+  // verbatim from core's TRANSFORM_VALUE_PATTERNS so the two sides agree on
+  // what is a transform segment. l_ deliberately admits no "/", "%", "." run
+  // or leading separator: ":" is the only folder separator, which is what
+  // lets scopeOverlaySegment below confine it to the tenant.
+  l: /^[\w-]+(?:\:[\w-]+)*\.\w+$/,
+  lo: /^(100|[1-9]\d|[0-9])$/,
+  lt: /^(true|1|\d+)$/,
+  lx: /^\d+$/,
+  ly: /^\d+$/,
+  lw: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
+  lh: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
+  lg: /^(north_west|northwest|top_left|nw|north|north_center|top|top_center|n|north_east|northeast|top_right|ne|west|west_center|center_left|w|center|c|east|east_center|center_right|e|south_west|southwest|bottom_left|sw|south|south_center|bottom|bottom_center|s|south_east|southeast|bottom_right|se)$/i,
+  ls: /^\d+$/,
 };
+
+// Mirrors core's mapFullGravity (overlay gravity) output strings.
+function mapFullGravity(value: string): string | undefined {
+  switch (value.toLowerCase()) {
+    case "north_west": case "northwest": case "top_left": case "nw":
+      return "northwest";
+    case "north": case "north_center": case "top": case "top_center": case "n":
+      return "north";
+    case "north_east": case "northeast": case "top_right": case "ne":
+      return "northeast";
+    case "west": case "west_center": case "center_left": case "w":
+      return "west";
+    case "center": case "c":
+      return "center";
+    case "east": case "east_center": case "center_right": case "e":
+      return "east";
+    case "south_west": case "southwest": case "bottom_left": case "sw":
+      return "southwest";
+    case "south": case "south_center": case "bottom": case "bottom_center": case "s":
+      return "south";
+    case "south_east": case "southeast": case "bottom_right": case "se":
+      return "southeast";
+    default:
+      return undefined;
+  }
+}
+
+/** Mirrors core's overlayPath normalisation ("a:b.png" -> "a/b.png"). */
+export function overlayPathFromValue(value: string): string {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // keep as sent
+  }
+  return decoded
+    .replace(/\.\./g, "")
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+/, "")
+    .replaceAll(":", "/");
+}
+
+export type OverlayScopeResult =
+  | { ok: true; segment: string; overlayRelativePath: string | null }
+  | { ok: false; error: string };
+
+const TENANT_COMPONENT = /^[\w-]+$/;
+
+/**
+ * Rewrites the l_ pair of a transform segment into the tenant's scope, so the
+ * container (whose storage is the whole bucket, unscoped) reads the overlay
+ * from ugc/<userId>/<bucketId>/... and nowhere else. A customer names an
+ * overlay relative to their own bucket ("l_logo.png", "l_brand:logo.png").
+ *
+ * Refuses rather than repairs anything that looks like an escape attempt:
+ * a value starting with "ugc:" (naming a tenant root explicitly), "..",
+ * "/", "\\" or "%" (encoded separators). l_'s pattern already rejects most
+ * of these, which makes the segment a non-transform (a folder name); the
+ * explicit check catches them when the pattern changes upstream.
+ *
+ * Also enforces core's lx_/ly_ pairing so the worker never forwards (or
+ * meters) a request the container will only answer 400 to.
+ */
+export function scopeOverlaySegment(
+  segment: string,
+  tenantRoot: string,
+): OverlayScopeResult {
+  if (!isTransformSegment(segment)) {
+    return { ok: true, segment, overlayRelativePath: null };
+  }
+  const parts = segment.split(",");
+  let overlayRelativePath: string | null = null;
+  let hasX = false;
+  let hasY = false;
+  const rootParts = tenantRoot.split("/");
+  if (rootParts.length !== 3 || !rootParts.every((p) => TENANT_COMPONENT.test(p))) {
+    return { ok: false, error: "Invalid tenant scope" };
+  }
+  const out = parts.map((part) => {
+    if (part.startsWith("lx_")) hasX = true;
+    if (part.startsWith("ly_")) hasY = true;
+    if (!part.startsWith("l_")) return part;
+    const value = part.slice(2);
+    if (overlayRelativePath !== null) {
+      throw new OverlayError("Only one l_ overlay is supported per transform");
+    }
+    if (
+      /^ugc(?::|$)/i.test(value) ||
+      value.includes("..") ||
+      /[\/\\%]/.test(value)
+    ) {
+      throw new OverlayError("Overlay path must be relative to your bucket");
+    }
+    overlayRelativePath = overlayPathFromValue(value);
+    return `l_${rootParts.join(":")}:${value}`;
+  });
+  if (hasX !== hasY) {
+    return { ok: false, error: "lx_ and ly_ have to be set together" };
+  }
+  return { ok: true, segment: out.join(","), overlayRelativePath };
+}
+
+class OverlayError extends Error {}
+
+/** Non-throwing wrapper around scopeOverlaySegment. */
+export function tryScopeOverlaySegment(
+  segment: string,
+  tenantRoot: string,
+): OverlayScopeResult {
+  try {
+    return scopeOverlaySegment(segment, tenantRoot);
+  } catch (error) {
+    if (error instanceof OverlayError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
 
 function isValidTransformPair(part: string): boolean {
   const underscoreIndex = part.indexOf("_");
@@ -140,8 +271,13 @@ function isValidTransformPair(part: string): boolean {
 }
 
 export function isTransformSegment(segment: string | undefined): boolean {
-  if (!segment || segment.includes(".")) return false;
+  if (!segment) return false;
   const parts = segment.split(",").filter(Boolean);
+  // A "." means a file name, except inside an l_ value (an overlay names a
+  // file: l_logo.png). Every other key's pattern rejects "." anyway.
+  if (parts.some((part) => part.includes(".") && !part.startsWith("l_"))) {
+    return false;
+  }
   return parts.length > 0 && parts.every(isValidTransformPair);
 }
 
@@ -281,6 +417,40 @@ function parseTransform(segment: string): TransformParams {
       case "r":
         params.radius = value;
         break;
+      // Overlay keys: new in core's overlays commit, so no existing cache key
+      // contains them and their representation is ours to define. Normalised
+      // to what core's parser keeps (ints, mapped gravity, booleans as
+      // "true", "auto" sizes dropped) so api/lib/cache-params.ts's
+      // toCloudCacheParams(core params) lands on the same strings.
+      case "l":
+        params.overlayPath = overlayPathFromValue(value);
+        break;
+      case "lt":
+        params.overlayTiled = "true";
+        break;
+      case "lx":
+        params.overlayXOffset = String(parseInt(value));
+        break;
+      case "ly":
+        params.overlayYOffset = String(parseInt(value));
+        break;
+      case "lo":
+        params.overlayOpacity = String(parseInt(value));
+        break;
+      case "lw":
+        if (value !== "auto") params.overlayWidth = String(parseInt(value));
+        break;
+      case "lh":
+        if (value !== "auto") params.overlayHeight = String(parseInt(value));
+        break;
+      case "ls":
+        params.overlayTileSpacing = String(parseInt(value));
+        break;
+      case "lg": {
+        const gravity = mapFullGravity(value);
+        if (gravity) params.overlayGravity = gravity;
+        break;
+      }
       default:
         break;
     }
@@ -317,6 +487,12 @@ export function parseParams(path: string): TransformParams {
 // "processing".
 export function resolveStatusTarget(tenantRoot: string, clientPath: string) {
   const segments = clientPath.split("/");
+  // Overlay transforms are keyed on the tenant-scoped l_ the CDN path
+  // forwarded, not the one the client sent - see scopeOverlaySegment. An
+  // invalid one leaves the path as-is: it can only ever be "not found".
+  const scoped = tryScopeOverlaySegment(segments[0] ?? "", tenantRoot);
+  if (scoped.ok) segments[0] = scoped.segment;
+  clientPath = segments.join("/");
   const hasTransform = isTransformSegment(segments[0]);
   const relativePath = (hasTransform ? segments.slice(1) : segments).join("/");
   return {
