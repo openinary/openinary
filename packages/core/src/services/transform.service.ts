@@ -22,6 +22,8 @@ import {
   contentTypeForFormat,
   determineOutputFormat,
 } from "../utils/video/format";
+import path from "path";
+import { CombindedTransformParams } from "../types";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -82,12 +84,12 @@ export class TransformService {
    * Main transformation method that handles the complete flow
    */
   async transform(request: TransformRequest): Promise<TransformResult> {
-    const { path, userAgent, acceptHeader, sourceUrl } = request;
+    const { path: pathname, userAgent, acceptHeader, sourceUrl } = request;
 
     try {
       // Parse path and parameters
-      const segments = path.split("/").slice(2); // Remove '/t' prefix
-      const params = parseParams(path);
+      const segments = pathname.split("/").slice(2); // Remove '/t' prefix
+      const params = parseParams(pathname);
 
       // Determine file path segments
       const hasTransform = this.hasTransformSegment(segments);
@@ -99,7 +101,7 @@ export class TransformService {
       // Get effective parameters with format optimization
       const { effectiveParams, cachePath } =
         await this.getEffectiveParamsAndCachePath(
-          path,
+          pathname,
           params,
           userAgent,
           acceptHeader,
@@ -158,7 +160,7 @@ export class TransformService {
 
       // Process the file
       return await this.processFile(
-        path,
+        pathname,
         filePath,
         localPath,
         ext,
@@ -293,7 +295,7 @@ export class TransformService {
     filePath: string,
     localPath: string,
     ext: string | undefined,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     cachePath: string,
     userAgent?: string,
     acceptHeader?: string,
@@ -308,9 +310,7 @@ export class TransformService {
     // through this instance's storage when it picks the job up, which may be
     // minutes later and long after any signed URL would have expired. A remote
     // source therefore covers images and video thumbnails, not transcodes.
-    const isThumbnailRequest =
-      effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
-    if (isVideo(ext) && !isThumbnailRequest) {
+    if (isVideo(ext) && !effectiveParams.thumbnail) {
       return await this.handleVideoJobQueue(
         requestPath,
         filePath,
@@ -354,6 +354,15 @@ export class TransformService {
       localPath,
       sourceUrl,
     );
+
+    if (effectiveParams.overlayPath) {
+      effectiveParams.overlayPath = await prepareSourceFile(
+        this.storage,
+        effectiveParams.overlayPath,
+        path.join("./public", effectiveParams.overlayPath),
+      );
+    }
+
     // A remote source is staged to ./temp the same way a cloud download is, so
     // it has to be cleaned up the same way. Only the no-storage, no-URL case
     // reads a file in ./public that must survive the request.
@@ -403,7 +412,7 @@ export class TransformService {
         // Only thumbnail requests reach this point (non-thumbnail video
         // transformations are intercepted before prepareSourceFile above);
         // thumbnails are extracted synchronously like images
-        const result = await processVideo(sourcePath, effectiveParams);
+        const result = await processVideo(sourcePath, effectiveParams, this.storage);
         return {
           buffer: result.buffer,
           contentType: result.contentType,
@@ -464,6 +473,9 @@ export class TransformService {
       // Clean up temporary source file if used
       if (isTempFile) {
         await cleanupTempFile(sourcePath);
+
+        if (effectiveParams.overlayPath)
+          await cleanupTempFile(effectiveParams.overlayPath);
       }
     }
   }
@@ -473,7 +485,7 @@ export class TransformService {
    */
   private async processImageFile(
     sourcePath: string,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     userAgent?: string,
     acceptHeader?: string,
   ): Promise<{

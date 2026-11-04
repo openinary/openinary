@@ -18,9 +18,16 @@ const fakeCommand = () => {
   return { command, calls };
 };
 
+// applyResize now returns ffmpeg complex-filter steps instead of mutating the
+// command; flatten them back into the old comma-joined filter string.
 const run = (params: Record<string, unknown>) => {
   const { command, calls } = fakeCommand();
-  applyResize(command as any, { params } as any);
+  const result = applyResize(command as any, '0:v', { params } as any) as any;
+  if (result?.complexFilters) {
+    calls.videoFilters = result.complexFilters
+      .map((f: { filter: string; options: string }) => `${f.filter}=${f.options}`)
+      .join(',');
+  }
   return calls;
 };
 
