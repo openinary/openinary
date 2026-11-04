@@ -188,3 +188,28 @@ test("a local overlay original survives a request served from a remote source", 
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("video overlay honours lg_southeast", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
+  const { dir, wm } = await fixtures();
+  const cwd = process.cwd();
+  try {
+    process.chdir(dir);
+    execFileSync("mkdir", ["-p", "public"]);
+    await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
+    const src = join(dir, "base.mp4");
+    execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=blue:size=320x240:rate=25", "-t", "1", "-pix_fmt", "yuv420p", src]);
+    const out = await transformVideo(src, parseParams("/t/l_wm.png,lo_100,lg_southeast/base.mp4"), null);
+    const outPath = join(dir, "out.mp4");
+    const frame = join(dir, "frame.png");
+    await writeFile(outPath, out);
+    execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", outPath, "-frames:v", "1", frame]);
+    const [r, , b] = await pixel(frame, 310, 230);
+    assert.ok(r > 180 && b < 60, `bottom-right should be red, got ${r},${b}`);
+    const [r2, , b2] = await pixel(frame, 160, 120);
+    assert.ok(b2 > 180 && r2 < 60, `center should stay blue, got ${r2},${b2}`);
+  } finally {
+    process.chdir(cwd);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
