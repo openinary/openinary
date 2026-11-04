@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors";
 import {
   CombindedTransformParams,
   CropMode,
@@ -71,7 +72,7 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<TransformKey, RegExp>> = {
   ly: /^\d+$/,
   lw: /^\d+$|^auto$/,
   lh: /^\d+$|^auto$/,
-  lg: new RegExp(`^(${Object.values(FullGravityMode).join("|")})$`, "i"),
+  lg: /^(north_west|northwest|top_left|nw|north|north_center|top|top_center|n|north_east|northeast|top_right|ne|west|west_center|center_left|w|center|c|east|east_center|center_right|e|south_west|southwest|bottom_left|sw|south|south_center|bottom|bottom_center|s|south_east|southeast|bottom_right|se)$/i,
   ls: /^\d+$/,
 };
 
@@ -315,8 +316,8 @@ const parseTransform = (segment: string): CombindedTransformParams => {
     (params.overlayXOffset != null && params.overlayYOffset == null) ||
     (params.overlayXOffset == null && params.overlayYOffset != null)
   )
-    throw new Error(
-      "Validating overlay offset failed. X and Y have to be set.",
+    throw new ValidationError(
+      "Validating overlay offset failed. lx_ and ly_ have to be set together.",
     );
 
   return params;

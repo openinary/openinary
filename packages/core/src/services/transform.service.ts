@@ -24,6 +24,7 @@ import {
 } from "../utils/video/format";
 import path from "path";
 import { CombindedTransformParams } from "../types";
+import { ValidationError } from "../utils/errors";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -356,6 +357,16 @@ export class TransformService {
     );
 
     if (effectiveParams.overlayPath) {
+      const overlayCheck = await verifyFileExists(
+        this.storage,
+        effectiveParams.overlayPath,
+        path.join("./public", effectiveParams.overlayPath),
+      );
+      if (!overlayCheck.exists) {
+        throw new ValidationError(
+          `Overlay image not found: ${effectiveParams.overlayPath}`,
+        );
+      }
       effectiveParams.overlayPath = await prepareSourceFile(
         this.storage,
         effectiveParams.overlayPath,
@@ -702,6 +713,22 @@ export class TransformService {
     request: TransformRequest,
   ): Promise<TransformResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Bad transformation parameters are the client's mistake: answer 400
+    // instead of a 500 that would page us and invite retries.
+    if (error instanceof ValidationError) {
+      logger.info({ error: errorMessage, path: request.path }, error.name);
+      return {
+        buffer: Buffer.from(errorMessage),
+        contentType: "text/plain",
+        status: 400,
+        headers: {
+          "Content-Length": Buffer.byteLength(errorMessage).toString(),
+          "Cache-Control": "no-store",
+        },
+      };
+    }
+
     logger.error(
       {
         error: serializeError(error),
