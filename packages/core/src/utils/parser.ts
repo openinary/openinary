@@ -70,8 +70,9 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<TransformKey, RegExp>> = {
   lt: /^(true|1|\d+)$/,
   lx: /^\d+$/,
   ly: /^\d+$/,
-  lw: /^\d+$|^auto$/,
-  lh: /^\d+$|^auto$/,
+  // Overlay size is capped like an output dimension, 8192 px
+  lw: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
+  lh: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
   lg: /^(north_west|northwest|top_left|nw|north|north_center|top|top_center|n|north_east|northeast|top_right|ne|west|west_center|center_left|w|center|c|east|east_center|center_right|e|south_west|southwest|bottom_left|sw|south|south_center|bottom|bottom_center|s|south_east|southeast|bottom_right|se)$/i,
   ls: /^\d+$/,
 };

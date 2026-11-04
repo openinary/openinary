@@ -1,3 +1,4 @@
+import { ValidationError } from "../errors";
 import { FullGravityMode } from "../../types";
 import sharp from "sharp";
 import Ffmpeg from "fluent-ffmpeg";
@@ -197,6 +198,8 @@ function overlayPosition(
   }
 }
 
+export const MAX_OVERLAY_TILES = 400;
+
 async function createTiledWatermark({
   watermarkFile,
   canvasWidth,
@@ -246,6 +249,20 @@ async function createTiledWatermark({
     })
     .png()
     .toBuffer();
+
+  // Each tile is one sharp composite entry: lw_1,lh_1 on a 1080p video asked
+  // for ~2 million of them from a public URL. Cap the grid instead.
+  const columns = Math.ceil(
+    Math.max(canvasWidth - x, 0) / (watermarkWidth + spacing),
+  );
+  const rows = Math.ceil(
+    Math.max(canvasHeight - y, 0) / (watermarkHeight + spacing),
+  );
+  if (columns * rows > MAX_OVERLAY_TILES) {
+    throw new ValidationError(
+      `Tiled overlay would need ${columns * rows} tiles (maximum ${MAX_OVERLAY_TILES}). Use a larger lw_/lh_ or ls_.`,
+    );
+  }
 
   const composites = [];
 
