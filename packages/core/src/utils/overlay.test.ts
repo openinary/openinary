@@ -136,3 +136,55 @@ test("video overlay is burned into the encoded frames", { skip: !hasFfmpeg && "f
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("a video thumbnail with an overlay stages the overlay once", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
+  const { dir, wm } = await fixtures();
+  const cwd = process.cwd();
+  try {
+    process.chdir(dir);
+    execFileSync("mkdir", ["-p", "public"]);
+    await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
+    execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=blue:size=320x240:rate=25", "-t", "1", "-pix_fmt", "yuv420p", join(dir, "public", "clip.mp4")]);
+    const service = new TransformService(null, { getJobByPath: () => undefined } as any);
+    const result = await service.transform({
+      path: "/t/t_1,f_jpg,l_wm.png,lo_100,lg_northwest/clip.mp4",
+      userAgent: "",
+      context: {} as any,
+    });
+    assert.equal(result.status, undefined, result.buffer?.toString());
+    const [r, , b] = await pixel(result.buffer!, 20, 20);
+    assert.ok(r > 180 && b < 60, `thumbnail should carry the overlay, got ${r},${b}`);
+  } finally {
+    process.chdir(cwd);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a local overlay original survives a request served from a remote source", async () => {
+  const { dir, base, wm } = await fixtures();
+  const cwd = process.cwd();
+  try {
+    process.chdir(dir);
+    execFileSync("mkdir", ["-p", "public", "temp"]);
+    await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
+    const bytes = await readFile(base);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(bytes)) as any;
+    try {
+      const service = new TransformService(null, { getJobByPath: () => undefined } as any);
+      await service.transform({
+        path: "/t/l_wm.png/remote.png",
+        sourceUrl: "https://example.test/remote.png",
+        userAgent: "",
+        context: {} as any,
+      } as any);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    await readFile(join(dir, "public", "wm.png")); // throws if it was deleted
+  } finally {
+    process.chdir(cwd);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
