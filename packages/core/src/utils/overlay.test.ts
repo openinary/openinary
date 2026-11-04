@@ -240,3 +240,26 @@ test("a tiled video overlay with tiny tiles is refused before compositing", { sk
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("transformVideo leaves the caller's params untouched", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
+  const { dir, wm } = await fixtures();
+  const cwd = process.cwd();
+  try {
+    process.chdir(dir);
+    execFileSync("mkdir", ["-p", "public"]);
+    await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
+    const src = join(dir, "base.mp4");
+    execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=blue:size=320x240:rate=25", "-t", "1", "-pix_fmt", "yuv420p", src]);
+    const params = parseParams("/t/w_160,l_wm.png/base.mp4");
+    const before = JSON.stringify(params);
+    // The worker uploads the result under these params: they must still be
+    // the request's, not the staged temp path of the overlay.
+    await transformVideo(src, params, null);
+    assert.equal(JSON.stringify(params), before);
+    assert.equal(params.overlayPath, "wm.png");
+  } finally {
+    process.chdir(cwd);
+    await rm(dir, { recursive: true, force: true });
+  }
+});
