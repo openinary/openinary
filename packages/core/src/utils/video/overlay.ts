@@ -183,8 +183,13 @@ function overlayPosition(
       };
 
     case "southeast":
-    default:
+      return {
+        x: `main_w-overlay_w-${left}`,
+        y: `main_h-overlay_h-${top}`,
+      };
+
     case "center":
+    default:
       return {
         x: `(main_w-overlay_w)/2+${left}`,
         y: `(main_h-overlay_h)/2+${top}`,
