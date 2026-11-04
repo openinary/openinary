@@ -25,6 +25,10 @@ import {
 import path from "path";
 import { CombindedTransformParams } from "../types";
 import { ValidationError } from "../utils/errors";
+import {
+  derivativeEtag,
+  sniffImageContentType,
+} from "../utils/delivery-headers";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -261,7 +265,7 @@ export class TransformService {
   ): TransformResult {
     const headers: Record<string, string> = {
       "Cache-Control": "public, max-age=31536000, must-revalidate",
-      ETag: `"${JSON.stringify(effectiveParams)}"`,
+      ETag: derivativeEtag(buffer),
       "Content-Length": buffer.length.toString(),
     };
 
@@ -278,7 +282,9 @@ export class TransformService {
       ? contentTypeForFormat(
           determineOutputFormat(ext, effectiveParams.format).format,
         )
-      : ""; // Images: route handler falls back to path extension
+      : // Images: the cached bytes say what they are. The path keeps the
+        // source extension, so falling back to it labelled AVIF as image/jpeg.
+        (sniffImageContentType(buffer) ?? "");
 
     return {
       buffer,
@@ -463,13 +469,11 @@ export class TransformService {
       await performPeriodicCacheCleanup();
 
       // Format response
-      // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
-      // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
-      // accented characters (e.g. a combining accent has a code point > 255)
+      // Same ETag as the cached response for the same bytes (see derivativeEtag)
       const headers: Record<string, string> = {
         "Content-Length": buffer.length.toString(),
         "Cache-Control": "public, max-age=31536000, must-revalidate",
-        ETag: `"${encodeURIComponent(filePath)}-${JSON.stringify(effectiveParams)}"`,
+        ETag: derivativeEtag(buffer),
       };
 
       // Add optimization headers if available
