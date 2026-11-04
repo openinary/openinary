@@ -37,6 +37,7 @@
               "media-transformations/overview",
               "media-transformations/image-transformations",
               "media-transformations/video-transformations",
+              "media-transformations/overlays",
               "media-transformations/intelligent-compression",
               "media-transformations/upload-and-prewarm",
               "media-transformations/signed-urls"

@@ -3,7 +3,7 @@ title: "Cloudinary vs Openinary"
 description: "An honest, feature-by-feature comparison of what Cloudinary offers versus what Openinary supports today."
 ---
 
-Openinary covers core transformation and delivery well: resize, crop, format conversion, quality, video trimming, upload, caching and signed URLs. It does not cover image effects, AI and generative features, adaptive streaming, overlays, or an enterprise DAM layer.
+Openinary covers core transformation and delivery well: resize, crop, format conversion, quality, video trimming, upload, caching and signed URLs. It does not cover image effects, AI and generative features, adaptive streaming, text overlays, or an enterprise DAM layer.
 
 Cloudinary is a mature commercial product with years of development behind it. Openinary is early-stage open source. This page is the honest version of that gap.
 
@@ -11,7 +11,7 @@ The **Openinary** column below is [Openinary Cloud](/cloud/overview), the manage
 
 **Openinary fits when** your use case is core image and video delivery, you would rather not pay per transformation, and you want the option to run the whole thing yourself. That last one is the structural difference: self-hosting is a first-class path on any plan, under AGPL, where Cloudinary reserves it for Enterprise.
 
-**Cloudinary is the better choice today when** you need AI or generative transformations, adaptive streaming, image effects and overlays, team roles or SSO, a full DAM with search and workflows, official SDKs in your language, or webhooks.
+**Cloudinary is the better choice today when** you need AI or generative transformations, adaptive streaming, image effects, text overlays, team roles or SSO, a full DAM with search and workflows, official SDKs in your language, or webhooks.
 
 The tables below are the detail behind that summary. Ready to move? [Migrate from Cloudinary](/migrate-from-cloudinary) walks through it.
 
@@ -73,9 +73,9 @@ The tables below are the detail behind that summary. Ready to move? [Migrate fro
 
 | Feature                   | Cloudinary | Openinary |
 | ------------------------- | ---------- | --------- |
-| Image overlay / watermark | ✓          | ✗         |
+| Image overlay / watermark | ✓          | ✓         |
 | Text overlay              | ✓          | ✗         |
-| Video overlay             | ✓          | ✗         |
+| Video overlay             | ✓          | ✓ (image on video) |
 | Underlay                  | ✓          | ✗         |
 | Subtitles layer           | ✓          | ✗         |
 | Blend modes               | ✓          | ✗         |

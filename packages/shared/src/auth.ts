@@ -26,8 +26,19 @@ if (!process.env.BETTER_AUTH_SECRET) {
     const lines = fs.readFileSync(rootEnvPath, "utf-8").split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith("BETTER_AUTH_SECRET=") && !trimmed.startsWith("#")) {
-        process.env.BETTER_AUTH_SECRET = trimmed.slice("BETTER_AUTH_SECRET=".length).trim();
+      if (
+        trimmed.startsWith("BETTER_AUTH_SECRET=") &&
+        !trimmed.startsWith("#")
+      ) {
+        // Extract the value after the key
+        let value = trimmed.slice("BETTER_AUTH_SECRET=".length).trim();
+
+        // Remove surrounding double quotes if present
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+
+        process.env.BETTER_AUTH_SECRET = value;
         break;
       }
     }
@@ -36,8 +47,9 @@ if (!process.env.BETTER_AUTH_SECRET) {
 
 // Security validation for production
 const isProduction = process.env.NODE_ENV === "production";
-const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" ||
-                    process.env.npm_lifecycle_event === "build";
+const isBuildTime =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.env.npm_lifecycle_event === "build";
 const secret = process.env.BETTER_AUTH_SECRET;
 
 // Only validate secrets at runtime, not during build
@@ -46,7 +58,7 @@ if (isProduction && !isBuildTime) {
   if (!secret) {
     throw new Error(
       "🚨 SECURITY ERROR: BETTER_AUTH_SECRET must be set in production!\n" +
-      "Generate one with: openssl rand -hex 32"
+        "Generate one with: openssl rand -hex 32",
     );
   }
 
@@ -54,7 +66,7 @@ if (isProduction && !isBuildTime) {
   if (secret === "build-time-secret-will-be-replaced") {
     throw new Error(
       "🚨 SECURITY ERROR: BETTER_AUTH_SECRET is still set to the build-time placeholder!\n" +
-      "You must set a unique secret in production."
+        "You must set a unique secret in production.",
     );
   }
 
@@ -62,17 +74,19 @@ if (isProduction && !isBuildTime) {
   if (secret.length < 32) {
     console.warn(
       "WARNING: BETTER_AUTH_SECRET is shorter than 32 characters.\n" +
-      "For better security, use: openssl rand -hex 32"
+        "For better security, use: openssl rand -hex 32",
     );
   }
 } else if (!isProduction && !isBuildTime && !secret) {
   throw new Error(
     "🚨 BETTER_AUTH_SECRET is not set.\n" +
-    "Add it to your root .env file: BETTER_AUTH_SECRET=<your-secret>\n" +
-    "Generate one with: openssl rand -hex 32"
+      "Add it to your root .env file: BETTER_AUTH_SECRET=<your-secret>\n" +
+      "Generate one with: openssl rand -hex 32",
   );
 } else if (isBuildTime && secret === "build-time-secret-will-be-replaced") {
-  console.warn("Build phase detected - using placeholder secret (will be validated at runtime)");
+  console.warn(
+    "Build phase detected - using placeholder secret (will be validated at runtime)",
+  );
 }
 
 // Ensure data directory exists before creating database
@@ -97,18 +111,29 @@ function initializeTables() {
     }
   };
 
-  const requiredTables = ["user", "session", "account", "verification", "apiKey", "video_jobs"];
+  const requiredTables = [
+    "user",
+    "session",
+    "account",
+    "verification",
+    "apiKey",
+    "video_jobs",
+  ];
   const missingTables = requiredTables.filter((table) => !tableExists(table));
 
   if (missingTables.length === 0) {
     // check if the apiKey has the correct schema
-    const hasReferenceId = db.prepare("SELECT COUNT(*) as count FROM pragma_table_info('apiKey') WHERE name='referenceId'").get() as { count: number };
-    
+    const hasReferenceId = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM pragma_table_info('apiKey') WHERE name='referenceId'",
+      )
+      .get() as { count: number };
+
     // Migration: add referenceId column if missing (required by @better-auth/api-key v1.5.x)
     // Creates a apiKey_new table with the correct schema
     // Copies data from the current apiKey table into the apiKey_new table
     // Drops the apiKey table
-    // Renames apiKey_new -> apiKey 
+    // Renames apiKey_new -> apiKey
     if (!hasReferenceId.count) {
       db.transaction(() => {
         db.exec(`
@@ -182,7 +207,7 @@ function initializeTables() {
   try {
     const triggerExists = db
       .prepare(
-        "SELECT name FROM sqlite_master WHERE type='trigger' AND name='prevent_multiple_users'"
+        "SELECT name FROM sqlite_master WHERE type='trigger' AND name='prevent_multiple_users'",
       )
       .get();
 
@@ -321,17 +346,23 @@ initializeTables();
 (function validateSecretConsistency() {
   if (!secret || isBuildTime) return;
 
-  db.exec(`CREATE TABLE IF NOT EXISTS _auth_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  db.exec(
+    `CREATE TABLE IF NOT EXISTS _auth_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  );
 
   const hash = crypto.createHash("sha256").update(secret).digest("hex");
-  const row = db.prepare("SELECT value FROM _auth_config WHERE key = 'secret_hash'").get() as { value: string } | undefined;
+  const row = db
+    .prepare("SELECT value FROM _auth_config WHERE key = 'secret_hash'")
+    .get() as { value: string } | undefined;
 
   if (!row) {
-    db.prepare("INSERT INTO _auth_config (key, value) VALUES ('secret_hash', ?)").run(hash);
+    db.prepare(
+      "INSERT INTO _auth_config (key, value) VALUES ('secret_hash', ?)",
+    ).run(hash);
   } else if (row.value !== hash) {
     throw new Error(
       "🚨 BETTER_AUTH_SECRET mismatch: the secret has changed since the database was created.\n" +
-      "All existing sessions will be invalid. If this is intentional, delete the _auth_config table row with key='secret_hash' and restart."
+        "All existing sessions will be invalid. If this is intentional, delete the _auth_config table row with key='secret_hash' and restart.",
     );
   }
 })();
@@ -363,7 +394,7 @@ if (isProduction && !isBuildTime) {
   if (!process.env.BETTER_AUTH_URL) {
     console.warn(
       "⚠️  WARNING: BETTER_AUTH_URL is not set in production!\n" +
-      "   This may cause authentication and CORS issues. Set it to your app's URL."
+        "   This may cause authentication and CORS issues. Set it to your app's URL.",
     );
   }
 }
@@ -427,7 +458,9 @@ export const auth = betterAuth({
 // Helper function to check if any admin account exists
 export function hasAdminAccount(): boolean {
   try {
-    const result = db.prepare("SELECT COUNT(*) as count FROM user").get() as { count: number };
+    const result = db.prepare("SELECT COUNT(*) as count FROM user").get() as {
+      count: number;
+    };
     return result.count > 0;
   } catch (error) {
     return false;

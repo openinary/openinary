@@ -22,6 +22,9 @@ import {
   contentTypeForFormat,
   determineOutputFormat,
 } from "../utils/video/format";
+import path from "path";
+import { CombindedTransformParams } from "../types";
+import { ValidationError } from "../utils/errors";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -82,12 +85,12 @@ export class TransformService {
    * Main transformation method that handles the complete flow
    */
   async transform(request: TransformRequest): Promise<TransformResult> {
-    const { path, userAgent, acceptHeader, sourceUrl } = request;
+    const { path: pathname, userAgent, acceptHeader, sourceUrl } = request;
 
     try {
       // Parse path and parameters
-      const segments = path.split("/").slice(2); // Remove '/t' prefix
-      const params = parseParams(path);
+      const segments = pathname.split("/").slice(2); // Remove '/t' prefix
+      const params = parseParams(pathname);
 
       // Determine file path segments
       const hasTransform = this.hasTransformSegment(segments);
@@ -99,7 +102,7 @@ export class TransformService {
       // Get effective parameters with format optimization
       const { effectiveParams, cachePath } =
         await this.getEffectiveParamsAndCachePath(
-          path,
+          pathname,
           params,
           userAgent,
           acceptHeader,
@@ -158,7 +161,7 @@ export class TransformService {
 
       // Process the file
       return await this.processFile(
-        path,
+        pathname,
         filePath,
         localPath,
         ext,
@@ -293,7 +296,7 @@ export class TransformService {
     filePath: string,
     localPath: string,
     ext: string | undefined,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     cachePath: string,
     userAgent?: string,
     acceptHeader?: string,
@@ -308,9 +311,7 @@ export class TransformService {
     // through this instance's storage when it picks the job up, which may be
     // minutes later and long after any signed URL would have expired. A remote
     // source therefore covers images and video thumbnails, not transcodes.
-    const isThumbnailRequest =
-      effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
-    if (isVideo(ext) && !isThumbnailRequest) {
+    if (isVideo(ext) && !effectiveParams.thumbnail) {
       return await this.handleVideoJobQueue(
         requestPath,
         filePath,
@@ -347,6 +348,21 @@ export class TransformService {
       };
     }
 
+    // Overlays are checked before the source is staged, so a bad l_ never
+    // leaves a downloaded original behind in ./temp.
+    if (effectiveParams.overlayPath) {
+      const overlayCheck = await verifyFileExists(
+        this.storage,
+        effectiveParams.overlayPath,
+        path.join("./public", effectiveParams.overlayPath),
+      );
+      if (!overlayCheck.exists) {
+        throw new ValidationError(
+          `Overlay image not found: ${effectiveParams.overlayPath}`,
+        );
+      }
+    }
+
     // Prepare source file
     const sourcePath = await prepareSourceFile(
       this.storage,
@@ -354,6 +370,23 @@ export class TransformService {
       localPath,
       sourceUrl,
     );
+
+    // Images get their overlay staged here. Video thumbnails do not:
+    // transformVideo stages the overlay itself, and handing it an already
+    // staged path made it look for public/public/<overlay> (or download
+    // ./temp/... from the bucket). The staged path lives in a copy so the
+    // ETag and anything else reading effectiveParams keeps the public key.
+    let imageParams = effectiveParams;
+    let stagedOverlay: string | undefined;
+    if (effectiveParams.overlayPath && isTransformableImage) {
+      stagedOverlay = await prepareSourceFile(
+        this.storage,
+        effectiveParams.overlayPath,
+        path.join("./public", effectiveParams.overlayPath),
+      );
+      imageParams = { ...effectiveParams, overlayPath: stagedOverlay };
+    }
+
     // A remote source is staged to ./temp the same way a cloud download is, so
     // it has to be cleaned up the same way. Only the no-storage, no-URL case
     // reads a file in ./public that must survive the request.
@@ -372,7 +405,7 @@ export class TransformService {
         try {
           result = await this.processImageFile(
             sourcePath,
-            effectiveParams,
+            imageParams,
             userAgent,
             acceptHeader,
           );
@@ -403,7 +436,7 @@ export class TransformService {
         // Only thumbnail requests reach this point (non-thumbnail video
         // transformations are intercepted before prepareSourceFile above);
         // thumbnails are extracted synchronously like images
-        const result = await processVideo(sourcePath, effectiveParams);
+        const result = await processVideo(sourcePath, effectiveParams, this.storage);
         return {
           buffer: result.buffer,
           contentType: result.contentType,
@@ -465,6 +498,12 @@ export class TransformService {
       if (isTempFile) {
         await cleanupTempFile(sourcePath);
       }
+      // Only a bucket download is a temp copy. Without storage the staged
+      // path is the overlay's original in ./public, which must survive (a
+      // remote sourceUrl alone used to make this delete it).
+      if (stagedOverlay && this.storage) {
+        await cleanupTempFile(stagedOverlay);
+      }
     }
   }
 
@@ -473,7 +512,7 @@ export class TransformService {
    */
   private async processImageFile(
     sourcePath: string,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     userAgent?: string,
     acceptHeader?: string,
   ): Promise<{
@@ -690,6 +729,22 @@ export class TransformService {
     request: TransformRequest,
   ): Promise<TransformResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Bad transformation parameters are the client's mistake: answer 400
+    // instead of a 500 that would page us and invite retries.
+    if (error instanceof ValidationError) {
+      logger.info({ error: errorMessage, path: request.path }, error.name);
+      return {
+        buffer: Buffer.from(errorMessage),
+        contentType: "text/plain",
+        status: 400,
+        headers: {
+          "Content-Length": Buffer.byteLength(errorMessage).toString(),
+          "Cache-Control": "no-store",
+        },
+      };
+    }
+
     logger.error(
       {
         error: serializeError(error),

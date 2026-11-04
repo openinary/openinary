@@ -1,0 +1,53 @@
+---
+title: "Overlays & Watermarks"
+description: "Put a logo or watermark on images and videos with l_"
+---
+
+Add an image stored in Openinary on top of another image or a video. Overlays are part of the URL like every other parameter.
+
+```http
+GET /t/l_logos:watermark.png,lo_50,lg_southeast/photos/beach.jpg
+```
+
+The overlay must be a file in your own storage. Openinary never fetches an overlay from a remote URL.
+
+## Parameters
+
+| Parameter | Description | Example |
+| --- | --- | --- |
+| `l_` | Path of the overlay image. Use `:` instead of `/` between folders. | `l_logos:watermark.png` |
+| `lo_` | Opacity, `0` (invisible) to `100` (opaque). Default `50`. | `lo_80` |
+| `lg_` | Position: `north`, `northeast`, `east`, `southeast`, `south`, `southwest`, `west`, `northwest`, `center` (default). Aliases like `south_east`, `bottom_right` or `se` work too. | `lg_southeast` |
+| `lx_`, `ly_` | Offset in pixels from the chosen position. Set both or neither. | `lx_20,ly_20` |
+| `lw_`, `lh_` | Overlay size in pixels, up to `8192`. | `lw_200` |
+| `lt_` | Repeat the overlay across the whole asset. | `lt_1` |
+| `ls_` | Space between tiles in pixels (videos). | `ls_40` |
+
+## Recipes
+
+**A logo in the bottom-right corner**
+
+```http
+GET /t/w_1200,l_logo.png,lw_160,lo_70,lg_southeast,lx_24,ly_24/photo.jpg
+```
+
+**A repeated watermark on a video**
+
+```http
+GET /t/l_watermark.png,lt_1,lw_200,ls_80,lo_30/videos/preview.mp4
+```
+
+Tiled video overlays are limited to 400 tiles, so pick a tile size and spacing that fit the video.
+
+**A watermarked video thumbnail**
+
+```http
+GET /t/f_jpg,so_3,l_logo.png,lg_northwest/videos/preview.mp4
+```
+
+## Good to know
+
+- Videos with an overlay are processed in the background like any other video transformation: the first request answers `202` until the job is done.
+- A pending watermarked video is never served without its watermark.
+- An invalid combination, such as `lx_` without `ly_`, or an `l_` file that does not exist, answers `400` with the reason.
+- Transformed results are cached by URL. If you replace the overlay file under the same name, invalidate the cache of the assets that use it, or use a new file name.
