@@ -81,7 +81,7 @@ export const applyOverlay: TransformFunction = async (
           },
           {
             filter: "colorchannelmixer",
-            options: `aa=${overlayOpacity ? overlayOpacity / 100 : 0.5}`,
+            options: `aa=${overlayOpacity != null ? overlayOpacity / 100 : 0.5}`,
             inputs: "wm_rgba",
             outputs: "wm_alpha",
           },
@@ -118,7 +118,7 @@ export const applyOverlay: TransformFunction = async (
         },
         {
           filter: "colorchannelmixer",
-          options: `aa=${overlayOpacity ? overlayOpacity / 100 : 0.5}`,
+          options: `aa=${overlayOpacity != null ? overlayOpacity / 100 : 0.5}`,
           inputs: "wm_rgba",
           outputs: "wm_alpha",
         },

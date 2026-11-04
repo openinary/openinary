@@ -348,14 +348,8 @@ export class TransformService {
       };
     }
 
-    // Prepare source file
-    const sourcePath = await prepareSourceFile(
-      this.storage,
-      filePath,
-      localPath,
-      sourceUrl,
-    );
-
+    // Overlays are checked before the source is staged, so a bad l_ never
+    // leaves a downloaded original behind in ./temp.
     if (effectiveParams.overlayPath) {
       const overlayCheck = await verifyFileExists(
         this.storage,
@@ -367,11 +361,30 @@ export class TransformService {
           `Overlay image not found: ${effectiveParams.overlayPath}`,
         );
       }
-      effectiveParams.overlayPath = await prepareSourceFile(
+    }
+
+    // Prepare source file
+    const sourcePath = await prepareSourceFile(
+      this.storage,
+      filePath,
+      localPath,
+      sourceUrl,
+    );
+
+    // Images get their overlay staged here. Video thumbnails do not:
+    // transformVideo stages the overlay itself, and handing it an already
+    // staged path made it look for public/public/<overlay> (or download
+    // ./temp/... from the bucket). The staged path lives in a copy so the
+    // ETag and anything else reading effectiveParams keeps the public key.
+    let imageParams = effectiveParams;
+    let stagedOverlay: string | undefined;
+    if (effectiveParams.overlayPath && isTransformableImage) {
+      stagedOverlay = await prepareSourceFile(
         this.storage,
         effectiveParams.overlayPath,
         path.join("./public", effectiveParams.overlayPath),
       );
+      imageParams = { ...effectiveParams, overlayPath: stagedOverlay };
     }
 
     // A remote source is staged to ./temp the same way a cloud download is, so
@@ -392,7 +405,7 @@ export class TransformService {
         try {
           result = await this.processImageFile(
             sourcePath,
-            effectiveParams,
+            imageParams,
             userAgent,
             acceptHeader,
           );
@@ -484,9 +497,12 @@ export class TransformService {
       // Clean up temporary source file if used
       if (isTempFile) {
         await cleanupTempFile(sourcePath);
-
-        if (effectiveParams.overlayPath)
-          await cleanupTempFile(effectiveParams.overlayPath);
+      }
+      // Only a bucket download is a temp copy. Without storage the staged
+      // path is the overlay's original in ./public, which must survive (a
+      // remote sourceUrl alone used to make this delete it).
+      if (stagedOverlay && this.storage) {
+        await cleanupTempFile(stagedOverlay);
       }
     }
   }
