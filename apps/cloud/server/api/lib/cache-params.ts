@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "node:crypto";
 
 // Why this exists
 // ---------------
@@ -57,6 +58,36 @@ export function toCloudCacheParams(
   return out;
 }
 
+/**
+ * Core (#168) now hashes params with *sorted* keys. Every derivative already
+ * in Cloud's R2 was keyed in insertion order (md5(path + JSON.stringify(
+ * params))), and that is what the Worker recomputes (transform-cache.ts
+ * generateCacheKey). Sorting would re-key every multi-param URL: one
+ * re-transform - and one re-bill - per existing derivative. On Cloud the
+ * params handed to storage are always the Worker's (see above), in the
+ * Worker's order, and PgVideoJobStore keeps that order verbatim, so the
+ * problem #168 fixes (a store that reorders) does not arise here. Restore the
+ * insertion-order key for the container only.
+ */
+export function useInsertionOrderCacheKeys(keyGenerator: {
+  generateKey(originalPath: string, params: unknown): string;
+}): void {
+  keyGenerator.generateKey = (originalPath: string, params: unknown) => {
+    const hash = createHash("md5")
+      .update(originalPath + JSON.stringify(params))
+      .digest("hex");
+    return `cache/${hash}.${originalPath.split(".").pop()}`;
+  };
+}
+
+/** Order-insensitive, so a store that reorders params still hits the memo. */
+function sortedJson(params: object): string {
+  const p = params as Record<string, unknown>;
+  return JSON.stringify(
+    Object.fromEntries(Object.keys(p).sort().map((k) => [k, p[k]])),
+  );
+}
+
 export const requestCacheParams = new AsyncLocalStorage<CloudCacheParams | null>();
 
 /** Parses the header; anything malformed is ignored (falls back to 2/3). */
@@ -98,7 +129,7 @@ export function withCloudCacheKeys<T>(storage: T): T {
   const memo = new Map<string, CloudCacheParams>();
   const resolve = (path: string, params: unknown): unknown => {
     if (!params || typeof params !== "object") return params;
-    const memoKey = `${path}\u0000${JSON.stringify(params)}`;
+    const memoKey = `${path}\u0000${sortedJson(params)}`;
     const fromRequest = requestCacheParams.getStore();
     if (fromRequest) {
       if (memo.size >= MEMO_LIMIT) {

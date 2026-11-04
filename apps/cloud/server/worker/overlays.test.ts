@@ -11,9 +11,10 @@
 //    (metering), in-request, for a queued video job, and after a restart.
 
 import assert from "node:assert/strict";
-import { parseParams as coreParseParams } from "@openinary/core";
+import { KeyGenerator, parseParams as coreParseParams } from "@openinary/core";
 import {
   requestCacheParams,
+  useInsertionOrderCacheKeys,
   toCloudCacheParams,
   withCloudCacheKeys,
   parseCacheParamsHeader,
@@ -207,6 +208,18 @@ for (const segment of [
   // Garbage header is ignored, not trusted.
   assert.equal(parseCacheParamsHeader("{\"a\":1}"), null);
   assert.equal(parseCacheParamsHeader("nope"), null);
+}
+
+// --- 6. core #168 sorts params in KeyGenerator; Cloud keeps insertion order.
+{
+  const multi = LEGACY["w_500,h_300,c_fill,q_80,f_webp"];
+  // Unpatched core would re-key this existing derivative...
+  assert.notEqual(KeyGenerator.generateKey(FILE, multi.params), multi.key);
+  useInsertionOrderCacheKeys(KeyGenerator);
+  // ...the container (media.ts) restores the key already in R2.
+  for (const { params, key } of Object.values(LEGACY)) {
+    assert.equal(KeyGenerator.generateKey(FILE, params), key);
+  }
 }
 
 console.log("overlays: ok");

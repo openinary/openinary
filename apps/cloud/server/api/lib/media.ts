@@ -1,6 +1,16 @@
-import { createStorageClient, VideoJobQueue } from "@openinary/core";
+import {
+  createStorageClient,
+  KeyGenerator,
+  VideoJobQueue,
+} from "@openinary/core";
 import { db } from "../db/index.js";
-import { withCloudCacheKeys } from "./cache-params.js";
+import {
+  useInsertionOrderCacheKeys,
+  withCloudCacheKeys,
+} from "./cache-params.js";
+
+// Before any storage call: keep Cloud's existing R2 keys (see cache-params.ts).
+useInsertionOrderCacheKeys(KeyGenerator);
 import { PgVideoJobStore } from "./video-job-store.js";
 
 // Keyed with the Worker's params - see cache-params.ts.
