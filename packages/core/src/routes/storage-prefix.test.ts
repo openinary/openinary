@@ -14,7 +14,7 @@ const routeWith = (mediaPrefix: string, keys: string[]) => {
   const storage: any = {
     mediaPrefix,
     mediaKey: (p: string) => `${mediaPrefix}${p}`,
-    listAllParallel: async () => keys.map((key) => ({ key, size: 1 })),
+    listAllMedia: async () => keys.map((key) => ({ key, size: 1 })),
   };
   return new Hono().route(
     "/storage",

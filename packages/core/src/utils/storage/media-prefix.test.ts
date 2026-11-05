@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   DEFAULT_MEDIA_PREFIX,
+  isReservedMediaPath,
   normalizeMediaPrefix,
 } from "./cloud-storage";
 
@@ -70,4 +71,24 @@ test("a prefix that merely looks reserved is fine", () => {
   for (const ok of ["caches", "cache-media", "mycache", "Cache", "media/cache"]) {
     assert.equal(normalizeMediaPrefix(ok), `${ok}/`, `input: ${ok}`);
   }
+});
+
+test("at the bucket root, cache/ and .openinary/ are not media", () => {
+  // With the empty prefix the media namespace is the whole bucket, so the
+  // product's own folders would otherwise be listed, counted and served.
+  assert.equal(isReservedMediaPath("", "cache/abc/w_300.webp"), true);
+  assert.equal(isReservedMediaPath("", ".openinary/stats.json"), true);
+  assert.equal(isReservedMediaPath("", "cache/"), true);
+  assert.equal(isReservedMediaPath("", "cache"), true);
+  assert.equal(isReservedMediaPath("", "/cache/x.jpg"), true);
+  // Whole first segment only, case-sensitive like S3.
+  assert.equal(isReservedMediaPath("", "caches/x.jpg"), false);
+  assert.equal(isReservedMediaPath("", "Cache/x.jpg"), false);
+  assert.equal(isReservedMediaPath("", "photos/cache/x.jpg"), false);
+});
+
+test("under any other prefix nothing is reserved", () => {
+  // public/cache/... is an ordinary media folder, never the real cache/.
+  assert.equal(isReservedMediaPath("public/", "cache/x.jpg"), false);
+  assert.equal(isReservedMediaPath("media/", ".openinary/stats.json"), false);
 });

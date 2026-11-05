@@ -40,9 +40,7 @@ export function createStorageRoute(deps: RouteDeps) {
    * shared between /stats and /folders through a short-lived TTL cache
    */
   async function getPublicObjects(client: StorageClient) {
-    const objects = await getCachedFullListing(() =>
-      client.listAllParallel(client.mediaPrefix),
-    );
+    const objects = await getCachedFullListing(() => client.listAllMedia());
     return objects
       .filter((obj) => obj.key.startsWith(client.mediaPrefix))
       .map((obj) => ({

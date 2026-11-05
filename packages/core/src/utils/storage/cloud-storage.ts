@@ -59,6 +59,17 @@ export function normalizeMediaPrefix(prefix: string | undefined): string {
   return `${trimmed}/`;
 }
 
+/**
+ * True when a delivery path would land in a namespace the product owns. Only
+ * possible with the empty prefix: under any other prefix the key is nested
+ * below it and cannot reach cache/ or .openinary/.
+ */
+export function isReservedMediaPath(mediaPrefix: string, path: string): boolean {
+  if (mediaPrefix !== "") return false;
+  const head = path.replace(/^\/+/, "").split("/")[0];
+  return RESERVED_PREFIXES.includes(head);
+}
+
 function isAggregateStats(value: unknown): value is AggregateStats {
   return (
     typeof value === "object" &&
@@ -85,7 +96,23 @@ export class CloudStorage implements StatsBackend {
    * /t/ URL; the key is where the bytes actually live.
    */
   mediaKey(path: string): string {
+    if (isReservedMediaPath(this.mediaPrefix, path)) {
+      throw new Error(
+        `Path ${JSON.stringify(path)} is reserved for Openinary's own use`,
+      );
+    }
     return `${this.mediaPrefix}${path}`;
+  }
+
+  /**
+   * Every media object, recursively. At the bucket root this skips cache/ and
+   * .openinary/ before fanning out, so they are neither counted nor listed.
+   */
+  listAllMedia(): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
+    return this.listAllParallel(
+      this.mediaPrefix,
+      (key) => !isReservedMediaPath(this.mediaPrefix, key),
+    );
   }
 
   /**
@@ -127,13 +154,15 @@ export class CloudStorage implements StatsBackend {
    */
   async listAllParallel(
     prefix: string,
+    keep: (key: string) => boolean = () => true,
   ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
     const topLevel = await this.s3Client.listDelimited(prefix);
-    const results = [...topLevel.objects];
+    const results = topLevel.objects.filter((obj) => keep(obj.key));
+    const prefixes = topLevel.prefixes.filter(keep);
 
     const batchSize = 16;
-    for (let i = 0; i < topLevel.prefixes.length; i += batchSize) {
-      const batch = topLevel.prefixes.slice(i, i + batchSize);
+    for (let i = 0; i < prefixes.length; i += batchSize) {
+      const batch = prefixes.slice(i, i + batchSize);
       const nested = await Promise.all(
         batch.map((folderPrefix) => this.s3Client.listObjects(folderPrefix)),
       );
@@ -153,7 +182,15 @@ export class CloudStorage implements StatsBackend {
   ): Promise<{ folderNames: string[]; files: LevelFile[] }> {
     const storagePrefix = folderPath ? this.mediaKey(`${folderPath}/`) : this.mediaPrefix;
     const delimited = await this.s3Client.listDelimited(storagePrefix);
-    return shapeLevel(storagePrefix, folderPath, delimited);
+    const level = shapeLevel(storagePrefix, folderPath, delimited);
+    return folderPath
+      ? level
+      : {
+          ...level,
+          folderNames: level.folderNames.filter(
+            (name) => !isReservedMediaPath(this.mediaPrefix, name),
+          ),
+        };
   }
 
   /**
@@ -164,7 +201,7 @@ export class CloudStorage implements StatsBackend {
     folderPath: string,
     maxKeys = FOLDER_SUMMARY_MAX_KEYS,
   ): Promise<FolderSummary> {
-    const storagePrefix = `${this.mediaPrefix}${folderPath}/`;
+    const storagePrefix = this.mediaKey(`${folderPath}/`);
     const page = await this.s3Client.listDelimitedPage(storagePrefix, maxKeys);
     return shapeFolderSummary(storagePrefix, folderPath, page);
   }
@@ -174,7 +211,7 @@ export class CloudStorage implements StatsBackend {
    */
   async createFolder(folderPath: string): Promise<void> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const storageKey = `${this.mediaPrefix}${normalized}/`;
+    const storageKey = this.mediaKey(`${normalized}/`);
 
     await this.s3Client.createFolderMarker(storageKey);
   }
@@ -184,7 +221,7 @@ export class CloudStorage implements StatsBackend {
    */
   async folderExists(folderPath: string): Promise<boolean> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const markerKey = `${this.mediaPrefix}${normalized}/`;
+    const markerKey = this.mediaKey(`${normalized}/`);
 
     if (await this.s3Client.objectExists(markerKey)) {
       return true;
@@ -200,13 +237,13 @@ export class CloudStorage implements StatsBackend {
   async renameFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
     const normalizedOld = oldFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
     const normalizedNew = newFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const prefix = `${this.mediaPrefix}${normalizedOld}/`;
+    const prefix = this.mediaKey(`${normalizedOld}/`);
 
     const objects = await this.s3Client.listObjects(prefix);
 
     for (const obj of objects) {
       const relativeKey = obj.key.slice(prefix.length);
-      const destKey = `${this.mediaPrefix}${normalizedNew}/${relativeKey}`;
+      const destKey = this.mediaKey(`${normalizedNew}/${relativeKey}`);
       await this.s3Client.copyObject(obj.key, destKey);
       await this.s3Client.deleteObject(obj.key);
     }
@@ -219,7 +256,7 @@ export class CloudStorage implements StatsBackend {
    */
   async deleteFolder(folderPath: string): Promise<number> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
-    const prefix = `${this.mediaPrefix}${normalized}/`;
+    const prefix = this.mediaKey(`${normalized}/`);
 
     const objects = await this.s3Client.listObjects(prefix);
     if (objects.length === 0) {
@@ -297,7 +334,7 @@ export class CloudStorage implements StatsBackend {
    * Used after deletion to ensure we don't serve stale cache data
    */
   async existsOriginalNoCache(originalPath: string): Promise<boolean> {
-    const storageKey = `${this.mediaPrefix}${originalPath}`;
+    const storageKey = this.mediaKey(originalPath);
     try {
       const exists = await this.s3Client.objectExists(storageKey);
 
@@ -334,7 +371,7 @@ export class CloudStorage implements StatsBackend {
       return cached.exists;
     }
 
-    const storageKey = `${this.mediaPrefix}${filePath}`;
+    const storageKey = this.mediaKey(filePath);
     try {
       const exists = await this.s3Client.objectExists(storageKey);
 
@@ -365,7 +402,7 @@ export class CloudStorage implements StatsBackend {
    */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
     // Delivery path -> storage key
-    const storageKey = `${this.mediaPrefix}${originalPath}`;
+    const storageKey = this.mediaKey(originalPath);
     return await this.s3Client.downloadObject(storageKey);
   }
 
@@ -379,7 +416,7 @@ export class CloudStorage implements StatsBackend {
     contentLength?: number;
     contentType?: string;
   }> {
-    const storageKey = `${this.mediaPrefix}${originalPath}`;
+    const storageKey = this.mediaKey(originalPath);
     return await this.s3Client.downloadObjectStream(storageKey);
   }
 
@@ -392,7 +429,7 @@ export class CloudStorage implements StatsBackend {
     contentType: string,
   ): Promise<string> {
     // Delivery path -> storage key
-    const storageKey = `${this.mediaPrefix}${filePath}`;
+    const storageKey = this.mediaKey(filePath);
     await this.s3Client.uploadObject(storageKey, buffer, contentType);
 
     adjustBucketStats(this, "storage", { size: buffer.length, fileCount: 1 });
@@ -463,7 +500,7 @@ export class CloudStorage implements StatsBackend {
    */
   async deleteOriginal(originalPath: string): Promise<void> {
     // Delivery path -> storage key
-    const storageKey = `${this.mediaPrefix}${originalPath}`;
+    const storageKey = this.mediaKey(originalPath);
     // HEAD first: the deleted object's size is needed for stats tracking,
     // and a delete on a missing key succeeds silently
     const metadata = await this.s3Client.getObjectMetadata(storageKey);
@@ -484,8 +521,8 @@ export class CloudStorage implements StatsBackend {
    * Copies an original file to a new path within storage
    */
   async copyOriginal(sourcePath: string, destPath: string): Promise<void> {
-    const sourceKey = `${this.mediaPrefix}${sourcePath}`;
-    const destKey = `${this.mediaPrefix}${destPath}`;
+    const sourceKey = this.mediaKey(sourcePath);
+    const destKey = this.mediaKey(destPath);
     await this.s3Client.copyObject(sourceKey, destKey);
 
     const metadata = await this.s3Client.getObjectMetadata(destKey);
@@ -517,7 +554,7 @@ export class CloudStorage implements StatsBackend {
   async getOriginalMetadata(
     originalPath: string,
   ): Promise<{ size: number; createdAt: Date; updatedAt: Date } | null> {
-    const storageKey = `${this.mediaPrefix}${originalPath}`;
+    const storageKey = this.mediaKey(originalPath);
     const metadata = await this.s3Client.getObjectMetadata(storageKey);
 
     if (!metadata) {
@@ -676,7 +713,7 @@ export class CloudStorage implements StatsBackend {
     cache: AggregateStats;
   }> {
     const [publicObjects, cacheObjects] = await Promise.all([
-      this.listAllParallel(this.mediaPrefix),
+      this.listAllMedia(),
       this.s3Client.listObjects("cache/"),
     ]);
 
