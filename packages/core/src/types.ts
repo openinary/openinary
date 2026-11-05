@@ -62,6 +62,9 @@ export interface ImageTransformParams
   aspect?: string;
   rotate?: number;
   flip?: "h" | "v" | "hv"; // a_hflip / a_vflip, applied before rotate
+  // a_ignore: keep the stored pixel orientation instead of following EXIF.
+  // Only ever set to true, so URLs without a_ignore keep their cache keys.
+  ignoreOrientation?: boolean;
   quality?: number | "auto";
   format?: ImageFormat;
   radius?: string; // e.g. "150", "20:80", "20:0:40:60", "max"

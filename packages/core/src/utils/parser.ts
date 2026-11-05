@@ -224,6 +224,8 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         const angle = parseAngle(value);
         params.rotate = angle?.rotate;
         if (angle?.flip) params.flip = angle.flip;
+        // a_ignore: keep the stored pixel orientation instead of following EXIF.
+        if (value.split(".").includes("ignore")) params.ignoreOrientation = true;
         break;
       }
       case "dpr":
