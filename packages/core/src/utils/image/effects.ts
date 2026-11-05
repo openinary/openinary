@@ -164,10 +164,9 @@ const mixWithIdentity = (matrix: sharp.Matrix3x3, amount: number): sharp.Matrix3
   ) as sharp.Matrix3x3;
 
 /**
- * Tint/colorize: blend every pixel toward a color picked from `stops` by the
- * pixel's luminance (one stop = one flat color), rescaled to keep that
- * luminance so the image still reads; a flat fill would be an overlay, not a
- * tint. amount is 0..1.
+ * Tint/colorize: blend every pixel toward a color picked by its luminance.
+ * One color keeps the image's tones (black -> color -> white); several are a
+ * gradient map from the darkest stop to the lightest. amount is 0..1.
  */
 const blendTowardColors = (
   raw: RawImage,
@@ -178,7 +177,7 @@ const blendTowardColors = (
     const { r, g, b } = parseBackgroundColor(s.color);
     return { rgb: [r, g, b], at: (s.position / 100) * 255 };
   });
-  // Precompute the luminance-preserving target color for each luminance.
+  // Precompute the target color for each luminance.
   const table = new Float32Array(256 * 3);
   for (let lum = 0; lum < 256; lum++) {
     let rgb = rgbStops[0].rgb;
@@ -195,9 +194,19 @@ const blendTowardColors = (
         }
       }
     }
-    const targetLum = LUMA[0] * rgb[0] + LUMA[1] * rgb[1] + LUMA[2] * rgb[2];
     for (let c = 0; c < 3; c++) {
-      table[lum * 3 + c] = targetLum > 0 ? (rgb[c] * lum) / targetLum : lum;
+      table[lum * 3 + c] =
+        rgbStops.length > 1
+          ? // Several colors are a gradient map: dark tones take the first
+            // stop, light tones the last.
+            rgb[c]
+          : // One color: shadows run from black to the color, highlights
+            // from the color to white, so the image keeps its tones. (Scaling
+            // the color to the pixel's luminance blew dark colors like blue
+            // up to a flat fill.)
+            lum < 128
+            ? (rgb[c] * lum) / 128
+            : rgb[c] + ((255 - rgb[c]) * (lum - 128)) / 127;
     }
   }
   const { data, info } = raw;

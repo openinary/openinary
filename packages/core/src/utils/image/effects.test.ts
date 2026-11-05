@@ -241,3 +241,19 @@ test("effects run after resize", async () => {
     assert.equal(`${info.width}x${info.height}`, "4x4");
   });
 });
+
+test("tint and colorize with a dark color stay proportional (no flat fill)", async () => {
+  await withImage(gray(128), async (path) => {
+    // 50% blue on mid-gray: half the original plus half the color.
+    const half = (await firstPixel(await transformImage(path, { effects: ["tint:50:blue"] }))).px;
+    assert.ok(half[0] > 50 && half[0] < 80, `red kept: ${half}`);
+    assert.ok(half[2] > 170 && half[2] < 215, `blue not saturated: ${half}`);
+    // Full colorize maps mid-gray to the color itself.
+    const full = (
+      await firstPixel(
+        await transformImage(path, { effects: ["colorize:100"], color: "#9400d3" }),
+      )
+    ).px;
+    assert.ok(Math.abs(full[0] - 148) <= 3 && full[1] <= 3 && Math.abs(full[2] - 211) <= 3, `${full}`);
+  });
+});
