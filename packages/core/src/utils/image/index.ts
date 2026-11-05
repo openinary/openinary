@@ -7,6 +7,8 @@ import { applyQuality } from "./quality";
 import { applyRoundCorners } from "./round-corners";
 import { applyOverlayImage } from "./overlay";
 import { applyResize } from "./resize";
+import { applyEffects, hasEffects } from "./effects";
+import { parseBackgroundColor } from "./background";
 import { ImageTransformParams } from "../../types";
 import { SHARP_INPUT_OPTIONS } from "./sharp-options";
 
@@ -69,12 +71,32 @@ export const transformImage = async (
     );
   }
 
-  // 4. Apply overlay image (if specified)
+  // 4. Apply effects (e_) and opacity (o_), after resize so they work on the
+  // delivered pixels, before the overlay so a watermark is left untouched.
+  if (hasEffects(params)) {
+    image = await applyEffects(image, params);
+    // o_ adds transparency. Cloudinary bakes it onto the background (white
+    // unless b_ says otherwise) when the output format has no alpha; do the
+    // same when b_ is given or JPEG is requested explicitly.
+    const opaqueOutput = params.format === "jpg" || params.format === "jpeg";
+    if (
+      params.opacity !== undefined &&
+      params.opacity < 100 &&
+      (params.background || opaqueOutput) &&
+      params.background !== "transparent"
+    ) {
+      image = sharp(await image.toBuffer()).flatten({
+        background: parseBackgroundColor(params.background),
+      });
+    }
+  }
+
+  // 5. Apply overlay image (if specified)
   if (params.overlayPath) {
     image = await applyOverlayImage(image, params);
   }
 
-  // 5. Apply rounded corners (if specified)
+  // 6. Apply rounded corners (if specified)
   if (params.radius) {
     image = await applyRoundCorners(image, params.radius, params.background);
     // applyRoundCorners always returns a pipeline backed by a PNG buffer
@@ -82,7 +104,7 @@ export const transformImage = async (
     // correctly preserve transparency or the filled background color.
   }
 
-  // 6. Apply quality (if specified)
+  // 7. Apply quality (if specified)
   if (params.quality) {
     image = applyQuality(image, params.quality);
   }
