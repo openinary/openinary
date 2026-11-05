@@ -46,7 +46,7 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | `h` | integer | | Height in pixels |
 | `c` | `fill` `fit` `scale` `crop` `pad` `lfill` `lpad` `mfit` `mpad` | `fill` | `fill` crops the overflow, `fit` preserves ratio without enlarging, `scale` may stretch, `pad` adds borders in `b`. See [limited modes](#limited-crop-modes) |
 | `ar` | `W:H` | | Aspect ratio, e.g. `ar_16:9` |
-| `a` | degrees, `auto`, `hflip`, `vflip`, joined with `.` | | Rotate and mirror, left to right: `a_hflip.90` mirrors then rotates |
+| `a` | degrees, `auto`, `ignore`, `hflip`, `vflip`, joined with `.` | | Rotate and mirror, left to right: `a_hflip.90` mirrors then rotates. EXIF orientation is always applied first (`auto` adds nothing); `ignore` keeps the stored pixel orientation |
 | `dpr` | `0.1` to `5`, or `auto` | `1` | Multiplies `w` and `h`: `dpr_2,w_400` is `w_800`. `auto` serves 1x, Client Hints are not read |
 | `g` | `center` `north` `south` `east` `west` `face` `auto` | `center` | Focal point when cropping |
 | `b` | `rgb:<hex>` (3, 4, 6 or 8 digits), a CSS color name, `transparent`, [`auto`](#automatic-background), or `blurred[:intensity][:brightness]` | | Fill color for `c_pad`, rotation, rounded corners and `o`. Alias `bg` |
