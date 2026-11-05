@@ -78,7 +78,9 @@ export const transformImage = async (
       source
         .clone()
         .resize({ width: w, height: h, fit: "cover" })
-        .blur(Math.max(0.3, blurred.intensity / 20))
+        // Relative to the canvas, so the default reads as "blurred" at any
+        // size: intensity 100 is a sigma of 1/30 of the longer side.
+        .blur(Math.min(1000, Math.max(0.3, (blurred.intensity / 100) * (Math.max(w, h) / 30))))
         .linear(Math.max(0, 1 + blurred.brightness / 100), 0)
         .png()
         .toBuffer();
