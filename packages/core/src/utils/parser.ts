@@ -220,12 +220,14 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         params.format = value as VideoFormat & ImageFormat;
         break;
       case "a": {
+        // a_ignore: keep the stored pixel orientation instead of following EXIF.
+        // Alone it sets nothing else, so a_ignore has no rotate key.
+        if (value.split(".").includes("ignore")) params.ignoreOrientation = true;
+        if (value === "ignore") break;
         // Angle of rotation (a_90, a_auto) and flips (a_hflip, a_vflip.45)
         const angle = parseAngle(value);
         params.rotate = angle?.rotate;
         if (angle?.flip) params.flip = angle.flip;
-        // a_ignore: keep the stored pixel orientation instead of following EXIF.
-        if (value.split(".").includes("ignore")) params.ignoreOrientation = true;
         break;
       }
       case "dpr":
