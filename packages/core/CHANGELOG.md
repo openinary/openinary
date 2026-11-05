@@ -1,5 +1,22 @@
 # @openinary/core
 
+## 1.7.0
+
+### Minor Changes
+
+- d8a988c: Image effects with `e_` (`fill_light`, `blur`, `sharpen`, `unsharp_mask`, `brightness`, `saturation`, `hue`, `contrast`, `gamma`, `sepia`, `grayscale`, `negate`, `pixelate`, `trim`, `tint`, `colorize`), opacity with `o_` and the `co_` color qualifier. Effects run after resize and before overlays, in URL order.
+- ca825ef: `b_auto` backgrounds (border or predominant color, gradients, `palette_`), CSS color names and 3, 4 or 8 digit hex colors.
+- 9b19f88: `dpr_` (0.1 to 5, or `auto`), flips with `a_hflip` and `a_vflip`, and real `lfill`, `lpad`, `mfit` and `mpad` crop modes.
+- 57b93c3: `b_blurred` pad backgrounds, `bo_` solid borders and `d_` default images served in place of a missing file.
+- ed55fe1: `STORAGE_PREFIX` sets the storage key prefix. It defaults to `public`, and `""` serves media from the bucket root.
+
+### Patch Changes
+
+- 969b936: Images follow their EXIF orientation, so phone photos are no longer delivered sideways. `a_ignore` keeps the stored pixel orientation.
+- 44a2075: Image overlays sized with `lw_` and `lh_` are scaled instead of cropped.
+
+Existing URLs keep their output and cache keys; only URLs using the new parameters change.
+
 ## 1.6.0
 
 ### Minor Changes

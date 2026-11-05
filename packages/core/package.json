@@ -1,6 +1,6 @@
 {
   "name": "@openinary/core",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "description": "Openinary's media transformation engine and route handlers (image/video processing, storage, job queue) as a standalone, embeddable package.",
   "type": "module",

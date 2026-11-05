@@ -423,6 +423,8 @@ function parseTransform(segment: string): TransformParams {
         params.format = value;
         break;
       case "a":
+        // Mirrors core: a_ignore must not share the EXIF-oriented URL's key.
+        if (value.split(".").includes("ignore")) params.ignoreOrientation = "true";
         if (/^-?\d+$|^auto$/.test(value)) {
           // Unchanged since v1.3.0 (a_auto stays "auto": lossy in core).
           params.rotate = value;
