@@ -19,6 +19,7 @@
 
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
+import { parseColor, parseEffect } from "./effect-spec.js";
 
 export type TransformParams = Record<string, string>;
 
@@ -108,7 +109,7 @@ export function dashboardThumbParams(isImage: boolean): TransformParams {
   );
 }
 
-const TRANSFORM_VALUE_PATTERNS: Record<string, RegExp> = {
+const TRANSFORM_VALUE_PATTERNS: Record<string, { test(value: string): boolean }> = {
   w: /^\d+$|^auto$/,
   h: /^\d+$|^auto$/,
   c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
@@ -141,6 +142,11 @@ const TRANSFORM_VALUE_PATTERNS: Record<string, RegExp> = {
   lh: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
   lg: /^(north_west|northwest|top_left|nw|north|north_center|top|top_center|n|north_east|northeast|top_right|ne|west|west_center|center_left|w|center|c|east|east_center|center_right|e|south_west|southwest|bottom_left|sw|south|south_center|bottom|bottom_center|s|south_east|southeast|bottom_right|se)$/i,
   ls: /^\d+$/,
+  // Effects, opacity, color (core's e_/o_/co_ commit). effect-spec.ts is a
+  // verbatim copy of core's, so both sides accept the same values.
+  e: { test: (value: string) => parseEffect(value) !== undefined },
+  o: /^(100|[1-9]?\d)$/,
+  co: { test: (value: string) => parseColor(value) !== undefined },
 };
 
 // Mirrors core's mapFullGravity (overlay gravity) output strings.
@@ -449,6 +455,20 @@ function parseTransform(segment: string): TransformParams {
       case "lg": {
         const gravity = mapFullGravity(value);
         if (gravity) params.overlayGravity = gravity;
+        break;
+      }
+      // Effects: new keys, so no existing cache key contains them. Shaped
+      // like toCloudCacheParams(core params): core keeps e_ values as an
+      // array in URL order, which String() joins with ",".
+      case "e":
+        params.effects = params.effects ? `${params.effects},${value}` : value;
+        break;
+      case "o":
+        params.opacity = String(parseInt(value));
+        break;
+      case "co": {
+        const color = parseColor(value);
+        if (color) params.color = color;
         break;
       }
       default:

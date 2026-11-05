@@ -29,6 +29,9 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | Rounded corners on a white page | `/t/w_600,h_400,r_16,b_rgb:ffffff/photo.jpg` |
 | 16:9 banner | `/t/ar_16:9,w_1920/banner.jpg` |
 | Padded to a fixed size | `/t/w_400,h_300,c_pad,b_rgb:f5f5f5/thumb.jpg` |
+| Brighten a dark photo | `/t/w_800,e_fill_light:70:20/photo.jpg` |
+| Blurred placeholder | `/t/w_40,e_blur:400/photo.jpg` |
+| Black and white | `/t/w_800,e_grayscale/photo.jpg` |
 | Smallest file the browser supports | `/t/w_1200/photo.jpg` |
 | 720p video | `/t/w_1280,h_720,q_80/video.mp4` |
 | Trim 5s to 12s | `/t/so_5,eo_12/video.mp4` |
@@ -48,10 +51,38 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | `r` | integer, `v1:v2`, `v1:v2:v3`, `v1:v2:v3:v4`, or `max` | | Corner radius, clockwise from top-left. `max` gives a circle or oval |
 | `q` | `1` to `100`, or `auto` | `auto` | See [quality](#quality) |
 | `f` | `avif` `webp` `jpeg` `png` `gif` `auto` | browser's best | See [formats](#formats) |
+| `e` | see [effects](#effects) | | Repeatable, applied in URL order |
+| `o` | `0` to `100` | `100` | Opacity. Baked onto `b` (or white, for `f_jpg`) when set, otherwise kept as transparency |
+| `co` | `rgb:<hex>` or a CSS color name | `gray` | Color for `e_colorize` |
 
 `g_face` uses saliency detection, not face detection. It keeps whatever region scores as most interesting, which on a portrait is normally the face.
 
 Corner radius is clamped to half the shorter side. Cut corners are transparent, so pair `r` with `f_png`, `f_webp` or `f_avif`, or add `b` to fill them and stay on JPEG.
+
+### Effects
+
+Effects run after resizing, so they work on the delivered pixels, and before the overlay, so a watermark is left untouched. Put several in one segment and they apply left to right: `e_negate,e_brightness:30` and `e_brightness:30,e_negate` give different results.
+
+| Effect | Arguments | Default | Notes |
+| --- | --- | --- | --- |
+| `e_fill_light[:blend][:bias]` | blend `0` to `100`, bias `-100` to `100` | `100`, `0` | Lifts shadows and midtones, leaves highlights. An approximation: Cloudinary does not publish its algorithm |
+| `e_blur[:strength]` | `1` to `2000` | `100` | Gaussian blur |
+| `e_sharpen[:strength]` | `1` to `2000` | `100` | |
+| `e_unsharp_mask[:strength]` | `1` to `2000` | `100` | Wider radius than `e_sharpen` |
+| `e_grayscale` | | | Keeps transparency |
+| `e_sepia[:level]` | `1` to `100` | `80` | |
+| `e_negate` | | | |
+| `e_brightness[:level]` | `-99` to `100` | `80` | Percent change, `100` doubles |
+| `e_contrast[:level_<n>][;type_<t>]` | `sigmoidal`: `-100` to `100`; `linear`: `1` to `200` | `0`, `sigmoidal` | `e_contrast:50` also works |
+| `e_saturation[:level]` | `-100` to `100` | `80` | `-100` is grayscale |
+| `e_hue[:level]` | `-100` to `100` | `80` | `100` is half a turn of the color wheel |
+| `e_gamma[:level]` | `-50` to `150` | `0` | Higher brightens midtones |
+| `e_pixelate[:size]` | `1` to `200` px | from the image size | |
+| `e_trim[:tolerance][:color]` | `0` to `100`, color | `10`, corner pixel | Crops away a uniform border |
+| `e_tint[:equalize][:amount][:color[:Np]]...` | amount `0` to `100`, up to 10 colors with positions `0p` to `100p` | `60`, `red` | Several colors map dark to light tones |
+| `e_colorize[:level]` | `0` to `100` | `100` | Color from `co`, e.g. `co_darkviolet,e_colorize:35` |
+
+Colors take `rgb:<hex>` with 3, 4, 6 or 8 digits, or a CSS color name. `e_tint` takes the hex without `rgb:`, as Cloudinary does.
 
 ### Quality
 
@@ -123,7 +154,7 @@ Returns the binary content, with `Cache-Control` set for browser caching and `X-
 
 Only the short parameter keys work. The parser splits a segment at its first underscore, so `thumbnail_time_5` reads as the key `thumbnail`, fails, and the segment is then treated as a folder name, ending in a `404`.
 
-Video URLs accept the image-only parameters `a`, `ar`, `r` and `b` and silently ignore them. The URL still works, the output is just re-encoded without them.
+Video URLs accept the image-only parameters `a`, `ar`, `r`, `b`, `e`, `o` and `co` and silently ignore them. The URL still works, the output is just re-encoded without them.
 
 For compatibility with Cloudinary-shaped URLs, `c` also accepts `lfill`, `fill_pad`, `limit`, `mfit`, `thumb` and `lpad`, and `g` also accepts `c`, `n`, `s`, `e`, `w`, `faces`, `face_center`, `faces_center`, `north_center` and `south_center`.
 

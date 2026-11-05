@@ -62,6 +62,9 @@ export interface ImageTransformParams
   quality?: number | "auto";
   format?: ImageFormat;
   radius?: string; // e.g. "150", "20:80", "20:0:40:60", "max"
+  effects?: string[]; // e_ values in URL order, e.g. ["fill_light:70:20", "blur:300"]
+  opacity?: number; // o_, 0-100
+  color?: string; // co_, normalized to "#rrggbb", used by e_colorize
 }
 
 export interface VideoTransformParams extends OverlayTransformParams {

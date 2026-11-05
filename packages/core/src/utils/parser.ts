@@ -1,4 +1,5 @@
 import { ValidationError } from "./errors";
+import { parseColor, parseEffect } from "./image/effect-spec";
 import {
   CombindedTransformParams,
   CropMode,
@@ -46,7 +47,9 @@ export const parseParams = (path: string) => {
  * Valid values for each transformation key.
  * Used by isTransformSegment to reject folder names that happen to start with a known key.
  */
-const TRANSFORM_VALUE_PATTERNS: Readonly<Record<TransformKey, RegExp>> = {
+const TRANSFORM_VALUE_PATTERNS: Readonly<
+  Record<TransformKey, { test(value: string): boolean }>
+> = {
   w: /^\d+$|^auto$/,
   h: /^\d+$|^auto$/,
   c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
@@ -75,6 +78,11 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<TransformKey, RegExp>> = {
   lh: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
   lg: /^(north_west|northwest|top_left|nw|north|north_center|top|top_center|n|north_east|northeast|top_right|ne|west|west_center|center_left|w|center|c|east|east_center|center_right|e|south_west|southwest|bottom_left|sw|south|south_center|bottom|bottom_center|s|south_east|southeast|bottom_right|se)$/i,
   ls: /^\d+$/,
+  // Effects carry their own argument grammar (e_blur:300, e_tint:40:blue:0p),
+  // validated by the same table that applies them.
+  e: { test: (value: string) => parseEffect(value) !== undefined },
+  o: /^(100|[1-9]?\d)$/,
+  co: { test: (value: string) => parseColor(value) !== undefined },
 };
 
 const isValidTransformPair = (part: string): boolean => {
@@ -125,7 +133,10 @@ type TransformKey =
   | "lw" // overlay width
   | "lh" // overlay height
   | "lg" // overlay gravity
-  | "ls"; // overlay tile spacing
+  | "ls" // overlay tile spacing
+  | "e" // effect, repeatable, applied in URL order
+  | "o" // opacity 0-100
+  | "co"; // color qualifier (e_colorize)
 
 /**
  * Parse a single transformation segment into our
@@ -306,6 +317,17 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         break;
       case "lg":
         params.overlayGravity = mapFullGravity(value);
+        break;
+      case "e":
+        // Kept as written: effect-spec parses the arguments again when the
+        // effect is applied, and the raw string is what the cache key hashes.
+        params.effects = [...(params.effects ?? []), value];
+        break;
+      case "o":
+        params.opacity = parseInt(value);
+        break;
+      case "co":
+        params.color = parseColor(value);
         break;
       default:
         // Ignore unsupported/unknown directives for now
