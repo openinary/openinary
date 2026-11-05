@@ -68,6 +68,7 @@ export interface ImageTransformParams
   effects?: string[]; // e_ values in URL order, e.g. ["fill_light:70:20", "blur:300"]
   opacity?: number; // o_, 0-100
   color?: string; // co_, normalized to "#rrggbb", used by e_colorize
+  border?: string; // bo_, e.g. "4px_solid_red"
 }
 
 export interface VideoTransformParams extends OverlayTransformParams {
@@ -84,7 +85,13 @@ export interface VideoTransformParams extends OverlayTransformParams {
 }
 
 export type CombindedTransformParams = ImageTransformParams &
-  VideoTransformParams;
+  VideoTransformParams & {
+    /**
+     * d_: path of the image to serve when the requested one is missing.
+     * Taken out of the params before anything is keyed or cached.
+     */
+    defaultImage?: string;
+  };
 
 export interface StorageConfig {
   provider?: string; // Optional, for backward compatibility only

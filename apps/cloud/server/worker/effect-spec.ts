@@ -1,6 +1,6 @@
 /**
  * Parsing and validation of `e_` effect values, color values (co_, b_,
- * b_auto), angles (a_) and dpr_, with no image library
+ * b_auto, b_blurred, bo_), angles (a_) and dpr_, with no image library
  * imported, so the URL parser can decide whether a segment is a
  * transformation without loading sharp. Applying effects lives in
  * effects.ts.
@@ -333,6 +333,9 @@ export const parseBackgroundValue = (value: string): string | undefined => {
   if (value === "auto" || value.startsWith("auto:")) {
     return parseAutoBackground(value) ? value : undefined;
   }
+  if (value === "blurred" || value.startsWith("blurred:")) {
+    return parseBlurredBackground(value) ? value : undefined;
+  }
   if (value === "transparent") return "transparent";
   if (value === "white") return "#ffffff";
   if (value === "black") return "#000000";
@@ -385,4 +388,38 @@ export const parseDpr = (value: string): number | undefined => {
   if (!/^\d(\.\d{1,2})?$/.test(value)) return undefined;
   const dpr = Number(value);
   return dpr >= 0.1 && dpr <= 5 ? dpr : undefined;
+};
+
+/**
+ * b_blurred[:intensity][:brightness]: pad with a blurred, brightness-shifted
+ * copy of the image. Intensity 1-2000 (default 100), brightness -300 to 100
+ * (default 0), as in Cloudinary (which documents it for video; Openinary
+ * applies it to images).
+ */
+export const parseBlurredBackground = (
+  value: string,
+): { intensity: number; brightness: number } | undefined => {
+  const match = /^blurred(?::(\d{1,4}))?(?::(-?\d{1,3}))?$/.exec(value);
+  if (!match) return undefined;
+  const intensity = match[1] ? Number(match[1]) : 100;
+  const brightness = match[2] ? Number(match[2]) : 0;
+  if (intensity < 1 || intensity > 2000 || brightness < -300 || brightness > 100) {
+    return undefined;
+  }
+  return { intensity, brightness };
+};
+
+/**
+ * bo_<width>px_solid_<color>: a solid border of 1-1000 px. The color is a
+ * CSS name or hex, with or without "rgb:" (8 digits carry alpha).
+ */
+export const parseBorder = (
+  value: string,
+): { width: number; color: string } | undefined => {
+  const match = /^(\d{1,4})px_solid_(.+)$/.exec(value);
+  if (!match) return undefined;
+  const width = Number(match[1]);
+  const color = parseColor(match[2]);
+  if (width < 1 || width > 1000 || !color) return undefined;
+  return { width, color };
 };

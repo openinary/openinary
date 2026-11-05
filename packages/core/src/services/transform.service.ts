@@ -95,6 +95,9 @@ export class TransformService {
       // Parse path and parameters
       const segments = pathname.split("/").slice(2); // Remove '/t' prefix
       const params = parseParams(pathname);
+      // d_ only matters if the file is missing; keep it out of every cache key.
+      const defaultImage = params.defaultImage;
+      delete params.defaultImage;
 
       // Determine file path segments
       const hasTransform = this.hasTransformSegment(segments);
@@ -121,6 +124,9 @@ export class TransformService {
       );
       if (!fileCheck.exists) {
         await this.handleFileNotFound(filePath);
+        if (defaultImage && defaultImage !== filePath && hasTransform && !sourceUrl) {
+          return await this.transformDefaultImage(request, segments[0], defaultImage);
+        }
         throw new Error(fileCheck.error || "File not found");
       }
 
@@ -183,6 +189,35 @@ export class TransformService {
   /**
    * Check if the first segment is a transformation string
    */
+  /**
+   * d_: serve the default image, with the same transformation, in place of a
+   * missing one. Rendered and cached under the default image's own path, so
+   * the missing path never gets a cached derivative and the real file shows
+   * up as soon as it is uploaded. The response is kept out of shared caches
+   * for the same reason, like Cloudinary's placeholder responses.
+   */
+  private async transformDefaultImage(
+    request: TransformRequest,
+    segment: string,
+    defaultImage: string,
+  ): Promise<TransformResult> {
+    const rest = segment
+      .split(",")
+      .filter((part) => part && !part.startsWith("d_"))
+      .join(",");
+    const path = rest ? `/t/${rest}/${defaultImage}` : `/t/${defaultImage}`;
+    const result = await this.transform({ ...request, path });
+    const served = !result.status || result.status === 200;
+    if (served && result.contentType !== "text/plain") {
+      result.headers = {
+        ...result.headers,
+        "Cache-Control": "private, max-age=60",
+        "X-Default-Image": defaultImage,
+      };
+    }
+    return result;
+  }
+
   private hasTransformSegment(segments: string[]): boolean {
     return segments.length > 0 && isTransformSegment(segments[0]);
   }

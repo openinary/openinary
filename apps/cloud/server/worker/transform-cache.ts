@@ -22,6 +22,7 @@ import { posix } from "node:path";
 import {
   parseAngle,
   parseBackgroundValue,
+  parseBorder,
   parseColor,
   parseDpr,
   parseEffect,
@@ -128,6 +129,10 @@ const TRANSFORM_VALUE_PATTERNS: Record<string, { test(value: string): boolean }>
   // Degrees, auto, and Cloudinary's modes joined with "." (a_hflip.90).
   a: { test: (value: string) => parseAngle(value) !== undefined },
   dpr: { test: (value: string) => parseDpr(value) !== undefined },
+  bo: { test: (value: string) => parseBorder(value) !== undefined },
+  // d_ (default image): accepted so the URL works, but stripped from the
+  // segment before it is forwarded - see scopeOverlaySegment.
+  d: /^[\w-]+(?:\:[\w-]+)*\.\w+$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   // Colors and b_auto, via effect-spec.ts (shared verbatim with core).
   // Every value the old regex accepted maps to the same string as before.
@@ -237,7 +242,11 @@ export function scopeOverlaySegment(
   if (rootParts.length !== 3 || !rootParts.every((p) => TENANT_COMPONENT.test(p))) {
     return { ok: false, error: "Invalid tenant scope" };
   }
-  const out = parts.map((part) => {
+  // d_ names a fallback file by path, and the container's storage is the
+  // whole bucket: forwarded as is it could read another tenant's file. Cloud
+  // does not serve the fallback yet (a missing source is answered 404 above
+  // the container), so the pair is dropped rather than scoped.
+  const out = parts.filter((part) => !part.startsWith("d_")).map((part) => {
     if (part.startsWith("lx_")) hasX = true;
     if (part.startsWith("ly_")) hasY = true;
     if (!part.startsWith("l_")) return part;
@@ -290,13 +299,15 @@ export function isTransformSegment(segment: string | undefined): boolean {
   if (!segment) return false;
   const parts = segment.split(",").filter(Boolean);
   // A "." means a file name, except inside an l_ value (an overlay names a
-  // file: l_logo.png), a_ (a_hflip.90) and dpr_ (dpr_1.5). Their patterns
+  // file: l_logo.png) or a d_ value (d_avatar.png), a_ (a_hflip.90) and
+  // dpr_ (dpr_1.5). Their patterns
   // reject anything file-like ("a_hflip.png", "dpr_2.png") anyway.
   if (
     parts.some(
       (part) =>
         part.includes(".") &&
         !part.startsWith("l_") &&
+        !part.startsWith("d_") &&
         !part.startsWith("a_") &&
         !part.startsWith("dpr_"),
     )
@@ -494,6 +505,10 @@ function parseTransform(segment: string): TransformParams {
         if (color) params.color = color;
         break;
       }
+      case "bo":
+        params.border = value;
+        break;
+      // d_ never reaches the params: core takes it out before keying.
       default:
         break;
     }

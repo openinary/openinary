@@ -6,7 +6,7 @@ import { tryScopeOverlaySegment } from "./transform-cache.js";
 
 /**
  * Applies scopeOverlaySegment to a /b/{bucketId}/t/{segment}/... URL.
- * Returns the URL unchanged when it carries no overlay.
+ * Returns the URL unchanged when it carries no overlay and no d_.
  */
 export function scopeCdnOverlay(
   url: URL,
@@ -25,11 +25,14 @@ export function scopeCdnOverlay(
   const segment = rest.slice(0, slash);
   const scoped = tryScopeOverlaySegment(segment, tenantRoot);
   if (!scoped.ok) return scoped;
-  if (scoped.overlayRelativePath === null) {
-    return { ok: true, url, overlayRelativePath: null };
+  if (scoped.segment === segment) {
+    return { ok: true, url, overlayRelativePath: scoped.overlayRelativePath };
   }
   const next = new URL(url.toString());
-  next.pathname = `${prefix}${scoped.segment}${rest.slice(slash)}`;
+  // A segment that only carried d_ is gone entirely.
+  next.pathname = scoped.segment
+    ? `${prefix}${scoped.segment}${rest.slice(slash)}`
+    : `${prefix}${rest.slice(slash + 1)}`;
   return { ok: true, url: next, overlayRelativePath: scoped.overlayRelativePath };
 }
 
