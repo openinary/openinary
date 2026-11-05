@@ -59,7 +59,16 @@ export const transformImage = async (
     padGradient = resolved.gradient;
   }
 
-  // 1. Apply rotation (if specified)
+  // 1. Apply flips, then rotation (a_hflip, a_vflip.45). Materialized in
+  // between: sharp runs its own operation order inside one pipeline.
+  if (params.flip) {
+    if (params.flip.includes("h")) image = image.flop();
+    if (params.flip.includes("v")) image = image.flip();
+    const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+    image = sharp(data, {
+      raw: { width: info.width, height: info.height, channels: info.channels },
+    }).png();
+  }
   if (params.rotate) {
     image = applyRotation(image, params.rotate, params.background);
   }
@@ -85,6 +94,7 @@ export const transformImage = async (
       padGradient && crop === "pad" ? "transparent" : params.background,
       params.width,
       params.height,
+      params.resizeLimit,
     );
     if (padGradient && crop === "pad") {
       const { data, info } = await image.png().toBuffer({ resolveWithObject: true });

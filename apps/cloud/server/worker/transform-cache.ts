@@ -19,7 +19,13 @@
 
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
-import { parseBackgroundValue, parseColor, parseEffect } from "./effect-spec.js";
+import {
+  parseAngle,
+  parseBackgroundValue,
+  parseColor,
+  parseDpr,
+  parseEffect,
+} from "./effect-spec.js";
 
 export type TransformParams = Record<string, string>;
 
@@ -112,14 +118,16 @@ export function dashboardThumbParams(isImage: boolean): TransformParams {
 const TRANSFORM_VALUE_PATTERNS: Record<string, { test(value: string): boolean }> = {
   w: /^\d+$|^auto$/,
   h: /^\d+$|^auto$/,
-  c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
+  c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad|mpad)$/,
   g: /^(center|c|north(?:_center)?|n|south(?:_center)?|s|east|e|west|w|faces?(?:_center)?|auto)$/,
   q: /^\d+$|^auto$/,
   // 1.2.0 narrowed this to formats an encoder can actually produce -
   // f_psd/f_avi/f_mp3/f_wav/f_ogg/f_pdf segments no longer parse as
   // transforms and fall through to the container's 404, here and in core.
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
-  a: /^-?\d+$|^auto$/,
+  // Degrees, auto, and Cloudinary's modes joined with "." (a_hflip.90).
+  a: { test: (value: string) => parseAngle(value) !== undefined },
+  dpr: { test: (value: string) => parseDpr(value) !== undefined },
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   // Colors and b_auto, via effect-spec.ts (shared verbatim with core).
   // Every value the old regex accepted maps to the same string as before.
@@ -282,8 +290,17 @@ export function isTransformSegment(segment: string | undefined): boolean {
   if (!segment) return false;
   const parts = segment.split(",").filter(Boolean);
   // A "." means a file name, except inside an l_ value (an overlay names a
-  // file: l_logo.png). Every other key's pattern rejects "." anyway.
-  if (parts.some((part) => part.includes(".") && !part.startsWith("l_"))) {
+  // file: l_logo.png), a_ (a_hflip.90) and dpr_ (dpr_1.5). Their patterns
+  // reject anything file-like ("a_hflip.png", "dpr_2.png") anyway.
+  if (
+    parts.some(
+      (part) =>
+        part.includes(".") &&
+        !part.startsWith("l_") &&
+        !part.startsWith("a_") &&
+        !part.startsWith("dpr_"),
+    )
+  ) {
     return false;
   }
   return parts.length > 0 && parts.every(isValidTransformPair);
@@ -310,6 +327,7 @@ function mapCropMode(value: string): string {
       return "crop";
     case "pad":
     case "lpad":
+    case "mpad":
       return "pad";
     default:
       return "fill";
@@ -362,6 +380,7 @@ function parseTransform(segment: string): TransformParams {
   let cropMode: string | undefined;
   let startOffset: string | undefined;
   let endOffset: string | undefined;
+  let dpr: number | undefined;
 
   for (const part of segment.split(",")) {
     if (!part) continue;
@@ -378,6 +397,10 @@ function parseTransform(segment: string): TransformParams {
         break;
       case "c":
         cropMode = mapCropMode(value);
+        // Mirrors core: only the limited modes add a param, so existing
+        // c_ URLs keep their keys.
+        if (value === "lfill" || value === "lpad") params.resizeLimit = "down";
+        if (value === "mfit" || value === "mpad") params.resizeLimit = "up";
         break;
       case "g":
         params.gravity = mapGravity(value);
@@ -389,7 +412,17 @@ function parseTransform(segment: string): TransformParams {
         params.format = value;
         break;
       case "a":
-        params.rotate = value;
+        if (/^-?\d+$|^auto$/.test(value)) {
+          // Unchanged since v1.3.0 (a_auto stays "auto": lossy in core).
+          params.rotate = value;
+        } else {
+          const angle = parseAngle(value);
+          if (angle?.rotate !== undefined) params.rotate = String(angle.rotate);
+          if (angle?.flip) params.flip = angle.flip;
+        }
+        break;
+      case "dpr":
+        dpr = parseDpr(value);
         break;
       case "ar":
         params.aspect = value;
@@ -466,6 +499,11 @@ function parseTransform(segment: string): TransformParams {
     }
   }
 
+  // Mirrors core: dpr_ scales w/h, so dpr_2,w_400 shares w_800's key.
+  if (dpr !== undefined && dpr !== 1) {
+    if (width && width !== "auto") width = String(Math.round(parseInt(width) * dpr));
+    if (height && height !== "auto") height = String(Math.round(parseInt(height) * dpr));
+  }
   if (width) params.width = width;
   if (height) params.height = height;
   if (width && height) params.resize = `${width}x${height}`;

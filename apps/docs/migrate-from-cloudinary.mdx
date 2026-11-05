@@ -89,7 +89,7 @@ Openinary covers resizing, cropping, formats, quality and video trimming. It has
 | Cloudinary | On Openinary |
 | --- | --- |
 | `q_auto:good`, `g_auto:subject` | `q_auto`, `g_auto` |
-| `dpr_2` | Double `w` instead |
+| `dpr_auto` | Serves 1x: Client Hints are not read. Numeric `dpr_2` works as is |
 | `t_thumbnail` (named transformation) | Write its parameters in the URL |
 | `l_<public_id>` image overlay | `l_` with Openinary's own parameters, see [overlays](/media-transformations/overlays) |
 | `e_` effects outside [this list](/api-reference/media/transform#effects), `u_`, `fl_`, `d_`, `bo_`, `x_`, `y_`, `z_`, `vc_` | Not supported, remove them |

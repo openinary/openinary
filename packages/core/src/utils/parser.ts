@@ -1,5 +1,11 @@
 import { ValidationError } from "./errors";
-import { parseBackgroundValue, parseColor, parseEffect } from "./image/effect-spec";
+import {
+  parseAngle,
+  parseBackgroundValue,
+  parseColor,
+  parseDpr,
+  parseEffect,
+} from "./image/effect-spec";
 import {
   CombindedTransformParams,
   CropMode,
@@ -52,14 +58,16 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<
 > = {
   w: /^\d+$|^auto$/,
   h: /^\d+$|^auto$/,
-  c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
+  c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad|mpad)$/,
   g: /^(center|c|north(?:_center)?|n|south(?:_center)?|s|east|e|west|w|faces?(?:_center)?|auto)$/,
   q: /^\d+$|^auto$/,
   // Only formats an encoder can actually produce. Image sources: webp/jpeg/png/
   // avif/gif via sharp. Video sources: mp4/webm/mov, plus the image formats as
   // thumbnails. psd is an accepted *upload* format but is never an output.
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
-  a: /^-?\d+$|^auto$/,
+  // Degrees, auto, and Cloudinary's modes joined with "." (a_hflip.90).
+  a: { test: (value: string) => parseAngle(value) !== undefined },
+  dpr: { test: (value: string) => parseDpr(value) !== undefined },
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   // Colors (hex, rgb:hex, CSS names, transparent) and b_auto[:mode]...
   b: { test: (value: string) => parseBackgroundValue(value) !== undefined },
@@ -137,7 +145,8 @@ type TransformKey =
   | "ls" // overlay tile spacing
   | "e" // effect, repeatable, applied in URL order
   | "o" // opacity 0-100
-  | "co"; // color qualifier (e_colorize)
+  | "co" // color qualifier (e_colorize)
+  | "dpr"; // device pixel ratio, multiplies w and h
 
 /**
  * Parse a single transformation segment into our
@@ -145,6 +154,7 @@ type TransformKey =
  */
 const parseTransform = (segment: string): CombindedTransformParams => {
   const params: CombindedTransformParams = {};
+  let dpr: number | undefined;
 
   const parts = segment.split(",");
 
@@ -178,6 +188,13 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         break;
       case "c":
         params.crop = mapCropMode(value);
+        {
+          // lfill/lpad never enlarge, mfit/mpad never reduce. A separate
+          // param rather than new crop names, so c_fill, c_pad, c_fit and
+          // c_limit URLs keep the params (and cache keys) they always had.
+          const limit = RESIZE_LIMITS[value];
+          if (limit) params.resizeLimit = limit;
+        }
         break;
       case "g":
         params.gravity = mapGravity(value);
@@ -196,15 +213,15 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         // Map directly, validation happens downstream
         params.format = value as VideoFormat & ImageFormat;
         break;
-      case "a":
-        // Angle of rotation (e.g. a_90, a_auto)
-        try {
-          params.rotate = value === "auto" ? undefined : parseInt(value);
-        } catch {
-          throw new Error(
-            "Parsing rotation value failed. Make sure it is an integer or 'auto'.",
-          );
-        }
+      case "a": {
+        // Angle of rotation (a_90, a_auto) and flips (a_hflip, a_vflip.45)
+        const angle = parseAngle(value);
+        params.rotate = angle?.rotate;
+        if (angle?.flip) params.flip = angle.flip;
+        break;
+      }
+      case "dpr":
+        dpr = parseDpr(value);
         break;
       case "ar":
         // Aspect ratio, usually like "16:9" already
@@ -336,6 +353,12 @@ const parseTransform = (segment: string): CombindedTransformParams => {
     }
   }
 
+  // dpr_2 with w_400 is exactly w_800: same params, same cached derivative.
+  if (dpr !== undefined && dpr !== 1) {
+    if (params.width) params.width = Math.round(params.width * dpr);
+    if (params.height) params.height = Math.round(params.height * dpr);
+  }
+
   if (
     (params.overlayXOffset != null && params.overlayYOffset == null) ||
     (params.overlayXOffset == null && params.overlayYOffset != null)
@@ -345,6 +368,13 @@ const parseTransform = (segment: string): CombindedTransformParams => {
     );
 
   return params;
+};
+
+const RESIZE_LIMITS: Readonly<Record<string, "down" | "up">> = {
+  lfill: "down",
+  lpad: "down",
+  mfit: "up",
+  mpad: "up",
 };
 
 const mapCropMode = (value: string): CropMode => {
@@ -364,6 +394,7 @@ const mapCropMode = (value: string): CropMode => {
       return "crop";
     case "pad":
     case "lpad":
+    case "mpad":
       return "pad";
     default:
       return "fill";

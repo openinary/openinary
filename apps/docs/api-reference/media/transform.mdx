@@ -44,9 +44,10 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | --- | --- | --- | --- |
 | `w` | integer | | Width in pixels |
 | `h` | integer | | Height in pixels |
-| `c` | `fill` `fit` `scale` `crop` `pad` | `fill` | `fill` crops the overflow, `fit` preserves ratio, `scale` may stretch, `pad` adds borders in `b` |
+| `c` | `fill` `fit` `scale` `crop` `pad` `lfill` `lpad` `mfit` `mpad` | `fill` | `fill` crops the overflow, `fit` preserves ratio without enlarging, `scale` may stretch, `pad` adds borders in `b`. See [limited modes](#limited-crop-modes) |
 | `ar` | `W:H` | | Aspect ratio, e.g. `ar_16:9` |
-| `a` | `-360` to `360`, or `auto` | | Rotate. `auto` follows EXIF orientation |
+| `a` | degrees, `auto`, `hflip`, `vflip`, joined with `.` | | Rotate and mirror, left to right: `a_hflip.90` mirrors then rotates |
+| `dpr` | `0.1` to `5`, or `auto` | `1` | Multiplies `w` and `h`: `dpr_2,w_400` is `w_800`. `auto` serves 1x, Client Hints are not read |
 | `g` | `center` `north` `south` `east` `west` `face` `auto` | `center` | Focal point when cropping |
 | `b` | `rgb:<hex>` (3, 4, 6 or 8 digits), a CSS color name, `transparent`, or [`auto`](#automatic-background) | | Fill color for `c_pad`, rotation, rounded corners and `o`. Alias `bg` |
 | `r` | integer, `v1:v2`, `v1:v2:v3`, `v1:v2:v3:v4`, or `max` | | Corner radius, clockwise from top-left. `max` gives a circle or oval |
@@ -59,6 +60,17 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 `g_face` uses saliency detection, not face detection. It keeps whatever region scores as most interesting, which on a portrait is normally the face.
 
 Corner radius is clamped to half the shorter side. Cut corners are transparent, so pair `r` with `f_png`, `f_webp` or `f_avif`, or add `b` to fill them and stay on JPEG.
+
+### Limited crop modes
+
+| Mode | Larger than the box | Smaller than the box |
+| --- | --- | --- |
+| `lfill` | Like `fill` | Not enlarged, only cropped to the box |
+| `lpad` | Like `pad` | Not enlarged, padded to the exact size |
+| `mfit` | Untouched | Enlarged to fit, like `fit` without its limit |
+| `mpad` | Untouched | Not enlarged, padded to the exact size |
+
+`c_limit` is the same as `c_fit`, which never enlarges. `lpad` and `mpad` place the image by `g` (`north`, `south`, `east`, `west`, default `center`) and fill with `b`.
 
 ### Automatic background
 
@@ -175,7 +187,7 @@ Only the short parameter keys work. The parser splits a segment at its first und
 
 Video URLs accept the image-only parameters `a`, `ar`, `r`, `b`, `e`, `o` and `co` and silently ignore them. The URL still works, the output is just re-encoded without them.
 
-For compatibility with Cloudinary-shaped URLs, `c` also accepts `lfill`, `fill_pad`, `limit`, `mfit`, `thumb` and `lpad`, and `g` also accepts `c`, `n`, `s`, `e`, `w`, `faces`, `face_center`, `faces_center`, `north_center` and `south_center`.
+For compatibility with Cloudinary-shaped URLs, `c` also accepts `fill_pad` (as `fill`), `limit` (as `fit`) and `thumb` (as `crop`), and `g` also accepts `c`, `n`, `s`, `e`, `w`, `faces`, `face_center`, `faces_center`, `north_center` and `south_center`.
 
 ## Related
 
