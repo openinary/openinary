@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { parseParams, isTransformSegment } from "./parser";
 import { ValidationError } from "./errors";
 import { transformImage } from "./image";
+import { overlaySize } from "./image/overlay";
 import { transformVideo } from "./video";
 import { TransformService } from "../services/transform.service";
 
@@ -96,6 +97,65 @@ test("image overlay is composited at the gravity with the requested opacity", as
     const [r, , b] = await pixel(out, 395, 295); // inside the bottom-right watermark
     assert.ok(Math.abs(r - 128) <= 3 && Math.abs(b - 127) <= 3, `blended ${r},${b}`);
     assert.deepEqual(await pixel(out, 5, 5), [0, 0, 255]); // untouched elsewhere
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("lw_ or lh_ alone keeps the overlay's aspect ratio; both set an exact size", () => {
+  // 300x80 logo on a 400x300 image
+  assert.deepEqual(overlaySize(300, 80, 400, 300, 80), { width: 80, height: 21 });
+  assert.deepEqual(overlaySize(300, 80, 400, 300, undefined, 40), { width: 150, height: 40 });
+  assert.deepEqual(overlaySize(300, 80, 400, 300, 120, 60), { width: 120, height: 60 });
+  assert.deepEqual(overlaySize(300, 80, 400, 300), { width: 300, height: 80 });
+  // Larger than the base: scaled down to fit, aspect kept (never cropped).
+  assert.deepEqual(overlaySize(800, 200, 400, 300), { width: 400, height: 100 });
+  assert.deepEqual(overlaySize(300, 80, 400, 300, 1000), { width: 400, height: 107 });
+});
+
+test("lw_ scales the overlay instead of cropping it", async () => {
+  const { dir, base, wm } = await fixtures();
+  try {
+    // 100x50 watermark at lw_50 is 50x25 in the bottom-right corner.
+    const params = parseParams("/t/l_wm.png,lo_100,lg_south_east,lw_50/base.png");
+    const out = await transformImage(base, { ...params, overlayPath: wm });
+    assert.deepEqual(await pixel(out, 395, 295), [255, 0, 0]); // inside it
+    assert.deepEqual(await pixel(out, 360, 280), [255, 0, 0]); // its left part
+    assert.deepEqual(await pixel(out, 395, 270), [0, 0, 255]); // above it: base
+    assert.deepEqual(await pixel(out, 345, 295), [0, 0, 255]); // left of it: base
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("ls_ leaves a gap between image tiles", async () => {
+  const { dir, base, wm } = await fixtures();
+  try {
+    // 100x50 tiles with a 20px gap: x 100-119 and y 50-69 stay base.
+    const params = parseParams("/t/l_wm.png,lo_100,lt_1,lg_nw,ls_20/base.png");
+    const out = await transformImage(base, { ...params, overlayPath: wm });
+    assert.deepEqual(await pixel(out, 50, 25), [255, 0, 0]);
+    assert.deepEqual(await pixel(out, 110, 25), [0, 0, 255]);
+    assert.deepEqual(await pixel(out, 50, 60), [0, 0, 255]);
+    assert.deepEqual(await pixel(out, 170, 25), [255, 0, 0]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("an overlay taller than the resized base is fitted, not an error", async () => {
+  const { dir, base } = await fixtures();
+  try {
+    const tall = join(dir, "tall.png");
+    await sharp({ create: { width: 50, height: 400, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } } })
+      .png()
+      .toFile(tall);
+    // w_200 makes the base 200x150; the 50x400 overlay must shrink to fit.
+    const params = parseParams("/t/w_200,l_tall.png,lo_100/base.png");
+    const out = await transformImage(base, { ...params, overlayPath: tall });
+    const meta = await sharp(out).metadata();
+    assert.equal(`${meta.width}x${meta.height}`, "200x150");
+    assert.deepEqual(await pixel(out, 100, 75), [255, 0, 0]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
