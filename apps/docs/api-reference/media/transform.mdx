@@ -29,6 +29,7 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | Rounded corners on a white page | `/t/w_600,h_400,r_16,b_rgb:ffffff/photo.jpg` |
 | 16:9 banner | `/t/ar_16:9,w_1920/banner.jpg` |
 | Padded to a fixed size | `/t/w_400,h_300,c_pad,b_rgb:f5f5f5/thumb.jpg` |
+| Padded with a color taken from the image | `/t/w_400,h_300,c_pad,b_auto/product.jpg` |
 | Brighten a dark photo | `/t/w_800,e_fill_light:70:20/photo.jpg` |
 | Blurred placeholder | `/t/w_40,e_blur:400/photo.jpg` |
 | Black and white | `/t/w_800,e_grayscale/photo.jpg` |
@@ -47,7 +48,7 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | `ar` | `W:H` | | Aspect ratio, e.g. `ar_16:9` |
 | `a` | `-360` to `360`, or `auto` | | Rotate. `auto` follows EXIF orientation |
 | `g` | `center` `north` `south` `east` `west` `face` `auto` | `center` | Focal point when cropping |
-| `b` | `rgb:<hex>` `#<hex>` `transparent` `white` `black` | | Fill color for `c_pad`, rotation and rounded corners. Alias `bg` |
+| `b` | `rgb:<hex>` (3, 4, 6 or 8 digits), a CSS color name, `transparent`, or [`auto`](#automatic-background) | | Fill color for `c_pad`, rotation, rounded corners and `o`. Alias `bg` |
 | `r` | integer, `v1:v2`, `v1:v2:v3`, `v1:v2:v3:v4`, or `max` | | Corner radius, clockwise from top-left. `max` gives a circle or oval |
 | `q` | `1` to `100`, or `auto` | `auto` | See [quality](#quality) |
 | `f` | `avif` `webp` `jpeg` `png` `gif` `auto` | browser's best | See [formats](#formats) |
@@ -58,6 +59,24 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 `g_face` uses saliency detection, not face detection. It keeps whatever region scores as most interesting, which on a portrait is normally the face.
 
 Corner radius is clamped to half the shorter side. Cut corners are transparent, so pair `r` with `f_png`, `f_webp` or `f_avif`, or add `b` to fill them and stay on JPEG.
+
+### Automatic background
+
+`b_auto` picks the fill color from the image, so a padded product shot does not end up with a jarring white band. Use it with `c_pad`.
+
+```
+b_auto[:mode][:number][:direction][:palette_<color1>_..._<colorN>]
+```
+
+| Mode | Color taken from |
+| --- | --- |
+| `border` (default) | The predominant color of the image's edges |
+| `predominant` | The predominant color of the whole image |
+| `border_contrast`, `predominant_contrast` | The color that contrasts most with the above |
+| `border_gradient`, `predominant_gradient` | A gradient between the predominant colors of each side |
+| `border_gradient_contrast`, `predominant_gradient_contrast` | A gradient of the contrasting colors |
+
+For gradients, `number` is `2` (default) or `4`. With 2 colors, `direction` is `horizontal` (default), `vertical`, `diagonal_desc` or `diagonal_asc`. With 4, each corner gets its own color. `palette_` limits the result to the listed colors, as CSS names or hex without `rgb:`, for example `b_auto:predominant:palette_white_black_navy`.
 
 ### Effects
 

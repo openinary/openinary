@@ -1,5 +1,5 @@
 import { ValidationError } from "./errors";
-import { parseColor, parseEffect } from "./image/effect-spec";
+import { parseBackgroundValue, parseColor, parseEffect } from "./image/effect-spec";
 import {
   CombindedTransformParams,
   CropMode,
@@ -61,8 +61,9 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
   a: /^-?\d+$|^auto$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
-  b: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
-  bg: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
+  // Colors (hex, rgb:hex, CSS names, transparent) and b_auto[:mode]...
+  b: { test: (value: string) => parseBackgroundValue(value) !== undefined },
+  bg: { test: (value: string) => parseBackgroundValue(value) !== undefined },
   so: /^\d+(?:\.\d+)?$/,
   eo: /^\d+(?:\.\d+)?$/,
   t: /^(true|1|\d+)$/,
@@ -459,22 +460,7 @@ const mapFullGravity = (value: string): FullGravityMode | undefined => {
   }
 };
 
-const mapBackground = (value: string): string => {
-  if (value.startsWith("rgb:")) {
-    const hex = value.substring("rgb:".length);
-    return `#${hex}`;
-  }
+const mapBackground = (value: string): string =>
+  // Validated by the b/bg pattern above, so never undefined here.
+  parseBackgroundValue(value) ?? value;
 
-  switch (value) {
-    case "transparent":
-      return "transparent";
-    case "white":
-      return "#ffffff";
-    case "black":
-      return "#000000";
-    default:
-      // Assume it's already a hex-like string
-      if (value.startsWith("#")) return value;
-      return `#${value}`;
-  }
-};

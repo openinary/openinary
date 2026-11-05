@@ -19,7 +19,7 @@
 
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
-import { parseColor, parseEffect } from "./effect-spec.js";
+import { parseBackgroundValue, parseColor, parseEffect } from "./effect-spec.js";
 
 export type TransformParams = Record<string, string>;
 
@@ -121,8 +121,10 @@ const TRANSFORM_VALUE_PATTERNS: Record<string, { test(value: string): boolean }>
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
   a: /^-?\d+$|^auto$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
-  b: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
-  bg: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
+  // Colors and b_auto, via effect-spec.ts (shared verbatim with core).
+  // Every value the old regex accepted maps to the same string as before.
+  b: { test: (value: string) => parseBackgroundValue(value) !== undefined },
+  bg: { test: (value: string) => parseBackgroundValue(value) !== undefined },
   so: /^\d+(?:\.\d+)?$/,
   eo: /^\d+(?:\.\d+)?$/,
   t: /^(true|1|\d+)$/,
@@ -345,19 +347,7 @@ function mapGravity(value: string): string {
 }
 
 function mapBackground(value: string): string {
-  if (value.startsWith("rgb:")) {
-    return `#${value.substring("rgb:".length)}`;
-  }
-  switch (value) {
-    case "transparent":
-      return "transparent";
-    case "white":
-      return "#ffffff";
-    case "black":
-      return "#000000";
-    default:
-      return value.startsWith("#") ? value : `#${value}`;
-  }
+  return parseBackgroundValue(value) ?? value;
 }
 
 // Mirrors core's parseTransform (utils/parser.js) exactly, insertion order
