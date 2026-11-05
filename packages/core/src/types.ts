@@ -59,6 +59,9 @@ export interface ImageTransformParams
   extends ImageResizeTransformParams, OverlayTransformParams {
   aspect?: string;
   rotate?: number;
+  // a_ignore: keep the stored pixel orientation instead of following EXIF.
+  // Only ever set to true, so URLs without a_ignore keep their cache keys.
+  ignoreOrientation?: boolean;
   quality?: number | "auto";
   format?: ImageFormat;
   radius?: string; // e.g. "150", "20:80", "20:0:40:60", "max"

@@ -56,7 +56,7 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<Record<TransformKey, RegExp>> = {
   // avif/gif via sharp. Video sources: mp4/webm/mov, plus the image formats as
   // thumbnails. psd is an accepted *upload* format but is never an output.
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
-  a: /^-?\d+$|^auto$/,
+  a: /^-?\d+$|^auto$|^ignore$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   b: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
   bg: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
@@ -185,7 +185,12 @@ const parseTransform = (segment: string): CombindedTransformParams => {
         params.format = value as VideoFormat & ImageFormat;
         break;
       case "a":
-        // Angle of rotation (e.g. a_90, a_auto)
+        // Angle of rotation (e.g. a_90, a_auto). EXIF orientation is always
+        // followed, so a_auto adds nothing; a_ignore opts out of it.
+        if (value === "ignore") {
+          params.ignoreOrientation = true;
+          break;
+        }
         try {
           params.rotate = value === "auto" ? undefined : parseInt(value);
         } catch {

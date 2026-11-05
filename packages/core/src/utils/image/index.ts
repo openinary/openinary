@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import Psd from "@webtoon/psd";
 import { applyAspectRatio } from "./aspect-ratio";
 import { applyRotation } from "./rotation";
+import { applyAutoOrient } from "./orientation";
 import { applyQuality } from "./quality";
 import { applyRoundCorners } from "./round-corners";
 import { applyOverlayImage } from "./overlay";
@@ -41,6 +42,12 @@ export const transformImage = async (
   let image = inputPath.toLowerCase().endsWith(".psd")
     ? await decodePsd(inputPath)
     : sharp(inputPath, SHARP_INPUT_OPTIONS);
+
+  // 0. Follow EXIF orientation (opt out with a_ignore). First, so every later
+  //    step works on upright dimensions.
+  if (!params.ignoreOrientation) {
+    image = await applyAutoOrient(image);
+  }
 
   // 1. Apply rotation (if specified)
   if (params.rotate) {

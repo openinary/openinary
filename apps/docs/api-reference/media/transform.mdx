@@ -42,7 +42,7 @@ On Cloud the same path sits behind a bucket prefix, `/b/{bucketId}/t/...`. See [
 | `h` | integer | | Height in pixels |
 | `c` | `fill` `fit` `scale` `crop` `pad` | `fill` | `fill` crops the overflow, `fit` preserves ratio, `scale` may stretch, `pad` adds borders in `b` |
 | `ar` | `W:H` | | Aspect ratio, e.g. `ar_16:9` |
-| `a` | `-360` to `360`, or `auto` | | Rotate. `auto` follows EXIF orientation |
+| `a` | `-360` to `360`, `auto`, or `ignore` | | Rotate by degrees. EXIF orientation is always applied first (`auto` is accepted and adds nothing); `ignore` keeps the stored pixel orientation |
 | `g` | `center` `north` `south` `east` `west` `face` `auto` | `center` | Focal point when cropping |
 | `b` | `rgb:<hex>` `#<hex>` `transparent` `white` `black` | | Fill color for `c_pad`, rotation and rounded corners. Alias `bg` |
 | `r` | integer, `v1:v2`, `v1:v2:v3`, `v1:v2:v3:v4`, or `max` | | Corner radius, clockwise from top-left. `max` gives a circle or oval |

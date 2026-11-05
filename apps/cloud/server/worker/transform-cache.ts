@@ -118,7 +118,7 @@ const TRANSFORM_VALUE_PATTERNS: Record<string, RegExp> = {
   // f_psd/f_avi/f_mp3/f_wav/f_ogg/f_pdf segments no longer parse as
   // transforms and fall through to the container's 404, here and in core.
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
-  a: /^-?\d+$|^auto$/,
+  a: /^-?\d+$|^auto$|^ignore$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   b: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
   bg: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
