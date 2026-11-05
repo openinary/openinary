@@ -1,5 +1,6 @@
 /**
- * Parsing and validation of `e_` effect values, with no image library
+ * Parsing and validation of `e_` effect values and color values (co_, b_,
+ * b_auto), with no image library
  * imported, so the URL parser can decide whether a segment is a
  * transformation without loading sharp. Applying effects lives in
  * effects.ts.
@@ -241,4 +242,105 @@ export const numericArg = (effect: ParsedEffect, index: number): number => {
   const raw = effect.args[index];
   if (raw !== undefined && raw !== "") return Number(raw);
   return EFFECT_DEFAULTS[effect.name]?.[index] ?? 0;
+};
+
+/** b_auto modes. Gradient modes paint the pad area with a gradient. */
+export type AutoBackgroundMode =
+  | "border"
+  | "predominant"
+  | "border_contrast"
+  | "predominant_contrast"
+  | "border_gradient"
+  | "predominant_gradient"
+  | "border_gradient_contrast"
+  | "predominant_gradient_contrast";
+
+export interface AutoBackgroundSpec {
+  /** Sample only the edge pixels (border) or the whole image (predominant). */
+  source: "border" | "predominant";
+  contrast: boolean;
+  gradient: boolean;
+  /** Gradient colors, 2 or 4. */
+  colors: 2 | 4;
+  direction: "horizontal" | "vertical" | "diagonal_desc" | "diagonal_asc";
+  /** Allowed colors as "#hex"; the result is snapped to the nearest one. */
+  palette?: string[];
+}
+
+const AUTO_MODES = new Set<string>([
+  "border",
+  "predominant",
+  "border_contrast",
+  "predominant_contrast",
+  "border_gradient",
+  "predominant_gradient",
+  "border_gradient_contrast",
+  "predominant_gradient_contrast",
+]);
+const GRADIENT_DIRECTIONS = new Set([
+  "horizontal",
+  "vertical",
+  "diagonal_desc",
+  "diagonal_asc",
+]);
+
+/**
+ * b_auto[:mode][:number][:direction][:palette_<c1>_..._<cn>], as in
+ * Cloudinary. number and direction only apply to gradient modes; palette
+ * colors are CSS names or hex without "rgb:".
+ */
+export const parseAutoBackground = (value: string): AutoBackgroundSpec | undefined => {
+  const parts = value.split(":");
+  if (parts.shift() !== "auto") return undefined;
+  let mode = "border";
+  if (parts[0] && AUTO_MODES.has(parts[0])) mode = parts.shift()!;
+  const gradient = mode.includes("_gradient");
+  let colors: 2 | 4 = 2;
+  let direction: AutoBackgroundSpec["direction"] = "horizontal";
+  if (gradient && (parts[0] === "2" || parts[0] === "4")) {
+    colors = Number(parts.shift()) as 2 | 4;
+  }
+  if (gradient && parts[0] && GRADIENT_DIRECTIONS.has(parts[0])) {
+    direction = parts.shift() as AutoBackgroundSpec["direction"];
+  }
+  let palette: string[] | undefined;
+  if (parts[0]?.startsWith("palette_")) {
+    palette = [];
+    for (const name of parts.shift()!.substring("palette_".length).split("_")) {
+      const color = parseColor(name);
+      if (!color) return undefined;
+      palette.push(color);
+    }
+  }
+  if (parts.length > 0) return undefined;
+  return {
+    source: mode.startsWith("border") ? "border" : "predominant",
+    contrast: mode.endsWith("_contrast"),
+    gradient,
+    colors,
+    direction,
+    ...(palette && { palette }),
+  };
+};
+
+/**
+ * Normalize a b_ / bg_ value. Values that were valid before b_auto and
+ * named colors keep the exact output they always had ("rgb:ABC" -> "#ABC",
+ * case kept), because that string is part of every cached derivative's key.
+ * b_auto values are kept verbatim and resolved against the image later.
+ */
+export const parseBackgroundValue = (value: string): string | undefined => {
+  if (value === "auto" || value.startsWith("auto:")) {
+    return parseAutoBackground(value) ? value : undefined;
+  }
+  if (value === "transparent") return "transparent";
+  if (value === "white") return "#ffffff";
+  if (value === "black") return "#000000";
+  if (/^(rgb:|#)?[0-9a-fA-F]{3,8}$/.test(value)) {
+    // 5 and 7 digits were always accepted (and drawn white); keep them so
+    // those URLs do not start answering 404.
+    return `#${value.replace(/^rgb:/, "").replace(/^#/, "")}`;
+  }
+  const named = NAMED_COLORS[value.toLowerCase()];
+  return named ? `#${named}` : undefined;
 };

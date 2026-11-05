@@ -9,6 +9,8 @@ import { applyOverlayImage } from "./overlay";
 import { applyResize } from "./resize";
 import { applyEffects, hasEffects } from "./effects";
 import { parseBackgroundColor } from "./background";
+import { gradientCanvas, resolveAutoBackground } from "./auto-background";
+import { parseAutoBackground } from "./effect-spec";
 import { ImageTransformParams } from "../../types";
 import { SHARP_INPUT_OPTIONS } from "./sharp-options";
 
@@ -38,11 +40,24 @@ async function decodePsd(inputPath: string): Promise<sharp.Sharp> {
  */
 export const transformImage = async (
   inputPath: string,
-  params: ImageTransformParams,
+  inputParams: ImageTransformParams,
 ): Promise<Buffer> => {
   let image = inputPath.toLowerCase().endsWith(".psd")
     ? await decodePsd(inputPath)
     : sharp(inputPath, SHARP_INPUT_OPTIONS);
+
+  // 0. Resolve b_auto against the source image, so every step that uses the
+  // background (pad, rotation, rounded corners, opacity) gets a real color.
+  let params = inputParams;
+  let padGradient: Awaited<ReturnType<typeof resolveAutoBackground>>["gradient"];
+  const autoSpec = params.background
+    ? parseAutoBackground(params.background)
+    : undefined;
+  if (autoSpec) {
+    const resolved = await resolveAutoBackground(image, autoSpec);
+    params = { ...params, background: resolved.color };
+    padGradient = resolved.gradient;
+  }
 
   // 1. Apply rotation (if specified)
   if (params.rotate) {
@@ -61,14 +76,25 @@ export const transformImage = async (
 
   // 3. Apply resize (if width or height specified)
   if (params.width || params.height) {
+    const crop = params.crop || "fill";
     image = await applyResize(
       image,
-      params.crop || "fill",
+      crop,
       params.gravity || "center",
-      params.background,
+      // A gradient pad is painted underneath: pad with transparency first.
+      padGradient && crop === "pad" ? "transparent" : params.background,
       params.width,
       params.height,
     );
+    if (padGradient && crop === "pad") {
+      const { data, info } = await image.png().toBuffer({ resolveWithObject: true });
+      image = sharp(
+        await gradientCanvas(info.width, info.height, padGradient)
+          .composite([{ input: data }])
+          .png()
+          .toBuffer(),
+      );
+    }
   }
 
   // 4. Apply effects (e_) and opacity (o_), after resize so they work on the

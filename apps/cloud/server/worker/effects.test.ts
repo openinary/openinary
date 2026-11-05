@@ -35,6 +35,12 @@ for (const segment of [
   "co_rgb:20a020,e_colorize",
   "o_40,b_white",
   "e_trim:50:yellow",
+  "c_pad,w_300,h_100,b_auto",
+  "c_pad,w_300,h_100,b_auto:predominant_gradient_contrast:4",
+  "c_pad,b_auto:border:palette_red_00ff00",
+  "b_rgb:ABCDEF",
+  "bg_red",
+  "b_rgb:12345",
   // rejected by both
   "e_vignette",
   "e_blur:0",
@@ -42,6 +48,9 @@ for (const segment of [
   "o_101",
   "co_notacolor",
   "e_fill_light:101",
+  "b_auto:middle",
+  "b_auto:border:palette_nope",
+  "b_notacolor",
 ]) {
   assert.equal(isTransformSegment(segment), coreAccepts(segment), `disagree on ${segment}`);
   if (!coreAccepts(segment)) continue;
@@ -58,4 +67,9 @@ assert.deepEqual(parseParams("/t/e_fill_light:70:20,e_blur,o_40,co_red/a.jpg"), 
   color: "#ff0000",
 });
 
-console.log("effects: worker and core agree on e_/o_/co_");
+// b_ values that existed before b_auto keep their exact params (cache keys).
+assert.equal(parseParams("/t/b_rgb:ABCDEF/a.jpg").background, "#ABCDEF");
+assert.equal(parseParams("/t/bg_white/a.jpg").background, "#ffffff");
+assert.equal(parseParams("/t/b_auto:predominant/a.jpg").background, "auto:predominant");
+
+console.log("effects: worker and core agree on e_/o_/co_/b_");
