@@ -41,6 +41,15 @@ for (const segment of [
   "b_rgb:ABCDEF",
   "bg_red",
   "b_rgb:12345",
+  "dpr_2,w_400,h_300",
+  "w_400,dpr_1.5,c_fill",
+  "a_hflip",
+  "a_vflip.45,w_100",
+  "a_90.hflip",
+  "c_lfill,w_100,h_100",
+  "c_lpad,w_200,h_100,b_auto",
+  "c_mfit,w_300",
+  "c_mpad,w_300,h_300",
   // rejected by both
   "e_vignette",
   "e_blur:0",
@@ -51,6 +60,10 @@ for (const segment of [
   "b_auto:middle",
   "b_auto:border:palette_nope",
   "b_notacolor",
+  "dpr_6",
+  "dpr_0",
+  "a_hflip.png",
+  "a_sideways",
 ]) {
   assert.equal(isTransformSegment(segment), coreAccepts(segment), `disagree on ${segment}`);
   if (!coreAccepts(segment)) continue;
@@ -72,4 +85,14 @@ assert.equal(parseParams("/t/b_rgb:ABCDEF/a.jpg").background, "#ABCDEF");
 assert.equal(parseParams("/t/bg_white/a.jpg").background, "#ffffff");
 assert.equal(parseParams("/t/b_auto:predominant/a.jpg").background, "auto:predominant");
 
-console.log("effects: worker and core agree on e_/o_/co_/b_");
+// dpr_ shares the scaled URL's key; a_ and c_ values that existed keep theirs.
+assert.deepEqual(parseParams("/t/dpr_2,w_400/a.jpg"), parseParams("/t/w_800/a.jpg"));
+assert.equal(parseParams("/t/a_auto/a.jpg").rotate, "auto");
+assert.equal(parseParams("/t/a_-90/a.jpg").rotate, "-90");
+assert.equal(parseParams("/t/c_lpad,w_10/a.jpg").crop, "pad");
+assert.equal(parseParams("/t/c_pad,w_10/a.jpg").resizeLimit, undefined);
+// A root file named like a transform is still a file.
+assert.equal(isTransformSegment("a_hflip.png"), false);
+assert.equal(isTransformSegment("dpr_2.png"), false);
+
+console.log("effects: worker and core agree on e_/o_/co_/b_/a_/dpr_/c_");

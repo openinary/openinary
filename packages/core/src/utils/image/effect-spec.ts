@@ -1,6 +1,6 @@
 /**
- * Parsing and validation of `e_` effect values and color values (co_, b_,
- * b_auto), with no image library
+ * Parsing and validation of `e_` effect values, color values (co_, b_,
+ * b_auto), angles (a_) and dpr_, with no image library
  * imported, so the URL parser can decide whether a segment is a
  * transformation without loading sharp. Applying effects lives in
  * effects.ts.
@@ -343,4 +343,46 @@ export const parseBackgroundValue = (value: string): string | undefined => {
   }
   const named = NAMED_COLORS[value.toLowerCase()];
   return named ? `#${named}` : undefined;
+};
+
+/**
+ * a_ value: degrees, "auto", or Cloudinary's modes joined with "."
+ * (a_hflip, a_vflip.45, a_90.hflip). Applied left to right; normalized to
+ * "flip first, then rotate", which is how the pipeline runs: a flip after a
+ * rotation by t equals the same flip before a rotation by -t.
+ * "auto" and "ignore" add nothing here: they are about EXIF orientation.
+ */
+export const parseAngle = (
+  value: string,
+): { rotate?: number; flip?: "h" | "v" | "hv" } | undefined => {
+  let angle: number | undefined;
+  let h = false;
+  let v = false;
+  for (const token of value.split(".")) {
+    if (/^-?\d+$/.test(token)) {
+      angle = (angle ?? 0) + Number(token);
+    } else if (token === "hflip" || token === "vflip") {
+      if (token === "hflip") h = !h;
+      else v = !v;
+      if (angle !== undefined) angle = -angle;
+    } else if (token !== "auto" && token !== "ignore") {
+      return undefined;
+    }
+  }
+  const flip = h && v ? "hv" : h ? "h" : v ? "v" : undefined;
+  return {
+    ...(angle !== undefined && { rotate: angle }),
+    ...(flip && { flip }),
+  };
+};
+
+/**
+ * dpr_: a device pixel ratio from 0.1 to 5 that multiplies w and h, or
+ * "auto", which serves 1x (Client Hints are not read).
+ */
+export const parseDpr = (value: string): number | undefined => {
+  if (value === "auto") return 1;
+  if (!/^\d(\.\d{1,2})?$/.test(value)) return undefined;
+  const dpr = Number(value);
+  return dpr >= 0.1 && dpr <= 5 ? dpr : undefined;
 };

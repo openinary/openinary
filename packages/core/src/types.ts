@@ -37,6 +37,8 @@ export interface BackgroundColor {
 
 export interface ImageResizeTransformParams {
   crop?: CropMode;
+  /** c_lfill/c_lpad: never enlarge ("down"); c_mfit/c_mpad: never reduce ("up"). */
+  resizeLimit?: "down" | "up";
   gravity?: GravityMode;
   background?: string;
   width?: number;
@@ -59,6 +61,7 @@ export interface ImageTransformParams
   extends ImageResizeTransformParams, OverlayTransformParams {
   aspect?: string;
   rotate?: number;
+  flip?: "h" | "v" | "hv"; // a_hflip / a_vflip, applied before rotate
   quality?: number | "auto";
   format?: ImageFormat;
   radius?: string; // e.g. "150", "20:80", "20:0:40:60", "max"
