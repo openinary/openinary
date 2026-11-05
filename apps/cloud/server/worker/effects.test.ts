@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseParams as coreParseParams } from "@openinary/core";
 import { toCloudCacheParams } from "../api/lib/cache-params.js";
+import { scopeCdnOverlay } from "./overlay.js";
 import { generateCacheKey, isTransformSegment, parseParams } from "./transform-cache.js";
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
@@ -24,6 +25,12 @@ assert.equal(
 const FILE = "ugc/user_123/bucket_abc/a/photo.jpg";
 const coreAccepts = (segment: string) =>
   Object.keys(coreParseParams(`/t/${segment}/a/photo.jpg`)).length > 0;
+// What core keys on: TransformService takes d_ out before anything is keyed.
+const coreKeyParams = (path: string) => {
+  const params = coreParseParams(path) as Record<string, unknown>;
+  delete params.defaultImage;
+  return toCloudCacheParams(params);
+};
 
 for (const segment of [
   "e_fill_light",
@@ -50,6 +57,10 @@ for (const segment of [
   "c_lpad,w_200,h_100,b_auto",
   "c_mfit,w_300",
   "c_mpad,w_300,h_300",
+  "w_100,bo_4px_solid_red",
+  "bo_60px_solid_rgb:00390b60",
+  "c_pad,w_300,h_100,b_blurred:400:15",
+  "w_100,d_placeholders:avatar.png",
   // rejected by both
   "e_vignette",
   "e_blur:0",
@@ -64,11 +75,14 @@ for (const segment of [
   "dpr_0",
   "a_hflip.png",
   "a_sideways",
+  "bo_4px_dashed_red",
+  "b_blurred:0",
+  "d_..:secret.png",
 ]) {
   assert.equal(isTransformSegment(segment), coreAccepts(segment), `disagree on ${segment}`);
   if (!coreAccepts(segment)) continue;
   assert.equal(
-    generateCacheKey(FILE, toCloudCacheParams(coreParseParams(`/t/${segment}/${FILE}`))),
+    generateCacheKey(FILE, coreKeyParams(`/t/${segment}/${FILE}`)),
     generateCacheKey(FILE, parseParams(`/t/${segment}/${FILE}`)),
     `fallback key drifted for ${segment}`,
   );
@@ -95,4 +109,24 @@ assert.equal(parseParams("/t/c_pad,w_10/a.jpg").resizeLimit, undefined);
 assert.equal(isTransformSegment("a_hflip.png"), false);
 assert.equal(isTransformSegment("dpr_2.png"), false);
 
-console.log("effects: worker and core agree on e_/o_/co_/b_/a_/dpr_/c_");
+// d_ never reaches the container: its path is not tenant-scoped.
+{
+  const scoped = (path: string) => {
+    const result = scopeCdnOverlay(
+      new URL(`https://cdn.example${path}`),
+      "bucket_abc",
+      "ugc/user_123/bucket_abc",
+    );
+    assert.ok(result.ok);
+    return result.ok ? result.url.pathname : "";
+  };
+  assert.equal(
+    scoped("/b/bucket_abc/t/w_100,d_ugc:other:bucket:secret.png/a.jpg"),
+    "/b/bucket_abc/t/w_100/a.jpg",
+  );
+  assert.equal(scoped("/b/bucket_abc/t/d_avatar.png/a.jpg"), "/b/bucket_abc/t/a.jpg");
+  assert.equal(scoped("/b/bucket_abc/t/w_100/a.jpg"), "/b/bucket_abc/t/w_100/a.jpg");
+  assert.equal(parseParams("/t/w_100,d_avatar.png/a.jpg").defaultImage, undefined);
+}
+
+console.log("effects: worker and core agree on e_/o_/co_/b_/a_/dpr_/c_/bo_/d_");

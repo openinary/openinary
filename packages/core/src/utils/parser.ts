@@ -2,6 +2,7 @@ import { ValidationError } from "./errors";
 import {
   parseAngle,
   parseBackgroundValue,
+  parseBorder,
   parseColor,
   parseDpr,
   parseEffect,
@@ -68,6 +69,9 @@ const TRANSFORM_VALUE_PATTERNS: Readonly<
   // Degrees, auto, and Cloudinary's modes joined with "." (a_hflip.90).
   a: { test: (value: string) => parseAngle(value) !== undefined },
   dpr: { test: (value: string) => parseDpr(value) !== undefined },
+  bo: { test: (value: string) => parseBorder(value) !== undefined },
+  // Default image when the requested one is missing, folders as ":" like l_.
+  d: /^[\w-]+(?:\:[\w-]+)*\.\w+$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
   // Colors (hex, rgb:hex, CSS names, transparent) and b_auto[:mode]...
   b: { test: (value: string) => parseBackgroundValue(value) !== undefined },
@@ -146,7 +150,9 @@ type TransformKey =
   | "e" // effect, repeatable, applied in URL order
   | "o" // opacity 0-100
   | "co" // color qualifier (e_colorize)
-  | "dpr"; // device pixel ratio, multiplies w and h
+  | "dpr" // device pixel ratio, multiplies w and h
+  | "bo" // border
+  | "d"; // default image
 
 /**
  * Parse a single transformation segment into our
@@ -222,6 +228,14 @@ const parseTransform = (segment: string): CombindedTransformParams => {
       }
       case "dpr":
         dpr = parseDpr(value);
+        break;
+      case "bo":
+        params.border = value;
+        break;
+      case "d":
+        // Same sanitizing as l_ (its pattern already rejects "..", "/" and
+        // a leading separator); ":" is the folder separator.
+        params.defaultImage = value.replaceAll(":", "/");
         break;
       case "ar":
         // Aspect ratio, usually like "16:9" already

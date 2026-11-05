@@ -10,7 +10,11 @@ import { applyResize } from "./resize";
 import { applyEffects, hasEffects } from "./effects";
 import { parseBackgroundColor } from "./background";
 import { gradientCanvas, resolveAutoBackground } from "./auto-background";
-import { parseAutoBackground } from "./effect-spec";
+import {
+  parseAutoBackground,
+  parseBlurredBackground,
+  parseBorder,
+} from "./effect-spec";
 import { ImageTransformParams } from "../../types";
 import { SHARP_INPUT_OPTIONS } from "./sharp-options";
 
@@ -48,15 +52,36 @@ export const transformImage = async (
 
   // 0. Resolve b_auto against the source image, so every step that uses the
   // background (pad, rotation, rounded corners, opacity) gets a real color.
+  // b_blurred pads with a blurred copy of the image instead of a color.
   let params = inputParams;
-  let padGradient: Awaited<ReturnType<typeof resolveAutoBackground>>["gradient"];
+  /** Paints what goes under a transparent pad (gradient, blurred copy). */
+  let padUnderlay: ((width: number, height: number) => Promise<Buffer>) | undefined;
   const autoSpec = params.background
     ? parseAutoBackground(params.background)
     : undefined;
   if (autoSpec) {
     const resolved = await resolveAutoBackground(image, autoSpec);
     params = { ...params, background: resolved.color };
-    padGradient = resolved.gradient;
+    const gradient = resolved.gradient;
+    if (gradient) {
+      padUnderlay = (w, h) => gradientCanvas(w, h, gradient).png().toBuffer();
+    }
+  }
+  const blurred = params.background
+    ? parseBlurredBackground(params.background)
+    : undefined;
+  if (blurred) {
+    // Elsewhere (rotation, rounded corners) b_blurred falls back to white.
+    params = { ...params, background: undefined };
+    const source = image.clone();
+    padUnderlay = (w, h) =>
+      source
+        .clone()
+        .resize({ width: w, height: h, fit: "cover" })
+        .blur(Math.max(0.3, blurred.intensity / 20))
+        .linear(Math.max(0, 1 + blurred.brightness / 100), 0)
+        .png()
+        .toBuffer();
   }
 
   // 1. Apply flips, then rotation (a_hflip, a_vflip.45). Materialized in
@@ -90,16 +115,17 @@ export const transformImage = async (
       image,
       crop,
       params.gravity || "center",
-      // A gradient pad is painted underneath: pad with transparency first.
-      padGradient && crop === "pad" ? "transparent" : params.background,
+      // A gradient or blurred pad is painted underneath: pad with
+      // transparency first.
+      padUnderlay && crop === "pad" ? "transparent" : params.background,
       params.width,
       params.height,
       params.resizeLimit,
     );
-    if (padGradient && crop === "pad") {
+    if (padUnderlay && crop === "pad") {
       const { data, info } = await image.png().toBuffer({ resolveWithObject: true });
       image = sharp(
-        await gradientCanvas(info.width, info.height, padGradient)
+        await sharp(await padUnderlay(info.width, info.height))
           .composite([{ input: data }])
           .png()
           .toBuffer(),
@@ -130,6 +156,26 @@ export const transformImage = async (
   // 5. Apply overlay image (if specified)
   if (params.overlayPath) {
     image = await applyOverlayImage(image, params);
+  }
+
+  // 5b. Border (bo_), around everything above. Materialized first: sharp
+  // would run extend() before a pending composite (the overlay).
+  const border = params.border ? parseBorder(params.border) : undefined;
+  if (border) {
+    const { r, g, b, alpha } = parseBackgroundColor(border.color);
+    image = sharp(
+      await sharp(await image.png().toBuffer())
+        .ensureAlpha()
+        .extend({
+          top: border.width,
+          bottom: border.width,
+          left: border.width,
+          right: border.width,
+          background: { r, g, b, alpha },
+        })
+        .png()
+        .toBuffer(),
+    );
   }
 
   // 6. Apply rounded corners (if specified)

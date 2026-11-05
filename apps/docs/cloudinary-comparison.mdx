@@ -26,7 +26,7 @@ The tables below are the detail behind that summary. Ready to move? [Migrate fro
 | Crop modes                   | ✓ 14 modes (`fill`, `pad`, `thumb`, `lfill`, `imagga_crop`, …)  | ✓ 9 modes (`fill`, `fit`, `scale`, `crop`, `pad`, `lfill`, `lpad`, `mfit`, `mpad`) |
 | Gravity / focal point        | ✓ Face, body, object, custom coordinates, auto (entropy)        | ✓ Face, compass directions, auto (entropy), center  |
 | Rotation (`a`)               | ✓ Degrees + `vflip`, `hflip`, `auto_right`, `auto_left`, EXIF   | ✓ Degrees, `vflip`, `hflip`, combined with `.`      |
-| Background color (`b`)       | ✓ Colors, `auto`, blurred, `gen_fill` (AI-generated)            | ✓ Hex, `rgb:`, CSS names, `transparent`, `auto` (all modes, palettes) |
+| Background color (`b`)       | ✓ Colors, `auto`, blurred, `gen_fill` (AI-generated)            | ✓ Hex, `rgb:`, CSS names, `transparent`, `auto` (all modes, palettes), blurred |
 | Round corners (`r`)          | ✓                                                               | ✓ Uniform, per-corner, or `max` (circle/oval)       |
 | Quality (`q`)                | ✓ Numeric + `auto` (content-aware)                              | ✓ Numeric 1-100 + `auto` (per-format)               |
 | Format (`f`)                 | ✓ AVIF, WebP, JPEG, PNG, GIF, HEIC, SVG, TIFF, BMP, PDF, `auto` | ✓ AVIF, WebP, JPEG, PNG, GIF, `auto` (via Accept header) |
@@ -35,7 +35,7 @@ The tables below are the detail behind that summary. Ready to move? [Migrate fro
 | Zoom (`z`)                   | ✓                                                               | ✗                                                   |
 | Named transformations        | ✓ (reusable presets)                                            | ✗                                                   |
 | Chained transformations      | ✓ (multiple steps in one URL)                                   | ✗                                                   |
-| Default image fallback (`d`) | ✓                                                               | ✗                                                   |
+| Default image fallback (`d`) | ✓                                                               | ✓ (self-hosted only for now)                        |
 
 ## Image effects
 
@@ -47,7 +47,8 @@ The tables below are the detail behind that summary. Ready to move? [Migrate fro
 | Grayscale, sepia, negate                | ✓          | ✓         |
 | Trim                                    | ✓          | ✓         |
 | Opacity (`o`)                           | ✓          | ✓         |
-| Vignette, shadow, outline, border       | ✓          | ✗         |
+| Border (`bo`)                           | ✓          | ✓         |
+| Vignette, shadow, outline               | ✓          | ✗         |
 | Pixelate (full, faces, regions)         | ✓          | ~ (full image only) |
 | Cartoonify, oil paint, artistic filters | ✓          | ✗         |
 | Color tint / colorize                   | ✓          | ✓         |
