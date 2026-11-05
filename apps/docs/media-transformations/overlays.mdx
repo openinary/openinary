@@ -19,7 +19,7 @@ The overlay must be a file in your own storage. Openinary never fetches an overl
 | `lo_` | Opacity, `0` (invisible) to `100` (opaque). Default `50`. | `lo_80` |
 | `lg_` | Position: `north`, `northeast`, `east`, `southeast`, `south`, `southwest`, `west`, `northwest`, `center` (default). Aliases like `south_east`, `bottom_right` or `se` work too. | `lg_southeast` |
 | `lx_`, `ly_` | Offset in pixels from the chosen position. Set both or neither. | `lx_20,ly_20` |
-| `lw_`, `lh_` | Overlay size in pixels, up to `8192`. | `lw_200` |
+| `lw_`, `lh_` | Overlay size in pixels, up to `8192`. Set one and the other follows the overlay's proportions; set both for an exact size. An overlay larger than the image is scaled down to fit. | `lw_200` |
 | `lt_` | Repeat the overlay across the whole asset. | `lt_1` |
 | `ls_` | Space between tiles in pixels (videos). | `ls_40` |
 
