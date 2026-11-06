@@ -8,6 +8,7 @@
 import { and, desc, eq, like } from "drizzle-orm";
 import { db } from "../api/db/index.js";
 import { videoJob } from "../api/db/schema/video-job.js";
+import { videoProcessingEstimate } from "./processing-eta.js";
 import { generateCacheKey, resolveStatusTarget } from "./transform-cache.js";
 
 // Mirrors PgVideoJobStore's serializeParams (video-job-store.ts): a plain
@@ -57,6 +58,14 @@ export async function videoStatusResponse(
   if (job.completedAt != null)
     body.completedAt = new Date(job.completedAt).toISOString();
   if (job.error) body.error = job.error;
+  // Same estimate the transform URL's 202 carries
+  if (status === "pending" || status === "processing") {
+    const estimate = await videoProcessingEstimate(env, filePath, params);
+    body.phase = estimate.phase;
+    body.estimatedSeconds = estimate.estimatedSeconds;
+    body.estimatedRange = estimate.estimatedRange;
+    body.retryAfter = estimate.retryAfter;
+  }
   return Response.json(body);
 }
 

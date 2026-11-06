@@ -13,7 +13,7 @@ import { applyTrimming } from "./trim";
 import { applyAutoDownscale } from "./auto-downscale";
 import { applyResize } from "./resize";
 import { applyQuality } from "./quality";
-import { VideoCommandBuilder } from "./command-builder";
+import { VideoCommandBuilder, type EncodeProgress } from "./command-builder";
 import type { VideoContext } from "./types";
 import { applyOverlay } from "./overlay";
 import { cleanupTempFile, prepareSourceFile } from "../../routes/transform-helpers";
@@ -22,6 +22,7 @@ import { CloudStorage, createStorageClient } from "../storage";
 // Re-export types for backward compatibility
 export * from "./types";
 export * from "./video-info";
+export type { EncodeProgress } from "./command-builder";
 
 /**
  * Image formats that ffmpeg cannot encode natively in all builds.
@@ -80,6 +81,7 @@ export const transformVideo = async (
   inputPath: string,
   params: VideoTransformParams,
   storage: CloudStorage | null,
+  onProgress?: (progress: EncodeProgress) => void,
 ): Promise<Buffer> => {
   // Create temporary directory for output
   const tmpDir = await mkdtemp(join(tmpdir(), "video-"));
@@ -144,7 +146,7 @@ export const transformVideo = async (
         applyOverlay,
         applyQuality,
       )
-    ).execute();
+    ).execute(onProgress);
 
     // Post-process with sharp if needed (e.g. JPEG → WebP/AVIF/PNG)
     if (needsSharpConversion) {

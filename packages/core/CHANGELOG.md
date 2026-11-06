@@ -1,5 +1,11 @@
 # @openinary/core
 
+## 1.8.0
+
+### Minor Changes
+
+- d99152f: Every 202 says when to ask again. The body carries `phase` (`queued` or `processing`, plus `waking` on the cloud), `progress`, `estimatedSeconds`, `estimatedRange` and `retryAfter`, and the response sets `Retry-After`, `X-Processing-Phase` and `X-Processing-Eta`. `/video-status` returns the same estimate. Video progress is now measured from ffmpeg against the trimmed output duration, and the estimate learns the encode speed per codec from finished jobs. The estimator is exported on its own subpath, `@openinary/core/eta`.
+
 ## 1.7.0
 
 ### Minor Changes

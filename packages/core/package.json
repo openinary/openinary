@@ -1,6 +1,6 @@
 {
   "name": "@openinary/core",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "description": "Openinary's media transformation engine and route handlers (image/video processing, storage, job queue) as a standalone, embeddable package.",
   "type": "module",
@@ -20,6 +20,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./eta": {
+      "types": "./dist/eta.d.ts",
+      "import": "./dist/eta.js",
+      "default": "./dist/eta.js"
     }
   },
   "scripts": {

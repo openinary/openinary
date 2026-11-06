@@ -15,15 +15,23 @@ The full parameter table is in the [API reference](/api-reference/media/transfor
 
 ## The first request returns 202
 
-A transformation that is not cached yet answers `202` with a `statusUrl`, not the original file. That is deliberate: an untransformed, full-size video is never served in place of the one you asked for.
+A transformation that is not cached yet answers `202`, not the original file. That is deliberate: an untransformed, full-size video is never served in place of the one you asked for.
 
 ```json
-{ "status": "processing", "statusUrl": "/video-status/w_640/videos/clip.mp4" }
+{
+  "status": "processing",
+  "phase": "queued",
+  "progress": 0,
+  "estimatedSeconds": 14,
+  "estimatedRange": [14, 31],
+  "retryAfter": 14,
+  "statusUrl": "/video-status/w_640/videos/clip.mp4"
+}
 ```
 
-Poll that URL until it reports `completed`, then request the transform again. Keep its transformation segment, since jobs are keyed on the path **and** its parameters. See [video status](/api-reference/video/status).
+Wait for `Retry-After` and request the same URL again; each `202` carries a fresher estimate, and once encoding starts it follows the encoder's real progress. You can also poll the `statusUrl`, keeping its transformation segment, since jobs are keyed on the path **and** its parameters. See [waiting on a 202](/api-reference/media/transform#waiting-on-a-202) and [video status](/api-reference/video/status).
 
-Encoding runs roughly 5 to 30 seconds per file. For anything you know you will serve, [prewarm it at upload](/media-transformations/upload-and-prewarm) so the first visitor never meets the `202`.
+Encoding time depends mostly on the output duration and format: WebM (VP9) is markedly slower than MP4 (H.264), and trimming with `so`/`eo` shortens the job. For anything you know you will serve, [prewarm it at upload](/media-transformations/upload-and-prewarm) so the first visitor never meets the `202`.
 
 ## Recipes
 
