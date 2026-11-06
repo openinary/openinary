@@ -20,7 +20,7 @@ import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "skullet/react";
 import {
   Tooltip,
   TooltipContent,
@@ -168,32 +168,31 @@ export function BucketsTab() {
               disabled={!canCreate}
             />
           </SettingsField>
-        {!quota.data && (
-          <p className="text-muted-foreground text-xs">
-            {quota.isError
-              ? "Couldn't check your plan's bucket limit."
-              : "Checking your plan's bucket limit…"}
-          </p>
-        )}
-        {quota.data && (
-          <p className="text-muted-foreground text-xs">
-            {quota.data.used} of {quota.data.limit} bucket
-            {quota.data.limit === 1 ? "" : "s"} used on your plan.
-            {atLimit && (
-              <>
-                {" "}
-                <button
-                  type="button"
-                  className="underline underline-offset-2 hover:text-foreground"
-                  onClick={() => setSettingsTab("billing")}
-                >
-                  Upgrade for more
-                </button>
-                .
-              </>
-            )}
-          </p>
-        )}
+          {quota.isError ? (
+            <p className="text-muted-foreground text-xs">
+              Couldn't check your plan's bucket limit.
+            </p>
+          ) : (
+            <Skeleton loading={!quota.data}>
+              <p className="text-muted-foreground text-xs">
+                {quota.data?.used ?? 1} of {quota.data?.limit ?? 3} bucket
+                {quota.data?.limit === 1 ? "" : "s"} used on your plan.
+                {atLimit && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      onClick={() => setSettingsTab("billing")}
+                    >
+                      Upgrade for more
+                    </button>
+                    .
+                  </>
+                )}
+              </p>
+            </Skeleton>
+          )}
           <SettingsActions>
             <Button
               type="submit"
@@ -214,103 +213,125 @@ export function BucketsTab() {
         title="Your buckets"
         description="Click a name to rename it. Deleting a bucket deletes its files."
       >
-        {buckets.isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : buckets.isError ? (
-          <p className="text-destructive text-sm">
-            Failed to load buckets.
-          </p>
-        ) : (
-          <SettingsList>
-            {buckets.data?.map((bucket) => (
-              <div
-                key={bucket.id}
-                className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm"
-              >
-                <BucketAvatar id={bucket.id} size={28} />
-                <div className="min-w-0 flex-1">
-                  {renamingId === bucket.id ? (
-                    <Input
-                      autoFocus
-                      value={renameValue}
-                      maxLength={60}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={() => commitRename(bucket.id, bucket.name)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          commitRename(bucket.id, bucket.name);
-                        if (e.key === "Escape") setRenamingId(null);
-                      }}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="flex max-w-full items-center gap-1.5 truncate rounded-md px-1 py-0.5 font-medium hover:bg-muted"
-                      onClick={() => {
-                        setRenamingId(bucket.id);
-                        setRenameValue(bucket.name);
-                      }}
-                      title="Rename"
-                    >
-                      <span className="truncate">{bucket.name}</span>
-                      {bucket.active && (
-                        <Check className="size-3.5 shrink-0 text-muted-foreground" />
-                      )}
-                    </button>
-                  )}
-                  <p className="mt-0.5 truncate px-1 text-[13px] text-muted-foreground">
-                    {describeFootprint(bucket)} · created{" "}
-                    {new Date(bucket.createdAt).toLocaleDateString()}
-                  </p>
+        {/* One skeleton across loading and loaded: under this id skullet
+            recalls the list as it last looked, so its height never changes. */}
+        <Skeleton
+          id="buckets"
+          loading={buckets.isLoading}
+          label="Loading buckets"
+        >
+          {buckets.isLoading ? (
+            // The rows below, without their data.
+            <SettingsList>
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm"
+                >
+                  <span
+                    className="size-7 shrink-0 rounded-full"
+                    skullet-block=""
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="px-1 py-0.5 font-medium">My bucket</p>
+                    <p className="mt-0.5 px-1 text-[13px]">
+                      12 files, 4.2 MB · created 1/1/2026
+                    </p>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  {bucket.active ? (
-                    <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs">
-                      Active
-                    </span>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-xs"
-                      disabled={isSwitching}
-                      onClick={() => switchToBucket(bucket.id)}
-                    >
-                      {switchingToId === bucket.id ? (
-                        <Spinner className="size-3.5" />
-                      ) : (
-                        "Switch"
-                      )}
-                    </Button>
-                  )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+              ))}
+            </SettingsList>
+          ) : buckets.isError ? (
+            <p className="text-destructive text-sm">Failed to load buckets.</p>
+          ) : (
+            <SettingsList>
+              {buckets.data?.map((bucket) => (
+                <div
+                  key={bucket.id}
+                  className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm"
+                >
+                  <BucketAvatar id={bucket.id} size={28} />
+                  <div className="min-w-0 flex-1">
+                    {renamingId === bucket.id ? (
+                      <Input
+                        autoFocus
+                        value={renameValue}
+                        maxLength={60}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => commitRename(bucket.id, bucket.name)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            commitRename(bucket.id, bucket.name);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                      />
+                    ) : (
                       <button
                         type="button"
-                        disabled={isOnlyBucket}
-                        onClick={() =>
-                          setToDelete({ id: bucket.id, name: bucket.name })
-                        }
-                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-40"
-                        aria-label="Delete bucket"
+                        className="flex max-w-full items-center gap-1.5 truncate rounded-md px-1 py-0.5 font-medium hover:bg-muted"
+                        onClick={() => {
+                          setRenamingId(bucket.id);
+                          setRenameValue(bucket.name);
+                        }}
+                        title="Rename"
                       >
-                        <Trash2 className="size-3.5" />
+                        <span className="truncate">{bucket.name}</span>
+                        {bucket.active && (
+                          <Check className="size-3.5 shrink-0 text-muted-foreground" />
+                        )}
                       </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {isOnlyBucket
-                        ? "You can't delete your only bucket"
-                        : "Delete"}
-                    </TooltipContent>
-                  </Tooltip>
+                    )}
+                    <p className="mt-0.5 truncate px-1 text-[13px] text-muted-foreground">
+                      {describeFootprint(bucket)} · created{" "}
+                      {new Date(bucket.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {bucket.active ? (
+                      <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs">
+                        Active
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs"
+                        disabled={isSwitching}
+                        onClick={() => switchToBucket(bucket.id)}
+                      >
+                        {switchingToId === bucket.id ? (
+                          <Spinner className="size-3.5" />
+                        ) : (
+                          "Switch"
+                        )}
+                      </Button>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={isOnlyBucket}
+                          onClick={() =>
+                            setToDelete({ id: bucket.id, name: bucket.name })
+                          }
+                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-40"
+                          aria-label="Delete bucket"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isOnlyBucket
+                          ? "You can't delete your only bucket"
+                          : "Delete"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </SettingsList>
-        )}
+              ))}
+            </SettingsList>
+          )}
+        </Skeleton>
       </SettingsSection>
 
       {/* DeleteConfirmDialog has no type-to-confirm field, and this one is

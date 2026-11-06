@@ -5,7 +5,7 @@ import { Database, HardDrive, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "skullet/react";
 import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
 import { cn } from "../lib/utils";
@@ -38,20 +38,18 @@ export function StorageTab() {
   const recalculate = useRecalculateStorageStats();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const stat = (size?: number, count?: number, noun = "file") =>
-    isLoading ? (
-      <Skeleton className="h-5 w-32" />
-    ) : (
-      <>
-        <span className="font-medium tabular-nums">
-          {formatBytes(size ?? 0)}
-        </span>
-        <span className="ml-2 text-muted-foreground tabular-nums">
-          {count ?? 0} {noun}
-          {(count ?? 0) === 1 ? "" : "s"}
-        </span>
-      </>
-    );
+  // While loading, the same markup over sample figures is measured into the skeleton.
+  const stat = (size?: number, count?: number, noun = "file") => (
+    <Skeleton loading={isLoading}>
+      <span className="font-medium tabular-nums">
+        {formatBytes(isLoading ? 123_456_789 : (size ?? 0))}
+      </span>
+      <span className="ml-2 text-muted-foreground tabular-nums">
+        {isLoading ? 128 : (count ?? 0)} {noun}
+        {(count ?? 0) === 1 ? "" : "s"}
+      </span>
+    </Skeleton>
+  );
 
   return (
     <div className="space-y-6">
@@ -110,10 +108,15 @@ export function StorageTab() {
                 {stat(data?.cache.size, data?.cache.fileCount, "cached file")}
               </SettingsRow>
             </SettingsList>
-            {!isLoading && data?.updatedAt && (
-              <p className="text-xs text-muted-foreground">
-                Updated {formatUpdatedAt(data.updatedAt)}
-              </p>
+            {/* Held under the skeleton while loading, so its line is there
+                from the start instead of pushing the cache section down. */}
+            {(isLoading || data?.updatedAt) && (
+              <Skeleton loading={isLoading}>
+                <p className="text-xs text-muted-foreground">
+                  Updated{" "}
+                  {data?.updatedAt ? formatUpdatedAt(data.updatedAt) : "just now"}
+                </p>
+              </Skeleton>
             )}
           </>
         )}

@@ -1,7 +1,13 @@
 "use client";
 
 import { CalendarDays, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
@@ -12,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton, SkeletonBox } from "skullet/react";
 
 export type UsageEvent = {
   id: string;
@@ -176,41 +182,138 @@ function Stat({
 }
 
 /** A bordered table with a sticky header, scrolling inside its own frame. */
+const SAMPLE_EVENTS: UsageEvent[] = [0, 1, 2, 3].map((i) => ({
+  id: `sample-${i}`,
+  time: 0,
+  status: 200,
+  kind: "image",
+  file: "photos/sample-file.jpg",
+  transform: "w_800,f_webp",
+}));
+
+// The table scrolls inside a 32rem frame, so past this many rows the extra
+// ones change nothing on screen.
+const MAX_REMEMBERED_ROWS = 15;
+const subscribeNothing = () => () => {};
+
+/**
+ * How many rows this table showed last time ("empty" for none), so the
+ * skeleton is the height the table will be. A plain count rather than
+ * skullet's remembered shape: a full table is past the size skullet stores.
+ */
+function useRememberedRows(id: string | undefined) {
+  const key = id && `openinary:table-rows:${id}`;
+  const remembered = useSyncExternalStore(
+    subscribeNothing,
+    () => {
+      try {
+        return key ? localStorage.getItem(key) : null;
+      } catch {
+        return null;
+      }
+    },
+    () => null,
+  );
+  const remember = useCallback(
+    (rows: number) => {
+      try {
+        if (key) localStorage.setItem(key, String(rows));
+      } catch {}
+    },
+    [key],
+  );
+  return [remembered === null ? null : Number(remembered), remember] as const;
+}
+
 export function UsageTable<Row>({
+  id,
   columns,
   rows,
   rowKey,
   empty,
   isLoading,
   isError,
+  sample,
 }: {
+  /** Remembers the row count under this key, for the next loading skeleton. */
+  id?: string;
   columns: UsageColumn<Row>[];
   rows: Row[];
   rowKey: (row: Row) => string;
   empty: string;
   isLoading?: boolean;
+  /** Stand-in rows the loading skeleton is measured from. */
+  sample?: Row[];
   isError?: boolean;
 }) {
+  const [rememberedRows, rememberRows] = useRememberedRows(id);
+  const known = !isLoading && !isError;
+  useEffect(() => {
+    if (known) rememberRows(Math.min(rows.length, MAX_REMEMBERED_ROWS));
+  }, [known, rows.length, rememberRows]);
+
   if (isError) {
     return <p className="text-sm text-destructive">Failed to load activity.</p>;
   }
+
+  const emptyState = (
+    <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+      {empty}
+    </p>
+  );
+
+  // One skeleton across loading and loaded, over the table itself: its cells
+  // filled from `sample` (or placeholder text), as many rows as it had last
+  // time, so the skeleton has the real columns, row height and length.
+  let content: React.ReactNode;
   if (isLoading) {
-    return (
-      <div className="space-y-1.5">
-        {[0, 1, 2, 3].map((row) => (
-          <Skeleton className="h-10 w-full" key={row} />
-        ))}
-      </div>
-    );
-  }
-  if (rows.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-        {empty}
-      </p>
+    const count = rememberedRows ?? sample?.length ?? 4;
+    content =
+      count === 0 ? (
+        emptyState
+      ) : (
+        <UsageTableBody<Row, number>
+          cell={(column, i) =>
+            sample?.length
+              ? column.cell(sample[i % sample.length] as Row)
+              : "Loading value"
+          }
+          columns={columns}
+          rowKey={String}
+          rows={Array.from({ length: count }, (_, i) => i)}
+        />
+      );
+  } else if (rows.length === 0) {
+    content = emptyState;
+  } else {
+    content = (
+      <UsageTableBody
+        cell={(column, row) => column.cell(row)}
+        columns={columns}
+        rowKey={rowKey}
+        rows={rows}
+      />
     );
   }
 
+  return (
+    <Skeleton loading={!!isLoading} label="Loading activity">
+      {content}
+    </Skeleton>
+  );
+}
+
+function UsageTableBody<Row, Item>({
+  columns,
+  rows,
+  rowKey,
+  cell,
+}: {
+  columns: UsageColumn<Row>[];
+  rows: Item[];
+  rowKey: (row: Item) => string;
+  cell: (column: UsageColumn<Row>, row: Item) => React.ReactNode;
+}) {
   return (
     <div className="max-h-[32rem] overflow-auto rounded-lg border bg-background">
       <table className="w-full text-sm">
@@ -237,7 +340,7 @@ export function UsageTable<Row>({
                   className={cn("px-4 py-2.5 align-middle", column.className)}
                   key={column.header}
                 >
-                  {column.cell(row)}
+                  {cell(column, row)}
                 </td>
               ))}
             </tr>
@@ -306,15 +409,19 @@ export function UsageDashboard({
   isRefreshing?: boolean;
   onRefresh?: () => void;
 }) {
-  const [rangeId, setRangeId] =
-    useState<(typeof RANGES)[number]["id"]>("7d");
+  const [rangeId, setRangeId] = useState<(typeof RANGES)[number]["id"]>("7d");
   const [kind, setKind] = useState("all");
   const [outcome, setOutcome] = useState("all");
   // Everything below depends on the clock and the viewer's locale, neither of
   // which the server shares. Nothing dated renders until the client has
   // mounted, or hydration would find different text than it was sent.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Mounted on the client from the start, so a page that only mounts there
+  // (the cloud dashboard) never shows the placeholder below at all.
+  const mounted = useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
 
   const range = RANGES.find(({ id }) => id === rangeId) ?? RANGES[1];
   // Without counts from the host, each event is a count of one.
@@ -401,10 +508,7 @@ export function UsageDashboard({
       header: "File",
       className: "max-w-0 w-full",
       cell: (event) => (
-        <UsageCell
-          detail={event.transform || "Original"}
-          value={event.file}
-        />
+        <UsageCell detail={event.transform || "Original"} value={event.file} />
       ),
     },
     { header: "Type", cell: (event) => event.kind },
@@ -423,9 +527,9 @@ export function UsageDashboard({
   if (!mounted) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-44 w-full" />
-        <Skeleton className="h-20 w-full" />
+        <SkeletonBox height={36} width="100%" />
+        <SkeletonBox height={176} width="100%" />
+        <SkeletonBox height={80} width="100%" />
       </div>
     );
   }
@@ -489,77 +593,87 @@ export function UsageDashboard({
         </div>
       </div>
 
-      <div className="rounded-lg border bg-muted/40">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-          <p className="text-sm font-medium">Deliveries over time</p>
-          <p className="flex items-center gap-4 text-[13px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-sky-500" />
-              {view.ok} delivered
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-red-500" />
-              {view.failed} failed
-            </span>
-          </p>
-        </div>
-        <div className="rounded-lg border-t bg-background px-4 pt-4 pb-2 shadow-[0_-1px_0_var(--border)]">
-          <div className="flex h-28 items-end gap-1 border-b">
-            {view.buckets.map((bucket) => (
-              <div
-                className="flex h-full flex-1 flex-col justify-end"
-                key={bucket.start}
-                title={`${formatTick(bucket.start, true)}: ${bucket.ok} delivered, ${bucket.failed} failed`}
-              >
-                <div
-                  className="rounded-t-sm bg-red-500"
-                  style={{ height: `${(bucket.failed / view.peak) * 100}%` }}
-                />
-                <div
-                  className={cn(
-                    "bg-sky-500",
-                    bucket.failed === 0 && "rounded-t-sm",
-                  )}
-                  style={{ height: `${(bucket.ok / view.peak) * 100}%` }}
-                />
+      {/* The figures keep their layout while loading: only their values
+          change, so they are drawn as skeleton over zeros. */}
+      <Skeleton loading={!!isLoading} label="Loading activity">
+        <div className="space-y-4">
+          <div className="rounded-lg border bg-muted/40">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+              <p className="text-sm font-medium">Deliveries over time</p>
+              <p className="flex items-center gap-4 text-[13px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-sky-500" />
+                  {view.ok} delivered
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-red-500" />
+                  {view.failed} failed
+                </span>
+              </p>
+            </div>
+            <div className="rounded-lg border-t bg-background px-4 pt-4 pb-2 shadow-[0_-1px_0_var(--border)]">
+              <div className="flex h-28 items-end gap-1 border-b">
+                {view.buckets.map((bucket) => (
+                  <div
+                    className="flex h-full flex-1 flex-col justify-end"
+                    key={bucket.start}
+                    title={`${formatTick(bucket.start, true)}: ${bucket.ok} delivered, ${bucket.failed} failed`}
+                  >
+                    <div
+                      className="rounded-t-sm bg-red-500"
+                      style={{
+                        height: `${(bucket.failed / view.peak) * 100}%`,
+                      }}
+                    />
+                    <div
+                      className={cn(
+                        "bg-sky-500",
+                        bucket.failed === 0 && "rounded-t-sm",
+                      )}
+                      style={{ height: `${(bucket.ok / view.peak) * 100}%` }}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+              <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground tabular-nums">
+                {ticks.map((tick) => (
+                  <span key={tick}>{formatTick(tick, rangeId !== "30d")}</span>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground tabular-nums">
-            {ticks.map((tick) => (
-              <span key={tick}>{formatTick(tick, rangeId !== "30d")}</span>
-            ))}
+
+          <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
+            <Stat
+              label="Total deliveries"
+              series={view.buckets.map((b) => b.ok + b.failed)}
+              value={String(total)}
+            />
+            <Stat
+              label="Images"
+              series={view.buckets.map((b) => b.image)}
+              value={String(view.images)}
+            />
+            <Stat
+              label="Videos"
+              series={view.buckets.map((b) => b.video)}
+              tone="text-violet-500"
+              value={String(view.videos)}
+            />
+            <Stat
+              label="Failure rate"
+              series={view.buckets.map((b) => b.failed)}
+              tone="text-red-500"
+              unit="%"
+              value={
+                total === 0
+                  ? "0"
+                  : String(Math.round((view.failed / total) * 100))
+              }
+            />
           </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
-        <Stat
-          label="Total deliveries"
-          series={view.buckets.map((b) => b.ok + b.failed)}
-          value={String(total)}
-        />
-        <Stat
-          label="Images"
-          series={view.buckets.map((b) => b.image)}
-          value={String(view.images)}
-        />
-        <Stat
-          label="Videos"
-          series={view.buckets.map((b) => b.video)}
-          tone="text-violet-500"
-          value={String(view.videos)}
-        />
-        <Stat
-          label="Failure rate"
-          series={view.buckets.map((b) => b.failed)}
-          tone="text-red-500"
-          unit="%"
-          value={
-            total === 0 ? "0" : String(Math.round((view.failed / total) * 100))
-          }
-        />
-      </div>
+      </Skeleton>
 
       {events.length >= limit && (
         <p className="text-xs text-muted-foreground">
@@ -578,8 +692,10 @@ export function UsageDashboard({
         }
         isError={isError}
         isLoading={isLoading}
+        id="deliveries"
         rowKey={(event) => event.id}
         rows={view.rows}
+        sample={SAMPLE_EVENTS}
       />
     </div>
   );

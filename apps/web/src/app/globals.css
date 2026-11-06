@@ -324,3 +324,10 @@ span:has(> [data-slot="slider-thumb"]) {
     animation: none;
   }
 }
+
+/* skullet skeletons follow the shadcn tokens, so they switch with .dark */
+:root {
+  --skullet-base: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --skullet-highlight: color-mix(in oklab, var(--background) 50%, transparent);
+  --skullet-radius: calc(var(--radius) - 4px);
+}

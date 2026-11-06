@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Settings } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "skullet/react";
 
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { Button } from "@/components/ui/button";
@@ -12,26 +13,38 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { CLOUD_AVAILABLE, FEATURES, isMeteredPlan } from "@/lib/usage";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const pct = (used: number, granted: number) =>
   granted > 0 ? Math.min(Math.round((used / granted) * 100), 100) : 0;
 
-export function UsagePanel() {
-  const { data, isLoading } = useQuery(orpc.usage.get.queryOptions());
-  const isMetered = isMeteredPlan(data?.planId);
+type Usage = Awaited<ReturnType<typeof client.usage.get>>;
 
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-1 px-2 pb-1">
-        {FEATURES.map((feature) => (
-          <Skeleton className="h-5 w-full" key={feature.id} />
-        ))}
-      </div>
-    );
-  }
+// Measured into the skeleton while the real figures load.
+const SAMPLE_USAGE = {
+  planId: "free",
+  features: Object.fromEntries(
+    FEATURES.map((feature) => [
+      feature.id,
+      { used: 512, granted: 1024, unlimited: false },
+    ]),
+  ),
+} as unknown as Usage;
+
+export function UsagePanel() {
+  const { data } = useQuery(orpc.usage.get.queryOptions());
+
+  return (
+    <Skeleton data={data} sample={SAMPLE_USAGE} label="Loading usage">
+      {(data) => <UsageRows data={data} />}
+    </Skeleton>
+  );
+}
+
+function UsageRows({ data }: { data: Usage }) {
+  const isMetered = isMeteredPlan(data.planId);
 
   // Rows on the menu's grid: the gauge sits in the icon column, so the
   // labels line up with every other item's text.
@@ -83,6 +96,7 @@ export function NavSettings() {
   const setSettingsTab = useSettingsPage();
   const { data: usage } = useQuery(orpc.usage.get.queryOptions());
   const metered = isMeteredPlan(usage?.planId);
+  const hydrated = useHydrated();
 
   return (
     <SidebarMenu>
@@ -97,14 +111,24 @@ export function NavSettings() {
             <span>Settings</span>
           </Link>
         </SidebarMenuButton>
-        {usage && !CLOUD_AVAILABLE && !metered && (
-          <Button
-            size="sm"
-            className="h-6 px-2 text-xs group-data-[collapsible=icon]:hidden"
-            onClick={() => setSettingsTab("billing")}
+        {/* Remembered under its id: a reload reserves the button's width only
+            when it was there last time, so Settings never narrows under it. */}
+        {hydrated && (
+          <Skeleton
+            id="nav-upgrade"
+            loading={!usage}
+            className="shrink-0 group-data-[collapsible=icon]:hidden"
           >
-            Upgrade
-          </Button>
+            {(!usage || (!CLOUD_AVAILABLE && !metered)) && (
+              <Button
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setSettingsTab("billing")}
+              >
+                Upgrade
+              </Button>
+            )}
+          </Skeleton>
         )}
       </SidebarMenuItem>
     </SidebarMenu>

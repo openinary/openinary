@@ -13,5 +13,13 @@ export default async function AppLayout({
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-  return <AppShell sidebarDefaultOpen={sidebarOpen}>{children}</AppShell>;
+  // Hint written by AppShell once the session is known, so the first paint
+  // can guess which screen is coming (shell skeleton or sign-in form).
+  const signedIn = cookieStore.get("signed_in")?.value === "1";
+
+  return (
+    <AppShell sidebarDefaultOpen={sidebarOpen} signedInHint={signedIn}>
+      {children}
+    </AppShell>
+  );
 }

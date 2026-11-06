@@ -3,18 +3,13 @@
 import { AssetDetailsSidebar } from "@/components/details-sidebar";
 import HeaderBar from "@/components/headerbar";
 import { Sheet } from "@/components/page";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { SidebarInset } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
-import { useSession } from "@/lib/auth-client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BottomSheet, MediaGrid, type MediaFile } from "@openinary/ui";
-import { useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { Suspense, useEffect, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
@@ -81,7 +76,9 @@ function HomePageContent() {
       const maxPercent = Math.min(100, (SIDEBAR_MAX_WIDTH_PX / width) * 100);
       // The px floor keeps the tabs and buttons from cramping on a tablet,
       // where 25% of the window is barely 200px.
-      setSidebarMinSize(Math.min(maxPercent, (SIDEBAR_MIN_WIDTH_PX / width) * 100));
+      setSidebarMinSize(
+        Math.min(maxPercent, (SIDEBAR_MIN_WIDTH_PX / width) * 100),
+      );
       setSidebarMaxSize(maxPercent);
       const panel = sidebarPanelRef.current;
       if (panel && panel.getSize() > maxPercent) {
@@ -103,123 +100,92 @@ function HomePageContent() {
   };
 
   return (
-    <>
-      <AppSidebar onMediaSelect={handleMediaSelect} />
-      <SidebarInset>
-        <div ref={panelGroupRef} className="h-screen w-full">
-          <ResizablePanelGroup direction="horizontal" className="h-screen">
-            <ResizablePanel
-              defaultSize={assetSidebarOpen && !isMobile ? 70 : 100}
-              minSize={30}
-              id="main-panel"
+    <div ref={panelGroupRef} className="h-screen w-full">
+      <ResizablePanelGroup direction="horizontal" className="h-screen">
+        <ResizablePanel
+          defaultSize={assetSidebarOpen && !isMobile ? 70 : 100}
+          minSize={30}
+          id="main-panel"
+        >
+          <Sheet>
+            <HeaderBar
+              columns={columns}
+              onColumnsChange={handleColumnsChange}
+              view={view}
+              onViewChange={handleViewChange}
+            />
+            <div
+              ref={scrollContainerRef}
+              className="min-h-0 flex-1 p-4 sm:p-6 space-y-6 overflow-auto"
             >
-              <Sheet>
-              <HeaderBar
+              <MediaGrid
+                onMediaSelect={handleMediaSelect}
+                sidebarOpen={assetSidebarOpen}
                 columns={columns}
-                onColumnsChange={handleColumnsChange}
                 view={view}
-                onViewChange={handleViewChange}
+                scrollContainerRef={scrollContainerRef}
+                folderPath={folderPath}
+                onFolderPathChange={setFolderPath}
               />
-              <div
-                ref={scrollContainerRef}
-                className="min-h-0 flex-1 p-4 sm:p-6 space-y-6 overflow-auto"
-              >
-                <MediaGrid
-                  onMediaSelect={handleMediaSelect}
-                  sidebarOpen={assetSidebarOpen}
-                  columns={columns}
-                  view={view}
-                  scrollContainerRef={scrollContainerRef}
-                  folderPath={folderPath}
-                  onFolderPathChange={setFolderPath}
-                />
-              </div>
-              </Sheet>
-            </ResizablePanel>
-            {assetSidebarOpen && !isMobile && (
-              <>
-                {/* Pulled back across the sheet's right margin and border
+            </div>
+          </Sheet>
+        </ResizablePanel>
+        {assetSidebarOpen && !isMobile && (
+          <>
+            {/* Pulled back across the sheet's right margin and border
                     (8 + 1px) so the grip centres on that border, and lights that edge up (radius
                     included) the same as the main sidebar's rail. */}
-                <ResizableHandle
-                  withHandle
-                  className="bg-transparent md:-mr-px md:-translate-x-[9px] before:absolute before:inset-y-2 before:right-0 before:w-3 before:rounded-r-xl before:border-transparent before:border-r-2 hover:bg-transparent hover:before:border-sidebar-border data-[resize-handle-state=drag]:bg-transparent data-[resize-handle-state=drag]:before:border-sidebar-border"
-                />
-                <ResizablePanel
-                  ref={sidebarPanelRef}
-                  defaultSize={Math.max(sidebarMinSize, Math.min(30, sidebarMaxSize))}
-                  minSize={sidebarMinSize}
-                  maxSize={sidebarMaxSize}
-                  collapsible={true}
-                  collapsedSize={0}
-                  onCollapse={() => setAssetId(null)}
-                  id="sidebar-panel"
-                >
-                  <AssetDetailsSidebar
-                    assetId={assetId}
-                    onAssetIdChange={setAssetId}
-                    open={assetSidebarOpen}
-                    onOpenChange={setAssetSidebarOpen}
-                  />
-                </ResizablePanel>
-              </>
-            )}
-          </ResizablePanelGroup>
-          {isMobile && (
-            <BottomSheet
-              open={!!assetId}
-              onOpenChange={(open) => !open && setAssetId(null)}
-              title="Asset details"
+            <ResizableHandle
+              withHandle
+              className="bg-transparent md:-mr-px md:-translate-x-[9px] before:absolute before:inset-y-2 before:right-0 before:w-3 before:rounded-r-xl before:border-transparent before:border-r-2 hover:bg-transparent hover:before:border-sidebar-border data-[resize-handle-state=drag]:bg-transparent data-[resize-handle-state=drag]:before:border-sidebar-border"
+            />
+            <ResizablePanel
+              ref={sidebarPanelRef}
+              defaultSize={Math.max(
+                sidebarMinSize,
+                Math.min(30, sidebarMaxSize),
+              )}
+              minSize={sidebarMinSize}
+              maxSize={sidebarMaxSize}
+              collapsible={true}
+              collapsedSize={0}
+              onCollapse={() => setAssetId(null)}
+              id="sidebar-panel"
             >
               <AssetDetailsSidebar
                 assetId={assetId}
                 onAssetIdChange={setAssetId}
                 open={assetSidebarOpen}
                 onOpenChange={setAssetSidebarOpen}
-                hideClose
-                className="h-auto min-h-0 flex-1 p-0 px-2"
               />
-            </BottomSheet>
-          )}
-        </div>
-      </SidebarInset>
-    </>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+      {isMobile && (
+        <BottomSheet
+          open={!!assetId}
+          onOpenChange={(open) => !open && setAssetId(null)}
+          title="Asset details"
+        >
+          <AssetDetailsSidebar
+            assetId={assetId}
+            onAssetIdChange={setAssetId}
+            open={assetSidebarOpen}
+            onOpenChange={setAssetSidebarOpen}
+            hideClose
+            className="h-auto min-h-0 flex-1 p-0 px-2"
+          />
+        </BottomSheet>
+      )}
+    </div>
   );
 }
 
+/** The shell, sidebar and session check live in components/dashboard-shell. */
 export default function HomePage() {
-  const router = useRouter();
-  const { data: session, isPending } = useSession();
-
-  // Redirect to login if user is not authenticated or session is invalid
-  useEffect(() => {
-    if (!isPending && (!session?.session || !session?.user)) {
-      router.push("/login");
-    }
-  }, [session, isPending, router]);
-
-  // Show loading state while checking session
-  if (isPending) {
-    return (
-      <div className="flex min-h-screen w-screen items-center justify-center bg-background px-4">
-        <Spinner className="mx-auto" />
-      </div>
-    );
-  }
-
-  // Don't render content if session is invalid (redirect will happen)
-  if (!session?.session || !session?.user) {
-    return null;
-  }
-
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-screen items-center justify-center">
-          Loading...
-        </div>
-      }
-    >
+    <Suspense>
       <HomePageContent />
     </Suspense>
   );

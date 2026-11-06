@@ -21,6 +21,7 @@ import { useOwnImage } from "@/components/playground/use-own-image";
 import { Button } from "@/components/ui/button";
 import { CircularProgress } from "@/components/ui/circular-progress";
 import { Spinner } from "@/components/ui/spinner";
+import { SkeletonBox } from "skullet/react";
 import {
   trackPlaygroundTransformApplied,
   trackPlaygroundUrlCopied,
@@ -233,9 +234,7 @@ export function OptimizePanel() {
                 />
               </>
             ) : own.image ? (
-              <div className="flex h-full items-center justify-center">
-                <Spinner />
-              </div>
+              <SkeletonBox width="100%" height="100%" radius={0} />
             ) : (
               <EmptyFrame />
             )}

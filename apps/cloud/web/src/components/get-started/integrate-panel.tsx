@@ -2,16 +2,24 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, KeyRound } from "lucide-react";
+import { Skeleton } from "skullet/react";
 
 import {
   CopyPromptButton,
   useAiPrompt,
 } from "@/components/get-started/prompt-copy";
+import { aiPrompt } from "@/components/get-started/integration-snippets";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { trackIntegrationDocsOpened } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
+
+// Same prompt over placeholder values: the skeleton has its exact lines.
+const SAMPLE_PROMPT = aiPrompt({
+  apiBaseUrl: "https://api.openinary.dev",
+  cdnBaseUrl: "https://api.openinary.dev/b/bucket",
+  bucketId: "bucket",
+});
 
 /**
  * The framework walkthroughs live in the docs, where they can be as long as
@@ -95,13 +103,13 @@ export function IntegratePanel() {
         </div>
       </div>
 
-      {content ? (
-        <pre className="max-h-[28rem] overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-[11px] leading-relaxed">
-          <code>{content}</code>
-        </pre>
-      ) : (
-        <Skeleton className="h-64 w-full" />
-      )}
+      <Skeleton data={content} sample={SAMPLE_PROMPT} label="Loading prompt">
+        {(content) => (
+          <pre className="max-h-[28rem] overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-[11px] leading-relaxed">
+            <code>{content}</code>
+          </pre>
+        )}
+      </Skeleton>
 
       <p className="text-muted-foreground text-xs leading-relaxed">
         Prefilled with your bucket and delivery URL, but never with your API key
