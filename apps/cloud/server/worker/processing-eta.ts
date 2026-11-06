@@ -28,6 +28,7 @@ import { db } from "../api/db/index.js";
 import { mediaDuration } from "../api/db/schema/media-duration.js";
 import { videoJob } from "../api/db/schema/video-job.js";
 import type { ProcessingTiming } from "./container.js";
+import { sameVideoParams } from "./transform-cache.js";
 
 // The container's MAX_CONCURRENT_JOBS on its instance type (1 vCPU, 3 GiB:
 // see detectOptimalConcurrency in core's video config), with CdnAssets'
@@ -121,7 +122,6 @@ export async function videoProcessingEstimate(
   filePath: string,
   params: Record<string, string>,
 ): Promise<ProcessingEstimate> {
-  const paramsJson = JSON.stringify(params);
   const [active, duration, stats, timing] = await Promise.all([
     db
       .select({
@@ -151,7 +151,7 @@ export async function videoProcessingEstimate(
 
   const job =
     active.find(
-      (j) => j.filePath === filePath && j.paramsJson === paramsJson,
+      (j) => j.filePath === filePath && sameVideoParams(j.paramsJson, params),
     ) ?? null;
   // Same order PgVideoJobStore.getNextPendingJob claims in. Without a job
   // yet (its first request is still reaching the queue), everything pending

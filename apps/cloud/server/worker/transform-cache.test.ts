@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 // forbidden in worker/*.ts itself (see transform-cache.ts's header).
 import {
   ALLOWED_UPLOAD_TYPES as CORE_ALLOWED_UPLOAD_TYPES,
+  parseParams as coreParseParams,
   stripUrlHostile as coreStripUrlHostile,
   validateUploadFileType as coreValidateUploadFileType,
 } from "@openinary/core";
@@ -27,6 +28,7 @@ import {
   parseParams,
   resolveAutoFormat,
   resolveStatusTarget,
+  sameVideoParams,
   validateUploadFileType,
   videoOutputExt,
 } from "./transform-cache.js";
@@ -277,6 +279,28 @@ for (const name of [
   const plain = resolveStatusTarget("ugc/u/b", "w_photos/clip.mp4");
   assert.equal(plain.filePath, "ugc/u/b/w_photos/clip.mp4");
   assert.deepEqual(plain.params, {});
+}
+
+// video_job rows hold core's params (the container's parse); the 202 and
+// /video-status look them up with the Worker's. Both parsers must land on
+// the same job for every video URL shape, and different transforms must not.
+{
+  for (const path of [
+    "/t/w_800/clip.mp4",
+    "/t/w_796,q_70/clip.mp4",
+    "/t/w_720,h_720,c_fill,q_80,f_webm/clip.mp4",
+    "/t/f_webm,w_640,so_2,eo_5/clip.mp4",
+    "/t/h_360,c_fit/clip.mp4",
+  ]) {
+    const rowParamsJson = JSON.stringify(coreParseParams(path));
+    assert.ok(sameVideoParams(rowParamsJson, parseParams(path)), path);
+  }
+  assert.ok(
+    !sameVideoParams(
+      JSON.stringify(coreParseParams("/t/w_800/clip.mp4")),
+      parseParams("/t/w_801/clip.mp4"),
+    ),
+  );
 }
 
 console.log("transform-cache: dashboard thumbnail keys agree on both sides");

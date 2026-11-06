@@ -5,16 +5,18 @@
 // and the dashboard's SSE connection no longer wake or keep the container
 // alive. The container remains the only writer of video_job rows.
 
-import { and, desc, eq, like } from "drizzle-orm";
+import { desc, eq, like } from "drizzle-orm";
 import { db } from "../api/db/index.js";
 import { videoJob } from "../api/db/schema/video-job.js";
 import { videoProcessingEstimate } from "./processing-eta.js";
-import { generateCacheKey, resolveStatusTarget } from "./transform-cache.js";
+import {
+  generateCacheKey,
+  resolveStatusTarget,
+  sameVideoParams,
+} from "./transform-cache.js";
 
-// Mirrors PgVideoJobStore's serializeParams (video-job-store.ts): a plain
-// JSON.stringify, in parseTransform's insertion order. Both used to sort the
-// keys first; see that function's comment for why sorting was not merely
-// unnecessary but actively broke the R2 cache key.
+// Jobs are matched with sameVideoParams, not by params_json equality: the row
+// holds core's typed params, the Worker parses all-string ones.
 
 // Mirrors createVideoStatusRoute's GET /*: job status if a job exists,
 // else "completed" if a cached transform already exists in R2, else 404.
@@ -26,16 +28,14 @@ export async function videoStatusResponse(
   clientPath: string,
 ): Promise<Response> {
   const { filePath, params } = resolveStatusTarget(tenantRoot, clientPath);
-  const paramsJson = JSON.stringify(params);
-
-  const [job] = await db
-    .select()
-    .from(videoJob)
-    .where(
-      and(eq(videoJob.filePath, filePath), eq(videoJob.paramsJson, paramsJson)),
-    )
-    .orderBy(desc(videoJob.createdAt))
-    .limit(1);
+  const job = (
+    await db
+      .select()
+      .from(videoJob)
+      .where(eq(videoJob.filePath, filePath))
+      .orderBy(desc(videoJob.createdAt))
+      .limit(50)
+  ).find((row) => sameVideoParams(row.paramsJson, params));
 
   if (!job) {
     const cached = await env.MEDIA_BUCKET.head(
