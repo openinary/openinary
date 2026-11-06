@@ -8,7 +8,8 @@ import sharp from "sharp";
 import { parseParams, isTransformSegment } from "./parser";
 import { ValidationError } from "./errors";
 import { transformImage } from "./image";
-import { overlaySize } from "./image/overlay";
+import { overlayOffset, overlaySize } from "./image/overlay";
+import { FullGravityMode } from "../types";
 import { transformVideo } from "./video";
 import { TransformService } from "../services/transform.service";
 
@@ -97,6 +98,58 @@ test("image overlay is composited at the gravity with the requested opacity", as
     const [r, , b] = await pixel(out, 395, 295); // inside the bottom-right watermark
     assert.ok(Math.abs(r - 128) <= 3 && Math.abs(b - 127) <= 3, `blended ${r},${b}`);
     assert.deepEqual(await pixel(out, 5, 5), [0, 0, 255]); // untouched elsewhere
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("lx_/ly_ are measured from the lg_ anchor, like on video", () => {
+  // 400x300 base, 100x50 overlay: 300 x 250 of free room.
+  const at = (g: FullGravityMode | undefined, x = 10, y = 20) =>
+    overlayOffset(g, 400, 300, 100, 50, x, y);
+  assert.deepEqual(at(FullGravityMode.NORTHWEST), { left: 10, top: 20 });
+  assert.deepEqual(at(FullGravityMode.NORTH), { left: 160, top: 20 });
+  assert.deepEqual(at(FullGravityMode.NORTHEAST), { left: 290, top: 20 });
+  assert.deepEqual(at(FullGravityMode.WEST), { left: 10, top: 145 });
+  assert.deepEqual(at(FullGravityMode.CENTER), { left: 160, top: 145 });
+  assert.deepEqual(at(FullGravityMode.EAST), { left: 290, top: 145 });
+  assert.deepEqual(at(FullGravityMode.SOUTHWEST), { left: 10, top: 230 });
+  assert.deepEqual(at(FullGravityMode.SOUTH), { left: 160, top: 230 });
+  assert.deepEqual(at(FullGravityMode.SOUTHEAST), { left: 290, top: 230 });
+  // No lg_: offsets from the top-left, as image URLs always did.
+  assert.deepEqual(at(undefined), { left: 10, top: 20 });
+});
+
+test("overlay offsets are clamped so the overlay stays inside the base", () => {
+  assert.deepEqual(overlayOffset(FullGravityMode.SOUTHEAST, 400, 300, 100, 50, 900, 900), { left: 0, top: 0 });
+  assert.deepEqual(overlayOffset(FullGravityMode.NORTHWEST, 400, 300, 100, 50, 900, 900), { left: 300, top: 250 });
+  assert.deepEqual(overlayOffset(FullGravityMode.CENTER, 400, 300, 100, 50, 500, -500), { left: 300, top: 0 });
+  // An overlay as big as the base has nowhere to move.
+  assert.deepEqual(overlayOffset(FullGravityMode.EAST, 100, 50, 100, 50, 10, 10), { left: 0, top: 0 });
+});
+
+test("lg_southeast with lx_/ly_ insets the overlay from the bottom-right", async () => {
+  const { dir, base, wm } = await fixtures();
+  try {
+    const params = parseParams("/t/l_wm.png,lo_100,lg_southeast,lx_10,ly_10/base.png");
+    const out = await transformImage(base, { ...params, overlayPath: wm });
+    // Overlay covers x 290..389, y 240..289.
+    assert.deepEqual(await pixel(out, 385, 285), [255, 0, 0]);
+    assert.deepEqual(await pixel(out, 295, 245), [255, 0, 0]);
+    assert.deepEqual(await pixel(out, 395, 295), [0, 0, 255]); // the 10px inset
+    assert.deepEqual(await pixel(out, 15, 15), [0, 0, 255]); // not top-left any more
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("lx_/ly_ without lg_ still count from the top-left", async () => {
+  const { dir, base, wm } = await fixtures();
+  try {
+    const params = parseParams("/t/l_wm.png,lo_100,lx_10,ly_10/base.png");
+    const out = await transformImage(base, { ...params, overlayPath: wm });
+    assert.deepEqual(await pixel(out, 15, 15), [255, 0, 0]);
+    assert.deepEqual(await pixel(out, 5, 5), [0, 0, 255]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
