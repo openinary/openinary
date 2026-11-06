@@ -12,7 +12,7 @@ Openinary speaks the same URL language as Cloudinary. Moving over mostly means c
 
 ## Before you start
 
-Openinary covers resizing, cropping, formats, quality and video trimming. It does not have effects (`e_`), overlays (`l_`), AI features, adaptive streaming or webhooks yet. If you rely on one of these, read the [full comparison](/cloudinary-comparison) first.
+Openinary covers resizing, cropping, formats, quality and video trimming. It has the common effects (`e_blur`, `e_fill_light`, `e_grayscale` and more) but not the AI ones, and no text overlays, AI features, adaptive streaming or webhooks yet. If you rely on one of these, read the [full comparison](/cloudinary-comparison) first.
 
 ## Migrate in five steps
 
@@ -69,7 +69,7 @@ Openinary covers resizing, cropping, formats, quality and video trimming. It doe
     Most transformations stay exactly the same. A few need a change, see [transformations that change](#transformations-that-change) below.
 
     <Warning>
-      Remove any transformation Openinary doesn't support. A single unknown parameter, like `e_blur` in `w_400,e_blur:300`, makes the whole URL return `404`.
+      Remove any transformation Openinary doesn't support. A single unknown parameter, like `e_vignette` in `w_400,e_vignette:30`, makes the whole URL return `404`.
     </Warning>
 
     URLs saved in a database? Use the [conversion function](#convert-stored-urls) below.
@@ -89,11 +89,13 @@ Openinary covers resizing, cropping, formats, quality and video trimming. It doe
 | Cloudinary | On Openinary |
 | --- | --- |
 | `q_auto:good`, `g_auto:subject` | `q_auto`, `g_auto` |
-| `dpr_2` | Double `w` instead |
+| `dpr_auto` | Serves 1x: Client Hints are not read. Numeric `dpr_2` works as is |
 | `t_thumbnail` (named transformation) | Write its parameters in the URL |
-| `e_`, `l_`, `u_`, `fl_`, `d_`, `bo_`, `x_`, `y_`, `z_`, `vc_` | Not supported, remove them |
+| `l_<public_id>` image overlay | `l_` with Openinary's own parameters, see [overlays](/media-transformations/overlays) |
+| `d_` | Works when self-hosting; on Cloud it is accepted and ignored |
+| `e_` effects outside [this list](/api-reference/media/transform#effects), `u_`, `fl_`, `x_`, `y_`, `z_`, `vc_` | Not supported, remove them |
 
-Everything else you likely use, `w`, `h`, `c`, `g`, `f`, `q`, `ar`, `a`, `r`, `b`, `so`, `eo`, works as is. See the [transformation reference](/api-reference/media/transform).
+Everything else you likely use, `w`, `h`, `c`, `g`, `f`, `q`, `ar`, `a`, `r`, `b`, `bo`, `o`, `co`, `dpr`, `so`, `eo` and the supported `e_` effects, works as is. See the [transformation reference](/api-reference/media/transform).
 
 ## More help
 

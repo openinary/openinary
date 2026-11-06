@@ -9,6 +9,7 @@ import type {
   VideoJobStore,
 } from "./video/queue-store";
 import { JOB_CLEANUP_HOURS, TRANSFORMATION_PRIORITY } from "./video/config";
+import { VideoTransformParams } from "../types";
 import { getVideoInfo } from "./video/video-info";
 import {
   estimateVideo,
@@ -127,7 +128,7 @@ export class VideoJobQueue extends EventEmitter {
    */
   async addJob(
     filePath: string,
-    params: ReturnType<typeof parseParams>,
+    params: VideoTransformParams,
     cachePath: string,
     sourcePath: string,
     storage: CloudStorage | null,
@@ -158,7 +159,7 @@ export class VideoJobQueue extends EventEmitter {
    */
   getJobByPath(
     filePath: string,
-    params: ReturnType<typeof parseParams>,
+    params: VideoTransformParams,
   ): VideoJob | null {
     const dbJob = this.store.getJobByFileAndParams(filePath, params);
     return dbJob ? convertDBJob(dbJob) : null;

@@ -1,7 +1,7 @@
 # Multi-stage build for a monolithic image containing API, Web, and Nginx
 
 # Stage 1: Build API
-FROM node:20-slim AS api-builder
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS api-builder
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
@@ -39,7 +39,7 @@ RUN pnpm --filter api build
 RUN pnpm prune --prod
 
 # Stage 2: Build Web
-FROM node:20-slim AS web-builder
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS web-builder
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
 ARG IMAGE_TAG="latest"
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && \
@@ -83,7 +83,7 @@ RUN mkdir -p /app/apps/web/public && cp /app/apps/web/src/app/favicon.ico /app/a
 RUN pnpm --filter web build
 
 # Stage 3: Final monolithic image
-FROM node:20-slim
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
 # Runtime args only - will be overridden by docker-compose environment
 ARG NEXT_PUBLIC_API_BASE_URL="/api"
 ARG IMAGE_TAG="latest"

@@ -241,7 +241,7 @@ export class VideoWorker extends EventEmitter {
       let outputSeconds: number | null = null;
       let lastPercent = 0;
       let lastWriteAt = 0;
-      const buffer = await transformVideo(sourcePath, params, (progress) => {
+      const buffer = await transformVideo(sourcePath, params, this.storage, (progress) => {
         outputSeconds = progress.outputSeconds;
         // 100 is the store's "done" and only completion may write it
         const percent = Math.min(99, Math.floor(progress.fraction * 100));

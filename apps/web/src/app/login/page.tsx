@@ -17,7 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "skullet/react";
 import logger from "@/lib/logger";
 import { validateAuthConfig } from "@/lib/validate-auth-config";
 import { VersionBadge } from "@/components/ui/version-badge";
@@ -177,104 +177,97 @@ export default function LoginPage() {
     }
   };
 
-  if (checkingSetup) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="text-center">
-          <Spinner className="mx-auto" />
-        </div>
-      </div>
-    );
-  }
-
+  // The form itself, measured into a skeleton while the setup check runs.
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <VersionBadge />
-      <div className="w-full max-w-md space-y-8">
-      <div className="flex justify-center">
-          <Image
-            src="/openinary.svg"
-            alt="Openinary"
-            width={120}
-            height={120}
-            className="dark:invert"
-          />
-        </div>
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">
-            Sign In
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your account
-          </p>
-        </div>
-
-        {configError && (
-          <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
-            <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
-              {configError}
-            </pre>
+    <Skeleton loading={checkingSetup} label="Loading sign in">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <VersionBadge />
+        <div className="w-full max-w-md space-y-8">
+        <div className="flex justify-center">
+            <Image
+              src="/openinary.svg"
+              alt="Openinary"
+              width={120}
+              height={120}
+              className="dark:invert"
+            />
           </div>
-        )}
+          <div className="text-center">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Sign In
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Sign in to your account
+            </p>
+          </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="admin@example.com"
-                        autoComplete="email"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        autoComplete="current-password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {configError && (
+            <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
+              <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
+                {configError}
+              </pre>
             </div>
+          )}
 
-            {error && (
-              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                {error}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="admin@example.com"
+                          autoComplete="email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          autoComplete="current-password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
 
-            <Button
-              type="submit"
-              disabled={form.formState.isSubmitting || !!configError}
-              className="w-full"
-            >
-              {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-        </Form>
+              {error && (
+                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting || !!configError}
+                className="w-full"
+              >
+                {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
+          </Form>
+        </div>
       </div>
-    </div>
+    </Skeleton>
   );
 }

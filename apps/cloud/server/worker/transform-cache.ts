@@ -19,6 +19,14 @@
 
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
+import {
+  parseAngle,
+  parseBackgroundValue,
+  parseBorder,
+  parseColor,
+  parseDpr,
+  parseEffect,
+} from "./effect-spec.js";
 
 export type TransformParams = Record<string, string>;
 
@@ -108,26 +116,174 @@ export function dashboardThumbParams(isImage: boolean): TransformParams {
   );
 }
 
-const TRANSFORM_VALUE_PATTERNS: Record<string, RegExp> = {
+const TRANSFORM_VALUE_PATTERNS: Record<string, { test(value: string): boolean }> = {
   w: /^\d+$|^auto$/,
   h: /^\d+$|^auto$/,
-  c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad)$/,
+  c: /^(fill|lfill|fill_pad|fit|limit|mfit|scale|crop|thumb|pad|lpad|mpad)$/,
   g: /^(center|c|north(?:_center)?|n|south(?:_center)?|s|east|e|west|w|faces?(?:_center)?|auto)$/,
   q: /^\d+$|^auto$/,
   // 1.2.0 narrowed this to formats an encoder can actually produce -
   // f_psd/f_avi/f_mp3/f_wav/f_ogg/f_pdf segments no longer parse as
   // transforms and fall through to the container's 404, here and in core.
   f: /^(webp|jpe?g|png|avif|gif|mp4|webm|mov|auto)$/,
-  a: /^-?\d+$|^auto$/,
+  // Degrees, auto, and Cloudinary's modes joined with "." (a_hflip.90).
+  a: { test: (value: string) => parseAngle(value) !== undefined },
+  dpr: { test: (value: string) => parseDpr(value) !== undefined },
+  bo: { test: (value: string) => parseBorder(value) !== undefined },
+  // d_ (default image): accepted so the URL works, but stripped from the
+  // segment before it is forwarded - see scopeOverlaySegment.
+  d: /^[\w-]+(?:\:[\w-]+)*\.\w+$/,
   ar: /^\d+:\d+$|^\d+(?:\.\d+)?$/,
-  b: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
-  bg: /^(transparent|white|black|rgb:[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{3,8})$/,
+  // Colors and b_auto, via effect-spec.ts (shared verbatim with core).
+  // Every value the old regex accepted maps to the same string as before.
+  b: { test: (value: string) => parseBackgroundValue(value) !== undefined },
+  bg: { test: (value: string) => parseBackgroundValue(value) !== undefined },
   so: /^\d+(?:\.\d+)?$/,
   eo: /^\d+(?:\.\d+)?$/,
   t: /^(true|1|\d+)$/,
   tt: /^\d+(?:\.\d+)?$/,
   r: /^max$|^\d+(?::\d+){0,3}$/,
+  // Overlays (core >= the v0.7.0 overlays commit, bc54443). Patterns copied
+  // verbatim from core's TRANSFORM_VALUE_PATTERNS so the two sides agree on
+  // what is a transform segment. l_ deliberately admits no "/", "%", "." run
+  // or leading separator: ":" is the only folder separator, which is what
+  // lets scopeOverlaySegment below confine it to the tenant.
+  l: /^[\w-]+(?:\:[\w-]+)*\.\w+$/,
+  lo: /^(100|[1-9]\d|[0-9])$/,
+  lt: /^(true|1|\d+)$/,
+  lx: /^\d+$/,
+  ly: /^\d+$/,
+  lw: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
+  lh: /^([1-9]\d{0,2}|[1-7]\d{3}|80\d{2}|81[0-8]\d|819[0-2])$|^auto$/,
+  lg: /^(north_west|northwest|top_left|nw|north|north_center|top|top_center|n|north_east|northeast|top_right|ne|west|west_center|center_left|w|center|c|east|east_center|center_right|e|south_west|southwest|bottom_left|sw|south|south_center|bottom|bottom_center|s|south_east|southeast|bottom_right|se)$/i,
+  ls: /^\d+$/,
+  // Effects, opacity, color (core's e_/o_/co_ commit). effect-spec.ts is a
+  // verbatim copy of core's, so both sides accept the same values.
+  e: { test: (value: string) => parseEffect(value) !== undefined },
+  o: /^(100|[1-9]?\d)$/,
+  co: { test: (value: string) => parseColor(value) !== undefined },
 };
+
+// Mirrors core's mapFullGravity (overlay gravity) output strings.
+function mapFullGravity(value: string): string | undefined {
+  switch (value.toLowerCase()) {
+    case "north_west": case "northwest": case "top_left": case "nw":
+      return "northwest";
+    case "north": case "north_center": case "top": case "top_center": case "n":
+      return "north";
+    case "north_east": case "northeast": case "top_right": case "ne":
+      return "northeast";
+    case "west": case "west_center": case "center_left": case "w":
+      return "west";
+    case "center": case "c":
+      return "center";
+    case "east": case "east_center": case "center_right": case "e":
+      return "east";
+    case "south_west": case "southwest": case "bottom_left": case "sw":
+      return "southwest";
+    case "south": case "south_center": case "bottom": case "bottom_center": case "s":
+      return "south";
+    case "south_east": case "southeast": case "bottom_right": case "se":
+      return "southeast";
+    default:
+      return undefined;
+  }
+}
+
+/** Mirrors core's overlayPath normalisation ("a:b.png" -> "a/b.png"). */
+export function overlayPathFromValue(value: string): string {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // keep as sent
+  }
+  return decoded
+    .replace(/\.\./g, "")
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+/, "")
+    .replaceAll(":", "/");
+}
+
+export type OverlayScopeResult =
+  | { ok: true; segment: string; overlayRelativePath: string | null }
+  | { ok: false; error: string };
+
+const TENANT_COMPONENT = /^[\w-]+$/;
+
+/**
+ * Rewrites the l_ pair of a transform segment into the tenant's scope, so the
+ * container (whose storage is the whole bucket, unscoped) reads the overlay
+ * from ugc/<userId>/<bucketId>/... and nowhere else. A customer names an
+ * overlay relative to their own bucket ("l_logo.png", "l_brand:logo.png").
+ *
+ * Refuses rather than repairs anything that looks like an escape attempt:
+ * a value starting with "ugc:" (naming a tenant root explicitly), "..",
+ * "/", "\\" or "%" (encoded separators). l_'s pattern already rejects most
+ * of these, which makes the segment a non-transform (a folder name); the
+ * explicit check catches them when the pattern changes upstream.
+ *
+ * Also enforces core's lx_/ly_ pairing so the worker never forwards (or
+ * meters) a request the container will only answer 400 to.
+ */
+export function scopeOverlaySegment(
+  segment: string,
+  tenantRoot: string,
+): OverlayScopeResult {
+  if (!isTransformSegment(segment)) {
+    return { ok: true, segment, overlayRelativePath: null };
+  }
+  const parts = segment.split(",");
+  let overlayRelativePath: string | null = null;
+  let hasX = false;
+  let hasY = false;
+  const rootParts = tenantRoot.split("/");
+  if (rootParts.length !== 3 || !rootParts.every((p) => TENANT_COMPONENT.test(p))) {
+    return { ok: false, error: "Invalid tenant scope" };
+  }
+  // d_ names a fallback file by path, and the container's storage is the
+  // whole bucket: forwarded as is it could read another tenant's file. Cloud
+  // does not serve the fallback yet (a missing source is answered 404 above
+  // the container), so the pair is dropped rather than scoped.
+  const out = parts.filter((part) => !part.startsWith("d_")).map((part) => {
+    if (part.startsWith("lx_")) hasX = true;
+    if (part.startsWith("ly_")) hasY = true;
+    if (!part.startsWith("l_")) return part;
+    const value = part.slice(2);
+    if (overlayRelativePath !== null) {
+      throw new OverlayError("Only one l_ overlay is supported per transform");
+    }
+    if (
+      /^ugc(?::|$)/i.test(value) ||
+      value.includes("..") ||
+      /[\/\\%]/.test(value)
+    ) {
+      throw new OverlayError("Overlay path must be relative to your bucket");
+    }
+    overlayRelativePath = overlayPathFromValue(value);
+    return `l_${rootParts.join(":")}:${value}`;
+  });
+  if (hasX !== hasY) {
+    return { ok: false, error: "lx_ and ly_ have to be set together" };
+  }
+  return { ok: true, segment: out.join(","), overlayRelativePath };
+}
+
+class OverlayError extends Error {}
+
+/** Non-throwing wrapper around scopeOverlaySegment. */
+export function tryScopeOverlaySegment(
+  segment: string,
+  tenantRoot: string,
+): OverlayScopeResult {
+  try {
+    return scopeOverlaySegment(segment, tenantRoot);
+  } catch (error) {
+    if (error instanceof OverlayError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
 
 function isValidTransformPair(part: string): boolean {
   const underscoreIndex = part.indexOf("_");
@@ -140,8 +296,24 @@ function isValidTransformPair(part: string): boolean {
 }
 
 export function isTransformSegment(segment: string | undefined): boolean {
-  if (!segment || segment.includes(".")) return false;
+  if (!segment) return false;
   const parts = segment.split(",").filter(Boolean);
+  // A "." means a file name, except inside an l_ value (an overlay names a
+  // file: l_logo.png) or a d_ value (d_avatar.png), a_ (a_hflip.90) and
+  // dpr_ (dpr_1.5). Their patterns
+  // reject anything file-like ("a_hflip.png", "dpr_2.png") anyway.
+  if (
+    parts.some(
+      (part) =>
+        part.includes(".") &&
+        !part.startsWith("l_") &&
+        !part.startsWith("d_") &&
+        !part.startsWith("a_") &&
+        !part.startsWith("dpr_"),
+    )
+  ) {
+    return false;
+  }
   return parts.length > 0 && parts.every(isValidTransformPair);
 }
 
@@ -166,6 +338,7 @@ function mapCropMode(value: string): string {
       return "crop";
     case "pad":
     case "lpad":
+    case "mpad":
       return "pad";
     default:
       return "fill";
@@ -203,19 +376,7 @@ function mapGravity(value: string): string {
 }
 
 function mapBackground(value: string): string {
-  if (value.startsWith("rgb:")) {
-    return `#${value.substring("rgb:".length)}`;
-  }
-  switch (value) {
-    case "transparent":
-      return "transparent";
-    case "white":
-      return "#ffffff";
-    case "black":
-      return "#000000";
-    default:
-      return value.startsWith("#") ? value : `#${value}`;
-  }
+  return parseBackgroundValue(value) ?? value;
 }
 
 // Mirrors core's parseTransform (utils/parser.js) exactly, insertion order
@@ -230,6 +391,7 @@ function parseTransform(segment: string): TransformParams {
   let cropMode: string | undefined;
   let startOffset: string | undefined;
   let endOffset: string | undefined;
+  let dpr: number | undefined;
 
   for (const part of segment.split(",")) {
     if (!part) continue;
@@ -246,6 +408,10 @@ function parseTransform(segment: string): TransformParams {
         break;
       case "c":
         cropMode = mapCropMode(value);
+        // Mirrors core: only the limited modes add a param, so existing
+        // c_ URLs keep their keys.
+        if (value === "lfill" || value === "lpad") params.resizeLimit = "down";
+        if (value === "mfit" || value === "mpad") params.resizeLimit = "up";
         break;
       case "g":
         params.gravity = mapGravity(value);
@@ -257,7 +423,19 @@ function parseTransform(segment: string): TransformParams {
         params.format = value;
         break;
       case "a":
-        params.rotate = value;
+        // Mirrors core: a_ignore must not share the EXIF-oriented URL's key.
+        if (value.split(".").includes("ignore")) params.ignoreOrientation = "true";
+        if (/^-?\d+$|^auto$/.test(value)) {
+          // Unchanged since v1.3.0 (a_auto stays "auto": lossy in core).
+          params.rotate = value;
+        } else {
+          const angle = parseAngle(value);
+          if (angle?.rotate !== undefined) params.rotate = String(angle.rotate);
+          if (angle?.flip) params.flip = angle.flip;
+        }
+        break;
+      case "dpr":
+        dpr = parseDpr(value);
         break;
       case "ar":
         params.aspect = value;
@@ -281,11 +459,68 @@ function parseTransform(segment: string): TransformParams {
       case "r":
         params.radius = value;
         break;
+      // Overlay keys: new in core's overlays commit, so no existing cache key
+      // contains them and their representation is ours to define. Normalised
+      // to what core's parser keeps (ints, mapped gravity, booleans as
+      // "true", "auto" sizes dropped) so api/lib/cache-params.ts's
+      // toCloudCacheParams(core params) lands on the same strings.
+      case "l":
+        params.overlayPath = overlayPathFromValue(value);
+        break;
+      case "lt":
+        params.overlayTiled = "true";
+        break;
+      case "lx":
+        params.overlayXOffset = String(parseInt(value));
+        break;
+      case "ly":
+        params.overlayYOffset = String(parseInt(value));
+        break;
+      case "lo":
+        params.overlayOpacity = String(parseInt(value));
+        break;
+      case "lw":
+        if (value !== "auto") params.overlayWidth = String(parseInt(value));
+        break;
+      case "lh":
+        if (value !== "auto") params.overlayHeight = String(parseInt(value));
+        break;
+      case "ls":
+        params.overlayTileSpacing = String(parseInt(value));
+        break;
+      case "lg": {
+        const gravity = mapFullGravity(value);
+        if (gravity) params.overlayGravity = gravity;
+        break;
+      }
+      // Effects: new keys, so no existing cache key contains them. Shaped
+      // like toCloudCacheParams(core params): core keeps e_ values as an
+      // array in URL order, which String() joins with ",".
+      case "e":
+        params.effects = params.effects ? `${params.effects},${value}` : value;
+        break;
+      case "o":
+        params.opacity = String(parseInt(value));
+        break;
+      case "co": {
+        const color = parseColor(value);
+        if (color) params.color = color;
+        break;
+      }
+      case "bo":
+        params.border = value;
+        break;
+      // d_ never reaches the params: core takes it out before keying.
       default:
         break;
     }
   }
 
+  // Mirrors core: dpr_ scales w/h, so dpr_2,w_400 shares w_800's key.
+  if (dpr !== undefined && dpr !== 1) {
+    if (width && width !== "auto") width = String(Math.round(parseInt(width) * dpr));
+    if (height && height !== "auto") height = String(Math.round(parseInt(height) * dpr));
+  }
   if (width) params.width = width;
   if (height) params.height = height;
   if (width && height) params.resize = `${width}x${height}`;
@@ -317,6 +552,12 @@ export function parseParams(path: string): TransformParams {
 // "processing".
 export function resolveStatusTarget(tenantRoot: string, clientPath: string) {
   const segments = clientPath.split("/");
+  // Overlay transforms are keyed on the tenant-scoped l_ the CDN path
+  // forwarded, not the one the client sent - see scopeOverlaySegment. An
+  // invalid one leaves the path as-is: it can only ever be "not found".
+  const scoped = tryScopeOverlaySegment(segments[0] ?? "", tenantRoot);
+  if (scoped.ok) segments[0] = scoped.segment;
+  clientPath = segments.join("/");
   const hasTransform = isTransformSegment(segments[0]);
   const relativePath = (hasTransform ? segments.slice(1) : segments).join("/");
   return {

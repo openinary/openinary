@@ -2,6 +2,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ChatbotButton } from "@/components/chatbot-button";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { cookies } from "next/headers";
+import { DashboardShell } from "@/components/dashboard-shell";
 
 export default async function DashboardLayout({
   children,
@@ -13,7 +14,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
-      {children}
+      <DashboardShell>{children}</DashboardShell>
       <ChatbotButton />
       <OnboardingGate />
     </SidebarProvider>

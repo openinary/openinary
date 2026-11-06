@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ExternalLink, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "skullet/react";
 import {
   Tooltip,
   TooltipContent,
@@ -452,7 +452,16 @@ export function BillingTab() {
     return <p className="text-destructive text-sm">Failed to load usage.</p>;
   }
 
-  return (
+  // The whole tab is one skeleton: the period line, the chart, the plan's
+  // renewal and card all depend on what loads, so drawing it piecemeal let
+  // each of them pop in and push the rest down. Under this id skullet recalls
+  // the tab exactly as it last looked.
+  const loading =
+    isLoading ||
+    (periodStart !== null && history.isPending) ||
+    (isMetered && paymentMethod.isPending);
+
+  const content = (
     <div className="space-y-4">
       {periodStart && periodEnd && (
         <p className="text-muted-foreground text-sm">
@@ -468,13 +477,9 @@ export function BillingTab() {
           <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
             <div>
               <p className="text-muted-foreground text-sm">Spend so far</p>
-              {isLoading ? (
-                <Skeleton className="mt-1 h-9 w-32" />
-              ) : (
-                <p className="mt-1 font-semibold text-3xl tabular-nums tracking-tight">
-                  {formatUsd(spent)}
-                </p>
-              )}
+              <p className="mt-1 font-semibold text-3xl tabular-nums tracking-tight">
+                {formatUsd(spent)}
+              </p>
             </div>
             <dl className="flex gap-8 text-sm">
               {isMetered ? (
@@ -585,22 +590,18 @@ export function BillingTab() {
         {/* Plan */}
         <Card>
           <p className="text-muted-foreground text-sm">Plan</p>
-          {isLoading ? (
-            <Skeleton className="mt-1 h-8 w-28" />
-          ) : (
-            <p className="mt-1 flex items-baseline gap-2">
-              <span className="font-semibold text-2xl tracking-tight">
-                {planName}
-              </span>
-              <span className="text-muted-foreground text-sm">
-                {isMetered
-                  ? monthly > 0
-                    ? `$${monthly} a month`
-                    : "$0 + usage"
-                  : "$0"}
-              </span>
-            </p>
-          )}
+          <p className="mt-1 flex items-baseline gap-2">
+            <span className="font-semibold text-2xl tracking-tight">
+              {planName}
+            </span>
+            <span className="text-muted-foreground text-sm">
+              {isMetered
+                ? monthly > 0
+                  ? `$${monthly} a month`
+                  : "$0 + usage"
+                : "$0"}
+            </span>
+          </p>
           <p className="mt-1 text-muted-foreground text-[13px]">
             {cancelsAt
               ? `Ends ${shortDate(cancelsAt)}`
@@ -745,26 +746,22 @@ export function BillingTab() {
                         </Tooltip>
                       )}
                     </span>
-                    {isLoading || !usage ? (
-                      <Skeleton className="h-4 w-24" />
-                    ) : (
-                      <span className="shrink-0 tabular-nums">
-                        <span
-                          className={cn(
-                            "font-medium",
-                            overUsed > 0 && TONE_TEXT[tone],
-                          )}
-                        >
-                          {feature.format(usage.used)}
-                        </span>
-                        {capped && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            of {feature.format(usage.granted)}
-                          </span>
+                    <span className="shrink-0 tabular-nums">
+                      <span
+                        className={cn(
+                          "font-medium",
+                          overUsed > 0 && TONE_TEXT[tone],
                         )}
+                      >
+                        {feature.format(usage?.used ?? 0)}
                       </span>
-                    )}
+                      {capped && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          of {feature.format(usage?.granted ?? 0)}
+                        </span>
+                      )}
+                    </span>
                   </div>
 
                   <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -885,5 +882,11 @@ export function BillingTab() {
         </Card>
       </div>
     </div>
+  );
+
+  return (
+    <Skeleton id="billing" loading={loading} label="Loading usage">
+      {content}
+    </Skeleton>
   );
 }

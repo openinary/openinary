@@ -14,19 +14,24 @@ import { ApiKeyManager } from "@/components/api-key-manager";
 import { AccountTab } from "@/components/settings/account-tab";
 import { ActivityTab } from "@/components/settings/activity-tab";
 import { useSession } from "@/lib/auth-client";
+import { Skeleton } from "skullet/react";
 
 function AccountPage() {
   const user = useSession().data?.user;
-  // The form takes its defaults at mount, so it waits for the session.
-  if (!user) return null;
 
+  // The form takes its defaults at mount, so until the session is known it is
+  // drawn as skeleton over sample values, then remounted (key) with the real
+  // ones: same fields, same height, nothing pops in.
   return (
-    <AccountTab
-      userName={user.name || user.email.split("@")[0]}
-      userEmail={user.email}
-      userAvatar={user.image || ""}
-      isOpen
-    />
+    <Skeleton loading={!user} label="Loading your account">
+      <AccountTab
+        key={user ? "user" : "sample"}
+        userName={user ? user.name || user.email.split("@")[0] : "Your name"}
+        userEmail={user?.email ?? "you@example.com"}
+        userAvatar={user?.image || ""}
+        isOpen
+      />
+    </Skeleton>
   );
 }
 

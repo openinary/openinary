@@ -3,6 +3,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { QueueStatsCards } from "@openinary/ui";
 import { QueueTable, type QueueTableJob as QueueJob } from "@openinary/ui";
+import { Skeleton } from "skullet/react";
+
+// The real table over stand-in jobs, measured into the skeleton.
+const SAMPLE_JOBS: QueueJob[] = [0, 1, 2].map((i) => ({
+  id: `sample-${i}`,
+  file_path: "videos/sample-video.mp4",
+  status: "completed",
+  priority: 0,
+  progress: 100,
+  error: null,
+  created_at: 0,
+  started_at: 0,
+  completed_at: 0,
+}));
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
@@ -117,13 +131,12 @@ export default function QueuePage() {
         </TabsList>
 
         <TabsContent value={selectedFilter} className="mt-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-            </div>
-          ) : (
-            <QueueTable jobs={jobs} onActionComplete={handleRefresh} />
-          )}
+          <Skeleton loading={isLoading} label="Loading queue">
+            <QueueTable
+              jobs={isLoading ? SAMPLE_JOBS : jobs}
+              onActionComplete={handleRefresh}
+            />
+          </Skeleton>
         </TabsContent>
       </Tabs>
     </div>

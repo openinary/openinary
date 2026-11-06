@@ -3,6 +3,49 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="November 5, 2026" description="v0.8.0" tags={["Feature", "Fix"]}>
+  ## New features
+
+**Image effects**, Adjust images straight from the URL with `e_`: `e_fill_light`, `e_blur`, `e_sharpen`, `e_brightness`, `e_contrast`, `e_saturation`, `e_grayscale`, `e_sepia`, `e_tint`, `e_colorize` and more, plus `o_` for opacity and `co_` for color. For example `/t/w_800,e_fill_light:70:20/photo.jpg`. See [transform](/api-reference/media/transform).
+
+**Smarter backgrounds and borders**, `b_auto` picks the padding color from the image itself, `b_blurred` pads with a blurred copy of it, and colors accept CSS names and 3, 4 or 8 digit hex. `bo_4px_solid_red` draws a border.
+
+**`dpr_`, flips and more crop modes**, `dpr_2,w_400` serves a 2x image, `a_hflip` and `a_vflip` mirror it, and `c_lfill`, `c_lpad`, `c_mfit` and `c_mpad` behave as their names say.
+
+**Default images**, `d_placeholders:avatar.png` serves a placeholder, with the same transformation, when the requested file doesn't exist.
+
+**Configurable storage prefix**, `STORAGE_PREFIX` lets Openinary serve a bucket something else already writes to, without moving a single object. It defaults to `public`, so existing setups don't change. See [storage](/configuration/storage). Thanks to [andrzejb2137](https://github.com/andrzejb2137).
+
+Effects, backgrounds, `dpr_`, borders and default images are thanks to [pankajmyt](https://github.com/pankajmyt).
+
+## Bug fixes
+
+- **Phone photos come out upright**, Transformed images now follow their EXIF orientation, as `a_auto` always promised. `a_ignore` keeps the stored orientation.
+- **Overlays resize instead of cropping**, An image overlay with `lw_` or `lh_` is scaled to that size instead of being cut.
+</Update>
+
+<Update label="November 4, 2026" description="v0.7.0" tags={["Feature", "Fix"]}>
+  ## New features
+
+**Image and video overlays**, Put a logo or watermark on any image or video straight from the URL with `l_`, for example `/t/l_logos:watermark.png,lo_50,lg_southeast/photo.jpg`. Set the opacity (`lo_`), position (`lg_`, `lx_`, `ly_`), size (`lw_`, `lh_`) or repeat it across the asset (`lt_`, `ls_`). Video thumbnails can carry the overlay too, and a pending watermarked video is never served without its watermark. Overlays only come from your own storage. See [overlays & watermarks](/media-transformations/overlays). Thanks to [KesSaft](https://github.com/KesSaft).
+
+## Bug fixes
+
+- **Cached images keep their real type**, From the second request on, a negotiated AVIF or WebP was labelled with the source's type (e.g. `image/jpeg`), and its ETag changed between the first and cached responses. Both now match the bytes actually served. Thanks to [meditatingsurgeon](https://github.com/meditatingsurgeon) for the report.
+- **Cached videos aren't transcoded again on S3**, A video with two or more params (e.g. `w_320,h_240`, or any overlay) was transcoded again whenever the local cache was empty, even though the result was already in the bucket. Existing multi-param entries are regenerated once.
+</Update>
+
+<Update label="November 4, 2026" description="v0.6.0" tags={["Improvement", "Fix"]}>
+  ## Improvements
+
+**A tidier asset details panel**, The panel opens on the asset itself with its actions in one row, and is split into Deliver, Transform and Info. Transform has presets and a small URL builder whose preview costs no transformation.
+
+## Bug fixes
+
+- **Docker images run on Node.js 22**, Node.js 20 is end-of-life and no longer gets security patches. The self-hosted images now build and run on a patched Node.js 22.
+- **`f_webm` videos encode**, Every `f_webm` transform failed within a second because H.264 and AAC can't go in a WebM container. WebM output is now encoded with VP9 and Opus.
+</Update>
+
 <Update label="October 1, 2026" description="v0.5.0" tags={["Feature", "Improvement", "Fix"]}>
   ## New features
 

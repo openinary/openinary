@@ -61,6 +61,7 @@
     "radix-ui": "^1.6.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.66.1",
+    "skullet": "0.0.3",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.4.3"
   },

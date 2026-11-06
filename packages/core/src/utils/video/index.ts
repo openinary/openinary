@@ -1,5 +1,5 @@
 import { mkdtemp } from "fs/promises";
-import { join } from "path";
+import path, { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import type { VideoTransformParams } from "../../types";
@@ -15,10 +15,12 @@ import { applyResize } from "./resize";
 import { applyQuality } from "./quality";
 import { VideoCommandBuilder, type EncodeProgress } from "./command-builder";
 import type { VideoContext } from "./types";
+import { applyOverlay } from "./overlay";
+import { cleanupTempFile, prepareSourceFile } from "../../routes/transform-helpers";
+import { CloudStorage, createStorageClient } from "../storage";
 
 // Re-export types for backward compatibility
 export * from "./types";
-export * from "./param-registry";
 export * from "./video-info";
 export type { EncodeProgress } from "./command-builder";
 
@@ -78,6 +80,7 @@ async function convertWithSharp(
 export const transformVideo = async (
   inputPath: string,
   params: VideoTransformParams,
+  storage: CloudStorage | null,
   onProgress?: (progress: EncodeProgress) => void,
 ): Promise<Buffer> => {
   // Create temporary directory for output
@@ -109,39 +112,60 @@ export const transformVideo = async (
     inputPath,
     outputPath,
     tmpDir,
-    params,
+    // A copy: staging the overlay below rewrites overlayPath to a temp file,
+    // and the caller (the video worker) keys the cloud cache upload on its
+    // own params. Mutating them uploaded every overlaid video under a random
+    // key, so no other instance, and no restart, ever found it again.
+    params: { ...params },
     isImageOutput,
     isThumbnail,
   };
 
-  // Apply transformations pipeline and execute
-  // Order matters: thumbnail extraction or trimming first, auto-downscale, resize, then quality
-  const builder = new VideoCommandBuilder(context);
+  let isTempOverlay = false;
 
-  let buffer = await builder
-    .apply(
-      applyThumbnailExtraction,
-      applyTrimming,
-      applyAutoDownscale,
-      applyResize,
-      applyQuality,
-    )
-    .execute(onProgress);
+  try {
+    if (context.params.overlayPath) {
+      context.params.overlayPath = await prepareSourceFile(
+        storage,
+        context.params.overlayPath,
+        path.join("./public", context.params.overlayPath),
+      );
+      isTempOverlay = !!storage;
+    }
 
-  // Post-process with sharp if needed (e.g. JPEG → WebP/AVIF/PNG)
-  if (needsSharpConversion) {
-    const qualityValue =
-      params.quality !== undefined
-        ? typeof params.quality === "string"
-          ? parseInt(params.quality, 10)
-          : params.quality
-        : 80;
-    buffer = await convertWithSharp(
-      buffer,
-      normalizeFormat(format),
-      qualityValue,
-    );
+    // Apply transformations pipeline and execute
+    // Order matters: thumbnail extraction or trimming first, auto-downscale, resize, then quality
+    const builder = new VideoCommandBuilder(context);
+
+    let buffer = await (
+      await builder.apply(
+        applyThumbnailExtraction,
+        applyTrimming,
+        applyAutoDownscale,
+        applyResize,
+        applyOverlay,
+        applyQuality,
+      )
+    ).execute(onProgress);
+
+    // Post-process with sharp if needed (e.g. JPEG → WebP/AVIF/PNG)
+    if (needsSharpConversion) {
+      const qualityValue =
+        params.quality !== undefined
+          ? typeof params.quality === "string"
+            ? parseInt(params.quality, 10)
+            : params.quality
+          : 80;
+      buffer = await convertWithSharp(
+        buffer,
+        normalizeFormat(format),
+        qualityValue,
+      );
+    }
+
+    return buffer;
+  } finally {
+    // Staged overlay copies are temp files on success as well as on failure.
+    if (isTempOverlay) await cleanupTempFile(context.params.overlayPath!);
   }
-
-  return buffer;
 };

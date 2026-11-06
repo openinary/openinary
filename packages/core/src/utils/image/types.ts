@@ -4,7 +4,7 @@ export type {
   GravityMode,
   ImageFormat,
   BackgroundColor,
-  TransformParams,
+  ImageTransformParams as TransformParams,
   ImageAnalysis,
-  OptimizationResult
-} from '../../types';
+  OptimizationResult,
+} from "../../types";

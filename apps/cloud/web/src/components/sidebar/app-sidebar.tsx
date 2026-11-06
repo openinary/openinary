@@ -33,6 +33,40 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
+export const mainItems: NavItem[] = [
+  { title: "Assets", icon: LayoutGrid, url: "/" },
+  { title: "Usage", icon: ChartColumn, url: "/settings/billing" },
+  { title: "Logs", icon: ScrollText, url: "/settings/logs" },
+  { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
+];
+
+export const toolItems: NavItem[] = [
+  {
+    title: "Integrate",
+    icon: Plug,
+    url: "/get-started/integrate",
+    tile: "from-orange-400 to-rose-500",
+  },
+  {
+    title: "Images",
+    icon: ImageIcon,
+    url: "/get-started/images",
+    tile: "from-sky-400 to-indigo-500",
+  },
+  {
+    title: "Videos",
+    icon: Video,
+    url: "/get-started/videos",
+    tile: "from-emerald-400 to-teal-600",
+  },
+  {
+    title: "Uploader",
+    icon: UploadCloud,
+    url: FILE_UPLOADER_DOCS,
+    tile: "from-fuchsia-400 to-violet-600",
+  },
+];
+
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onMediaSelect?: (media: MediaFile) => void;
 }
@@ -40,40 +74,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   const router = useRouter();
   const setSettingsTab = useSettingsPage();
-
-  const mainItems: NavItem[] = [
-    { title: "Assets", icon: LayoutGrid, url: "/" },
-    { title: "Usage", icon: ChartColumn, url: "/settings/billing" },
-    { title: "Logs", icon: ScrollText, url: "/settings/logs" },
-    { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
-  ];
-
-  const toolItems: NavItem[] = [
-    {
-      title: "Integrate",
-      icon: Plug,
-      url: "/get-started/integrate",
-      tile: "from-orange-400 to-rose-500",
-    },
-    {
-      title: "Images",
-      icon: ImageIcon,
-      url: "/get-started/images",
-      tile: "from-sky-400 to-indigo-500",
-    },
-    {
-      title: "Videos",
-      icon: Video,
-      url: "/get-started/videos",
-      tile: "from-emerald-400 to-teal-600",
-    },
-    {
-      title: "Uploader",
-      icon: UploadCloud,
-      url: FILE_UPLOADER_DOCS,
-      tile: "from-fuchsia-400 to-violet-600",
-    },
-  ];
 
   // One palette entry per sidebar link, filed under the section it sits in.
   const toAction =
@@ -134,10 +134,8 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
         <NavMain label="Tools" items={toolItems} />
         <NavProjects onMediaSelect={onMediaSelect} />
       </SidebarContent>
-      <SidebarFooter className="p-0 group-data-[collapsible=icon]:px-0">
-        <div className="px-3 empty:hidden group-data-[collapsible=icon]:hidden">
-          <UpgradeCard />
-        </div>
+      <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:px-0">
+        <UpgradeCard />
         <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
           <NavSettings />
         </div>

@@ -23,6 +23,13 @@ import {
   contentTypeForFormat,
   determineOutputFormat,
 } from "../utils/video/format";
+import path from "path";
+import { CombindedTransformParams } from "../types";
+import { ValidationError } from "../utils/errors";
+import {
+  derivativeEtag,
+  sniffImageContentType,
+} from "../utils/delivery-headers";
 
 const isVideo = (ext: string | undefined): ext is string =>
   !!ext && VIDEO_FORMATS.has(ext);
@@ -83,12 +90,15 @@ export class TransformService {
    * Main transformation method that handles the complete flow
    */
   async transform(request: TransformRequest): Promise<TransformResult> {
-    const { path, userAgent, acceptHeader, sourceUrl } = request;
+    const { path: pathname, userAgent, acceptHeader, sourceUrl } = request;
 
     try {
       // Parse path and parameters
-      const segments = path.split("/").slice(2); // Remove '/t' prefix
-      const params = parseParams(path);
+      const segments = pathname.split("/").slice(2); // Remove '/t' prefix
+      const params = parseParams(pathname);
+      // d_ only matters if the file is missing; keep it out of every cache key.
+      const defaultImage = params.defaultImage;
+      delete params.defaultImage;
 
       // Determine file path segments
       const hasTransform = this.hasTransformSegment(segments);
@@ -100,7 +110,7 @@ export class TransformService {
       // Get effective parameters with format optimization
       const { effectiveParams, cachePath } =
         await this.getEffectiveParamsAndCachePath(
-          path,
+          pathname,
           params,
           userAgent,
           acceptHeader,
@@ -115,6 +125,9 @@ export class TransformService {
       );
       if (!fileCheck.exists) {
         await this.handleFileNotFound(filePath);
+        if (defaultImage && defaultImage !== filePath && hasTransform && !sourceUrl) {
+          return await this.transformDefaultImage(request, segments[0], defaultImage);
+        }
         throw new Error(fileCheck.error || "File not found");
       }
 
@@ -159,7 +172,7 @@ export class TransformService {
 
       // Process the file
       return await this.processFile(
-        path,
+        pathname,
         filePath,
         localPath,
         ext,
@@ -177,6 +190,35 @@ export class TransformService {
   /**
    * Check if the first segment is a transformation string
    */
+  /**
+   * d_: serve the default image, with the same transformation, in place of a
+   * missing one. Rendered and cached under the default image's own path, so
+   * the missing path never gets a cached derivative and the real file shows
+   * up as soon as it is uploaded. The response is kept out of shared caches
+   * for the same reason, like Cloudinary's placeholder responses.
+   */
+  private async transformDefaultImage(
+    request: TransformRequest,
+    segment: string,
+    defaultImage: string,
+  ): Promise<TransformResult> {
+    const rest = segment
+      .split(",")
+      .filter((part) => part && !part.startsWith("d_"))
+      .join(",");
+    const path = rest ? `/t/${rest}/${defaultImage}` : `/t/${defaultImage}`;
+    const result = await this.transform({ ...request, path });
+    const served = !result.status || result.status === 200;
+    if (served && result.contentType !== "text/plain") {
+      result.headers = {
+        ...result.headers,
+        "Cache-Control": "private, max-age=60",
+        "X-Default-Image": defaultImage,
+      };
+    }
+    return result;
+  }
+
   private hasTransformSegment(segments: string[]): boolean {
     return segments.length > 0 && isTransformSegment(segments[0]);
   }
@@ -259,7 +301,7 @@ export class TransformService {
   ): TransformResult {
     const headers: Record<string, string> = {
       "Cache-Control": "public, max-age=31536000, must-revalidate",
-      ETag: `"${JSON.stringify(effectiveParams)}"`,
+      ETag: derivativeEtag(buffer),
       "Content-Length": buffer.length.toString(),
     };
 
@@ -276,7 +318,9 @@ export class TransformService {
       ? contentTypeForFormat(
           determineOutputFormat(ext, effectiveParams.format).format,
         )
-      : ""; // Images: route handler falls back to path extension
+      : // Images: the cached bytes say what they are. The path keeps the
+        // source extension, so falling back to it labelled AVIF as image/jpeg.
+        (sniffImageContentType(buffer) ?? "");
 
     return {
       buffer,
@@ -294,7 +338,7 @@ export class TransformService {
     filePath: string,
     localPath: string,
     ext: string | undefined,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     cachePath: string,
     userAgent?: string,
     acceptHeader?: string,
@@ -309,9 +353,7 @@ export class TransformService {
     // through this instance's storage when it picks the job up, which may be
     // minutes later and long after any signed URL would have expired. A remote
     // source therefore covers images and video thumbnails, not transcodes.
-    const isThumbnailRequest =
-      effectiveParams.thumbnail === "true" || effectiveParams.thumbnail === "1";
-    if (isVideo(ext) && !isThumbnailRequest) {
+    if (isVideo(ext) && !effectiveParams.thumbnail) {
       return await this.handleVideoJobQueue(
         requestPath,
         filePath,
@@ -348,6 +390,21 @@ export class TransformService {
       };
     }
 
+    // Overlays are checked before the source is staged, so a bad l_ never
+    // leaves a downloaded original behind in ./temp.
+    if (effectiveParams.overlayPath) {
+      const overlayCheck = await verifyFileExists(
+        this.storage,
+        effectiveParams.overlayPath,
+        path.join("./public", effectiveParams.overlayPath),
+      );
+      if (!overlayCheck.exists) {
+        throw new ValidationError(
+          `Overlay image not found: ${effectiveParams.overlayPath}`,
+        );
+      }
+    }
+
     // Prepare source file
     const sourcePath = await prepareSourceFile(
       this.storage,
@@ -355,6 +412,23 @@ export class TransformService {
       localPath,
       sourceUrl,
     );
+
+    // Images get their overlay staged here. Video thumbnails do not:
+    // transformVideo stages the overlay itself, and handing it an already
+    // staged path made it look for public/public/<overlay> (or download
+    // ./temp/... from the bucket). The staged path lives in a copy so the
+    // ETag and anything else reading effectiveParams keeps the public key.
+    let imageParams = effectiveParams;
+    let stagedOverlay: string | undefined;
+    if (effectiveParams.overlayPath && isTransformableImage) {
+      stagedOverlay = await prepareSourceFile(
+        this.storage,
+        effectiveParams.overlayPath,
+        path.join("./public", effectiveParams.overlayPath),
+      );
+      imageParams = { ...effectiveParams, overlayPath: stagedOverlay };
+    }
+
     // A remote source is staged to ./temp the same way a cloud download is, so
     // it has to be cleaned up the same way. Only the no-storage, no-URL case
     // reads a file in ./public that must survive the request.
@@ -373,7 +447,7 @@ export class TransformService {
         try {
           result = await this.processImageFile(
             sourcePath,
-            effectiveParams,
+            imageParams,
             userAgent,
             acceptHeader,
           );
@@ -404,7 +478,7 @@ export class TransformService {
         // Only thumbnail requests reach this point (non-thumbnail video
         // transformations are intercepted before prepareSourceFile above);
         // thumbnails are extracted synchronously like images
-        const result = await processVideo(sourcePath, effectiveParams);
+        const result = await processVideo(sourcePath, effectiveParams, this.storage);
         return {
           buffer: result.buffer,
           contentType: result.contentType,
@@ -431,13 +505,11 @@ export class TransformService {
       await performPeriodicCacheCleanup();
 
       // Format response
-      // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
-      // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
-      // accented characters (e.g. a combining accent has a code point > 255)
+      // Same ETag as the cached response for the same bytes (see derivativeEtag)
       const headers: Record<string, string> = {
         "Content-Length": buffer.length.toString(),
         "Cache-Control": "public, max-age=31536000, must-revalidate",
-        ETag: `"${encodeURIComponent(filePath)}-${JSON.stringify(effectiveParams)}"`,
+        ETag: derivativeEtag(buffer),
       };
 
       // Add optimization headers if available
@@ -466,6 +538,12 @@ export class TransformService {
       if (isTempFile) {
         await cleanupTempFile(sourcePath);
       }
+      // Only a bucket download is a temp copy. Without storage the staged
+      // path is the overlay's original in ./public, which must survive (a
+      // remote sourceUrl alone used to make this delete it).
+      if (stagedOverlay && this.storage) {
+        await cleanupTempFile(stagedOverlay);
+      }
     }
   }
 
@@ -474,7 +552,7 @@ export class TransformService {
    */
   private async processImageFile(
     sourcePath: string,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     userAgent?: string,
     acceptHeader?: string,
   ): Promise<{
@@ -694,6 +772,22 @@ export class TransformService {
     request: TransformRequest,
   ): Promise<TransformResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Bad transformation parameters are the client's mistake: answer 400
+    // instead of a 500 that would page us and invite retries.
+    if (error instanceof ValidationError) {
+      logger.info({ error: errorMessage, path: request.path }, error.name);
+      return {
+        buffer: Buffer.from(errorMessage),
+        contentType: "text/plain",
+        status: 400,
+        headers: {
+          "Content-Length": Buffer.byteLength(errorMessage).toString(),
+          "Cache-Control": "no-store",
+        },
+      };
+    }
+
     logger.error(
       {
         error: serializeError(error),

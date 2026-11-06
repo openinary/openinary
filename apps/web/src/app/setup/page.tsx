@@ -19,7 +19,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "skullet/react";
 import logger from "@/lib/logger";
 import { validateAuthConfig } from "@/lib/validate-auth-config";
 import { VersionBadge } from "@/components/ui/version-badge";
@@ -255,212 +255,205 @@ export default function SetupPage() {
     }
   };
 
-  if (checkingSetup) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="text-center">
-          <Spinner className="mx-auto" />
-        </div>
-      </div>
-    );
-  }
-
+  // The form itself, measured into a skeleton while the setup check runs.
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
-      <VersionBadge />
-      {/* ANIMATIONS COMMENTED OUT - Form displays immediately */}
-      {/* 
-      {!introStarted && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="relative z-20"
-        >
-          <Button
-            onClick={startIntroduction}
-            size="lg"
-            className="text-lg px-8 py-6"
-          >
-            Start
-          </Button>
-        </motion.div>
-      )}
-      <AnimatePresence mode="wait">
-        Phase 1: Shader Animation (0-5 seconds)
-        {introStarted && introPhase === "shader" && (
+    <Skeleton loading={checkingSetup} label="Loading setup">
+      <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
+        <VersionBadge />
+        {/* ANIMATIONS COMMENTED OUT - Form displays immediately */}
+        {/* 
+        {!introStarted && (
           <motion.div
-            key="shader"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="absolute inset-0 w-full h-full"
+            className="relative z-20"
           >
-            <ShaderAnimation />
-          </motion.div>
-        )}
-
-        Phase 2: Hello Text (5.5-10 seconds, then fades out 0.5s until 10.5s)
-        {introStarted && introPhase === "text" && (
-          <motion.div
-            key="text"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ 
-              opacity: textVisible ? 1 : 0, 
-              y: textVisible ? 0 : -20 
-            }}
-            transition={{ 
-              duration: 0.5, 
-              ease: textVisible ? "easeOut" : "easeIn"
-            }}
-            className="relative z-10 text-center"
-          >
-            <h1 className="text-5xl font-bold tracking-tight text-foreground">
-              Hello, stranger
-            </h1>
-          </motion.div>
-        )}
-
-        Phase 3: Form (after 10.5 seconds)
-        {showForm && (
-          <motion.div
-            key="form"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative z-10 w-full max-w-md space-y-8"
-          >
-            ...form content...
-          </motion.div>
-        )}
-      </AnimatePresence>
-      */}
-      <div className="relative z-10 w-full max-w-md space-y-8">
-        <div className="flex justify-center">
-          <Image
-            src="/openinary.svg"
-            alt="Openinary"
-            width={120}
-            height={120}
-            className="dark:invert"
-          />
-        </div>
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">
-            Initial Setup
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Create the first administrator account
-          </p>
-        </div>
-
-        {configError && (
-          <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
-            <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
-              {configError}
-            </pre>
-          </div>
-        )}
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="Your name"
-                        autoComplete="name"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="admin@example.com"
-                        autoComplete="email"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        autoComplete="new-password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        autoComplete="new-password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-
             <Button
-              type="submit"
-              disabled={form.formState.isSubmitting || !!configError}
-              className="w-full"
+              onClick={startIntroduction}
+              size="lg"
+              className="text-lg px-8 py-6"
             >
-              {form.formState.isSubmitting
-                ? "Creating account..."
-                : "Create administrator account"}
+              Start
             </Button>
-          </form>
-        </Form>
+          </motion.div>
+        )}
+        <AnimatePresence mode="wait">
+          Phase 1: Shader Animation (0-5 seconds)
+          {introStarted && introPhase === "shader" && (
+            <motion.div
+              key="shader"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 w-full h-full"
+            >
+              <ShaderAnimation />
+            </motion.div>
+          )}
+
+          Phase 2: Hello Text (5.5-10 seconds, then fades out 0.5s until 10.5s)
+          {introStarted && introPhase === "text" && (
+            <motion.div
+              key="text"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ 
+                opacity: textVisible ? 1 : 0, 
+                y: textVisible ? 0 : -20 
+              }}
+              transition={{ 
+                duration: 0.5, 
+                ease: textVisible ? "easeOut" : "easeIn"
+              }}
+              className="relative z-10 text-center"
+            >
+              <h1 className="text-5xl font-bold tracking-tight text-foreground">
+                Hello, stranger
+              </h1>
+            </motion.div>
+          )}
+
+          Phase 3: Form (after 10.5 seconds)
+          {showForm && (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="relative z-10 w-full max-w-md space-y-8"
+            >
+              ...form content...
+            </motion.div>
+          )}
+        </AnimatePresence>
+        */}
+        <div className="relative z-10 w-full max-w-md space-y-8">
+          <div className="flex justify-center">
+            <Image
+              src="/openinary.svg"
+              alt="Openinary"
+              width={120}
+              height={120}
+              className="dark:invert"
+            />
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Initial Setup
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Create the first administrator account
+            </p>
+          </div>
+
+          {configError && (
+            <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
+              <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
+                {configError}
+              </pre>
+            </div>
+          )}
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="Your name"
+                          autoComplete="name"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="admin@example.com"
+                          autoComplete="email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting || !!configError}
+                className="w-full"
+              >
+                {form.formState.isSubmitting
+                  ? "Creating account..."
+                  : "Create administrator account"}
+              </Button>
+            </form>
+          </Form>
+        </div>
+        {/* </AnimatePresence> */}
       </div>
-      {/* </AnimatePresence> */}
-    </div>
+    </Skeleton>
   );
 }

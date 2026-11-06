@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { FILE_UPLOADER_DOCS } from "@/components/get-started/uploader-card";
 import { Button } from "@/components/ui/button";
-import { cn, FADE_IN } from "@/lib/utils";
+
 
 const DISMISSED_KEY = "openinary:uploader-nudge-dismissed";
 
@@ -54,10 +54,7 @@ export function useUploaderNudge(): [boolean, () => void] {
 export function UploaderNudge({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div
-      className={cn(
-        "overflow-hidden rounded-lg border bg-black/[0.04] dark:bg-black/20",
-        FADE_IN,
-      )}
+      className="mb-2 overflow-hidden rounded-lg border bg-black/[0.04] dark:bg-black/20"
     >
       {/* Same framing as the page card, at a quarter of the width: its own
           surface, a gutter on three sides, and a product zoomed past the

@@ -24,9 +24,11 @@ import {
 import { syncLifecycle } from "../api/lib/loops.js";
 import { notify } from "../api/lib/push.js";
 import { probeSignIn } from "../api/lib/sign-in-probe.js";
+import { CACHE_PARAMS_HEADER } from "../api/lib/cache-params-header.js";
 import { billableJob } from "../api/lib/video-metering.js";
 import { app, parseRangeHeader } from "./app.js";
 import { MediaContainer } from "./container.js";
+import { overlayMissingResponse, scopeCdnOverlay } from "./overlay.js";
 import {
   imageProcessingEstimate,
   videoProcessingEstimate,
@@ -939,7 +941,24 @@ async function serveCdnRequest(
     return new Response("Too many requests", { status: 429 });
   }
   const tenantRoot = `ugc/${userId}/${bucketId}`;
-  const info = parseCdnRequest(url, bucketId);
+  // Overlays: the l_ pair names a file relative to the customer's bucket and
+  // is rewritten into the tenant scope here, before anything keys, meters or
+  // forwards on it - the container's storage is the whole R2 bucket, so an
+  // unscoped l_ would read (or 404) outside this tenant. Everything below
+  // works on cdnUrl; url stays the customer's URL for logs.
+  const overlayScope = scopeCdnOverlay(url, bucketId, tenantRoot);
+  if (!overlayScope.ok) {
+    return new Response(overlayScope.error, {
+      status: 400,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+  const cdnUrl = overlayScope.url;
+  const info = parseCdnRequest(cdnUrl, bucketId);
   if (info) {
     delivery.path = info.relativePath;
     delivery.kind = info.isImageExt
@@ -1063,6 +1082,18 @@ async function serveCdnRequest(
     });
   }
 
+  // The overlay must exist too, checked the same way and for the same
+  // reason as the source: the container would only answer 400 after a wake,
+  // by which point both 202 branches below have promised "processing".
+  if (info && overlayScope.overlayRelativePath !== null) {
+    const missing = await overlayMissingResponse(
+      env.MEDIA_BUCKET,
+      tenantRoot,
+      overlayScope.overlayRelativePath,
+    );
+    if (missing) return missing;
+  }
+
   // A cache miss on an image is a real transformation about to happen -
   // gate it on quota before waking the container. A cache miss on a
   // full (non-thumbnail) video is about to be enqueued for async
@@ -1086,7 +1117,7 @@ async function serveCdnRequest(
   // Delegates to the cached CdnAssets entrypoint (see wrangler.jsonc's
   // "exports" block) instead of caches.default below, which gets this
   // path tiered caching and request collapsing on top.
-  const transformPath = url.pathname.slice(`/b/${bucketId}`.length);
+  const transformPath = cdnUrl.pathname.slice(`/b/${bucketId}`.length);
   const rewritten = new URL(request.url);
   rewritten.pathname = scopeUpstreamPath(
     "/t",
@@ -1097,7 +1128,17 @@ async function serveCdnRequest(
       : transformPath,
     tenantRoot,
   );
-  const pending = ctx.exports.CdnAssets.fetch(new Request(rewritten, request));
+  const upstream = new Request(rewritten, request);
+  // Always overwritten, never forwarded from the client: it decides which R2
+  // key the container writes under (see api/lib/cache-params.ts).
+  upstream.headers.delete(CACHE_PARAMS_HEADER);
+  if (info) {
+    upstream.headers.set(
+      CACHE_PARAMS_HEADER,
+      JSON.stringify(derivativeParams(request, info)),
+    );
+  }
+  const pending = ctx.exports.CdnAssets.fetch(upstream);
   // Held by waitUntil from the moment it exists, because both 202 branches
   // below return without awaiting it: once the response is out and the other
   // waitUntil promises (fast DO RPCs) settle, the runtime cancels any

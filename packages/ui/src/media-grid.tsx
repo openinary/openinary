@@ -1,7 +1,14 @@
 "use client";
 
 import type React from "react";
-import { useState, useMemo, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { BorderBeam, type BorderBeamProps } from "border-beam";
 import { useTheme } from "next-themes";
 import {
@@ -25,7 +32,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
-import { Skeleton } from "./ui/skeleton";
+import { Skeleton } from "skullet/react";
 import { Button } from "./ui/button";
 import {
   Empty,
@@ -167,7 +174,189 @@ export interface MediaGridProps {
   emptyFooter?: React.ReactNode;
 }
 
-export function MediaGrid({
+function folderDir(folderPath: string | null) {
+  return (folderPath ?? "").split("/").filter(Boolean).join("/");
+}
+
+// Rows past this are below the fold; the skeleton stops there.
+const MAX_SAMPLE_ROWS = 30;
+const noSubscribe = () => () => {};
+
+type LevelCounts = { folders: number; files: number };
+
+/**
+ * How many folders and files this folder held last time, so the skeleton is
+ * built with exactly those rows and tiles. Counts rather than skullet's
+ * remembered shape: a shape is in pixels, so a grid drawn at another width
+ * (the sidebar collapsed, the window resized) came back at the wrong height,
+ * while counts rebuild the real markup at whatever width it is now.
+ */
+function useLevelCounts(dir: string) {
+  const key = `openinary:media-counts:${dir}`;
+  const raw = useSyncExternalStore(
+    noSubscribe,
+    () => {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    () => null,
+  );
+  const remember = useCallback(
+    (counts: LevelCounts) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(counts));
+      } catch {}
+    },
+    [key],
+  );
+  let counts: LevelCounts | null = null;
+  try {
+    counts = raw ? (JSON.parse(raw) as LevelCounts) : null;
+  } catch {}
+  return [counts, remember] as const;
+}
+
+/**
+ * One skeleton for the whole library, mounted from the first paint and kept
+ * while the content replaces it, drawn over the same wrappers, rows and
+ * tiles as the content, as many as the folder held last time.
+ */
+export function MediaGrid(props: MediaGridProps) {
+  const view = props.view ?? "grid";
+  const dir = folderDir(props.folderPath ?? null);
+  const { data, isLoading } = useStorageLevel(dir);
+  const [counts, rememberCounts] = useLevelCounts(dir);
+
+  const folders = data?.folders.length;
+  const files = data?.files.length;
+  useEffect(() => {
+    if (folders !== undefined && files !== undefined) {
+      rememberCounts({ folders, files });
+    }
+  }, [folders, files, rememberCounts]);
+
+  return (
+    <Skeleton loading={isLoading} label="Loading media">
+      {isLoading ? (
+        <MediaGridSample
+          view={view}
+          root={dir === ""}
+          counts={counts ?? { folders: 1, files: 8 }}
+          columns={
+            props.sidebarOpen
+              ? Math.max(2, (props.columns ?? 6) - 1)
+              : (props.columns ?? 6)
+          }
+        />
+      ) : (
+        <MediaGridBody {...props} />
+      )}
+    </Skeleton>
+  );
+}
+
+/** The library's own markup, without data, at the given counts. */
+function MediaGridSample({
+  view,
+  root,
+  counts,
+  columns,
+}: {
+  view: "grid" | "list";
+  root: boolean;
+  counts: LevelCounts;
+  columns: number;
+}) {
+  // The root of an empty bucket is the full-height empty state.
+  if (root && counts.folders === 0 && counts.files === 0) {
+    return (
+      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="size-10 rounded-lg" skullet-block="" />
+          <p className="text-lg font-medium">No Media Files Yet</p>
+          <p className="text-sm">Upload your first image or video.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const folderCount = Math.min(counts.folders, MAX_SAMPLE_ROWS);
+  const fileCount = Math.min(counts.files, MAX_SAMPLE_ROWS * columns);
+
+  if (view === "list") {
+    // Rows are 41px (py-2 around a 24px icon, plus the border) and the box
+    // is the virtual list's total, border included, as in the real list.
+    const box = (rows: React.ReactNode[]) => (
+      <div
+        className="@container rounded-lg border border-border overflow-hidden"
+        style={{ height: rows.length * 41 }}
+      >
+        {rows}
+      </div>
+    );
+    const row = (name: string, type: string, size: string, i: number) => (
+      <div
+        key={i}
+        className="flex items-center gap-4 px-3 py-2 border-b border-border"
+      >
+        <div className="h-6 w-6 shrink-0 rounded" skullet-block="" />
+        <p className="min-w-0 flex-1 truncate text-sm">{name}</p>
+        <span className="hidden w-32 shrink-0 text-right text-xs @xl:block">
+          {type}
+        </span>
+        <span className="hidden w-24 shrink-0 text-right text-xs @md:block">
+          {size}
+        </span>
+        <div className="w-20 shrink-0 @md:w-28" />
+      </div>
+    );
+    return (
+      <div className="space-y-4">
+        {box([
+          row("New folder", "", "", -1),
+          ...Array.from({ length: folderCount }, (_, i) =>
+            row("Folder name", "Folder", "12 items", i),
+          ),
+        ])}
+        {fileCount > 0 &&
+          box(
+            Array.from({ length: fileCount }, (_, i) =>
+              row("sample-media-file-name.jpg", "image/jpeg", "1.2 MB", i),
+            ),
+          )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 pb-4">
+        {Array.from({ length: folderCount + 1 }, (_, i) => (
+          <div
+            key={i}
+            className="h-[180px] w-[190px] rounded-lg"
+            skullet-block=""
+          />
+        ))}
+      </div>
+      {fileCount > 0 && (
+        <div
+          className="grid gap-4 pb-4"
+          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: fileCount }, (_, i) => (
+            <div key={i} className="aspect-square rounded-lg" skullet-block="" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MediaGridBody({
   onMediaSelect,
   sidebarOpen = false,
   columns = 6,
@@ -272,7 +461,7 @@ export function MediaGrid({
   const currentDir = pathSegments.join("/");
 
   // Current level, loaded lazily per folder (sorted server-side)
-  const { data: level, isLoading, error } = useStorageLevel(currentDir);
+  const { data: level, error } = useStorageLevel(currentDir);
   const folders = useMemo(() => level?.folders ?? [], [level]);
   const files = useMemo(() => level?.files ?? [], [level]);
 
@@ -417,19 +606,6 @@ export function MediaGrid({
       },
     );
   }, [selection, currentDir]);
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4" style={gridStyle}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="aspect-square w-full rounded-lg" />
-            <Skeleton className="h-4 w-full" />
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   if (error) {
     return (

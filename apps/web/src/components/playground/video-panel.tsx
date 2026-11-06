@@ -26,6 +26,7 @@ import {
 import { PATTERN_BASE, UrlPattern } from "@/components/playground/url-pattern";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { SkeletonBox } from "skullet/react";
 import { renderVideoPoster, type VideoPoster } from "@/lib/playground/render";
 import { cn } from "@/lib/utils";
 
@@ -149,7 +150,11 @@ export function VideoPanel() {
             />
           ) : (
             <div className="flex aspect-video w-full items-center justify-center text-muted-foreground text-xs">
-              {isBusy ? <Spinner /> : "Pick a video below"}
+              {isBusy ? (
+                <SkeletonBox width="100%" height="100%" radius={0} />
+              ) : (
+                "Pick a video below"
+              )}
             </div>
           )}
 

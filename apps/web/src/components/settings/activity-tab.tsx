@@ -173,6 +173,7 @@ export function ActivityTab() {
           </p>
         </div>
         <UsageTable
+          id="video-jobs"
           columns={JOB_COLUMNS}
           empty="No video has been processed yet."
           isError={jobs.isError}

@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:22.23.4-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
 
 # Install ffmpeg for video processing, openssl for Prisma/better-auth, and jemalloc
 # to avoid RSS bloat from glibc arena fragmentation under sharp/libvips and ffmpeg workloads

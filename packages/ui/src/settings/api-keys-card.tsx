@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "skullet/react";
 import { SettingsFields } from "./settings-section";
 
 export type ApiKeyItem = {
@@ -30,6 +30,18 @@ export type ApiKeyItem = {
   /** Facts shown in the expanded row, after the ones every key has. */
   details?: { label: string; value: React.ReactNode }[];
 };
+
+// What the list is measured from while the real keys load.
+const SAMPLE_KEYS: ApiKeyItem[] = [0, 1].map((i) => ({
+  id: `sample-${i}`,
+  name: "Production server",
+  start: "oin_live_ab",
+  enabled: true,
+  createdAt: new Date(0),
+  expiresAt: null,
+  lastRequest: new Date(0),
+}));
+const noop = async () => {};
 
 const STALE_DAYS = 30;
 const DAY = 86_400_000;
@@ -69,7 +81,11 @@ function ago(date: Date) {
 const toDate = (value: string | Date | null) =>
   value === null ? null : new Date(value);
 
-function StatusBadge({ status }: { status: "active" | "disabled" | "expired" }) {
+function StatusBadge({
+  status,
+}: {
+  status: "active" | "disabled" | "expired";
+}) {
   return (
     <span
       className={cn(
@@ -307,47 +323,56 @@ export function ApiKeysCard({
   return (
     <div className="@container overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-4 px-5 py-3">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground tabular-nums">
-            {active}
-          </span>{" "}
-          active {active === 1 ? "key" : "keys"}
-        </p>
+        <Skeleton loading={!!isLoading}>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground tabular-nums">
+              {active}
+            </span>{" "}
+            active {active === 1 ? "key" : "keys"}
+          </p>
+        </Skeleton>
         <Button size="sm" onClick={onCreate}>
           <Plus />
           Create key
         </Button>
       </div>
-      <div className="divide-y border-t">
-        {isLoading ? (
-          [0, 1].map((i) => (
-            <div key={i} className="space-y-2 px-5 py-4">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          ))
-        ) : error ? (
-          <p className="px-5 py-8 text-center text-sm text-destructive">
-            {error}
-          </p>
-        ) : !keys?.length ? (
-          <div className="px-5 py-10 text-center">
-            <p className="text-sm font-medium">No keys yet</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Create one to call the API from your servers.
+      {/* One skeleton across loading and loaded: under this id skullet
+          recalls the list as it last looked (how many keys, or none), so the
+          card is its final height from the start. */}
+      <Skeleton id="api-keys" loading={!!isLoading} label="Loading API keys">
+        <div className="divide-y border-t">
+          {isLoading ? (
+            SAMPLE_KEYS.map((key) => (
+              <ApiKeyRow
+                key={key.id}
+                apiKey={key}
+                onToggle={noop}
+                onRevoke={noop}
+              />
+            ))
+          ) : error ? (
+            <p className="px-5 py-8 text-center text-sm text-destructive">
+              {error}
             </p>
-          </div>
-        ) : (
-          keys.map((key) => (
-            <ApiKeyRow
-              key={key.id}
-              apiKey={key}
-              onToggle={onToggle}
-              onRevoke={onRevoke}
-            />
-          ))
-        )}
-      </div>
+          ) : !keys?.length ? (
+            <div className="px-5 py-10 text-center">
+              <p className="text-sm font-medium">No keys yet</p>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Create one to call the API from your servers.
+              </p>
+            </div>
+          ) : (
+            keys.map((key) => (
+              <ApiKeyRow
+                key={key.id}
+                apiKey={key}
+                onToggle={onToggle}
+                onRevoke={onRevoke}
+              />
+            ))
+          )}
+        </div>
+      </Skeleton>
     </div>
   );
 }
@@ -384,8 +409,7 @@ export function CreateApiKeyDialog({
             <DialogHeader>
               <DialogTitle>Save your key</DialogTitle>
               <DialogDescription>
-                Copy it now and keep it somewhere safe. It won't be shown
-                again.
+                Copy it now and keep it somewhere safe. It won't be shown again.
               </DialogDescription>
             </DialogHeader>
             <CopyInput value={createdKey} />

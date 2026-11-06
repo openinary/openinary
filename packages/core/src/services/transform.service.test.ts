@@ -184,7 +184,7 @@ test("the 202 status URL resolves to the job the transform queued", async () => 
   // Same key the transform used: the transformation segment is params, not path
   assert.deepEqual(lookups.at(-1), {
     filePath: "videos/clip.mp4",
-    params: { width: "640", quality: "80" },
+    params: { width: 640, quality: 80 },
   });
 });
 

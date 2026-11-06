@@ -34,18 +34,18 @@ type StorageClient = NonNullable<RouteDeps["storage"]>;
 export function createStorageRoute(deps: RouteDeps) {
   const { storage: storageClient, queue } = deps;
   const storageRoute = new Hono();
-
   /**
-   * Full recursive listing of public/ objects (keys relative, prefix stripped),
+   * Full recursive listing of media objects (keys relative, prefix stripped),
    * shared between /stats and /folders through a short-lived TTL cache
    */
   async function getPublicObjects(client: StorageClient) {
-    const objects = await getCachedFullListing(() =>
-      client.listAllParallel("public/"),
-    );
+    const objects = await getCachedFullListing(() => client.listAllMedia());
     return objects
-      .filter((obj) => obj.key.startsWith("public/"))
-      .map((obj) => ({ ...obj, key: obj.key.substring(7) }));
+      .filter((obj) => obj.key.startsWith(client.mediaPrefix))
+      .map((obj) => ({
+        ...obj,
+        key: obj.key.slice(client.mediaPrefix.length),
+      }));
   }
 
   function buildLocalTree(rootDir: string): StorageNode {
@@ -472,7 +472,7 @@ export function createStorageRoute(deps: RouteDeps) {
 
     try {
       filePath = decodeURIComponent(filePath);
-    } catch (error) {
+    } catch {
       // If decoding fails, use the original path
     }
 
@@ -566,7 +566,7 @@ export function createStorageRoute(deps: RouteDeps) {
 
     try {
       filePath = decodeURIComponent(filePath);
-    } catch (error) {
+    } catch {
       // If decoding fails, use the original path
     }
 
@@ -802,10 +802,7 @@ export function createStorageRoute(deps: RouteDeps) {
         }
         targetDir =
           typeof body.destination === "string"
-            ? stripUrlHostile(body.destination.trim()).replace(
-                /^\/+|\/+$/g,
-                "",
-              )
+            ? stripUrlHostile(body.destination.trim()).replace(/^\/+|\/+$/g, "")
             : "";
 
         if (targetDir === normalizedDir) {
