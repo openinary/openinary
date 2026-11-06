@@ -26,7 +26,7 @@ export function GetStartedPage({
   children,
 }: {
   title: string;
-  heading: string;
+  heading: React.ReactNode;
   description: string;
   children: React.ReactNode;
 }) {

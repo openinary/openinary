@@ -17,26 +17,22 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Skeleton } from "skullet/react";
 
 import { GettingStarted } from "@/components/sidebar/getting-started";
 import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavUser } from "@/components/sidebar/nav-user";
-import { useVersion } from "@/components/sidebar/version-display";
-import { cn } from "@/lib/utils";
+import { VersionLink } from "@/components/sidebar/version-display";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar";
 
 const GITHUB_URL = "https://github.com/openinary/openinary";
@@ -83,7 +79,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   const router = useRouter();
-  const version = useVersion();
   const toAction =
     (group: string) =>
     (item: NavItem): QuickAction => ({
@@ -143,9 +138,7 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
         />
       </SidebarContent>
       <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:px-0">
-        <div className="px-3 pb-2 empty:hidden group-data-[collapsible=icon]:hidden">
-          <GettingStarted />
-        </div>
+        <GettingStarted />
         <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
@@ -160,70 +153,12 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
               </Link>
             </SidebarMenuButton>
             {/* Still worth a glance when reporting a bug, so it stays, quietly. */}
-            <a
-              href={`${GITHUB_URL}/releases`}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 pr-1 text-xs text-muted-foreground tabular-nums transition-colors hover:text-foreground group-data-[collapsible=icon]:hidden"
-            >
-              {version}
-            </a>
+            <VersionLink href={`${GITHUB_URL}/releases`} />
           </SidebarMenuItem>
         </SidebarMenu>
         </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
-}
-
-/**
- * The dashboard before the session is known: the same sidebar, no data,
- * measured into a skeleton so the real one lands without a shift.
- */
-export function ShellSkeleton() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-
-  return (
-    <Skeleton
-      id="app-shell"
-      loading
-      label="Loading dashboard"
-      className="w-full"
-    >
-      <div className="flex min-h-svh w-full">
-        {/* In flow, not fixed like the real sidebar, so it can be measured;
-            same width and data attributes, so the inset sits where it will. */}
-        <div
-          className={cn(
-            "group peer hidden h-svh shrink-0 flex-col p-2 text-sidebar-foreground md:flex",
-            collapsed
-              ? "w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-              : "w-(--sidebar-width)",
-          )}
-          data-collapsible={collapsed ? "icon" : ""}
-          data-state={state}
-          data-variant="inset"
-        >
-          <SidebarHeader>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="w-fit">
-                  <span className="size-5 shrink-0 rounded-full" skullet-block="" />
-                  <span className="truncate font-medium">Admin</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-            <div className="h-8 rounded-md" skullet-block="" />
-          </SidebarHeader>
-          <SidebarContent>
-            <NavMain items={mainItems} />
-            <NavMain label="Tools" items={toolItems} />
-          </SidebarContent>
-        </div>
-        <SidebarInset />
-      </div>
-    </Skeleton>
   );
 }
