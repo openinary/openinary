@@ -727,3 +727,26 @@ export function validateUploadFileType(
   if (!allowedExtensions) return false;
   return allowedExtensions.includes(posix.extname(filename).toLowerCase());
 }
+
+/**
+ * Whether a video_job row is the job for these params. The row holds core's
+ * params as the container parsed them (typed, URL order: {"width":800}); the
+ * Worker parses with its own vendored parser (all strings, width/height/
+ * resize last: {"width":"800"}). JSON equality never matched, so the 202 and
+ * /video-status never found a job: no progress, no "processing" phase.
+ * Compared as strings, key order ignored, without the Worker-only "resize".
+ */
+export function sameVideoParams(paramsJson: string, params: object): boolean {
+  return videoParamsKey(JSON.parse(paramsJson)) === videoParamsKey(params);
+}
+
+function videoParamsKey(params: object): string {
+  const entries = Object.entries(params as Record<string, unknown>)
+    .filter(
+      ([key, value]) =>
+        key !== "resize" && value != null && value !== false && value !== "",
+    )
+    .map(([key, value]) => [key, String(value)] as const)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify(entries);
+}
