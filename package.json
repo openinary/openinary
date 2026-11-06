@@ -61,7 +61,8 @@
       "workerd"
     ],
     "patchedDependencies": {
-      "@cossistant/core@0.2.0": "patches/@cossistant__core@0.2.0.patch"
+      "@cossistant/core@0.2.0": "patches/@cossistant__core@0.2.0.patch",
+      "skullet@0.0.3": "patches/skullet@0.0.3.patch"
     },
     "overrides": {
       "tar@7": "^7.5.19",
