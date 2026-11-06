@@ -9,7 +9,6 @@ import {
 } from "@/components/get-started/prompt-copy";
 import { useHasApiKey } from "@/components/get-started/use-onboarding";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * The framework walkthroughs live in the docs, where they can be as long as
@@ -88,13 +87,9 @@ export function IntegratePanel() {
         </div>
       </div>
 
-      {content ? (
-        <pre className="max-h-[28rem] overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-[11px] leading-relaxed">
-          <code>{content}</code>
-        </pre>
-      ) : (
-        <Skeleton className="h-64 w-full" />
-      )}
+      <pre className="max-h-[28rem] overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-[11px] leading-relaxed">
+        <code>{content}</code>
+      </pre>
 
       <p className="text-muted-foreground text-xs leading-relaxed">
         Prefilled with your instance's URL, but never with your API key -

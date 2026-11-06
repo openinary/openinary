@@ -25,7 +25,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
-import { Skeleton } from "./ui/skeleton";
+import { Skeleton } from "skullet/react";
 import { Button } from "./ui/button";
 import {
   Empty,
@@ -167,7 +167,107 @@ export interface MediaGridProps {
   emptyFooter?: React.ReactNode;
 }
 
-export function MediaGrid({
+function folderDir(folderPath: string | null) {
+  return (folderPath ?? "").split("/").filter(Boolean).join("/");
+}
+
+/**
+ * One skeleton for the whole library, mounted from the first paint and kept
+ * while the content replaces it: skullet remembers what it last showed under
+ * this id, so a reload draws that exact layout (rows, tiles, empty state)
+ * instead of a guess.
+ */
+export function MediaGrid(props: MediaGridProps) {
+  const view = props.view ?? "grid";
+  const dir = folderDir(props.folderPath ?? null);
+  const { isLoading } = useStorageLevel(dir);
+
+  return (
+    <Skeleton
+      id={`media-${view}:${dir}`}
+      loading={isLoading}
+      label="Loading media"
+    >
+      {isLoading ? (
+        <MediaGridSample
+          view={view}
+          columns={
+            props.sidebarOpen
+              ? Math.max(2, (props.columns ?? 6) - 1)
+              : (props.columns ?? 6)
+          }
+        />
+      ) : (
+        <MediaGridBody {...props} />
+      )}
+    </Skeleton>
+  );
+}
+
+/**
+ * Before skullet has a shape remembered: the same wrappers, rows and tiles the
+ * library renders, over a couple of folders and a screenful of files.
+ */
+function MediaGridSample({
+  view,
+  columns,
+}: {
+  view: "grid" | "list";
+  columns: number;
+}) {
+  if (view === "list") {
+    const row = (name: string, type: string, size: string, i: number) => (
+      <div
+        key={i}
+        className="flex items-center gap-4 px-3 py-2 border-b border-border"
+      >
+        <div className="h-6 w-6 shrink-0 rounded" skullet-block="" />
+        <p className="min-w-0 flex-1 truncate text-sm">{name}</p>
+        <span className="hidden w-32 shrink-0 text-right text-xs @xl:block">
+          {type}
+        </span>
+        <span className="hidden w-24 shrink-0 text-right text-xs @md:block">
+          {size}
+        </span>
+        <div className="w-20 shrink-0 @md:w-28" />
+      </div>
+    );
+    return (
+      <div className="space-y-4">
+        <div className="@container rounded-lg border border-border overflow-hidden">
+          {row("New folder", "", "", 0)}
+          {row("Folder name", "Folder", "12 items", 1)}
+        </div>
+        <div className="@container rounded-lg border border-border overflow-hidden">
+          {Array.from({ length: 8 }, (_, i) =>
+            row("sample-media-file-name.jpg", "image/jpeg", "1.2 MB", i),
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 pb-4">
+        {Array.from({ length: 2 }, (_, i) => (
+          <div
+            key={i}
+            className="h-[180px] w-[190px] rounded-lg"
+            skullet-block=""
+          />
+        ))}
+      </div>
+      <div className="grid gap-4 pb-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        {Array.from({ length: columns * 2 }, (_, i) => (
+          <div key={i} className="aspect-square rounded-lg" skullet-block="" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MediaGridBody({
   onMediaSelect,
   sidebarOpen = false,
   columns = 6,
@@ -272,7 +372,7 @@ export function MediaGrid({
   const currentDir = pathSegments.join("/");
 
   // Current level, loaded lazily per folder (sorted server-side)
-  const { data: level, isLoading, error } = useStorageLevel(currentDir);
+  const { data: level, error } = useStorageLevel(currentDir);
   const folders = useMemo(() => level?.folders ?? [], [level]);
   const files = useMemo(() => level?.files ?? [], [level]);
 
@@ -417,19 +517,6 @@ export function MediaGrid({
       },
     );
   }, [selection, currentDir]);
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4" style={gridStyle}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="aspect-square w-full rounded-lg" />
-            <Skeleton className="h-4 w-full" />
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   if (error) {
     return (

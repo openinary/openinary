@@ -4,6 +4,7 @@ import { Spinner } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, LogOut, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "skullet/react";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
@@ -22,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -47,6 +49,8 @@ export function BucketSwitcher() {
   );
 
   const activeBucket = buckets?.find((b) => b.active) ?? buckets?.[0];
+  // Client-only, so the skeleton can recall its last shape (useHydrated).
+  const hydrated = useHydrated();
 
   return (
     <SidebarMenu className="min-w-0 flex-1">
@@ -57,20 +61,31 @@ export function BucketSwitcher() {
               className="w-fit max-w-full text-sidebar-foreground data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-1.5!"
               disabled={isLoading || isSwitching}
             >
-              {isSwitching ? (
-                <div className="flex size-5 shrink-0 items-center justify-center">
-                  <Spinner className="size-4" />
-                </div>
-              ) : (
-                <BucketAvatar
-                  id={activeBucket?.id ?? "Openinary"}
-                  size={20}
-                />
+              {hydrated && (
+                <Skeleton
+                  id="bucket-switcher"
+                  loading={isLoading}
+                  label="Loading bucket"
+                  className="min-w-0"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    {isSwitching ? (
+                      <div className="flex size-5 shrink-0 items-center justify-center">
+                        <Spinner className="size-4" />
+                      </div>
+                    ) : (
+                      <BucketAvatar
+                        id={activeBucket?.id ?? "Openinary"}
+                        size={20}
+                      />
+                    )}
+                    <span className="truncate font-medium">
+                      {activeBucket?.name ?? "My bucket"}
+                    </span>
+                  </div>
+                </Skeleton>
               )}
-              <span className="truncate font-medium">
-                {activeBucket?.name ?? "Openinary"}
-              </span>
-              <ChevronDown className="size-3.5!" />
+              {hydrated && <ChevronDown className="size-3.5!" />}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           {/* The sidebar's own width, flush under the trigger, so the menu

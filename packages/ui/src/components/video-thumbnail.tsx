@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { cn } from "../lib/utils";
-import { Skeleton } from "../ui/skeleton";
+import { SkeletonBox } from "skullet/react";
 
 interface VideoThumbnailProps {
   src: string;
@@ -95,7 +95,9 @@ export function VideoThumbnail({
 
   return (
     <div className="relative w-full h-full">
-      {isLoading && !hasError && <Skeleton className="absolute inset-0 w-full h-full" />}
+      {isLoading && !hasError && (
+        <SkeletonBox className="absolute inset-0" width="100%" height="100%" radius={0} />
+      )}
       {hasError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground">
           <div className="text-center text-xs">

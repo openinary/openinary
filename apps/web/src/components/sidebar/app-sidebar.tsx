@@ -17,27 +17,66 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "skullet/react";
 
 import { GettingStarted } from "@/components/sidebar/getting-started";
 import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavUser } from "@/components/sidebar/nav-user";
 import { useVersion } from "@/components/sidebar/version-display";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const GITHUB_URL = "https://github.com/openinary/openinary";
 const DOCS_URL = "https://docs.openinary.dev";
 
+export const mainItems: NavItem[] = [
+  { title: "Assets", icon: LayoutGrid, url: "/" },
+  { title: "Logs", icon: ScrollText, url: "/settings/logs" },
+  { title: "Storage", icon: HardDrive, url: "/settings/storage" },
+  { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
+];
+
+export const toolItems: NavItem[] = [
+  {
+    title: "Integrate",
+    icon: Plug,
+    url: "/get-started/integrate",
+    tile: "from-orange-400 to-rose-500",
+  },
+  {
+    title: "Images",
+    icon: ImageIcon,
+    url: "/get-started/images",
+    tile: "from-sky-400 to-indigo-500",
+  },
+  {
+    title: "Videos",
+    icon: Video,
+    url: "/get-started/videos",
+    tile: "from-emerald-400 to-teal-600",
+  },
+  {
+    title: "Uploader",
+    icon: UploadCloud,
+    url: "/uploader-demo",
+    tile: "from-fuchsia-400 to-violet-600",
+  },
+];
+
+// One palette entry per sidebar link, filed under the section it sits in.
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onMediaSelect?: (media: MediaFile) => void;
 }
@@ -45,41 +84,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
   const router = useRouter();
   const version = useVersion();
-  const mainItems: NavItem[] = [
-    { title: "Assets", icon: LayoutGrid, url: "/" },
-    { title: "Logs", icon: ScrollText, url: "/settings/logs" },
-    { title: "Storage", icon: HardDrive, url: "/settings/storage" },
-    { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
-  ];
-
-  const toolItems: NavItem[] = [
-    {
-      title: "Integrate",
-      icon: Plug,
-      url: "/get-started/integrate",
-      tile: "from-orange-400 to-rose-500",
-    },
-    {
-      title: "Images",
-      icon: ImageIcon,
-      url: "/get-started/images",
-      tile: "from-sky-400 to-indigo-500",
-    },
-    {
-      title: "Videos",
-      icon: Video,
-      url: "/get-started/videos",
-      tile: "from-emerald-400 to-teal-600",
-    },
-    {
-      title: "Uploader",
-      icon: UploadCloud,
-      url: "/uploader-demo",
-      tile: "from-fuchsia-400 to-violet-600",
-    },
-  ];
-
-  // One palette entry per sidebar link, filed under the section it sits in.
   const toAction =
     (group: string) =>
     (item: NavItem): QuickAction => ({
@@ -170,5 +174,56 @@ export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+/**
+ * The dashboard before the session is known: the same sidebar, no data,
+ * measured into a skeleton so the real one lands without a shift.
+ */
+export function ShellSkeleton() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+
+  return (
+    <Skeleton
+      id="app-shell"
+      loading
+      label="Loading dashboard"
+      className="w-full"
+    >
+      <div className="flex min-h-svh w-full">
+        {/* In flow, not fixed like the real sidebar, so it can be measured;
+            same width and data attributes, so the inset sits where it will. */}
+        <div
+          className={cn(
+            "group peer hidden h-svh shrink-0 flex-col p-2 text-sidebar-foreground md:flex",
+            collapsed
+              ? "w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+              : "w-(--sidebar-width)",
+          )}
+          data-collapsible={collapsed ? "icon" : ""}
+          data-state={state}
+          data-variant="inset"
+        >
+          <SidebarHeader>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton className="w-fit">
+                  <span className="size-5 shrink-0 rounded-full" skullet-block="" />
+                  <span className="truncate font-medium">Admin</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+            <div className="h-8 rounded-md" skullet-block="" />
+          </SidebarHeader>
+          <SidebarContent>
+            <NavMain items={mainItems} />
+            <NavMain label="Tools" items={toolItems} />
+          </SidebarContent>
+        </div>
+        <SidebarInset />
+      </div>
+    </Skeleton>
   );
 }

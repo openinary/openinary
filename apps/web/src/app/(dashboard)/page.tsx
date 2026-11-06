@@ -3,14 +3,13 @@
 import { AssetDetailsSidebar } from "@/components/details-sidebar";
 import HeaderBar from "@/components/headerbar";
 import { Sheet } from "@/components/page";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { AppSidebar, ShellSkeleton } from "@/components/sidebar/app-sidebar";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { SidebarInset } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/auth-client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BottomSheet, MediaGrid, type MediaFile } from "@openinary/ui";
@@ -198,13 +197,8 @@ export default function HomePage() {
     }
   }, [session, isPending, router]);
 
-  // Show loading state while checking session
   if (isPending) {
-    return (
-      <div className="flex min-h-screen w-screen items-center justify-center bg-background px-4">
-        <Spinner className="mx-auto" />
-      </div>
-    );
+    return <ShellSkeleton />;
   }
 
   // Don't render content if session is invalid (redirect will happen)
@@ -214,11 +208,7 @@ export default function HomePage() {
 
   return (
     <Suspense
-      fallback={
-        <div className="flex h-screen items-center justify-center">
-          Loading...
-        </div>
-      }
+      fallback={<ShellSkeleton />}
     >
       <HomePageContent />
     </Suspense>

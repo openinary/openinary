@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { Skeleton } from "skullet/react";
 
 import { useOnboarding } from "@/components/get-started/use-onboarding";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
@@ -11,8 +12,8 @@ import {
 } from "@/components/sidebar/uploader-nudge";
 import { Button } from "@/components/ui/button";
 import { CircularProgress } from "@/components/ui/circular-progress";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { CLOUD_AVAILABLE, isMeteredPlan, usageRatio } from "@/lib/usage";
-import { cn, FADE_IN } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -52,25 +53,40 @@ const UPSELL_AT = 0.35;
  * different price and needs its own card.
  */
 export function UpgradeCard() {
+  const { isReady } = useOnboarding();
+  // Client-only, so the skeleton can recall its last shape (useHydrated).
+  if (!useHydrated()) return null;
+
+  // Mounted from the first paint, in all four states: skullet remembers which
+  // one it last showed under this id, so the slot holds that card's exact
+  // height (or none) while the checklist loads, instead of popping one in.
+  return (
+    <Skeleton
+      id="upgrade-card"
+      loading={!isReady}
+      label="Loading"
+      className="px-3 group-data-[collapsible=icon]:hidden"
+    >
+      <UpgradeCardContent />
+    </Skeleton>
+  );
+}
+
+function UpgradeCardContent() {
   const { data } = useQuery(orpc.usage.get.queryOptions());
   const setSettingsTab = useSettingsPage();
   const { completed, total, isComplete, isReady } = useOnboarding();
   const [nudgeDismissed, dismissNudge] = useUploaderNudge();
 
-  // Nothing at all until the checklist can be judged. usage.get answers well
-  // before isReady does (which also waits on the API keys and the bucket
-  // listing), so returning the upsell in the meantime showed "Double your
-  // limits" for a beat and then swapped it for "Get started".
-  if (!isReady) return null;
-
-  if (!isComplete) {
+  // Until the checklist can be judged this renders the checklist row, under
+  // the skeleton: usage.get answers well before isReady does (which also waits
+  // on the API keys and the bucket listing), so judging early showed "Double
+  // your limits" for a beat and then swapped it for "Get started".
+  if (!isReady || !isComplete) {
     return (
       <Link
         href="/get-started"
-        className={cn(
-          "flex h-9 items-center gap-2 rounded-lg border bg-background px-2.5 shadow-xs transition-colors hover:bg-accent",
-          FADE_IN,
-        )}
+        className="mb-2 flex h-9 items-center gap-2 rounded-lg border bg-background px-2.5 shadow-xs transition-colors hover:bg-accent"
       >
         <CircularProgress
           value={(completed / total) * 100}
@@ -96,10 +112,7 @@ export function UpgradeCard() {
   if (free && usageRatio(free.features) >= UPSELL_AT) {
     return (
       <div
-        className={cn(
-          "rounded-lg border bg-background p-3 shadow-xs",
-          FADE_IN,
-        )}
+        className="mb-2 rounded-lg border bg-background p-3 shadow-xs"
       >
         <p className="font-medium text-sm">Double your limits</p>
         <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
