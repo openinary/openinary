@@ -3,6 +3,16 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="November 6, 2026" description="v0.9.0" tags={["Feature", "Improvement"]}>
+  ## New features
+
+**Know when a transformation will be ready**, A 202 no longer asks you to poll blindly. It says which phase the job is in (`queued`, `processing`, or `waking` while a cloud server starts), how far it has got, and when it should be done, with a typical and a pessimistic figure. `Retry-After` follows that estimate, so a client that simply honors it asks again at the right time. Video progress comes from the encoder itself, and the estimate learns how fast your server encodes. `/video-status` carries the same estimate. See [transform](/api-reference/media/transform).
+
+## Improvements
+
+**Steadier loading in the dashboard**, Loading states are now skeletons shaped like the real page, in the cloud dashboard and the self-hosted app, so nothing jumps when the data arrives.
+</Update>
+
 <Update label="November 5, 2026" description="v0.8.0" tags={["Feature", "Fix"]}>
   ## New features
 
