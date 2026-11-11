@@ -1,6 +1,12 @@
 import { createHash } from 'crypto';
 
 export class KeyGenerator {
+  /** Asset namespace: cleanup does not need metadata for scoped derivatives. */
+  static generateAssetPrefix(originalPath: string): string {
+    const hash = createHash('sha256').update(originalPath).digest('hex');
+    return `cache/assets/${hash}/`;
+  }
+
   /**
    * Generates a unique key for the file based on path and parameters
    */
@@ -18,7 +24,7 @@ export class KeyGenerator {
     );
     const hash = createHash('md5').update(originalPath + paramsString).digest('hex');
     const ext = originalPath.split('.').pop();
-    return `cache/${hash}.${ext}`;
+    return `${this.generateAssetPrefix(originalPath)}${hash}.${ext}`;
   }
 
   /**
