@@ -601,35 +601,37 @@ export class CloudStorage implements StatsBackend {
 
   /**
    * Deletes all cached transformations for an original file from cloud storage
-   * Uses metadata to identify files belonging to the original path
+   * Lists the asset namespace; metadata lookup is only for legacy flat keys.
    */
   async deleteAllCachedTransformations(originalPath: string): Promise<number> {
     try {
-      // List all objects with cache/ prefix
-      const cacheObjects = await this.s3Client.listObjects("cache/");
-
-      const keysToDelete: string[] = [];
-      let sizeToDelete = 0;
-
-      // Check each object's metadata to see if it belongs to this original path
-      for (const obj of cacheObjects) {
-        try {
-          const metadata = await this.s3Client.getObjectMetadata(obj.key);
+      const prefix = KeyGenerator.generateAssetPrefix(originalPath);
+      const [scopedObjects, legacyListing] = await Promise.all([
+        this.s3Client.listObjects(prefix),
+        // Delimiter excludes descendants of other assets. Flat keys from older
+        // versions have no asset identity, so only those still need metadata.
+        this.s3Client.listDelimited("cache/"),
+      ]);
+      const objectsToDelete = [...scopedObjects];
+      const legacyObjects = legacyListing.objects;
+      const batchSize = 16;
+      for (let i = 0; i < legacyObjects.length; i += batchSize) {
+        const batch = legacyObjects.slice(i, i + batchSize);
+        const metadata = await Promise.all(
+          batch.map((obj) => this.s3Client.getObjectMetadata(obj.key)),
+        );
+        for (let j = 0; j < batch.length; j++) {
           if (
-            metadata?.metadata?.["x-original-path"] ===
-            encodeURIComponent(originalPath)
+            metadata[j]?.metadata?.["x-original-path"] === encodeURIComponent(originalPath)
           ) {
-            keysToDelete.push(obj.key);
-            sizeToDelete += obj.size ?? 0;
+            objectsToDelete.push(batch[j]);
           }
-        } catch (error) {
-          // If we can't get metadata, skip this object
-          logger.warn(
-            { error: serializeError(error), key: obj.key },
-            "Failed to get metadata for cache object",
-          );
         }
       }
+      const keysToDelete = objectsToDelete.map((obj) => obj.key);
+      const sizeToDelete = objectsToDelete.reduce(
+        (sum, obj) => sum + (obj.size ?? 0), 0,
+      );
 
       if (keysToDelete.length === 0) {
         logger.debug(
@@ -640,6 +642,8 @@ export class CloudStorage implements StatsBackend {
       }
 
       // Delete all identified objects
+      // A bulk request can partially succeed before reporting an error.
+      for (const key of keysToDelete) this.cache.delete(`exists:${key}`);
       const deletedCount = await this.s3Client.deleteObjects(keysToDelete);
 
       adjustBucketStats(this, "cache", {
@@ -738,6 +742,8 @@ export class CloudStorage implements StatsBackend {
    */
   async clearAllCache(): Promise<number> {
     const cacheObjects = await this.s3Client.listObjects("cache/");
+    // Invalidate even when the provider reports a partial deletion failure.
+    this.cache.clear();
     const deletedCount =
       cacheObjects.length === 0
         ? 0
@@ -763,18 +769,10 @@ export class CloudStorage implements StatsBackend {
     // Clear the original file cache
     this.cache.delete(`original:${originalPath}`);
 
-    // Clear all transformation caches that might exist
-    // We need to iterate through all cache keys and remove those related to this original path
-    const allKeys = this.cache.getAllKeys();
+    const prefix = `exists:${KeyGenerator.generateAssetPrefix(originalPath)}`;
     let deletedCount = 0;
-
-    for (const key of allKeys) {
-      // Keys for transformations contain the original path in their storage key
-      // Format: exists:cache/${originalPath}-${hash}.ext
-      if (
-        key.includes(originalPath) ||
-        key.startsWith(`exists:cache/${originalPath}`)
-      ) {
+    for (const key of this.cache.getAllKeys()) {
+      if (key.startsWith(prefix)) {
         this.cache.delete(key);
         deletedCount++;
       }

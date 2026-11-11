@@ -367,8 +367,11 @@ export class S3ClientWrapper {
         lastModified: response.LastModified ?? new Date(),
         metadata: response.Metadata,
       };
-    } catch {
-      return null;
+    } catch (error: any) {
+      if (error?.$metadata?.httpStatusCode === 404 || error?.name === "NotFound") {
+        return null;
+      }
+      throw error;
     }
   }
 
@@ -398,7 +401,12 @@ export class S3ClientWrapper {
         }),
       );
 
-      totalDeleted += batch.length - (response.Errors?.length ?? 0);
+      if (response.Errors?.length) {
+        throw new Error(`Failed to delete storage objects: ${response.Errors.map(
+          (error) => `${error.Key}: ${error.Code}${error.Message ? ` (${error.Message})` : ""}`,
+        ).join("; ")}`);
+      }
+      totalDeleted += batch.length;
     }
 
     return totalDeleted;

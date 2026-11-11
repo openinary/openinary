@@ -64,6 +64,26 @@ services:
 
 Backblaze B2 and other S3-compatible services work the same way: set their endpoint and a region.
 
+## Cloud cache layout and upgrades
+
+New transformed objects use `cache/assets/<asset-hash>/<transform-hash>.<extension>`.
+Deleting or invalidating one asset lists its own prefix without reading metadata
+for other assets' scoped derivatives. Delivery URLs under `/t/` stay the same.
+
+Older versions wrote flat `cache/<hash>.<extension>` objects. These entries are
+regenerated on demand under the new layout. Cleanup still checks flat entries'
+metadata, with at most 16 requests in flight, to remove legacy derivatives of the
+deleted asset. A delimiter listing of `cache/` discovers these entries and
+one shared `assets/` prefix without listing unrelated scoped derivatives or
+individual asset prefixes. Buckets with many legacy entries retain cleanup
+overhead until those entries are cleared.
+
+For an upgrade, stop older instances before resuming writes. Optionally use the
+[clear-cache endpoint](/api-reference/cache/invalidate) to remove old and new
+cached derivatives; originals remain intact. This also avoids retaining unused
+legacy objects. Rolling back leaves originals intact and regenerates flat cache
+entries on demand; scoped entries remain until the cache is cleared.
+
 ## Production timeouts
 
 Defaults leave every timeout off, which is fine on a fast link and unhelpful when the provider stalls. A reasonable production set:
