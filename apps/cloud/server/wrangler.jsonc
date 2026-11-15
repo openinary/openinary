@@ -174,6 +174,52 @@
   "triggers": {
     "crons": ["0 * * * *", "0 7 * * *"]
   },
+  // Preprod: same code on a copy of prod data (Neon branch + copied R2
+  // bucket), at preprod-cdn.openinary.dev. Deploy and refresh the data with
+  // scripts/preprod-cloud.sh. Nothing here may point at a prod resource:
+  // no crons (they meter usage in Autumn and send Loops lifecycle emails),
+  // no PostHog token, its own bucket, KV and rate-limit namespaces.
+  "env": {
+    "preprod": {
+      "name": "openinary-server-preprod",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "preprod-cdn.openinary.dev", "custom_domain": true }],
+      "containers": [
+        {
+          "class_name": "MediaContainer",
+          "image": "./Dockerfile",
+          "image_build_context": "../../..",
+          "instance_type": { "vcpu": 1, "memory_mib": 3072, "disk_mb": 4000 },
+          "max_instances": 2
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          { "name": "MEDIA_CONTAINER", "class_name": "MediaContainer" },
+          { "name": "USAGE_METER", "class_name": "UsageMeter" }
+        ]
+      },
+      "r2_buckets": [
+        { "binding": "MEDIA_BUCKET", "bucket_name": "openinary-cloud-storage-preprod" }
+      ],
+      "kv_namespaces": [
+        { "binding": "BUCKET_OWNERS", "id": "eebe3e3fffed49ef9a107dac6cda1502" }
+      ],
+      "ratelimits": [
+        { "name": "CDN_RATE_LIMITER", "namespace_id": "2001", "simple": { "limit": 300, "period": 60 } },
+        { "name": "ACCOUNT_RATE_LIMITER", "namespace_id": "2002", "simple": { "limit": 1000, "period": 60 } }
+      ],
+      "vars": {
+        "CORS_ORIGIN": "https://preprod-app.openinary.dev",
+        "BETTER_AUTH_URL": "https://preprod-cdn.openinary.dev",
+        "ADMIN_ORIGIN": "",
+        "AUTH_COOKIE_PREFIX": "openinary-preprod",
+        "ALLOW_PUBLIC_SIGNUP": "true"
+      },
+      "triggers": { "crons": [] }
+    }
+  },
   "observability": {
     "enabled": true
   }

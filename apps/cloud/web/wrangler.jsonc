@@ -13,6 +13,21 @@
     // Where "Stop impersonating" returns the admin (see app-shell.tsx).
     "NEXT_PUBLIC_ADMIN_URL": "https://admin.openinary.dev"
   },
+  // Preprod dashboard on a copy of prod data, see apps/cloud/server/wrangler.jsonc.
+  // NEXT_PUBLIC_* are baked in at build time: scripts/preprod-cloud.sh exports
+  // the preprod values before building, these vars only cover server code.
+  "env": {
+    "preprod": {
+      "name": "openinary-web-preprod",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "preprod-app.openinary.dev", "custom_domain": true }],
+      "vars": {
+        "NEXT_PUBLIC_SERVER_URL": "https://preprod-cdn.openinary.dev",
+        "NEXT_PUBLIC_ADMIN_URL": ""
+      }
+    }
+  },
   "observability": {
     "enabled": true
   }

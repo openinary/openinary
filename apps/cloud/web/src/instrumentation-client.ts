@@ -34,5 +34,8 @@ posthog.init("phc_kSWX2q7bTDJPoqv5oLWAYzShJ5u7kaqjgzAzeosShVzc", {
   ui_host: "https://eu.posthog.com",
   defaults: "2025-05-24",
   capture_exceptions: true,
-  opt_out_capturing_by_default: !location.hostname.endsWith(".openinary.dev"),
+  // preprod-app.openinary.dev runs on a copy of prod data: muted as well.
+  opt_out_capturing_by_default:
+    !location.hostname.endsWith(".openinary.dev") ||
+    location.hostname.startsWith("preprod-"),
 });

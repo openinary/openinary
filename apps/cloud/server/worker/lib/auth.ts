@@ -302,6 +302,10 @@ export const auth = betterAuth({
           enabled: true,
           domain: ".openinary.dev",
         },
+        // Preprod (preprod-cdn.openinary.dev) shares the .openinary.dev cookie
+        // domain with prod: without its own prefix, signing in there would
+        // overwrite the prod session cookie, and the reverse.
+        cookiePrefix: process.env.AUTH_COOKIE_PREFIX || undefined,
       }
     : undefined,
 });
