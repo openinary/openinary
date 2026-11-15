@@ -6,9 +6,9 @@
 #
 # Usage (from the repo root, Docker running):
 #   scripts/preprod-cloud.sh data      # refresh the data from prod (DB + files)
-#   scripts/preprod-cloud.sh secrets   # push Worker secrets (once, or after editing .env.preprod)
-#   scripts/preprod-cloud.sh deploy    # deploy this checkout to preprod
-#   scripts/preprod-cloud.sh all       # data, deploy, then secrets (first run)
+#   scripts/preprod-cloud.sh deploy    # deploy this checkout to preprod (secrets included)
+#   scripts/preprod-cloud.sh secrets   # only update the secrets (after editing .env.preprod)
+#   scripts/preprod-cloud.sh all       # data, then deploy (first run)
 #
 # Data: the database is a Neon branch named "preprod", reset from its prod
 # parent on every `data` run (copy-on-write, prod is only read). Files are
@@ -25,7 +25,7 @@
 # below, apps/cloud/server/.env (R2 keys, Autumn sandbox key).
 set -euo pipefail
 
-NEON_PROJECT_ID="${NEON_PROJECT_ID:-}"
+NEON_PROJECT_ID="${NEON_PROJECT_ID:-delicate-snow-41435428}" # Openinary Cloud
 NEON_BRANCH=preprod
 PROD_BUCKET=openinary-cloud-storage
 PREPROD_BUCKET=openinary-cloud-storage-preprod
@@ -68,18 +68,17 @@ data() {
   echo "Data refreshed."
 }
 
-secrets() {
+secrets_json() {
   if [ ! -f "$PREPROD_ENV" ]; then
     # Its own auth secret: prod sessions copied with the DB stay unusable here.
     printf 'BETTER_AUTH_SECRET=%s\n# Optional: CLOUDFLARE_EMAIL_TOKEN=... to receive sign-in codes by email.\n# Without it the code is printed in `wrangler tail --env preprod` (run in apps/cloud/server).\n' \
       "$(openssl rand -hex 32)" >"$PREPROD_ENV"
-    echo "Created $PREPROD_ENV"
+    echo "Created $PREPROD_ENV" >&2
   fi
   local db account
   db="$(neon connection-string "$NEON_BRANCH" --pooled)"
   account="$(wrangler "$SERVER" whoami 2>/dev/null | grep -oE '[0-9a-f]{32}' | head -1)"
-  local json
-  json="$(DB="$db" ACCOUNT="$account" \
+  DB="$db" ACCOUNT="$account" \
     AUTH="$(val "$PREPROD_ENV" BETTER_AUTH_SECRET)" \
     MAIL="$(val "$PREPROD_ENV" CLOUDFLARE_EMAIL_TOKEN)" \
     AUTUMN="$(val "$SERVER/.env" AUTUMN_SECRET_KEY)" \
@@ -96,14 +95,17 @@ secrets() {
       };
       if (e.MAIL) s.CLOUDFLARE_EMAIL_TOKEN = e.MAIL;
       process.stdout.write(JSON.stringify(s));
-    ')"
-  # The Worker must exist before it can hold secrets: first run deploys it.
-  echo "$json" | wrangler "$SERVER" secret bulk --env preprod
+    '
 }
+
+secrets() { secrets_json | wrangler "$SERVER" secret bulk --env preprod; }
 
 deploy() {
   echo "== Server -> openinary-server-preprod"
-  wrangler "$SERVER" deploy --env preprod
+  # Secrets go up with the version: the Worker refuses to start without DATABASE_URL.
+  local file; file="$(mktemp)"; trap 'rm -f "$file"' RETURN
+  secrets_json >"$file"
+  wrangler "$SERVER" deploy --env preprod --secrets-file "$file"
   echo "== Dashboard -> openinary-web-preprod"
   # NEXT_PUBLIC_* are baked in at build time and win over .env.production.
   (cd "$WEB" &&
@@ -120,6 +122,6 @@ case "${1:-}" in
   data) data ;;
   secrets) secrets ;;
   deploy) deploy ;;
-  all) data && deploy && secrets ;;
+  all) data && deploy ;;
   *) sed -n '2,13p' "$0"; exit 1 ;;
 esac
