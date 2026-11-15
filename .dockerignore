@@ -22,7 +22,6 @@
 
 # Runtime state and things no image needs
 data/
-apps/docs/
 r/
 .github/
 .claude/
@@ -31,6 +30,8 @@ r/
 # Manifest-only apps: never built in any image, but the lockfile lists them.
 apps/marketing/**
 !apps/marketing/package.json
+apps/docs/**
+!apps/docs/package.json
 apps/telemetry/**
 !apps/telemetry/package.json
 apps/cloud/web/**
