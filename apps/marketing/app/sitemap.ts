@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 
 import competitorsData from "@/data/competitors.json";
+import { SITE_URL } from "@/lib/site";
 
-const base = "https://openinary.dev";
+const base = SITE_URL;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

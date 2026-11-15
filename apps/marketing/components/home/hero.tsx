@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { CtaLink } from "@/components/home/cta-button";
+import { CtaLink } from "@/components/site/cta-button";
 import { CopyCommand } from "@/components/home/copy-command";
-import { gutter } from "@/components/home/section";
+import { gutter } from "@/components/site/section";
 import { StorageStrip } from "@/components/home/storage-strip";
+import { APP_URL, DOCS_URL } from "@/lib/site";
 
 
 export function Hero() {
@@ -34,7 +35,7 @@ export function Hero() {
 
       <div className="mt-9 flex flex-wrap items-center gap-3">
         <CtaLink
-          href="https://app.openinary.dev"
+          href={APP_URL}
           target="_blank"
           rel="noopener noreferrer"
           data-track-event="cloud_cta_clicked"
@@ -43,7 +44,7 @@ export function Hero() {
           Try Cloud for free
         </CtaLink>
         <CtaLink
-          href="https://docs.openinary.dev/"
+          href={`${DOCS_URL}/`}
           target="_blank"
           rel="noopener noreferrer"
           variant="outline"

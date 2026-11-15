@@ -1,16 +1,7 @@
 import { Container } from "@cloudflare/containers";
 import { percentiles, type Span } from "@openinary/core/eta";
-import { and, gt, inArray } from "drizzle-orm";
-import { db } from "../api/db/index.js";
-import { videoJob } from "../api/db/schema/video-job.js";
-
-// How far back a pending/processing row is still believed to be a live job.
-// A row can outlive its container (crash, eviction, deploy), and such a
-// zombie must not hold the instance awake forever - after this it is treated
-// as stale and the container is allowed to sleep. The next request wakes a
-// fresh one, whose VideoWorker.start() resets the orphan to pending and
-// re-runs it.
-const ACTIVE_JOB_MAX_AGE_MS = 30 * 60_000;
+import { extOf, isTransformableImageExt } from "@openinary/core/url";
+import { activeVideoJobs } from "./video-jobs.js";
 
 // What a 202 needs to know about this instance to say when a transform will
 // be ready - see getProcessingEstimate. Measured here because this object is
@@ -21,7 +12,6 @@ const MAX_TIMING_SAMPLES = 30;
 // Until this instance has woken up and transformed a few times itself
 const DEFAULT_WAKE: Span = [5, 12];
 const DEFAULT_IMAGE: Span = [1, 3];
-const IMAGE_PATH = /\.(jpe?g|png|webp|avif|gif|psd)$/i;
 
 type TimingSamples = {
   /** Seconds from a stopped instance to one answering on its port */
@@ -63,13 +53,10 @@ export class MediaContainer extends Container<Env> {
 
   constructor(ctx: DurableObjectState<Env>, env: Env) {
     super(ctx, env);
-    // The container now only serves /t/* (sharp/ffmpeg transforms) - auth,
-    // CORS, and everything else moved into the Worker itself (see
-    // worker/app.ts), so BETTER_AUTH_*/CORS_ORIGIN no longer need to reach
-    // it. DATABASE_URL is still needed for PgVideoJobStore's job mirroring
-    // (see api/lib/video-job-store.ts), and AUTUMN_SECRET_KEY because that
-    // same store now bills a video job the moment it closes rather than
-    // waiting for the Worker's hourly cron to notice.
+    // The container only serves /t/* (sharp/ffmpeg transforms). DATABASE_URL
+    // is for PgVideoJobStore's job mirroring (container/video-job-store.ts),
+    // AUTUMN_SECRET_KEY because that same store bills a video job the moment
+    // it closes.
     this.envVars = {
       DATABASE_URL: env.DATABASE_URL,
       AUTUMN_SECRET_KEY: env.AUTUMN_SECRET_KEY,
@@ -125,10 +112,10 @@ export class MediaContainer extends Container<Env> {
   }
 
   // Measures image transforms. The Worker answers their 202 without waiting
-  // (see serveCdnRequest), so this is the only place that sees one finish.
+  // (see cdn/serve.ts), so this is the only place that sees one finish.
   override async fetch(request: Request): Promise<Response> {
     const path = new URL(request.url).pathname;
-    if (!IMAGE_PATH.test(path)) return super.fetch(request);
+    if (!isTransformableImageExt(extOf(path))) return super.fetch(request);
 
     const startedAt = Date.now();
     const first = !this.inflight.has(path);
@@ -186,7 +173,7 @@ export class MediaContainer extends Container<Env> {
 
   // sleepAfter counts *requests*, and a transcode makes none: status polling
   // and the dashboard's SSE both read Postgres from the Worker (see
-  // worker/video.ts) precisely so they never wake this container. So a job
+  // routes/video.ts) precisely so they never wake this container. So a job
   // longer than sleepAfter was killed mid-ffmpeg with nothing to show for it,
   // left "processing" in the dashboard until an unrelated request happened to
   // wake a new instance, and only then restarted from zero - a video needing
@@ -197,16 +184,7 @@ export class MediaContainer extends Container<Env> {
   // instance sleeps within one window of the last job closing.
   async onActivityExpired(): Promise<void> {
     try {
-      const [active] = await db
-        .select({ id: videoJob.id })
-        .from(videoJob)
-        .where(
-          and(
-            inArray(videoJob.status, ["pending", "processing"]),
-            gt(videoJob.createdAt, Date.now() - ACTIVE_JOB_MAX_AGE_MS),
-          ),
-        )
-        .limit(1);
+      const [active] = await activeVideoJobs(1);
       if (active) return;
     } catch (error) {
       // Sleeping is the safe side of a DB failure: worst case a job restarts,

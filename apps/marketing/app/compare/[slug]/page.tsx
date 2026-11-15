@@ -5,10 +5,10 @@ import Link from "next/link";
 import { Check, ChevronLeft } from "lucide-react";
 
 import { ComparisonTable } from "./comparison-table";
-import { PageIntro, PageShell } from "@/components/page-shell";
+import { PageIntro, PageShell } from "@/components/site/page-shell";
 import { Cta } from "@/components/home/cta";
-import { Eyebrow, gutter } from "@/components/home/section";
-import { focusRing, pressable } from "@/components/home/cta-button";
+import { Eyebrow, gutter } from "@/components/site/section";
+import { focusRing, pressable } from "@/components/site/cta-button";
 import { cn } from "@/lib/utils";
 
 type Params = { slug: string };

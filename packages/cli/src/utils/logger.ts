@@ -12,8 +12,8 @@ export function warn(message: string): void {
   console.warn(`${pc.yellow("⚠")} ${message}`);
 }
 
-export function info(message: string): void {
-  console.log(`${pc.cyan("ℹ")} ${message}`);
+export function isCI(): boolean {
+  return process.env.CI === "true" || process.env.CI === "1";
 }
 
 export function hint(message: string): void {

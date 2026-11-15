@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Copied from packages/dashboard/demo before dev and build
+/public/demo/

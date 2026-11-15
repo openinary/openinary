@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { BucketAvatar } from "@/components/bucket-avatar";
+import { useActiveBucket } from "@/hooks/use-active-bucket";
 import {
   trackOnboardingStarted,
   trackOnboardingStepCompleted,
@@ -23,11 +24,10 @@ import { client, orpc } from "@/utils/orpc";
 export function OnboardingGate() {
   const user = authClient.useSession().data?.user;
   const state = useQuery(orpc.usage.onboarding.queryOptions());
-  const buckets = useQuery(orpc.bucket.list.queryOptions());
+  const { bucket } = useActiveBucket();
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const bucket = buckets.data?.find((b) => b.active) ?? buckets.data?.[0];
   const shown = !!user && !!bucket && state.data?.onboarded === false;
   useEffect(() => {
     if (shown) trackOnboardingStarted();

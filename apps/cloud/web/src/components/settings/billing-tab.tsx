@@ -3,13 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ExternalLink, Info } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@openinary/dashboard/ui/button";
 import { Skeleton } from "skullet/react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@openinary/dashboard/ui/tooltip";
 import {
   type Balance,
   CLOUD_AVAILABLE,
@@ -22,17 +22,21 @@ import {
   usageCost,
 } from "@/lib/usage";
 import { cn } from "@/lib/utils";
+import { PLANS, UPGRADE_PLAN } from "@openinary/plans";
 import { orpc } from "@/utils/orpc";
 
 // Buckets are a hard cap, not a metered allowance: there's no Autumn balance
 // behind them and no overage, so this only belongs in the comparison table.
-// Must match BUCKET_LIMITS in apps/server/api/lib/autumn.ts, which is what
-// actually enforces it.
-const BUCKET_ROW = { label: "Buckets", free: "1", early: "2", cloud: "10" };
+const BUCKET_ROW = {
+  label: "Buckets",
+  free: String(PLANS.free.buckets),
+  early: String(PLANS.early_access.buckets),
+  cloud: String(PLANS.cloud.buckets),
+};
 
 // CDN hits still reach the billing ledger on a one-minute timer so serving an
 // asset never waits on a usage write, but the figure shown here folds in the
-// meter's unflushed count (see apps/server/api/routers/usage.ts), so it is
+// meter's unflushed count (see apps/cloud/server/worker/rpc/usage.ts), so it is
 // current even though the ledger behind it is not yet.
 const HINTS: Partial<Record<(typeof FEATURES)[number]["id"], string>> = {
   cdn_requests:
@@ -266,13 +270,13 @@ export function BillingTab() {
   const paidPlan =
     CLOUD_AVAILABLE && planId !== "early_access"
       ? {
-          name: "Cloud",
+          name: PLANS.cloud.name,
           column: "cloud" as const,
           price: `$${CLOUD_MONTHLY} / mo`,
-          cta: "Upgrade to Cloud",
+          cta: UPGRADE_PLAN.cta,
         }
       : {
-          name: "Alpha",
+          name: PLANS.early_access.name,
           column: "early" as const,
           // Not just "$0": the card is what checkout collects, so the price
           // has to say usage is billed rather than imply nothing is.

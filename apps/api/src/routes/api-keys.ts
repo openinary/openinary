@@ -1,41 +1,58 @@
-import { Hono } from "hono";
-import { auth } from "shared/auth";
+import { Hono, type Context } from "hono";
+import { getDb } from "shared";
+import { getAuth } from "shared/auth";
 import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import { logger, serializeError } from "@openinary/core";
 
+/**
+ * /api-keys, documented in apps/docs/api-reference/api-keys. Better Auth's own
+ * /api-key/* endpoints need a session cookie; these also accept an API key.
+ */
 const apiKeys = new Hono<AuthVariables>();
 
-// Apply authentication middleware to all routes
 apiKeys.use("/*", apiKeyAuth);
 
-/**
- * Create a new API key
- * POST /api-keys/create
- */
+const serverError = (c: Context, error: unknown, message: string) => {
+  logger.error({ error: serializeError(error), path: c.req.path }, message);
+  return c.json(
+    {
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error",
+    },
+    500,
+  );
+};
+
+/** 404 or 403 unless `keyId` belongs to `userId`; null when it does. */
+function ownershipError(c: Context, keyId: string, userId: string, action: string) {
+  const key = getDb()
+    .prepare("SELECT referenceId FROM apiKey WHERE id = ?")
+    .get(keyId) as { referenceId: string } | undefined;
+  if (!key) {
+    return c.json({ error: "Not found", message: "API key not found" }, 404);
+  }
+  if (key.referenceId !== userId) {
+    return c.json(
+      {
+        error: "Forbidden",
+        message: `You don't have permission to ${action} this API key`,
+      },
+      403,
+    );
+  }
+  return null;
+}
+
 apiKeys.post("/create", async (c) => {
   try {
-    const body = await c.req.json();
-    const { name, expiresIn } = body;
+    const { name, expiresIn } = await c.req.json();
+    const userId = c.get("user")!.id;
 
-    // Get the authenticated user from context
-    const user = c.get("user");
-
-    if (!user?.id) {
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "User information not found in request",
-        },
-        401
-      );
-    }
-
-    // Create the API key
-    const result = await auth.api.createApiKey({
+    const result = await getAuth().api.createApiKey({
       body: {
         name: name || "API Key",
-        userId: user.id,
-        expiresIn: expiresIn || 365 * 24 * 60 * 60, // Default: 1 year in seconds
+        userId,
+        expiresIn: expiresIn || 365 * 24 * 60 * 60,
       },
     });
 
@@ -44,7 +61,7 @@ apiKeys.post("/create", async (c) => {
         success: true,
         apiKey: {
           id: result.id,
-          key: result.key, // Only shown once!
+          key: result.key,
           name: result.name,
           start: result.start,
           createdAt: result.createdAt,
@@ -59,187 +76,54 @@ apiKeys.post("/create", async (c) => {
         error: "Failed to create API key",
         message: "An error occurred while creating the API key",
       },
-      500
+      500,
     );
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Error creating API key");
-    return c.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      500
-    );
+    return serverError(c, error, "Error creating API key");
   }
 });
 
-/**
- * List all API keys for the authenticated user
- * GET /api-keys/list
- */
-apiKeys.get("/list", async (c) => {
+apiKeys.get("/list", (c) => {
   try {
-    const user = c.get("user");
-
-    if (!user?.id) {
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "User information not found in request",
-        },
-        401
-      );
-    }
-
-    // Get all API keys for this user
-    const db = auth.options.database;
-    const keys = db
+    const keys = getDb()
       .prepare(
-        `SELECT id, name, start, prefix, enabled, expiresAt, createdAt, updatedAt, remaining, rateLimitEnabled 
-         FROM apiKey 
-         WHERE userId = ? 
-         ORDER BY createdAt DESC`
+        `SELECT id, name, start, prefix, enabled, expiresAt, createdAt, updatedAt, remaining, rateLimitEnabled
+         FROM apiKey
+         WHERE referenceId = ?
+         ORDER BY createdAt DESC`,
       )
-      .all(user.id);
+      .all(c.get("user")!.id);
 
-    return c.json({
-      success: true,
-      keys,
-    });
+    return c.json({ success: true, keys });
   } catch (error) {
-    logger.error({ error: serializeError(error) }, "Error listing API keys");
-    return c.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      500
-    );
+    return serverError(c, error, "Error listing API keys");
   }
 });
 
-/**
- * Delete an API key
- * DELETE /api-keys/:keyId
- */
-apiKeys.delete("/:keyId", async (c) => {
+apiKeys.delete("/:keyId", (c) => {
   const keyId = c.req.param("keyId");
   try {
-    const user = c.get("user");
+    const denied = ownershipError(c, keyId, c.get("user")!.id, "delete");
+    if (denied) return denied;
 
-    if (!user?.id) {
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "User information not found in request",
-        },
-        401
-      );
-    }
-
-    // Verify the key belongs to this user
-    const db = auth.options.database;
-    const key = db
-      .prepare("SELECT userId FROM apiKey WHERE id = ?")
-      .get(keyId) as { userId: string } | undefined;
-
-    if (!key) {
-      return c.json(
-        {
-          error: "Not found",
-          message: "API key not found",
-        },
-        404
-      );
-    }
-
-    if (key.userId !== user.id) {
-      return c.json(
-        {
-          error: "Forbidden",
-          message: "You don't have permission to delete this API key",
-        },
-        403
-      );
-    }
-
-    // Delete the key
-    await auth.api.deleteApiKey({
-      body: {
-        keyId,
-      },
-    });
-
-    return c.json({
-      success: true,
-      message: "API key deleted successfully",
-    });
+    getDb().prepare("DELETE FROM apiKey WHERE id = ?").run(keyId);
+    return c.json({ success: true, message: "API key deleted successfully" });
   } catch (error) {
-    logger.error({ error: serializeError(error), keyId }, "Error deleting API key");
-    return c.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      500
-    );
+    return serverError(c, error, "Error deleting API key");
   }
 });
 
-/**
- * Update an API key
- * PATCH /api-keys/:keyId
- */
 apiKeys.patch("/:keyId", async (c) => {
   const keyId = c.req.param("keyId");
   try {
-    const body = await c.req.json();
-    const { name, enabled } = body;
-    const user = c.get("user");
+    const { name, enabled } = await c.req.json();
+    const userId = c.get("user")!.id;
 
-    if (!user?.id) {
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "User information not found in request",
-        },
-        401
-      );
-    }
+    const denied = ownershipError(c, keyId, userId, "update");
+    if (denied) return denied;
 
-    // Verify the key belongs to this user
-    const db = auth.options.database;
-    const key = db
-      .prepare("SELECT userId FROM apiKey WHERE id = ?")
-      .get(keyId) as { userId: string } | undefined;
-
-    if (!key) {
-      return c.json(
-        {
-          error: "Not found",
-          message: "API key not found",
-        },
-        404
-      );
-    }
-
-    if (key.userId !== user.id) {
-      return c.json(
-        {
-          error: "Forbidden",
-          message: "You don't have permission to update this API key",
-        },
-        403
-      );
-    }
-
-    // Update the key
-    const result = await auth.api.updateApiKey({
-      body: {
-        keyId,
-        name,
-        enabled,
-      },
+    const result = await getAuth().api.updateApiKey({
+      body: { keyId, userId, name, enabled },
     });
 
     return c.json({
@@ -248,16 +132,8 @@ apiKeys.patch("/:keyId", async (c) => {
       message: "API key updated successfully",
     });
   } catch (error) {
-    logger.error({ error: serializeError(error), keyId }, "Error updating API key");
-    return c.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      500
-    );
+    return serverError(c, error, "Error updating API key");
   }
 });
 
 export default apiKeys;
-

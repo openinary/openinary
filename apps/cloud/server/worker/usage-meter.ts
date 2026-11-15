@@ -1,8 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
-import { getFeatureBalance, trackFeature } from "../api/lib/autumn.js";
-import { mergeOwnerState } from "../api/lib/bucket-owner.js";
-import type { DeliveryEvent } from "../api/lib/delivery-log.js";
-import { appendCapped, seenRecently } from "../api/lib/delivery-log.js";
+import { type CustomerData, trackFeature } from "../shared/autumn.js";
+import { getFeatureBalance, storageMbDelta } from "./lib/billing.js";
+import { seenRecently } from "@openinary/core/url";
+import {
+  appendCapped,
+  type DeliveryEvent,
+  MAX_EVENTS,
+} from "./lib/delivery-log.js";
+import { writeBlocked } from "./owner-cache.js";
 import { sendDeliveryLogs } from "./posthog.js";
 
 // How long counts and log lines may exist only in this instance's memory.
@@ -23,11 +28,6 @@ const FLUSH_INTERVAL_MS = 60_000;
 // handful of accounts about to be blocked.
 const FAST_FLUSH_INTERVAL_MS = 10_000;
 const FAST_FLUSH_MARGIN = 1_000;
-
-// How many deliveries the activity tab shows. Also the ceiling on what one
-// window may persist, which is what keeps a segment inside the 128 KiB a
-// single storage value may hold.
-const MAX_EVENTS = 500;
 
 /**
  * How long a launched transform may stay unconfirmed before it is written off
@@ -53,7 +53,7 @@ type MeterState = { count: number; flushDueAt: number };
 /** R2 key of a launched transform -> when it was launched (epoch ms). */
 type Unconfirmed = Record<string, number>;
 
-// One instance per user (see worker/index.ts's idFromName(userId)), absorbing
+// One instance per user (see meterFor in lib/meter.ts), absorbing
 // every /b/* hit for that account and reporting the total to Autumn on a timer
 // instead of one API call per CDN request. `hit()` runs off the response path
 // (always called via ctx.waitUntil), so it adds no latency to the request that
@@ -70,7 +70,7 @@ export class UsageMeter extends DurableObject<Env> {
   #count = 0;
   #pending: DeliveryEvent[] = [];
   // Shipped to PostHog, then dropped. Never persisted and never returned by
-  // recent() - see DeliveryContext.quiet in worker/index.ts for what lands
+  // recent() - see DeliveryContext.quiet in cdn/serve.ts for what lands
   // here. Losing a window of it to an eviction costs observability, not money,
   // which is why it is the one thing here that does not earn a storage write.
   #quiet: DeliveryEvent[] = [];
@@ -101,6 +101,9 @@ export class UsageMeter extends DurableObject<Env> {
   // ponytail: accounts that delivered before this flag existed report one
   // spurious first delivery; funnels anchored on signup never include them.
   #delivered = false;
+  // Bytes of originals metered since this counter existed. Only differences
+  // of it are ever billed (see trackStorage), so it needs no backfill.
+  #storageBytes = 0;
 
   constructor(ctx: DurableObjectState<Env>, env: Env) {
     super(ctx, env);
@@ -118,6 +121,7 @@ export class UsageMeter extends DurableObject<Env> {
       this.#apiUpload = (await ctx.storage.get<boolean>("apiUpload")) ?? false;
       this.#onboarded = (await ctx.storage.get<boolean>("onboarded")) ?? false;
       this.#delivered = (await ctx.storage.get<boolean>("delivered")) ?? false;
+      this.#storageBytes = (await ctx.storage.get<number>("storageBytes")) ?? 0;
       this.#alarmAt = await ctx.storage.getAlarm();
     });
   }
@@ -132,7 +136,7 @@ export class UsageMeter extends DurableObject<Env> {
    * was ever charged for an image transformation. This object outlives the
    * request, so it can wait.
    *
-   * `key` is the R2 key the derivative will land under (worker/index.ts's
+   * `key` is the R2 key the derivative will land under (cdn/serve.ts's
    * derivativeKey). Its presence at confirm time is the proof of success:
    * core writes the object before it answers, so an object under that key
    * means the work happened - no matter what became of the HTTP response.
@@ -204,6 +208,42 @@ export class UsageMeter extends DurableObject<Env> {
   }
 
   /**
+   * Meters a change in stored originals, in bytes: positive on upload or
+   * copy, negative on delete.
+   *
+   * Autumn counts whole megabytes, and rounding each upload and each delete on
+   * its own drifted: a batch upload rounded the total, its files were then
+   * deleted one by one and each rounded again. Billing only the change in the
+   * rounded running total makes every sequence of uploads and deletes add up
+   * to the rounding of their sum. Serialized by this object, so concurrent
+   * uploads cannot interleave their deltas.
+   */
+  async trackStorage(bytes: number, customer: CustomerData = {}): Promise<void> {
+    const userId = this.ctx.id.name;
+    if (!userId || bytes === 0) return;
+    const mb = storageMbDelta(this.#storageBytes, bytes);
+    this.#storageBytes += bytes;
+    await this.ctx.storage.put("storageBytes", this.#storageBytes);
+    try {
+      await trackFeature(userId, "storage_mb", mb, customer);
+    } catch (error) {
+      // Not retried: Autumn's track is not idempotent.
+      console.error("%s", `Failed to meter ${mb} MB of storage`, error);
+    }
+  }
+
+  /**
+   * Stops the flush writing this bucket's block state. Called when the bucket
+   * is deleted: the flush writes every bucket the account ever served through,
+   * and would otherwise put the deleted one back into the owner cache.
+   */
+  async forgetBucket(bucketId: string): Promise<void> {
+    if (!this.#buckets.includes(bucketId)) return;
+    this.#buckets = this.#buckets.filter((id) => id !== bucketId);
+    await this.ctx.storage.put("buckets", this.#buckets);
+  }
+
+  /**
    * The activity tab's data: the persisted log plus the current window's
    * not-yet-persisted deliveries.
    */
@@ -263,7 +303,7 @@ export class UsageMeter extends DurableObject<Env> {
   /**
    * Drops everything this instance holds for the account. Called only when an
    * admin deletes the account outright (see DELETE /admin/users/:userId in
-   * worker/app.ts) - nothing else clears this storage, so a deleted customer's
+   * routes/admin.ts) - nothing else clears this storage, so a deleted customer's
    * delivery history would otherwise outlive every other trace of them.
    *
    * In-memory state is cleared alongside the storage, and the pending count is
@@ -280,6 +320,7 @@ export class UsageMeter extends DurableObject<Env> {
     this.#apiUpload = false;
     this.#onboarded = false;
     this.#delivered = false;
+    this.#storageBytes = 0;
     this.#flushDueAt = 0;
     this.#alarmAt = null;
     await this.ctx.storage.deleteAlarm();
@@ -416,15 +457,15 @@ export class UsageMeter extends DurableObject<Env> {
     } catch (error) {
       // Same reasoning as the CDN count below: Autumn's track is not
       // idempotent, so a retry after an ambiguous failure risks billing twice.
-      console.error(`Failed to meter ${billed} image transformations`, error);
+      console.error("%s", `Failed to meter ${billed} image transformations`, error);
     }
   }
 
   /**
    * Reports accumulated hits, then re-checks the balance and writes the
    * verdict into BUCKET_OWNERS (keyed by every bucket this account has sent
-   * traffic through) so worker/index.ts's resolveBucketOwner picks up the
-   * block or unblock on its next KV read - no extra request-path lookup.
+   * traffic through) so resolveBucketOwner picks up the block or unblock on
+   * its next KV read - no extra request-path lookup.
    *
    * Every step swallows its own failure. This runs after #persist, and an
    * exception here would roll back the log segment that call just wrote,
@@ -446,7 +487,7 @@ export class UsageMeter extends DurableObject<Env> {
         // Dropped rather than retried: Autumn's track is not idempotent, so a
         // retry after an ambiguous failure risks billing twice, and erring
         // toward not charging is the correct side to fail on for money.
-        console.error(`Failed to meter ${count} CDN requests`, error);
+        console.error("%s", `Failed to meter ${count} CDN requests`, error);
       }
     }
 
@@ -461,21 +502,14 @@ export class UsageMeter extends DurableObject<Env> {
         : FLUSH_INTERVAL_MS;
 
     try {
-      await Promise.all(
-        this.#buckets.map(async (bucketId) => {
-          // Read before write: the same KV value carries the admin panel's
-          // `suspended` flag, which is not ours to recompute. Costs one KV
-          // read per bucket per flush - once a minute, and only for accounts
-          // actually serving traffic.
-          const stored = await this.env.BUCKET_OWNERS.get(bucketId);
-          await this.env.BUCKET_OWNERS.put(
-            bucketId,
-            JSON.stringify(mergeOwnerState(stored, { userId, blocked })),
-          );
-        }),
+      await writeBlocked(
+        this.env.BUCKET_OWNERS,
+        () => this.#buckets,
+        userId,
+        blocked,
       );
     } catch (error) {
-      console.error(`Failed to write block state for ${userId}`, error);
+      console.error("%s", `Failed to write block state for ${userId}`, error);
     }
   }
 }

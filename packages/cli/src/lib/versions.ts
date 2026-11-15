@@ -52,16 +52,3 @@ export function compareVersions(a: string, b: string): number {
   }
   return 0;
 }
-
-export async function getRunningVersion(port: number): Promise<string | null> {
-  try {
-    const res = await fetch(`http://localhost:${port}/api/version`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { version?: string };
-    return data.version ?? null;
-  } catch {
-    return null;
-  }
-}

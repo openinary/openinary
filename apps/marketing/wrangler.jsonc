@@ -25,7 +25,7 @@
   "vars": {
     "NEXT_PRIVATE_MINIMAL_MODE": "1"
   },
-  // Without this, a server action throwing in production leaves no trace anywhere.
+  // Without this, a server error in production leaves no trace anywhere.
   "observability": {
     "enabled": true
   }

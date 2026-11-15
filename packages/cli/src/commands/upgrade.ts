@@ -10,8 +10,7 @@ import {
 import {
   appendMissingVars,
   diffMissingKeys,
-  generateApiSecret,
-  generateAuthSecret,
+  generateSecret,
   parseEnv,
   serializeEnv,
   upsertVar,
@@ -22,10 +21,11 @@ import {
   writeProjectConfig,
   type Project,
 } from "../lib/project.js";
+import { refreshComposeFile } from "../lib/template.js";
 import { compareVersions, getLatestRelease } from "../lib/versions.js";
 import { GITHUB_API_TIMEOUT_MS, REPO } from "../utils/constants.js";
 import { CLIError } from "../utils/errors.js";
-import { fail, hint, success, withSpinner } from "../utils/logger.js";
+import { hint, success, warn, withSpinner } from "../utils/logger.js";
 import { confirmPrompt, note } from "../utils/prompts.js";
 
 export interface UpgradeOptions {
@@ -70,11 +70,8 @@ async function syncEnvVars(project: Project, targetTag: string): Promise<void> {
   let updated = appendMissingVars(current, template, missingKeys);
 
   for (const key of missingKeys) {
-    if (key === "BETTER_AUTH_SECRET") {
-      updated = upsertVar(updated, key, generateAuthSecret());
-    }
-    if (key === "API_SECRET") {
-      updated = upsertVar(updated, key, generateApiSecret());
+    if (key === "BETTER_AUTH_SECRET" || key === "API_SECRET") {
+      updated = upsertVar(updated, key, generateSecret());
     }
   }
 
@@ -147,6 +144,16 @@ export async function runUpgrade(options: UpgradeOptions): Promise<void> {
 
   await writeProjectConfig(project.dir, { ...project.config, version: target });
 
+  const composeResult = await refreshComposeFile(project.dir);
+  if (composeResult === "refreshed") {
+    hint("Updated docker-compose.yml (previous version saved as docker-compose.yml.bak).");
+  } else if (composeResult === "kept-edited") {
+    warn(
+      "docker-compose.yml has local edits, so it was left as is. The latest template is in " +
+        "docker-compose.yml.new: merge it in (it forwards .env to the containers via env_file).",
+    );
+  }
+
   await withSpinner(`Downloading ${target}`, () =>
     compose(project.dir, ["--profile", project.config.mode, "pull"]),
   );
@@ -176,12 +183,6 @@ export function buildUpgradeCommand(): Command {
     .option("--dry-run", "Show what would change without applying it")
     .action(async (opts, command) => {
       const globals = command.optsWithGlobals();
-      try {
-        await runUpgrade({ ...opts, cwd: globals.cwd, yes: globals.yes });
-      } catch (err) {
-        fail(err instanceof Error ? err.message : String(err));
-        if (err instanceof CLIError && err.hint) hint(err.hint);
-        process.exitCode = err instanceof CLIError ? err.exitCode : 1;
-      }
+      await runUpgrade({ ...opts, cwd: globals.cwd, yes: globals.yes });
     });
 }

@@ -8,6 +8,9 @@
     "deploy": "wrangler deploy",
     "type-check": "tsc --noEmit"
   },
+  "dependencies": {
+    "@openinary/telemetry-schema": "workspace:*"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260101.0",
     "typescript": "^5.9.2",

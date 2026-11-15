@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/index.css";
-import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "next-themes";
 import Script from "next/script";
+import { SITE_URL } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,7 +19,7 @@ const description =
   "Open-source, self-hostable alternative to Cloudinary. Upload, transform and deliver images and videos from the edge, on S3, R2 or MinIO.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://openinary.dev"),
+  metadataBase: new URL(SITE_URL),
   title: "Openinary | Open-source, self-hostable alternative to Cloudinary",
   description,
   openGraph: {
@@ -63,7 +63,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <Toaster position="top-right" richColors />
         </ThemeProvider>
       </body>
     </html>

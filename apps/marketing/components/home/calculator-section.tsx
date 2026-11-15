@@ -1,5 +1,5 @@
 import { Calculator } from "@/components/home/calculator/calculator";
-import { Section, SectionHeader } from "@/components/home/section";
+import { Section, SectionHeader } from "@/components/site/section";
 
 export function CalculatorSection() {
   return (

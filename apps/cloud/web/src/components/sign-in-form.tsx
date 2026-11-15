@@ -9,7 +9,7 @@ import z from "zod";
 import { useTurnstile } from "@/hooks/use-turnstile";
 import { authClient } from "@/lib/auth-client";
 import { Logo } from "./logo";
-import { Button } from "./ui/button";
+import { Button } from "@openinary/dashboard/ui/button";
 import {
   Card,
   CardContent,
@@ -17,9 +17,9 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Input } from "./ui/input";
+import { Input } from "@openinary/dashboard/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "./ui/input-otp";
-import { Label } from "./ui/label";
+import { Label } from "@openinary/dashboard/ui/label";
 
 const ONBOARDING_ROUTE = "/get-started";
 

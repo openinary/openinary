@@ -8,7 +8,7 @@ import posthog from "posthog-js";
 // through from openinary.dev arrives here as the same person. After sign-in,
 // home.tsx calls posthog.identify(user.id), which merges that anonymous
 // journey onto the account. The server captures cloud_account_created and
-// asset_uploaded under the same user id (see apps/server/api/lib/analytics.ts),
+// asset_uploaded under the same user id (see apps/cloud/server/worker/lib/analytics.ts),
 // which is what makes the visit -> signup -> first upload funnel readable.
 //
 // capture_exceptions turns unhandled errors and promise rejections into
@@ -24,7 +24,7 @@ import posthog from "posthog-js";
 // cross-subdomain identity continuity described above is untouched.
 //
 // Local dev is muted, for the same reason and by the same hostname test as
-// captureEvent in apps/cloud/server/api/lib/analytics.ts: `next dev` loads
+// captureEvent in apps/cloud/server/worker/lib/analytics.ts: `next dev` loads
 // this file too, and localhost was outweighing production two to one on
 // $pageview and ten to one on playground_opened. opt_out rather than skipping
 // init, so the capture() calls in lib/analytics.ts stay no-ops instead of

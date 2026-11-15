@@ -1,5 +1,5 @@
 import { Playground } from "@/components/home/playground/playground";
-import { Section, SectionHeader } from "@/components/home/section";
+import { Section, SectionHeader } from "@/components/site/section";
 
 export function PlaygroundSection() {
   return (

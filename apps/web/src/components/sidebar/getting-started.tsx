@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { Skeleton } from "skullet/react";
 
-import { useOnboarding } from "@/components/get-started/use-onboarding";
-import { CircularProgress } from "@/components/ui/circular-progress";
-import { useHydrated } from "@/hooks/use-hydrated";
+import { useHydrated, useOnboarding } from "@openinary/dashboard";
+import { CircularProgress } from "@openinary/dashboard/ui/circular-progress";
 
 /**
  * The checklist's progress, above the footer until every step is done.

@@ -1,51 +1,70 @@
-// Generates packages/registry/src/file-uploader/* from packages/ui's copy.
+// Generates the two copies of the file-uploader block from its source,
+// packages/registry/src/file-uploader (what `shadcn add` installs):
 //
-// @openinary/ui is the source of truth for the file-uploader component; the
-// shadcn registry (packages/registry) ships the same component but as
-// copy-paste source using the consumer's own `@/` aliases (shadcn registries
-// don't bundle — they rewrite nothing at build time, only at `shadcn add`
-// time in the consumer's project). The two copies are therefore never
-// byte-identical by design, so a plain `diff` can't guard against drift.
-// This script re-derives the registry copy mechanically instead.
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+// - packages/ui/src/file-uploader, with the registry's `@/` aliases rewritten
+//   to @openinary/ui's relative paths;
+// - apps/marketing/components/openinary, verbatim, at the targets
+//   registry.json gives, so the homepage playground runs the installed files.
+//
+// Edit the registry copy, then run `node scripts/sync-registry-block.mjs`
+// (both copies), or pass `ui` / `marketing` for one. The marketing prebuild
+// writes only its own copy: rewriting packages/ui mid-build would race the
+// @openinary/ui build in a full turbo run. CI
+// (.github/workflows/registry.yml) fails when either copy drifts.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const srcDir = join(rootDir, "packages/ui/src/file-uploader");
-const destDir = join(rootDir, "packages/registry/src/file-uploader");
+const registryDir = join(rootDir, "packages/registry");
+const uiDir = join(rootDir, "packages/ui/src/file-uploader");
+const marketingDir = join(rootDir, "apps/marketing");
 
-// Ordered, most-specific-first so no rewrite is a prefix of an earlier one.
-const REWRITES = [
-  ['from "./use-file-upload"', 'from "@/components/openinary/use-file-upload"'],
-  ['from "../lib/utils"', 'from "@/lib/utils"'],
-  ['from "../ui/button"', 'from "@/components/ui/button"'],
-  ['from "../ui/progress"', 'from "@/components/ui/progress"'],
+const only = process.argv[2];
+if (only && only !== "ui" && only !== "marketing") {
+  console.error(`sync-registry-block: unknown copy "${only}" (ui | marketing)`);
+  process.exit(1);
+}
+
+const UI_REWRITES = [
+  ['from "@/components/openinary/use-file-upload"', 'from "./use-file-upload"'],
+  ['from "@/lib/utils"', 'from "../lib/utils"'],
+  ['from "@/components/ui/button"', 'from "../ui/button"'],
+  ['from "@/components/ui/progress"', 'from "../ui/progress"'],
 ];
 
-const FILES = ["file-uploader.tsx", "use-file-upload.ts"];
+const { items } = JSON.parse(
+  readFileSync(join(registryDir, "registry.json"), "utf8"),
+);
+const files = items
+  .find((item) => item.name === "file-uploader")
+  .files.filter((file) => file.target?.startsWith("components/"));
 
-for (const file of FILES) {
-  const srcPath = join(srcDir, file);
-  let contents = readFileSync(srcPath, "utf8");
+for (const { path, target } of files) {
+  const source = readFileSync(join(registryDir, path), "utf8");
 
-  for (const [from, to] of REWRITES) {
-    contents = contents.split(from).join(to);
+  if (only !== "ui") {
+    const marketingPath = join(marketingDir, target);
+    mkdirSync(dirname(marketingPath), { recursive: true });
+    writeFileSync(marketingPath, source);
   }
+  if (only === "marketing") continue;
 
-  // Any remaining local import means a new relative dependency appeared in
-  // packages/ui's file-uploader that this script doesn't know how to remap
-  // yet — fail loudly instead of silently shipping a broken registry copy.
-  const leftover = contents.match(/from ["']\.\.?\/[^"']*["']/g);
+  let ui = source;
+  for (const [from, to] of UI_REWRITES) ui = ui.split(from).join(to);
+  // A new `@/` import needs a rewrite above, or @openinary/ui won't build.
+  const leftover = ui.match(/from ["']@\/[^"']*["']/g);
   if (leftover) {
     console.error(
-      `sync-registry-block: ${file} has unmapped local import(s): ${leftover.join(", ")}\n` +
-        `Add a rewrite for it in scripts/sync-registry-block.mjs.`,
+      `sync-registry-block: ${path} has unmapped alias import(s): ${leftover.join(", ")}\n` +
+        "Add a rewrite for it in scripts/sync-registry-block.mjs.",
     );
     process.exit(1);
   }
-
-  writeFileSync(join(destDir, file), contents);
+  writeFileSync(join(uiDir, target.split("/").pop()), ui);
 }
 
-console.log("sync-registry-block: wrote", FILES.join(", "));
+console.log(
+  `sync-registry-block: wrote (${only ?? "ui, marketing"})`,
+  files.map((file) => file.target).join(", "),
+);

@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
 import logger, { serializeError } from '../logger';
 import { SHARP_INPUT_OPTIONS } from './sharp-options';
+import { supportsFormat } from '../../url/negotiate';
 
 export class Compression {
   /** Formats applyFormat() can actually encode. Excludes "auto". */
@@ -69,8 +70,8 @@ export class Compression {
     }
     
     // FORMAT SIZE COMPARISON: Encode in all supported formats and compare sizes
-    const supportsAVIF = this.supportsFormat('avif', userAgent, acceptHeader);
-    const supportsWebP = this.supportsFormat('webp', userAgent, acceptHeader);
+    const supportsAVIF = supportsFormat('avif', userAgent, acceptHeader);
+    const supportsWebP = supportsFormat('webp', userAgent, acceptHeader);
     
     logger.debug({ 
       userAgent, 
@@ -302,8 +303,8 @@ export class Compression {
     }
     
     // Check support for modern formats
-    const supportsAVIF = this.supportsFormat('avif', userAgent, acceptHeader);
-    const supportsWebP = this.supportsFormat('webp', userAgent, acceptHeader);
+    const supportsAVIF = supportsFormat('avif', userAgent, acceptHeader);
+    const supportsWebP = supportsFormat('webp', userAgent, acceptHeader);
     
     // NEW DEFAULT: Prefer AVIF by default if supported
     if (supportsAVIF) {
@@ -364,81 +365,5 @@ export class Compression {
     if (analysis.hasText) return 2560; // Text requires higher resolution
     if (analysis.isPhotographic) return 1920; // Standard photos
     return 1600; // Other content
-  }
-
-  /**
-   * Determines the optimal format for a browser without doing full optimization
-   * This is used for cache key generation
-   */
-  determineOptimalFormatForCache(
-    userAgent?: string,
-    acceptHeader?: string,
-    originalFormat?: string
-  ): string {
-    // If format is explicitly specified, we wouldn't call this, but handle it anyway
-    const supportsAVIF = this.supportsFormat('avif', userAgent, acceptHeader);
-    const supportsWebP = this.supportsFormat('webp', userAgent, acceptHeader);
-    
-    // Prefer AVIF if supported (best compression)
-    if (supportsAVIF) {
-      return 'avif';
-    }
-    
-    // Fallback to WebP if supported
-    if (supportsWebP) {
-      return 'webp';
-    }
-    
-    // For legacy browsers, preserve PNG if original is PNG (for transparency)
-    // Otherwise use JPEG
-    if (originalFormat === 'png') {
-      return 'png';
-    }
-    
-    return 'jpeg';
-  }
-
-  /**
-   * Checks browser support for a format
-   */
-  private supportsFormat(format: string, userAgent?: string, acceptHeader?: string): boolean {
-    // First check Accept header - most reliable method
-    if (acceptHeader) {
-      const acceptLower = acceptHeader.toLowerCase();
-      if (format === 'avif' && acceptLower.includes('image/avif')) {
-        return true;
-      }
-      if (format === 'webp' && acceptLower.includes('image/webp')) {
-        return true;
-      }
-    }
-    
-    if (!userAgent) {
-      // If no user agent, assume modern browser supports AVIF and WebP
-      // This handles cases where Accept header might not be sent
-      return format === 'avif' || format === 'webp';
-    }
-    
-    const ua = userAgent.toLowerCase();
-    
-    switch (format) {
-      case 'avif':
-        // Chrome 85+ (released Aug 2020), Firefox 93+ (released Oct 2021), Safari 16+ (released Sep 2022), Edge 122+
-        return (
-          (ua.includes('chrome') && !ua.includes('edg') && parseInt(ua.match(/chrome\/(\d+)/)?.[1] || '0') >= 85) ||
-          (ua.includes('firefox') && parseInt(ua.match(/firefox\/(\d+)/)?.[1] || '0') >= 93) ||
-          (ua.includes('safari') && !ua.includes('chrome') && parseInt(ua.match(/version\/(\d+)/)?.[1] || '0') >= 16) ||
-          (ua.includes('edg') && parseInt(ua.match(/edg\/(\d+)/)?.[1] || '0') >= 122)
-        );
-               
-      case 'webp':
-        // Very broad support now - almost all modern browsers
-        return !ua.includes('msie') && 
-               !ua.includes('trident') && 
-               !(ua.includes('edge') && parseInt(ua.match(/edge\/(\d+)/)?.[1] || '0') < 18);
-               
-      default:
-        return true;
-    }
   }
 }

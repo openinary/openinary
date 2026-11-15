@@ -108,6 +108,22 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
   );
 }
 
+/**
+ * What a page shows while it has no data yet: the error if the fetch failed,
+ * otherwise placeholders. Only for *no* data: a refetch failing behind data
+ * already on screen is a toast (see utils/orpc.ts), and swapping the page for
+ * its error message would lose more than it says.
+ */
+export function NoData({
+  error,
+  rows,
+}: {
+  error: Error | null;
+  rows?: number;
+}) {
+  return error ? <Empty>{error.message}</Empty> : <LoadingRows rows={rows} />;
+}
+
 // shadcn's Badge variants are about emphasis, not state. Account state is read
 // at a glance across three pages, so it keeps its traffic-light colours - only
 // `bad` maps onto a stock variant.

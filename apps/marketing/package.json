@@ -5,25 +5,19 @@
   "scripts": {
     "dev": "next dev --turbopack --port 3200",
     "lint": "eslint .",
-    "prebuild": "pnpm --filter registry run registry:build && node scripts/sync-registry.mjs",
+    "prebuild": "pnpm --filter @openinary/plans build && pnpm --filter registry run registry:build && node ../../scripts/sync-registry-block.mjs marketing",
     "build": "next build --webpack",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "pricing:check": "node --import tsx scripts/pricing-check.mjs"
+    "test": "node --import tsx scripts/pricing-check.mjs && node --import tsx scripts/github-check.mjs"
   },
   "dependencies": {
+    "@openinary/plans": "workspace:*",
     "@opennextjs/cloudflare": "^1.19.6",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-tabs": "^1.1.12",
-    "@radix-ui/react-tooltip": "^1.2.8",
-    "@types/canvas-confetti": "^1.9.0",
-    "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.35.1",
-    "hast-util-to-jsx-runtime": "^2.3.6",
     "lucide-react": "^0.536.0",
     "motion": "^12.23.26",
     "next": "16.2.11",
@@ -32,11 +26,7 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "shiki": "^4.0.2",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.3.1",
-    "three": "^0.183.2",
-    "web-haptics": "^0.0.6"
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

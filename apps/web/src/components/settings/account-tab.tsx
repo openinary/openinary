@@ -4,8 +4,8 @@ import { useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@openinary/dashboard/ui/button"
+import { Input } from "@openinary/dashboard/ui/input"
 import {
   Form,
   FormControl,
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form"
 import { authClient } from "@/lib/auth-client"
 import logger from "@/lib/logger"
-import { Spinner } from "@/components/ui/spinner"
+import { Spinner } from "@openinary/ui"
 import { toast } from "sonner"
 import {
   SettingsActions,

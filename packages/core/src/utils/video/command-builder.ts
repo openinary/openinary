@@ -1,7 +1,7 @@
 import ffmpeg, { FfmpegCommand, FilterSpecification } from "fluent-ffmpeg";
 import { readFile, unlink, rmdir } from "fs/promises";
 import type { VideoContext, TransformFunction } from "./types";
-import { FFMPEG_THREADS, FFMPEG_NICENESS } from "./config";
+import type { VideoSettings } from "./config";
 import { expectedOutputSeconds } from "../../eta";
 
 /**
@@ -33,17 +33,17 @@ export class VideoCommandBuilder {
   private context: VideoContext;
   private cleanupFunctions: ((() => void) | (() => Promise<void>))[];
 
-  constructor(context: VideoContext) {
+  constructor(
+    context: VideoContext,
+    settings: Pick<VideoSettings, "ffmpegThreads" | "ffmpegNiceness">,
+  ) {
     this.context = context;
     this.complexFilter = [];
     this.outputVideoStream = "0:v";
     this.cleanupFunctions = [];
-    // niceness lowers ffmpeg's scheduling priority so encoding never starves
-    // the HTTP event loop; threads are capped to the container's effective
-    // CPUs (leaving one for serving) instead of a hardcoded value
-    this.command = ffmpeg(context.inputPath, { niceness: FFMPEG_NICENESS })
+    this.command = ffmpeg(context.inputPath, { niceness: settings.ffmpegNiceness })
       .output(context.outputPath)
-      .addOption("-threads", String(FFMPEG_THREADS));
+      .addOption("-threads", String(settings.ffmpegThreads));
 
     // -movflags and -max_muxing_queue_size are MOV/MP4 container options and are
     // incompatible with image output formats (image2 muxer used for thumbnails).

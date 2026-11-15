@@ -7,8 +7,7 @@ export class StorageCache {
   private readonly MAX_CACHE_SIZE = 10000; // Maximum 10k entries
 
   constructor() {
-    // Automatic cache cleanup every 10 minutes
-    setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    setInterval(() => this.cleanup(), 10 * 60 * 1000).unref();
   }
 
   /**

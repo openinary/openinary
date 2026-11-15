@@ -4,15 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Skeleton } from "skullet/react";
 
-import { useOnboarding } from "@/components/get-started/use-onboarding";
+import { useHydrated, useOnboarding } from "@openinary/dashboard";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import {
   UploaderNudge,
   useUploaderNudge,
 } from "@/components/sidebar/uploader-nudge";
-import { Button } from "@/components/ui/button";
-import { CircularProgress } from "@/components/ui/circular-progress";
-import { useHydrated } from "@/hooks/use-hydrated";
+import { Button } from "@openinary/dashboard/ui/button";
+import { CircularProgress } from "@openinary/dashboard/ui/circular-progress";
 import { CLOUD_AVAILABLE, isMeteredPlan, usageRatio } from "@/lib/usage";
 import { orpc } from "@/utils/orpc";
 

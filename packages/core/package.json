@@ -25,18 +25,31 @@
       "types": "./dist/eta.d.ts",
       "import": "./dist/eta.js",
       "default": "./dist/eta.js"
+    },
+    "./url": {
+      "types": "./dist/url/index.d.ts",
+      "import": "./dist/url/index.js",
+      "default": "./dist/url/index.js"
+    },
+    "./url/grammar": {
+      "types": "./dist/url/grammar.d.ts",
+      "import": "./dist/url/grammar.js",
+      "default": "./dist/url/grammar.js"
+    },
+    "./url/dashboard-thumbs": {
+      "types": "./dist/url/dashboard-thumbs.d.ts",
+      "import": "./dist/url/dashboard-thumbs.js",
+      "default": "./dist/url/dashboard-thumbs.js"
     }
   },
   "scripts": {
-    "build": "tsc && node scripts/add-js-extensions.cjs",
+    "build": "tsc && node ../../scripts/add-js-extensions.cjs",
     "type-check": "tsc --noEmit",
     "test": "node --import tsx --test $(find src -name '*.test.ts')"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.855.0",
-    "@aws-sdk/s3-request-presigner": "^3.855.0",
     "@webtoon/psd": "^0.4.0",
-    "better-sqlite3": "^11.8.1",
     "fflate": "^0.8.3",
     "fluent-ffmpeg": "^2.1.2",
     "hono": "^4.12.30",
@@ -45,7 +58,6 @@
     "sharp": "^0.33.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/node": "^24.2.0",
     "tsx": "^4.7.0",

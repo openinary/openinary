@@ -7,7 +7,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { Eyebrow, Section, gutter } from "@/components/home/section";
+import { Eyebrow, Section, gutter } from "@/components/site/section";
 
 const reasons = [
   {

@@ -65,7 +65,7 @@ export { BulkActionBarContent } from "./components/bulk-action-bar";
 export { UploadSection } from "./components/upload-section";
 export { CreateFolderSection } from "./components/create-folder-section";
 export { DeleteFolderButton } from "./components/delete-folder-button";
-export { UploadButtonWithDialog } from "./components/upload-button-with-dialog";
+export { UploadButtonWithDialog, UploadDialog } from "./components/upload-button-with-dialog";
 export { CreateFolderButtonWithDialog } from "./components/create-folder-button-with-dialog";
 
 // Data hooks

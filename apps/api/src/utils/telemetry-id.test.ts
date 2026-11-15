@@ -15,7 +15,7 @@ test("derivation is deterministic and UUID-shaped", () => {
 
 test("placeholder, short, and missing secrets never qualify", () => {
   assert.equal(canDeriveFrom(SECRET), true);
-  assert.equal(canDeriveFrom("your-secret-here-min-32-chars"), false);
+  assert.equal(canDeriveFrom("build-time-secret-will-be-replaced"), false);
   assert.equal(canDeriveFrom("short"), false);
   assert.equal(canDeriveFrom(undefined), false);
 });

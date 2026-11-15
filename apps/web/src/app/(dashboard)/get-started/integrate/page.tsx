@@ -1,5 +1,4 @@
-import { IntegratePanel } from "@/components/get-started/integrate-panel";
-import { GetStartedPage } from "@/components/get-started/page-shell";
+import { GetStartedPage, IntegratePanel } from "@openinary/dashboard";
 
 export default function Page() {
   return (

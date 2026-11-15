@@ -3,9 +3,13 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { QueryCache, QueryClient } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { appRouter } from "../../../server/api/routers/index";
+import type { AppRouter } from "cloud-server/router";
 
 /**
  * How long a restored cache is still worth drawing. Also the gcTime, since a
@@ -16,6 +20,11 @@ export const CACHE_MAX_AGE = 60 * 60 * 1000;
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  }),
+  mutationCache: new MutationCache({
     onError: (error) => {
       toast.error(error.message);
     },
@@ -56,7 +65,7 @@ export const link = new RPCLink({
   },
 });
 
-export const client: RouterClient<typeof appRouter> = createORPCClient(link);
+export const client: RouterClient<AppRouter> = createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
 

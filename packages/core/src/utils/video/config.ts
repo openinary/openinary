@@ -1,8 +1,3 @@
-/**
- * Video processing queue configuration
- * These values can be overridden via environment variables
- */
-
 import * as fs from "fs";
 import * as os from "os";
 
@@ -115,82 +110,58 @@ function detectOptimalConcurrency(memoryBytes: number, cpuCount: number): number
   return Math.max(1, Math.min(byMemory, cpuCount, 16));
 }
 
-const { bytes: effectiveMemoryBytes, source: memorySource } = getEffectiveMemoryBytes();
-const { count: effectiveCpuCount, source: cpuSource } = getEffectiveCpuCount();
+/** How the video worker and its ffmpeg processes run. */
+export interface VideoSettings {
+  /** Jobs processed at once. */
+  maxConcurrent: number;
+  /** Threads per ffmpeg process. */
+  ffmpegThreads: number;
+  /** ffmpeg scheduling priority, 0 to 19 (higher = lower priority). */
+  ffmpegNiceness: number;
+  /** Age at which finished jobs are purged. */
+  cleanupHours: number;
+  /** How often the worker looks for queued jobs. */
+  pollIntervalMs: number;
+}
 
 /**
- * Effective CPU count (host CPUs or cgroup quota, whichever is lower)
+ * Settings sized to the host or container (whichever is smaller), with any
+ * `overrides` the app read from its own configuration taking precedence.
+ * `source` says what the limits were derived from, for the startup log.
  */
-export const EFFECTIVE_CPU_COUNT = effectiveCpuCount;
+export function detectVideoSettings(overrides: Partial<VideoSettings> = {}) {
+  const memory = getEffectiveMemoryBytes();
+  const cpu = getEffectiveCpuCount();
+  const settings: VideoSettings = {
+    maxConcurrent: detectOptimalConcurrency(memory.bytes, cpu.count),
+    // Leaves one CPU free for the HTTP event loop so encoding never starves the API.
+    ffmpegThreads: Math.max(1, cpu.count - 1),
+    ffmpegNiceness: 15,
+    cleanupHours: 24,
+    pollIntervalMs: 1000,
+    ...definedOnly(overrides),
+  };
+  settings.ffmpegThreads = Math.max(1, settings.ffmpegThreads);
+  return {
+    settings,
+    source: {
+      memoryGB: Number((memory.bytes / 1024 ** 3).toFixed(2)),
+      memorySource: memory.source,
+      cpus: cpu.count,
+      cpuSource: cpu.source,
+      concurrencySource: overrides.maxConcurrent === undefined ? "detected" : "configured",
+    },
+  };
+}
 
-/**
- * Number of threads each ffmpeg process may use.
- * Leaves one CPU free for the HTTP serving event loop so video jobs never
- * starve the API, or configured via VIDEO_FFMPEG_THREADS env variable.
- */
-export const FFMPEG_THREADS = process.env.VIDEO_FFMPEG_THREADS
-  ? Math.max(1, parseInt(process.env.VIDEO_FFMPEG_THREADS, 10) || 1)
-  : Math.max(1, effectiveCpuCount - 1);
+function definedOnly<T extends object>(value: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
+}
 
-/**
- * Niceness applied to spawned ffmpeg processes (0-19, higher = lower priority).
- * Keeps the Node event loop responsive even when ffmpeg saturates the CPU.
- * Configurable via VIDEO_FFMPEG_NICENESS env variable.
- */
-export const FFMPEG_NICENESS = process.env.VIDEO_FFMPEG_NICENESS
-  ? parseInt(process.env.VIDEO_FFMPEG_NICENESS, 10)
-  : 15;
-
-/**
- * Maximum number of concurrent video jobs
- * Auto-detected based on available memory and CPU (host or cgroup limit,
- * whichever is lower), or configured via VIDEO_MAX_CONCURRENT env variable
- */
-export const MAX_CONCURRENT_JOBS = process.env.VIDEO_MAX_CONCURRENT
-  ? parseInt(process.env.VIDEO_MAX_CONCURRENT, 10)
-  : detectOptimalConcurrency(effectiveMemoryBytes, effectiveCpuCount);
-
-// Log detected configuration on module load
-const effectiveMemoryGB = (effectiveMemoryBytes / (1024 ** 3)).toFixed(2);
-const configSource = process.env.VIDEO_MAX_CONCURRENT ? "env variable" : `${memorySource}, ${cpuSource}`;
-console.log(`[Video Config] Memory: ${effectiveMemoryGB}GB (${memorySource}) | CPUs: ${effectiveCpuCount} (${cpuSource}) | Max concurrent jobs: ${MAX_CONCURRENT_JOBS} (${configSource}) | ffmpeg threads: ${FFMPEG_THREADS}, niceness: ${FFMPEG_NICENESS}`);
-
-/**
- * Maximum number of retry attempts for failed jobs
- */
-export const JOB_RETRY_MAX = parseInt(
-  process.env.VIDEO_JOB_RETRY_MAX || "3",
-  10
-);
-
-/**
- * Hours after which completed/error jobs are cleaned up
- */
-export const JOB_CLEANUP_HOURS = parseInt(
-  process.env.VIDEO_JOB_CLEANUP_HOURS || "24",
-  10
-);
-
-/**
- * Worker polling interval in milliseconds
- */
-export const WORKER_POLL_INTERVAL_MS = parseInt(
-  process.env.VIDEO_WORKER_POLL_INTERVAL_MS || "1000",
-  10
-);
-
-/**
- * Priority for thumbnail extraction jobs (lower = higher priority)
- */
+/** Priority for thumbnail extraction jobs (lower = higher priority). */
 export const THUMBNAIL_PRIORITY = 1;
 
-/**
- * Priority for video transformation jobs
- */
+/** Priority for video transformation jobs. */
 export const TRANSFORMATION_PRIORITY = 2;
-
-/**
- * Priority for other video jobs
- */
-export const LOW_PRIORITY = 3;
-

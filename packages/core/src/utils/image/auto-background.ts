@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import type { AutoBackgroundSpec } from "./effect-spec";
+import type { AutoBackgroundSpec } from "../../url/effect-spec";
 
 type Rgb = [number, number, number];
 

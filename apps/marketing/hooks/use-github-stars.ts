@@ -2,46 +2,25 @@
 
 import { useEffect, useState } from "react";
 
-const cache = new Map<string, number>();
+import { getStars } from "@/lib/github";
 
-export function useGitHubStars(owner: string, repo: string) {
-  const key = `${owner}/${repo}`;
-  const cached = cache.get(key) ?? null;
-  const [starCount, setStarCount] = useState<number | null>(cached);
-  const [isLoading, setIsLoading] = useState(cached === null);
+// Fetched from the visitor's browser on purpose: the Worker has no incremental
+// cache configured, so a server fetch would run on every page render from
+// Cloudflare's shared egress IPs and hit GitHub's unauthenticated rate limit.
+let request: Promise<number | null> | undefined;
+let known: number | null = null;
+
+export function useGitHubStars() {
+  const [starCount, setStarCount] = useState(known);
 
   useEffect(() => {
-    if (cache.has(key)) return;
-
-    const fetchStars = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}`,
-          {
-            headers: {
-              Accept: "application/vnd.github.v3+json",
-            },
-          },
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const count = data.stargazers_count || 0;
-          cache.set(key, count);
-          setStarCount(count);
-        }
-      } catch (error) {
-        console.error("Failed to fetch GitHub stars:", error);
-        cache.set(key, 270);
-        setStarCount(270);
-      } finally {
-        setIsLoading(false);
-      }
+    let live = true;
+    request ??= getStars().then((count) => (known = count));
+    request.then((count) => live && setStarCount(count));
+    return () => {
+      live = false;
     };
+  }, []);
 
-    fetchStars();
-  }, [owner, repo, key]);
-
-  return { starCount, isLoading };
+  return starCount;
 }

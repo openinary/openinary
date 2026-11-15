@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile, rm } from "node:fs/promises";
-import {
-  remoteSourceUrl,
-  prepareSourceFile,
-  verifyFileExists,
-} from "./transform-helpers";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { remoteSourceUrl } from "./delivery";
+import { stageSource } from "../utils/stage-source";
+import { findSource } from "../services/transform-steps";
 
 const ctx = (headers: Record<string, string>): any => ({
   req: { header: (name: string) => headers[name.toLowerCase()] },
@@ -20,40 +20,28 @@ const SIGNED =
 // instance that did not ask for it turns it into a fetch proxy for anything it
 // can reach, so "off" has to be what happens when nobody decided otherwise.
 test("a source URL is ignored unless the instance opted in", () => {
-  delete process.env.ALLOW_REMOTE_SOURCE;
-  assert.equal(
-    remoteSourceUrl(ctx({ "x-openinary-source-url": SIGNED })),
-    undefined,
-  );
-
-  process.env.ALLOW_REMOTE_SOURCE = "false";
-  assert.equal(
-    remoteSourceUrl(ctx({ "x-openinary-source-url": SIGNED })),
-    undefined,
-  );
-
-  process.env.ALLOW_REMOTE_SOURCE = "true";
-  assert.equal(remoteSourceUrl(ctx({ "x-openinary-source-url": SIGNED })), SIGNED);
+  const c = ctx({ "x-openinary-source-url": SIGNED });
+  assert.equal(remoteSourceUrl(c, false), undefined);
+  assert.equal(remoteSourceUrl(c, true), SIGNED);
 });
 
 test("only https is accepted, and malformed URLs are refused", () => {
-  process.env.ALLOW_REMOTE_SOURCE = "true";
   // The URL carries its authorization in the query string; plaintext would put
   // a working signature on the wire.
   assert.equal(
-    remoteSourceUrl(ctx({ "x-openinary-source-url": "http://s3.example.com/a" })),
+    remoteSourceUrl(ctx({ "x-openinary-source-url": "http://s3.example.com/a" }), true),
     undefined,
   );
   // Anything that isn't a URL at all, including the shapes that would name a
   // local resource rather than a remote one.
   for (const bad of ["file:///etc/passwd", "not a url", "/etc/passwd", ""]) {
     assert.equal(
-      remoteSourceUrl(ctx({ "x-openinary-source-url": bad })),
+      remoteSourceUrl(ctx({ "x-openinary-source-url": bad }), true),
       undefined,
       `refused: ${bad}`,
     );
   }
-  assert.equal(remoteSourceUrl(ctx({})), undefined, "no header, no source");
+  assert.equal(remoteSourceUrl(ctx({}), true), undefined, "no header, no source");
 });
 
 // --- fetching the source ------------------------------------------------
@@ -74,19 +62,17 @@ test("a source URL is staged to a temp file, ahead of storage", async () => {
     },
   };
 
+  const temp = await mkdtemp(join(tmpdir(), "stage-"));
   try {
-    const staged = await prepareSourceFile(
-      storage,
-      "photos/a.png",
-      "./public/photos/a.png",
-      SIGNED,
-    );
+    const staged = await stageSource(storage, { public: "unused", temp }, "photos/a.png", SIGNED);
     assert.equal(asked, SIGNED);
-    assert.match(staged, /^\.?\/?temp\//, "staged under ./temp");
-    assert.deepEqual([...(await readFile(staged))], [1, 2, 3, 4]);
-    await rm(staged, { force: true });
+    assert.ok(staged.path.startsWith(temp), "staged in the temp folder");
+    assert.deepEqual([...(await readFile(staged.path))], [1, 2, 3, 4]);
+    await staged.cleanup();
+    await assert.rejects(readFile(staged.path), "cleanup removes the copy");
   } finally {
     globalThis.fetch = realFetch;
+    await rm(temp, { recursive: true, force: true });
   }
 });
 
@@ -110,8 +96,7 @@ test("existence is probed with GET, never HEAD", async () => {
   }) as typeof fetch;
 
   try {
-    const check = await verifyFileExists(null, "photos/a.png", "", SIGNED);
-    assert.equal(check.exists, true);
+    assert.equal(await findSource(null, "unused", "photos/a.png", SIGNED), null);
     assert.equal(seen.length, 1);
     assert.equal(seen[0].method, "GET", "HEAD is refused by a GET-signed URL");
     assert.equal(seen[0].range, "bytes=0-0", "one byte, not the whole object");
@@ -125,9 +110,7 @@ test("an absent object still reads as not found", async () => {
   globalThis.fetch = (async () =>
     new Response("", { status: 404 })) as typeof fetch;
   try {
-    const check = await verifyFileExists(null, "photos/gone.png", "", SIGNED);
-    assert.equal(check.exists, false);
-    assert.match(check.error ?? "", /404/);
+    assert.match((await findSource(null, "unused", "photos/gone.png", SIGNED)) ?? "", /404/);
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -141,7 +124,7 @@ test("a source URL that fails throws instead of yielding an empty file", async (
     // Silently writing a zero-byte temp file here would reach sharp as an
     // unreadable image, and the error would name the wrong thing entirely.
     await assert.rejects(
-      () => prepareSourceFile(null, "photos/a.png", "./public/a.png", SIGNED),
+      () => stageSource(null, { public: "unused", temp: tmpdir() }, "photos/a.png", SIGNED),
       /403/,
     );
   } finally {

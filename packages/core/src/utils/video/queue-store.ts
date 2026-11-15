@@ -1,5 +1,4 @@
 import { VideoTransformParams } from "../../types";
-import type { parseParams } from "../parser";
 
 export type JobStatus =
   | "pending"
@@ -33,11 +32,9 @@ export interface JobStats {
 }
 
 /**
- * Persistence contract for the video transformation queue. The self-hosted
- * app backs this with SQLite (see sqlite-video-job-store.ts); a multi-tenant
- * deployment can implement the same contract against a different backend
- * (e.g. Cloudflare D1) without touching VideoJobQueue, VideoWorker, or any
- * route that depends on this interface instead of a concrete database.
+ * Persistence contract for the video transformation queue: SQLite when
+ * self-hosted (apps/api/src/config/video-job-store.ts), Postgres on Openinary Cloud
+ * (apps/cloud/server/container/video-job-store.ts).
  */
 export interface VideoJobStore {
   createJob(

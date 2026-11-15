@@ -6,14 +6,14 @@ import Link from "next/link";
 import { Skeleton } from "skullet/react";
 
 import { useSettingsPage } from "@/components/settings/use-settings-page";
-import { Button } from "@/components/ui/button";
-import { CircularProgress } from "@/components/ui/circular-progress";
+import { Button } from "@openinary/dashboard/ui/button";
+import { CircularProgress } from "@openinary/dashboard/ui/circular-progress";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { useHydrated } from "@/hooks/use-hydrated";
+} from "@openinary/dashboard/ui/sidebar";
+import { useHydrated } from "@openinary/dashboard";
 import { CLOUD_AVAILABLE, FEATURES, isMeteredPlan } from "@/lib/usage";
 import { client, orpc } from "@/utils/orpc";
 

@@ -9,9 +9,9 @@ import {
   X,
   Loader2
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@openinary/dashboard/ui/button";
+import { Input } from "@openinary/dashboard/ui/input";
+import { Separator } from "@openinary/dashboard/ui/separator";
 import {
   Popover,
   PopoverContent,

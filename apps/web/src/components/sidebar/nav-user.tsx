@@ -7,14 +7,14 @@ import { useSession } from "@/lib/auth-client"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@openinary/dashboard/ui/dropdown-menu"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@openinary/dashboard/ui/sidebar"
 import { useOnboardingState } from "@/components/onboarding-gate"
-import { useHydrated } from "@/hooks/use-hydrated"
+import { useHydrated } from "@openinary/dashboard"
 import { UserDropdown } from "./user-dropdown"
 
 export function NavUser() {

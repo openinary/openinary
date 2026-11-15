@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendMissingVars,
   diffMissingKeys,
-  generateApiSecret,
-  generateAuthSecret,
+  generateSecret,
   getActiveKeys,
   getVar,
   parseEnv,
@@ -87,25 +86,9 @@ MAX_FILE_SIZE_MB=50
   });
 });
 
-describe("generateAuthSecret", () => {
-  it("produces a secret of at least 32 characters", () => {
-    const secret = generateAuthSecret();
-    expect(secret.length).toBeGreaterThanOrEqual(32);
-  });
-
-  it("produces different secrets on each call", () => {
-    expect(generateAuthSecret()).not.toBe(generateAuthSecret());
-  });
-});
-
-describe("generateApiSecret", () => {
-  it("produces a 64-character hex secret", () => {
-    const secret = generateApiSecret();
-    expect(secret.length).toBe(64);
-    expect(secret).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  it("produces different secrets on each call", () => {
-    expect(generateApiSecret()).not.toBe(generateApiSecret());
+describe("generateSecret", () => {
+  it("produces a fresh 64-character hex secret", () => {
+    expect(generateSecret()).toMatch(/^[0-9a-f]{64}$/);
+    expect(generateSecret()).not.toBe(generateSecret());
   });
 });

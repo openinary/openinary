@@ -1,14 +1,11 @@
 import { Hono } from "hono";
-import { auth } from "shared/auth";
-import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import fs from "fs";
-import path from "path";
-import type Database from "better-sqlite3";
+import { getDb, resolveDbPath } from "shared";
+import { apiKeyAuth, AuthVariables } from "../middleware/auth";
 import { logger, serializeError } from "@openinary/core";
 
 const health = new Hono<AuthVariables>();
 
-// Public health check - no authentication required
 health.get("/", (c) => {
   return c.json({
     status: "ok",
@@ -17,26 +14,11 @@ health.get("/", (c) => {
   });
 });
 
-// Database health check - protected endpoint
 health.get("/database", apiKeyAuth, (c) => {
   try {
-    const db = auth.options.database as Database.Database;
-    const dbPath = process.env.DB_PATH || path.join(process.cwd(), "../../data/auth.db");
-    
-    // Check database connection
-    const connectionCheck = db.prepare("SELECT 1 as test").get() as { test: number };
-    
-    if (connectionCheck.test !== 1) {
-      return c.json({
-        status: "error",
-        database: {
-          connected: false,
-          error: "Connection test failed",
-        },
-      }, 503);
-    }
-    
-    // Get database statistics
+    const db = getDb();
+    const dbPath = resolveDbPath();
+
     const stats: {
       connected: boolean;
       path: string;
@@ -54,61 +36,56 @@ health.get("/database", apiKeyAuth, (c) => {
       permissions: "unknown",
       tables: {},
     };
-    
-    // Get file size and permissions
+
     try {
-      if (fs.existsSync(dbPath)) {
-        const fileStats = fs.statSync(dbPath);
-        const sizeInMB = (fileStats.size / (1024 * 1024)).toFixed(2);
-        stats.size = `${sizeInMB} MB`;
-        
-        // Get octal permissions
-        const permissions = (fileStats.mode & parseInt('777', 8)).toString(8);
-        stats.permissions = permissions;
-        
-        // Warn if database is getting large (> 1GB)
-        if (fileStats.size > 1024 * 1024 * 1024) {
-          stats["warning"] = "Database size exceeds 1GB, consider cleanup or migration";
-        }
-        
-        // Warn if permissions are too permissive
-        if (permissions !== "600") {
-          stats["security_warning"] = `Permissions ${permissions} are not optimal. Should be 600 (owner read/write only)`;
-        }
+      const fileStats = fs.statSync(dbPath);
+      stats.size = `${(fileStats.size / (1024 * 1024)).toFixed(2)} MB`;
+      stats.permissions = (fileStats.mode & 0o777).toString(8);
+      if (fileStats.size > 1024 * 1024 * 1024) {
+        stats.warning = "Database size exceeds 1GB, consider cleanup or migration";
+      }
+      // scripts/secure-db.js sets 600 at container start.
+      if (stats.permissions !== "600") {
+        stats.security_warning = `Permissions ${stats.permissions} are not optimal. Should be 600 (owner read/write only)`;
       }
     } catch (error) {
-      stats["file_error"] = error instanceof Error ? error.message : "Unknown error";
+      stats.file_error = error instanceof Error ? error.message : "Unknown error";
     }
-    
-    // Count rows in each table
+
     try {
-      const tables = ["user", "session", "account", "verification", "apiKey"];
-      
-      for (const table of tables) {
-        const count = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count: number };
-        stats.tables[table] = count.count;
+      const tables = db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .all() as { name: string }[];
+      for (const { name } of tables) {
+        const row = db.prepare(`SELECT COUNT(*) as count FROM "${name}"`).get() as {
+          count: number;
+        };
+        stats.tables[name] = row.count;
       }
     } catch (error) {
-      stats["table_error"] = error instanceof Error ? error.message : "Unknown error";
+      stats.table_error = error instanceof Error ? error.message : "Unknown error";
     }
-    
+
     return c.json({
       status: "ok",
       timestamp: new Date().toISOString(),
       database: stats,
     });
-    
   } catch (error) {
     logger.error({ error: serializeError(error) }, "Database health check failed");
-    return c.json({
-      status: "error",
-      database: {
-        connected: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+    return c.json(
+      {
+        status: "error",
+        database: {
+          connected: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
       },
-    }, 503);
+      503,
+    );
   }
 });
 
 export default health;
-

@@ -1,9 +1,8 @@
 import { Context, Hono } from "hono";
 import {
-  createStorageClient,
   invalidateListingCache,
   getUniqueFilePath,
-  getCachePath,
+  cleanStorageKey,
   parseParams,
   THUMBNAIL_PRIORITY,
   TRANSFORMATION_PRIORITY,
@@ -22,12 +21,10 @@ import path from "path";
 import { presignedOrApiKeyAuth } from "../middleware/presigned-upload-auth";
 import heicConvert from "heic-convert";
 
-// File size limit: configurable via MAX_FILE_SIZE_MB env var, defaults to 50MB
 const MAX_FILE_SIZE =
   (parseInt(process.env.MAX_FILE_SIZE_MB ?? "50", 10) || 50) * 1024 * 1024;
 const MAX_PREWARM_TRANSFORMATIONS = 20;
 
-// Presigned upload token lifetime, in seconds
 const DEFAULT_PRESIGN_EXPIRES_IN = 5 * 60; // 5 minutes
 const MAX_PRESIGN_EXPIRES_IN = 60 * 60; // 1 hour
 
@@ -140,9 +137,9 @@ function parsePrewarmTransformations(formData: FormData): string[] {
 }
 
 export function createUploadRoute(deps: RouteDeps) {
-  const { storage } = deps;
+  const { storage, apiSecret, paths } = deps;
   const videoJobQueue = deps.queue;
-  const transformService = new TransformService(storage, videoJobQueue);
+  const transformService = new TransformService(storage, videoJobQueue, paths);
   const upload = new Hono();
 
   async function prewarmImageTransformations(
@@ -161,16 +158,11 @@ export function createUploadRoute(deps: RouteDeps) {
           path: transformPath,
           userAgent: c.req.header("User-Agent") ?? "",
           acceptHeader: c.req.header("Accept"),
-          context: c,
         });
 
-        // prewarm only runs for images, which are always buffered (never streamed)
-        const errorText = result.buffer?.toString() ?? "";
-        const failed =
-          result.contentType === "text/plain" && errorText.includes("failed");
-
-        if (failed) {
-          const message = errorText.replace(/^Processing failed:\s*/i, "");
+        if (result.status && result.status >= 400) {
+          // prewarm only runs for images, which are always buffered (never streamed)
+          const message = (result.buffer?.toString() ?? "").replace(/^Processing failed:\s*/i, "");
           prewarmErrors.push(`${transformSegment}: ${message}`);
           continue;
         }
@@ -192,30 +184,17 @@ export function createUploadRoute(deps: RouteDeps) {
    * (see stripUrlHostile). Both write routes below - file upload and folder
    * creation - go through here, so nothing enters storage unaddressable.
    */
-  function sanitizePath(filepath: string): string {
-    // Remove leading slashes and any parent directory references
-    let sanitized = filepath.replace(/^\/+/, "").replace(/\.\./g, "");
-
-    // Normalize path separators to forward slashes
-    sanitized = sanitized.replace(/\\/g, "/");
-
-    // Remove any remaining dangerous patterns
-    sanitized = sanitized.replace(/\/+/g, "/"); // Multiple slashes
-
-    return stripUrlHostile(sanitized);
+  function sanitizePath(filepath: string): string | null {
+    return cleanStorageKey(stripUrlHostile(filepath));
   }
 
-  /**
-   * Saves file to local storage (./public/)
-   */
   async function saveFileLocally(
     filePath: string,
     buffer: Buffer,
   ): Promise<void> {
-    const fullPath = path.join("./public", filePath);
+    const fullPath = path.join(paths.public, filePath);
     const dir = path.dirname(fullPath);
 
-    // Create parent directories if they don't exist
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -224,15 +203,14 @@ export function createUploadRoute(deps: RouteDeps) {
   }
 
   async function localFileExists(filePath: string): Promise<boolean> {
-    const fullPath = path.join("./public", filePath);
+    const fullPath = path.join(paths.public, filePath);
     return fs.existsSync(fullPath);
   }
 
-  async function queueVideoTransformations(
+  function queueVideoTransformations(
     filePath: string,
     transformations: string[],
-    storage: ReturnType<typeof createStorageClient>,
-  ): Promise<{ queuedTransformationUrls: string[]; queueErrors: string[] }> {
+  ): { queuedTransformationUrls: string[]; queueErrors: string[] } {
     const queuedTransformationUrls: string[] = [];
     const queueErrors: string[] = [];
 
@@ -247,23 +225,12 @@ export function createUploadRoute(deps: RouteDeps) {
         continue;
       }
 
-      const cachePath = getCachePath(transformPath);
-      const sourcePath = storage
-        ? `./temp/${path.basename(filePath)}`
-        : path.join("./public", filePath);
       const priority = params.thumbnail
         ? THUMBNAIL_PRIORITY
         : TRANSFORMATION_PRIORITY;
 
       try {
-        const jobId = await videoJobQueue.addJob(
-          filePath,
-          params,
-          cachePath,
-          sourcePath,
-          storage,
-          priority,
-        );
+        const jobId = videoJobQueue.enqueueTransform(filePath, params, priority);
 
         queuedTransformationUrls.push(transformPath);
         logger.info(
@@ -332,9 +299,7 @@ export function createUploadRoute(deps: RouteDeps) {
    * should mint these).
    */
   upload.post("/sign", async (c) => {
-    const API_SECRET = process.env.API_SECRET;
-
-    if (!API_SECRET) {
+    if (!apiSecret) {
       return c.json(
         { success: false, error: "API_SECRET is not configured on the server" },
         500,
@@ -345,7 +310,6 @@ export function createUploadRoute(deps: RouteDeps) {
     try {
       body = await c.req.json();
     } catch {
-      // No JSON body provided, fall back to defaults (root folder)
     }
 
     const folder = typeof body.folder === "string" ? body.folder : "";
@@ -359,7 +323,7 @@ export function createUploadRoute(deps: RouteDeps) {
     );
     const expires = Math.floor(Date.now() / 1000) + expiresIn;
 
-    const signature = generateUploadSignature(folder, expires, API_SECRET);
+    const signature = generateUploadSignature(folder, expires, apiSecret);
 
     return c.json({
       success: true,
@@ -372,7 +336,7 @@ export function createUploadRoute(deps: RouteDeps) {
   /**
    * POST /upload - Upload single or multiple files
    */
-  upload.post("/", presignedOrApiKeyAuth, async (c) => {
+  upload.post("/", presignedOrApiKeyAuth(apiSecret), async (c) => {
     try {
       const formData = await c.req.formData();
       const uploadFolder = formData.get("folder") as string | null;
@@ -419,6 +383,10 @@ export function createUploadRoute(deps: RouteDeps) {
           "/" +
           (customName || (file as any).webkitRelativePath || file.name);
         const rawSanitizedPath = sanitizePath(rawPath);
+        if (rawSanitizedPath === null) {
+          failedUploads.push({ filename: rawPath, error: "Invalid file path" });
+          continue;
+        }
         const filename = path.basename(rawSanitizedPath);
 
         // Silently ignore macOS metadata files
@@ -428,7 +396,6 @@ export function createUploadRoute(deps: RouteDeps) {
         const mimeType = file.type;
         const fileSize = file.size;
 
-        // Validate file size
         if (fileSize > MAX_FILE_SIZE) {
           failedUploads.push({
             filename: rawSanitizedPath,
@@ -437,7 +404,6 @@ export function createUploadRoute(deps: RouteDeps) {
           continue;
         }
 
-        // Validate file type
         if (!validateUploadFileType(filename, mimeType)) {
           failedUploads.push({
             filename: rawSanitizedPath,
@@ -447,7 +413,6 @@ export function createUploadRoute(deps: RouteDeps) {
         }
 
         try {
-          // Convert File to Buffer
           const arrayBuffer = await file.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
 
@@ -469,12 +434,11 @@ export function createUploadRoute(deps: RouteDeps) {
             fileName: normalizedFileName,
           } = await normalizeUploadFormat(buffer, mimeType, rawSanitizedPath);
 
-          // Compute a unique file path to avoid overwriting existing files
           let finalPath = normalizedPath;
 
           if (storage) {
             finalPath = await getUniqueFilePath(normalizedPath, async (p) =>
-              storage.existsOriginalPath(p),
+              storage.existsOriginal(p),
             );
           } else {
             finalPath = await getUniqueFilePath(
@@ -483,9 +447,7 @@ export function createUploadRoute(deps: RouteDeps) {
             );
           }
 
-          // Upload based on storage configuration
           if (storage) {
-            // Upload to cloud storage with full (unique) path
             const url = await storage.uploadOriginal(
               finalPath,
               normalizedBuffer,
@@ -537,10 +499,9 @@ export function createUploadRoute(deps: RouteDeps) {
               normalizedContentType.startsWith("video/") &&
               prewarmTransformations.length > 0
             ) {
-              const queueResult = await queueVideoTransformations(
+              const queueResult = queueVideoTransformations(
                 finalPath,
                 prewarmTransformations,
-                storage,
               );
               if (queueResult.queuedTransformationUrls.length > 0) {
                 uploadResult.queuedTransformationUrls =
@@ -553,7 +514,6 @@ export function createUploadRoute(deps: RouteDeps) {
 
             successfulUploads.push(uploadResult);
           } else {
-            // Save locally with full path
             await saveFileLocally(finalPath, normalizedBuffer);
             logger.info(
               { originalPath: rawSanitizedPath, finalPath },
@@ -600,10 +560,9 @@ export function createUploadRoute(deps: RouteDeps) {
               normalizedContentType.startsWith("video/") &&
               prewarmTransformations.length > 0
             ) {
-              const queueResult = await queueVideoTransformations(
+              const queueResult = queueVideoTransformations(
                 finalPath,
                 prewarmTransformations,
-                storage,
               );
               if (queueResult.queuedTransformationUrls.length > 0) {
                 uploadResult.queuedTransformationUrls =
@@ -628,7 +587,6 @@ export function createUploadRoute(deps: RouteDeps) {
         }
       }
 
-      // Determine response status
       const allSuccessful = failedUploads.length === 0;
       const someSuccessful = successfulUploads.length > 0;
 
@@ -687,9 +645,7 @@ export function createUploadRoute(deps: RouteDeps) {
         );
       }
 
-      const rawSanitizedPath = sanitizePath(
-        folder.replaceAll(" ", "_"),
-      ).replace(/\/+$/, "");
+      const rawSanitizedPath = sanitizePath(folder.replaceAll(" ", "_"));
 
       if (!rawSanitizedPath) {
         logger.error({ folder }, "Invalid folder data provided");
@@ -732,8 +688,8 @@ export function createUploadRoute(deps: RouteDeps) {
         );
       }
 
-      const localBasePath = path.join(".", "public");
-      const localPath = path.join(".", "public", rawSanitizedPath);
+      const localBasePath = paths.public;
+      const localPath = path.join(paths.public, rawSanitizedPath);
 
       if (!fs.existsSync(localBasePath)) {
         logger.error({ folder }, "Local storage path does not exist");

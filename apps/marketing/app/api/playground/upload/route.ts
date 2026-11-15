@@ -12,8 +12,10 @@
  * bandwidth pump.
  */
 
-/** Anything over this is rejected, which also demos the uploader error state. */
-const MAX_BYTES = 10 * 1024 * 1024;
+import { PLAYGROUND_MAX_BYTES as MAX_BYTES } from "@/lib/site";
+
+// Anything over MAX_BYTES is rejected, which also demos the uploader error state.
+const TOO_LARGE = `File exceeds the ${MAX_BYTES / 1024 / 1024}MB playground limit`;
 
 /**
  * Simulated transfer, for files big enough to be worth simulating.
@@ -55,14 +57,13 @@ export async function POST(request: Request) {
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BYTES) {
     return json(
-      { success: false, error: "File exceeds the 10MB playground limit" },
+      { success: false, error: TOO_LARGE },
       413,
     );
   }
 
-  // Drain without buffering, pacing the reads so the sender is throttled to
-  // SIMULATED_BYTES_PER_SECOND. Nothing is kept: each chunk is counted and
-  // dropped.
+  // Drain without buffering, pacing the reads so the upload takes about
+  // TARGET_UPLOAD_MS. Nothing is kept: each chunk is counted and dropped.
   let received = 0;
   const startedAt = Date.now();
   const pacedBytes = Math.max(0, declared - UNPACED_TAIL_BYTES);
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       if (received > MAX_BYTES) {
         await reader.cancel();
         return json(
-          { success: false, error: "File exceeds the 10MB playground limit" },
+          { success: false, error: TOO_LARGE },
           413,
         );
       }

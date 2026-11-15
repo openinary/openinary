@@ -1,18 +1,19 @@
 import { withEnvStyles } from "env.style";
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const nextConfig: NextConfig = {
-  // The dashboard reads NEXT_PUBLIC_SERVER_URL in a dozen places and asserts it
-  // non-null, but it only ever lived in .env.production, which is gitignored -
-  // so a fresh clone of this repo could not run `pnpm build`: prerendering
-  // /get-started/images died on undefined.replace() inside OpeninaryProvider.
-  // The default is the production origin, the same value apps/cloud/admin
-  // already states in its wrangler.jsonc, so a build that reaches production
-  // without an env file is still correct rather than quietly pointed elsewhere.
-  // .env and .env.production are loaded before this file, so they still win.
+const config = (dev: boolean): NextConfig => ({
+  // Ships TypeScript source only.
+  transpilePackages: ["@openinary/dashboard"],
+  // The dashboard asserts NEXT_PUBLIC_SERVER_URL non-null, and .env.production
+  // is gitignored, so a fresh clone needs a default to build at all. Builds
+  // default to production (as apps/cloud/admin does), `next dev` to the local
+  // server, so a dev session never talks to production by accident. .env files
+  // still win.
   env: {
     NEXT_PUBLIC_SERVER_URL:
-      process.env.NEXT_PUBLIC_SERVER_URL ?? "https://cdn.openinary.dev",
+      process.env.NEXT_PUBLIC_SERVER_URL ??
+      (dev ? "http://localhost:3100" : "https://cdn.openinary.dev"),
   },
   // PostHog reverse proxy, same three rewrites the marketing site already
   // runs: ingestion leaves on our own domain, so an ad blocker never sees a
@@ -54,12 +55,13 @@ const nextConfig: NextConfig = {
   // PostHog's API calls use trailing slashes; without this Next redirects
   // them and the events never arrive.
   skipTrailingSlashRedirect: true,
-};
-
-export default withEnvStyles(nextConfig, {
-  color: {
-    development: "#3b82f6",
-    preview: "#f59e0b",
-    staging: "#6b7280",
-  },
 });
+
+export default (phase: string) =>
+  withEnvStyles(config(phase === PHASE_DEVELOPMENT_SERVER), {
+    color: {
+      development: "#3b82f6",
+      preview: "#f59e0b",
+      staging: "#6b7280",
+    },
+  });

@@ -1,5 +1,3 @@
-// Run with: pnpm -F server test
-//
 // Reported as "one of the videos isn't working": an asset uploaded as
 // "The #1 Most ... [wfGghA2NQUg].mp4" delivered a CDN URL that every browser
 // truncated at the "#", so the request that actually reached the Worker was
@@ -14,11 +12,11 @@
 // unchanged - plus the fact that it only removes what it has to.
 
 import assert from "node:assert/strict";
-import { stripUrlHostile } from "./r2-storage.js";
+import { stripUrlHostile } from "@openinary/core/url";
 
 // How a delivery URL is built and then read back: callers encode per segment
-// (apps/web/src/lib/thumbnails, the /upload echo), the browser parses, and
-// worker/index.ts's parseCdnRequest decodes per segment.
+// (apps/cloud/web/src/lib/thumbnails, the /upload echo), the browser parses, and
+// parseCdnPath (worker/cdn/path.ts) decodes per segment.
 const roundTrip = (key: string): string => {
   const url = new URL(
     `https://cdn.openinary.dev/b/buck_1/t/${key

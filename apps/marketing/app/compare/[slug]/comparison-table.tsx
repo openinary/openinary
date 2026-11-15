@@ -1,6 +1,6 @@
 import { Check, Minus } from "lucide-react";
 
-import { panelSurface } from "@/components/home/cta-button";
+import { panelSurface } from "@/components/site/panel";
 import { cn } from "@/lib/utils";
 
 type FeatureItem = {

@@ -1,3 +1,4 @@
+import type { EnginePaths } from "../config/paths";
 import fs, { Dirent } from "fs";
 import path from "path";
 import logger, { serializeError } from "./logger";
@@ -22,6 +23,7 @@ export async function deleteAssetCompletely(
   filePath: string,
   storage: CloudStorage | null,
   jobStore: VideoJobStore,
+  paths: EnginePaths,
 ): Promise<DeleteAssetResult> {
   const result: DeleteAssetResult = {
     success: false,
@@ -52,7 +54,7 @@ export async function deleteAssetCompletely(
         }
       }
     } else {
-      const localPath = path.join(".", "public", filePath);
+      const localPath = path.join(paths.public, filePath);
       fileExists = fs.existsSync(localPath);
     }
 
@@ -81,7 +83,7 @@ export async function deleteAssetCompletely(
 
     // Step 3: Delete local cache files
     try {
-      result.localCacheFilesDeleted = await deleteCachedFiles(filePath);
+      result.localCacheFilesDeleted = await deleteCachedFiles(paths.cache, filePath);
       logger.debug(
         { filePath, count: result.localCacheFilesDeleted },
         "Deleted local cache files",
@@ -125,7 +127,7 @@ export async function deleteAssetCompletely(
     } else {
       // Delete from local storage
       try {
-        const localPath = path.join(".", "public", filePath);
+        const localPath = path.join(paths.public, filePath);
 
         const stats = fs.statSync(localPath);
 
@@ -136,8 +138,8 @@ export async function deleteAssetCompletely(
           });
 
           for (const content of folderContents) {
-            const contentPath = path.join(localPath, content.name);
-            await deleteAssetCompletely(contentPath, storage, jobStore);
+            const contentPath = path.join(filePath, content.name);
+            await deleteAssetCompletely(contentPath, storage, jobStore, paths);
           }
         }
 

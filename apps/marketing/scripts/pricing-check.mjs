@@ -1,5 +1,5 @@
 // Self-check for the homepage cost comparison.
-// Run: pnpm --filter marketing pricing:check
+// Run: pnpm --filter marketing test
 //
 // Guards the arithmetic the marketing claim rests on: a workload inside the
 // free quotas costs nothing, plan selection picks the cheapest covering tier,

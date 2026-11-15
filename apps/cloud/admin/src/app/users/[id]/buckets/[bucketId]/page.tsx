@@ -10,7 +10,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Fragment, Suspense } from "react";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/confirm-action";
-import { Empty, Freshness, LoadingRows } from "@/components/fields";
+import { Empty, Freshness, LoadingRows, NoData } from "@/components/fields";
 import { cn, formatBytes, formatDate } from "@/lib/utils";
 import { adminFetch, adminUrl, orpc } from "@/utils/orpc";
 
@@ -129,10 +129,8 @@ function Browser() {
         })}
       </nav>
 
-      {error && !data ? (
-        <Empty>{error.message}</Empty>
-      ) : !data ? (
-        <LoadingRows rows={6} />
+      {!data ? (
+        <NoData error={error} rows={6} />
       ) : data.folders.length === 0 && data.files.length === 0 ? (
         <Empty>Empty folder.</Empty>
       ) : (

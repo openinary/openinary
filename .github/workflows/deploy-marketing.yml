@@ -6,9 +6,11 @@ on:
       - main
     paths:
       - 'apps/marketing/**'
-      # The site serves the built shadcn registry from /r (copied in by the
-      # app's prebuild), so a registry change has to redeploy it.
-      - 'r/**'
+      # The app's prebuild builds these into the site: pricing from plans, the
+      # shadcn registry served from /r, and the synced file-uploader block.
+      - 'packages/plans/**'
+      - 'packages/registry/**'
+      - 'scripts/sync-registry-block.mjs'
       - '.github/workflows/deploy-marketing.yml'
   workflow_dispatch: {}
 
@@ -39,6 +41,3 @@ jobs:
           # dashboard (apps/cloud/web), not to this site, and it inherited the
           # variable from the marketing repo's own workflow. Passing a secret this
           # repo does not define only makes the deploy look like it is missing one.
-          # ATTIO_API_KEY is NOT set here on purpose: Next.js only inlines NEXT_PUBLIC_*
-          # at build time, so a build env var never reaches the Worker at runtime.
-          # It lives as a Worker secret (`wrangler secret put ATTIO_API_KEY`).

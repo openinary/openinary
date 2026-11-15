@@ -23,13 +23,8 @@ import {
   ColorPickerSwatch,
   ColorPickerTrigger,
 } from "@/components/ui/color-picker";
-import {
-  fieldShell,
-  focusRing,
-  panelSurface,
-  pressable,
-  sliderThumb,
-} from "@/components/home/cta-button";
+import { focusRing, pressable } from "@/components/site/cta-button";
+import { fieldShell, panelSurface, sliderThumb } from "@/components/site/panel";
 import { useCopy } from "@/hooks/use-copy";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -41,9 +36,10 @@ import {
   type Overrides,
   type Theme,
 } from "@/components/home/playground/themes";
+import { PLAYGROUND_MAX_BYTES, SITE_URL } from "@/lib/site";
 
 const INSTALL =
-  "npx shadcn@latest add https://openinary.dev/r/file-uploader.json";
+  `npx shadcn@latest add ${SITE_URL}/r/file-uploader.json`;
 
 /**
  * The playground never talks to an Openinary instance. `/api/playground/upload`
@@ -162,7 +158,7 @@ export function Playground() {
               key={resetToken}
               baseUrl={PLAYGROUND_API}
               sign={signPlaygroundUpload}
-              maxSize={10 * 1024 * 1024}
+              maxSize={PLAYGROUND_MAX_BYTES}
             />
           </div>
         </div>

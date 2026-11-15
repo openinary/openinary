@@ -8,6 +8,7 @@ import {
 } from "@cossistant/next";
 import { useQuery } from "@tanstack/react-query";
 
+import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { authClient } from "@/lib/auth-client";
 import { FEATURES, formatUsd, usageCost } from "@/lib/usage";
 import { orpc } from "@/utils/orpc";
@@ -41,7 +42,7 @@ const iso = (value: number | Date | null | undefined) =>
 function IdentifyAccount() {
   const { data: session } = authClient.useSession();
   const { data: usage } = useQuery(orpc.usage.get.queryOptions());
-  const { data: buckets } = useQuery(orpc.bucket.list.queryOptions());
+  const { buckets, bucket: activeBucket } = useActiveBucket();
   const { visitor } = useVisitor();
 
   const user = session?.user;
@@ -82,7 +83,7 @@ function IdentifyAccount() {
         overage: usage ? formatUsd(usageCost(usage.features)) : null,
         ...consumption,
         buckets: buckets?.length ?? null,
-        activeBucketId: buckets?.find((b) => b.active)?.id ?? null,
+        activeBucketId: activeBucket?.id ?? null,
       }}
       name={user.name}
     />

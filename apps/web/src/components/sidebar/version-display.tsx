@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Skeleton } from "skullet/react";
 
-import { useHydrated } from "@/hooks/use-hydrated";
+import { useHydrated } from "@openinary/dashboard";
 
 /** The running version, read from /api/version (IMAGE_TAG, set at runtime). Null until known. */
 export function useVersion() {

@@ -9,15 +9,17 @@
  * `POST /upload/sign` returns and what the FileUploader expects.
  */
 
-export interface SnippetContext {
+export function aiPrompt({
+  apiBaseUrl,
+  deliveryBase: cdnBaseUrl,
+  bucketId,
+}: {
   /** Origin of the Openinary API, e.g. https://api.openinary.dev */
   apiBaseUrl: string;
   /** Public delivery base for this bucket: {apiBaseUrl}/b/{bucketId} */
-  cdnBaseUrl: string;
+  deliveryBase: string;
   bucketId: string;
-}
-
-export function aiPrompt({ apiBaseUrl, cdnBaseUrl, bucketId }: SnippetContext) {
+}) {
   return `# Integrate Openinary
 
 Wire file uploads and media delivery into this project using Openinary Cloud.

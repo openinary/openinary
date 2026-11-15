@@ -1,9 +1,9 @@
 "use client";
 
 import { Spinner } from "@openinary/ui";
-import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, LogOut, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useHydrated } from "@openinary/dashboard";
 import { Skeleton } from "skullet/react";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
@@ -17,22 +17,21 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@openinary/dashboard/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { useHydrated } from "@/hooks/use-hydrated";
+} from "@openinary/dashboard/ui/sidebar";
+import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { authClient } from "@/lib/auth-client";
-import { orpc } from "@/utils/orpc";
 
 /**
  * Sits where the logo used to be. The top half only switches - creating,
  * renaming and deleting live in the Buckets settings tab - and the bottom half
  * is the account menu: who is signed in, usage, settings, sign out. Buckets are an app-level concept
  * only (there is still a single real R2 bucket underneath, see
- * apps/server/worker/r2-storage.ts) and the active one is a per-account
+ * apps/cloud/server/worker/r2-storage.ts) and the active one is a per-account
  * setting the server resolves for every storage/upload/transform request, not
  * something threaded through @openinary/ui - so the switch itself, and the
  * cache teardown it implies, lives in BucketSwitchProvider.
@@ -44,11 +43,11 @@ export function BucketSwitcher() {
   const user = authClient.useSession().data?.user;
   const userName = user?.name || user?.email?.split("@")[0] || "User";
 
-  const { data: buckets, isLoading } = useQuery(
-    orpc.bucket.list.queryOptions(),
-  );
-
-  const activeBucket = buckets?.find((b) => b.active) ?? buckets?.[0];
+  const {
+    buckets,
+    bucket: activeBucket,
+    isLoading,
+  } = useActiveBucket();
   // Client-only, so the skeleton can recall its last shape (useHydrated).
   const hydrated = useHydrated();
 

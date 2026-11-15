@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 
-import { Eyebrow, Section, gutter } from "@/components/home/section";
-import { focusRing, pressable } from "@/components/home/cta-button";
+import { Eyebrow, Section, gutter } from "@/components/site/section";
+import { focusRing, pressable } from "@/components/site/cta-button";
+import { freeQuotas } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { APP_URL, DOCS_URL } from "@/lib/site";
+
+const n = (value: number) => value.toLocaleString("en-US");
+const quotas = `${freeQuotas.storageGb} GB of storage, ${n(freeQuotas.transformations)} image transformations, ${freeQuotas.videoMinutes} minutes of video processing and ${n(freeQuotas.cdnRequests)} CDN requests`;
 
 /** `text` is the plain-text answer for FAQPage JSON-LD, needed when `answer` is JSX. */
 export const faqs: {
@@ -13,7 +18,7 @@ export const faqs: {
 }[] = [
   {
     question: "How do I deploy Openinary with Docker?",
-    text: "Openinary is fully Dockerized and runs on any infrastructure, with no external dependencies beyond an S3-compatible bucket. Clone the repository, set your environment variables, run docker compose up, then point it at your storage. Every step is in the documentation at docs.openinary.dev.",
+    text: `Openinary is fully Dockerized and runs on any infrastructure, with no external dependencies beyond an S3-compatible bucket. Clone the repository, set your environment variables, run docker compose up, then point it at your storage. Every step is in the documentation at ${new URL(DOCS_URL).host}.`,
     answer: (
       <>
         Openinary is fully Dockerized and runs on any infrastructure, with no
@@ -22,7 +27,7 @@ export const faqs: {
         <code className="font-mono text-[0.9em]">docker compose up</code>, then
         point it at your storage. Every step is in the{" "}
         <Link
-          href="https://docs.openinary.dev/configuration"
+          href={`${DOCS_URL}/configuration`}
           target="_blank"
           rel="noopener noreferrer"
           className="underline underline-offset-2"
@@ -45,12 +50,12 @@ export const faqs: {
   },
   {
     question: "Is the Cloud version available?",
-    text: "Yes, Openinary Cloud is live as a public alpha at app.openinary.dev. The free plan includes 2 GB of storage, 1,000 image transformations, 30 minutes of video processing and 50,000 CDN requests per month, no credit card required. When you outgrow it, the pay-as-you-go plan bills only what you use past the included quotas.",
+    text: `Yes, Openinary Cloud is live as a public alpha at ${new URL(APP_URL).host}. The free plan includes ${quotas} per month, no credit card required. When you outgrow it, the pay-as-you-go plan bills only what you use past the included quotas.`,
     answer: (
       <>
         Yes, Openinary Cloud is live as a public alpha.{" "}
         <Link
-          href="https://app.openinary.dev"
+          href={APP_URL}
           target="_blank"
           rel="noopener noreferrer"
           data-track-event="cloud_waitlist_clicked"
@@ -59,9 +64,8 @@ export const faqs: {
         >
           Create your account
         </Link>{" "}
-        and you are in: the free plan includes 2 GB of storage, 1,000 image
-        transformations, 30 minutes of video processing and 50,000 CDN requests
-        per month, no credit card required. When you outgrow it, the
+        and you are in: the free plan includes {quotas} per month, no credit
+        card required. When you outgrow it, the
         pay-as-you-go plan bills only what you use past the included quotas. It
         is still early, so expect rough edges, and tell us what breaks.
       </>

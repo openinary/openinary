@@ -9,16 +9,10 @@
     "binding": "ASSETS"
   },
   "routes": [{ "pattern": "admin.openinary.dev", "custom_domain": true }],
-  "vars": {
-    // Same API as the customer dashboard: auth and oRPC are shared, and this
-    // origin is listed in the server's ADMIN_ORIGIN so its cookies and CORS
-    // preflights are accepted.
-    "NEXT_PUBLIC_SERVER_URL": "https://cdn.openinary.dev",
-    // Where to send a signed-out visitor. There is no sign-in form here - the
-    // session cookie is scoped to ".openinary.dev", so signing in on the
-    // customer app is signing in here too.
-    "NEXT_PUBLIC_APP_URL": "https://app.openinary.dev"
-  },
+  // Production lives on the custom domain only. Left undeclared, a deploy
+  // silently re-enables both of these.
+  "workers_dev": false,
+  "preview_urls": false,
   "observability": {
     "enabled": true
   }

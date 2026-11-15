@@ -111,7 +111,7 @@ export function VideoThumbnail({
             )}
           </div>
         </div>
-      ) : (
+      ) : !src ? null : (
         <img
           key={imageKey}
           src={src}

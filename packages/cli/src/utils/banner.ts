@@ -1,4 +1,5 @@
 import pc from "picocolors";
+import { isCI } from "./logger.js";
 
 export const TAGLINE = "The self-hostable alternative to Cloudinary";
 
@@ -58,14 +59,6 @@ function renderArt(lines: string[]): string {
         .join("")
     )
     .join("\n");
-}
-
-export function renderLogo(): string {
-  return renderArt(ART);
-}
-
-function isCI(): boolean {
-  return process.env.CI === "true" || process.env.CI === "1";
 }
 
 /**

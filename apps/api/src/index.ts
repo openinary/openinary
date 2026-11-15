@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
+import { allowedOrigins } from "shared";
 import {
   createTransformRoute,
   createAuthenticatedRoute,
@@ -26,10 +27,10 @@ import { logDelivery, noteApiUpload } from "./middleware/activity";
 import { apiKeyAuth } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
 import { getSharedStorage } from "./config/storage";
-import { videoJobQueue } from "./config/queue";
+import { enginePaths, videoJobQueue } from "./config/queue";
 
-// Validate API_SECRET at startup if authenticated routes are enabled
-// This ensures the application fails fast if the secret is not configured properly
+// Logged, not fatal: only /authenticated and presigned uploads need the
+// secret, and they answer 500 without it.
 try {
   validateApiSecret(process.env.API_SECRET);
 } catch (error) {
@@ -37,17 +38,14 @@ try {
     { error: serializeError(error) },
     "API_SECRET validation failed at startup",
   );
-  // For now, we only log the error to allow the app to start
-  // The authenticated route will return 500 errors if API_SECRET is missing
-  // In production, you may want to throw the error to prevent startup
 }
 
-// Single set of dependencies shared by every route in this process. A
-// future multi-tenant mount would build one RouteDeps per tenant instead of
-// calling these factories once at module scope.
 const deps: RouteDeps = {
   storage: getSharedStorage(),
   queue: videoJobQueue,
+  paths: enginePaths,
+  apiSecret: process.env.API_SECRET,
+  allowRemoteSource: process.env.ALLOW_REMOTE_SOURCE === "true",
 };
 
 const transform = createTransformRoute(deps);
@@ -64,83 +62,65 @@ const invalidateRoute = createInvalidateRoute(deps);
 
 const app = new Hono();
 
-// CORS - Allow credentials for session cookies
+// Credentials allowed for the dashboard's session cookie.
 app.use(
   "/*",
   cors({
     origin: (origin) => {
-      // Allow requests from Next.js app or configured origins.
-      // CORS_ORIGIN may be a comma-separated list of allowed origins so that
-      // third-party apps embedding the file-uploader component can be added.
-      const allowedOrigins = [
-        "http://localhost:3001", // Next.js dev
-        "http://localhost:3000", // API itself
+      // CORS_ORIGIN: comma-separated sites embedding the file uploader.
+      const allowed = [
+        ...allowedOrigins(),
         ...(process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()) ?? []),
-      ].filter(Boolean);
-
-      if (!origin || allowedOrigins.includes("*")) {
-        return origin || "*";
-      }
-
-      // Return an empty string for disallowed origins so the browser blocks
-      // the response (previously fell back to the first allowed origin).
-      return allowedOrigins.includes(origin) ? origin : "";
+      ];
+      if (!origin || allowed.includes("*")) return origin || "*";
+      // Empty for a disallowed origin, so the browser blocks the response.
+      return allowed.includes(origin) ? origin : "";
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
-    credentials: true, // Important: allow cookies
+    credentials: true,
     exposeHeaders: ["Set-Cookie"],
   }),
 );
 
-// Public routes (no authentication required)
-// Rate limiting is applied to these routes only (protected routes have their own rate limiting via better-auth)
-
-// Root endpoint
+// Public routes are rate limited here; protected ones by Better Auth's API
+// key plugin.
 app.get("/", publicRateLimit, (c) =>
   c.text("Openinary API Server is running."),
 );
 
-// Health check routes
 app.use("/health", publicRateLimit);
 app.use("/health/*", publicRateLimit);
 app.route("/health", health);
 
-// Video status check (public - no auth required)
 app.use("/video-status", publicRateLimit);
 app.use("/video-status/*", publicRateLimit);
 app.route("/video-status", videoStatus);
 
-// Image transformation route is public for easy access to transformed images
 app.use("/t", publicRateLimit);
 app.use("/t/*", publicRateLimit);
 app.use("/t/*", logDelivery("/t"));
 app.route("/t", transform);
 
-// Original file download route (public, consistent with /t/)
 app.use("/download", publicRateLimit);
 app.use("/download/*", publicRateLimit);
 app.route("/download", download);
 
-// Folder ZIP download route (public)
 app.use("/download-folder", publicRateLimit);
 app.use("/download-folder/*", publicRateLimit);
 app.route("/download-folder", downloadFolder);
 
-// Authenticated image transformation route (with signature verification)
+// Public too: the URL's signature is the authorization.
 app.use("/authenticated", publicRateLimit);
 app.use("/authenticated/*", publicRateLimit);
 app.use("/authenticated/*", logDelivery("/authenticated"));
 app.route("/authenticated", authenticated);
 
-// Queue events SSE endpoint (public for real-time updates)
-// This must be registered BEFORE the protected queue routes to avoid auth conflicts
+// Registered before the protected /queue/* so it stays public.
 app.use("/queue/events", publicRateLimit);
 app.use("/queue/events/*", publicRateLimit);
 app.route("/queue/events", queueEvents);
 
-// Protected routes - require API key authentication
-// Apply middleware before routing
 // POST /upload accepts either a real API key/session, or a short-lived
 // presigned signature minted by POST /upload/sign, so it gets its own
 // auth handling (see presignedOrApiKeyAuth) plus public rate limiting,
@@ -157,31 +137,25 @@ app.use("/storage/*", compress());
 app.use("/storage/*", apiKeyAuth);
 app.route("/storage", storageRoute);
 
-// Bulk ZIP download route (protected, accepts an arbitrary list of paths)
 app.use("/download-zip", apiKeyAuth);
 app.use("/download-zip/*", apiKeyAuth);
 app.route("/download-zip", downloadZip);
 
-// Cache invalidation route (protected)
 app.use("/invalidate/*", apiKeyAuth);
 app.route("/invalidate", invalidateRoute);
 
-// Queue management routes (protected)
-// Note: /queue/events is public (registered above), but other /queue/* routes require auth
 app.use("/queue/*", apiKeyAuth);
 app.route("/queue", queue);
 
-// Delivery log and onboarding state, for the dashboard (protected)
 app.use("/activity", apiKeyAuth);
 app.use("/activity/*", apiKeyAuth);
 app.route("/activity", activity);
 
-// First-run questionnaire and the workspace it names (protected)
 app.use("/onboarding", apiKeyAuth);
 app.use("/onboarding/*", apiKeyAuth);
 app.route("/onboarding", onboarding);
 
-// API key management routes (also protected)
+// Applies apiKeyAuth itself.
 app.route("/api-keys", apiKeys);
 
 export default app;

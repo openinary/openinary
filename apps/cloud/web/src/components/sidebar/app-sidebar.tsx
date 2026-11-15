@@ -1,146 +1,59 @@
 "use client";
 
-import { type MediaFile, type QuickAction, QuickActions } from "@openinary/ui";
+import { AppSidebar as DashboardSidebar } from "@openinary/dashboard";
+import { SidebarFooter } from "@openinary/dashboard/ui/sidebar";
 import {
-  BookOpen,
   Boxes,
   ChartColumn,
-  Image as ImageIcon,
   KeyRound,
   LayoutGrid,
   Palette,
-  Plug,
   ScrollText,
-  Upload,
-  UploadCloud,
-  Video,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
-import { FILE_UPLOADER_DOCS } from "@/components/get-started/uploader-card";
+import { FILE_UPLOADER_DOCS } from "@/components/dashboard-providers";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { BucketSwitcher } from "@/components/sidebar/bucket-switcher";
-import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
 import { NavSettings } from "@/components/sidebar/nav-plan";
-import { NavProjects } from "@/components/sidebar/nav-projects";
 import { UpgradeCard } from "@/components/sidebar/upgrade-card";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarRail,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 
-export const mainItems: NavItem[] = [
+const mainItems = [
   { title: "Assets", icon: LayoutGrid, url: "/" },
   { title: "Usage", icon: ChartColumn, url: "/settings/billing" },
   { title: "Logs", icon: ScrollText, url: "/settings/logs" },
   { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
 ];
 
-export const toolItems: NavItem[] = [
-  {
-    title: "Integrate",
-    icon: Plug,
-    url: "/get-started/integrate",
-    tile: "from-orange-400 to-rose-500",
-  },
-  {
-    title: "Images",
-    icon: ImageIcon,
-    url: "/get-started/images",
-    tile: "from-sky-400 to-indigo-500",
-  },
-  {
-    title: "Videos",
-    icon: Video,
-    url: "/get-started/videos",
-    tile: "from-emerald-400 to-teal-600",
-  },
-  {
-    title: "Uploader",
-    icon: UploadCloud,
-    url: FILE_UPLOADER_DOCS,
-    tile: "from-fuchsia-400 to-violet-600",
-  },
-];
-
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  onMediaSelect?: (media: MediaFile) => void;
-}
-
-export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
-  const router = useRouter();
+export function AppSidebar() {
   const setSettingsTab = useSettingsPage();
 
-  // One palette entry per sidebar link, filed under the section it sits in.
-  const toAction =
-    (group: string) =>
-    (item: NavItem): QuickAction => ({
-      label: item.title,
-      group,
-      icon: item.icon,
-      onSelect:
-        item.onSelect ??
-        (() =>
-          item.url?.startsWith("http")
-            ? window.open(item.url, "_blank", "noreferrer")
-            : router.push(item.url ?? "/")),
-    });
-
-  const quickActions: QuickAction[] = [
-    {
-      label: "Upload files",
-      group: "Actions",
-      icon: Upload,
-      onSelect: () => router.push("/?upload=true"),
-    },
-    ...mainItems.map(toAction("Pages")),
-    ...toolItems.map(toAction("Tools")),
-    {
-      label: "Manage buckets",
-      group: "Settings",
-      icon: Boxes,
-      onSelect: () => setSettingsTab("buckets"),
-    },
-    {
-      label: "Appearance",
-      group: "Settings",
-      icon: Palette,
-      onSelect: () => setSettingsTab("appearance"),
-    },
-    {
-      label: "Documentation",
-      group: "Help",
-      icon: BookOpen,
-      onSelect: () =>
-        window.open("https://docs.openinary.dev", "_blank", "noreferrer"),
-    },
-  ];
-
   return (
-    <Sidebar collapsible="icon" variant="inset" {...props}>
-      <SidebarHeader>
-        <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
-          <BucketSwitcher />
-          <SidebarTrigger className="text-muted-foreground" />
-        </div>
-        <QuickActions actions={quickActions} />
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={mainItems} />
-        <NavMain label="Tools" items={toolItems} />
-        <NavProjects onMediaSelect={onMediaSelect} />
-      </SidebarContent>
-      <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:px-0">
-        <UpgradeCard />
-        <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
-          <NavSettings />
-        </div>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+    <DashboardSidebar
+      header={<BucketSwitcher />}
+      mainItems={mainItems}
+      settingsActions={[
+        {
+          label: "Manage buckets",
+          group: "Settings",
+          icon: Boxes,
+          onSelect: () => setSettingsTab("buckets"),
+        },
+        {
+          label: "Appearance",
+          group: "Settings",
+          icon: Palette,
+          onSelect: () => setSettingsTab("appearance"),
+        },
+      ]}
+      footer={
+        <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:px-0">
+          <UpgradeCard />
+          <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
+            <NavSettings />
+          </div>
+        </SidebarFooter>
+      }
+      uploaderHref={FILE_UPLOADER_DOCS}
+    />
   );
 }

@@ -3,9 +3,11 @@ import type { RouteDeps } from "../config/deps";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
+import { pathBelowMount } from "./delivery";
+import { cleanStorageKey } from "../url/storage-layout";
 
 export function createDownloadRoute(deps: RouteDeps) {
-  const { storage } = deps;
+  const { storage, paths } = deps;
   const download = new Hono();
 
   /**
@@ -14,26 +16,13 @@ export function createDownloadRoute(deps: RouteDeps) {
    * Public route, consistent with /t/* which is also public.
    */
   download.get("/*", async (c) => {
-    const requestPath = c.req.path;
-
-    // Strip leading /download/ prefix
-    const rawFilePath = requestPath.replace(/^\/download\/?/, "");
+    const rawFilePath = pathBelowMount(c);
 
     if (!rawFilePath) {
       return c.text("File path is required", 400);
     }
 
-    // Decode and sanitise path (prevent directory traversal)
-    let filePath: string;
-    try {
-      filePath = decodeURIComponent(rawFilePath)
-        .replace(/\.\./g, "")
-        .replace(/\\/g, "/")
-        .replace(/\/+/g, "/")
-        .replace(/^\/+/, "");
-    } catch {
-      return c.text("Invalid file path", 400);
-    }
+    const filePath = cleanStorageKey(rawFilePath);
 
     if (!filePath) {
       return c.text("Invalid file path", 400);
@@ -45,15 +34,13 @@ export function createDownloadRoute(deps: RouteDeps) {
       let buffer: Buffer;
 
       if (storage) {
-        // Cloud storage
         try {
           buffer = await storage.downloadOriginal(filePath);
         } catch {
           return c.text("File not found", 404);
         }
       } else {
-        // Local storage
-        const localPath = path.join("./public", filePath);
+        const localPath = path.join(paths.public, filePath);
         if (!fs.existsSync(localPath) || fs.statSync(localPath).isDirectory()) {
           return c.text("File not found", 404);
         }

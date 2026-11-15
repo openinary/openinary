@@ -20,11 +20,12 @@ WORKDIR /app
 # built from source below, so that drift is now impossible by construction.
 #
 # Manifests first, sources after: the install layer is then only invalidated by
-# a dependency change, not by every edit to api/.
+# a dependency change, not by every edit to the server source.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 COPY apps/cloud/server/package.json ./apps/cloud/server/
 COPY packages/core/package.json ./packages/core/
+COPY packages/plans/package.json ./packages/plans/
 # Never imported here, but --frozen-lockfile compares the lockfile against
 # every workspace project, and a missing one reads as "lockfile out of date".
 COPY apps/api/package.json ./apps/api/
@@ -34,30 +35,27 @@ COPY apps/telemetry/package.json ./apps/telemetry/
 COPY apps/cloud/web/package.json ./apps/cloud/web/
 COPY apps/cloud/admin/package.json ./apps/cloud/admin/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/dashboard/package.json ./packages/dashboard/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/registry/package.json ./packages/registry/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/telemetry-schema/package.json ./packages/telemetry-schema/
 RUN pnpm install --frozen-lockfile --filter cloud-server...
 
 # core ships as source in the workspace, so the container builds the exact
 # revision this commit carries instead of resolving a published range.
+COPY scripts/add-js-extensions.cjs ./scripts/
 COPY packages/core ./packages/core
-RUN pnpm --filter @openinary/core build
+COPY packages/plans ./packages/plans
+RUN pnpm --filter @openinary/core --filter @openinary/plans build
 
 COPY apps/cloud/server ./apps/cloud/server
 RUN pnpm --filter cloud-server run build
 
 WORKDIR /app/apps/cloud/server
 
-# @openinary/core's VideoWorker.processJob writes its downloaded source into
-# ./temp without mkdir-ing it first (unlike prepareSourceFile, which does), so
-# every video job dies with ENOENT unless an image transform happened to
-# create the dir earlier in this instance's life. ./cache is created lazily by
-# saveToCache, but costs nothing to pin here too.
-RUN mkdir -p temp cache
-
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["node", "dist/api/index.js"]
+CMD ["node", "dist/container/index.js"]

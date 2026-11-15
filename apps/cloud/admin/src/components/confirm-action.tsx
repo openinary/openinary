@@ -67,6 +67,8 @@ export function ConfirmAction({
     defaultValue?: string;
     /** Blocks confirmation while empty. */
     required?: boolean;
+    /** Renders a select instead of free text. */
+    options?: { value: string; label: string }[];
   };
   onConfirm: (value: string) => void | Promise<void>;
 }) {
@@ -122,12 +124,27 @@ export function ConfirmAction({
             <Label htmlFor={fieldId} className="text-muted-foreground">
               {field.label}
             </Label>
-            <Input
-              id={fieldId}
-              value={value}
-              placeholder={field.placeholder}
-              onChange={(event) => setValue(event.target.value)}
-            />
+            {field.options ? (
+              <select
+                id={fieldId}
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                {field.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id={fieldId}
+                value={value}
+                placeholder={field.placeholder}
+                onChange={(event) => setValue(event.target.value)}
+              />
+            )}
           </div>
         ) : null}
 

@@ -78,12 +78,8 @@ export default function UsersPage() {
       orpc.admin.get.queryOptions({ input: { userId } }),
     );
 
-  // Not-the-administrator no longer reaches here - src/middleware.ts answers
-  // that with a 403 before the page is served - so anything left is a real
-  // failure worth reading verbatim. Only when there is nothing to show
-  // instead, though: a refetch that fails over a cached list is already a
-  // toast, and swapping the list for its error message loses more than it
-  // says.
+  // Not-the-administrator never reaches here (src/middleware.ts answers it
+  // with a 403), so an error is a real failure worth reading verbatim.
   if (error && !data) return <Empty>{error.message}</Empty>;
 
   return (

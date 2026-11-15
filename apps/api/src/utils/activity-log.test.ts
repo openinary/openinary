@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import Database from "better-sqlite3";
+import { migrate, openDb } from "shared";
 
 import {
   ActivityLog,
@@ -11,7 +11,7 @@ import {
 } from "./activity-log";
 
 test("a repeat from the same viewer inside the window is one line", () => {
-  const log = new ActivityLog(new Database(":memory:"));
+  const log = new ActivityLog(openDb(":memory:"));
   log.recordDelivery({ p: "w_500/a.jpg", s: 200, t: 1_000 }, "1.1.1.1");
   log.recordDelivery({ p: "w_500/a.jpg", s: 200, t: 2_000 }, "1.1.1.1");
   log.recordDelivery({ p: "w_500/a.jpg", s: 200, t: 2_000 }, "2.2.2.2");
@@ -20,7 +20,7 @@ test("a repeat from the same viewer inside the window is one line", () => {
 });
 
 test("the log keeps the newest LOG_LIMIT rows, newest first", () => {
-  const log = new ActivityLog(new Database(":memory:"));
+  const log = new ActivityLog(openDb(":memory:"));
   for (let i = 0; i < LOG_LIMIT + 20; i++) {
     log.recordDelivery({ p: `${i}.jpg`, s: 200, t: i }, "v");
   }
@@ -31,7 +31,7 @@ test("the log keeps the newest LOG_LIMIT rows, newest first", () => {
 });
 
 test("a failed delivery is logged but does not tick the checklist", () => {
-  const log = new ActivityLog(new Database(":memory:"));
+  const log = new ActivityLog(openDb(":memory:"));
   log.recordDelivery({ p: "missing.jpg", s: 404 }, "v");
   assert.equal(log.hasDelivered(), false);
   log.recordDelivery({ p: "a.mp4", s: 206 }, "v");
@@ -40,7 +40,7 @@ test("a failed delivery is logged but does not tick the checklist", () => {
 });
 
 test("the API upload flag sticks", () => {
-  const log = new ActivityLog(new Database(":memory:"));
+  const log = new ActivityLog(openDb(":memory:"));
   assert.equal(log.apiUploadSeen(), false);
   log.markApiUpload();
   log.markApiUpload();
@@ -48,7 +48,7 @@ test("the API upload flag sticks", () => {
 });
 
 test("counts tally every delivery by hour and kind, past the log's limit", () => {
-  const log = new ActivityLog(new Database(":memory:"));
+  const log = new ActivityLog(openDb(":memory:"));
   const hour = 3_600_000;
   const at = 10 * hour;
   for (let i = 0; i < LOG_LIMIT + 50; i++) {
@@ -70,26 +70,13 @@ test("counts tally every delivery by hour and kind, past the log's limit", () =>
 });
 
 test("counts start from the lines an upgrading instance already has", () => {
-  const db = new Database(":memory:");
+  const db = openDb(":memory:");
   new ActivityLog(db).recordDelivery({ p: "a.png", s: 200, t: 7_200_000 }, "v");
   db.exec("DELETE FROM delivery_counts");
+  migrate(db);
   assert.deepEqual(new ActivityLog(db).counts(0), [
     { t: 7_200_000, k: "image", d: 1, f: 0 },
   ]);
-});
-
-test("since is set once and survives a restart", () => {
-  const db = new Database(":memory:");
-  assert.equal(new ActivityLog(db).since("onboarding_since", 1000), 1000);
-  assert.equal(new ActivityLog(db).since("onboarding_since", 5000), 1000);
-});
-
-test("state documents round-trip and overwrite", () => {
-  const log = new ActivityLog(new Database(":memory:"));
-  assert.equal(log.getState("workspace"), undefined);
-  log.setState("workspace", { name: "Acme", logo: null });
-  log.setState("workspace", { name: "Acme Media", logo: null });
-  assert.deepEqual(log.getState("workspace"), { name: "Acme Media", logo: null });
 });
 
 test("request rules", () => {
@@ -105,4 +92,7 @@ test("request rules", () => {
   );
   assert.equal(deliveryKind("w_500/photo.JPG"), "image");
   assert.equal(deliveryKind("notes.pdf"), "other");
+  // The Cloud's split: only what the pipeline transforms counts as image/video.
+  assert.equal(deliveryKind("w_500/logo.svg"), "other");
+  assert.equal(deliveryKind("clips/a.MOV"), "video");
 });

@@ -4,14 +4,8 @@ import * as React from "react";
 import { ChevronDown, RotateCcw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import {
-  CtaLink,
-  fieldShell,
-  focusRing,
-  panelSurface,
-  pressable,
-  sliderThumb,
-} from "@/components/home/cta-button";
+import { CtaLink, focusRing, pressable } from "@/components/site/cta-button";
+import { fieldShell, panelSurface, sliderThumb } from "@/components/site/panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +26,7 @@ import {
   type Cost,
   type Usage,
 } from "@/lib/pricing";
+import { APP_URL } from "@/lib/site";
 
 /**
  * Slider ranges. The maximum also clamps what can be typed, so it is set well
@@ -137,7 +132,7 @@ export function Calculator() {
   // Only ever one of them is rendered.
   const startFree = (
     <CtaLink
-      href="https://app.openinary.dev"
+      href={APP_URL}
       target="_blank"
       rel="noopener noreferrer"
       data-track-event="cloud_cta_clicked"

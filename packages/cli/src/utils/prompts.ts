@@ -1,5 +1,6 @@
 import * as clack from "@clack/prompts";
 import { CLIError } from "./errors.js";
+import { isCI } from "./logger.js";
 
 const state = { yes: false };
 
@@ -8,12 +9,7 @@ export function setYesMode(value: boolean): void {
 }
 
 function nonInteractive(): boolean {
-  return (
-    state.yes ||
-    !process.stdout.isTTY ||
-    process.env.CI === "true" ||
-    process.env.CI === "1"
-  );
+  return state.yes || !process.stdout.isTTY || isCI();
 }
 
 export function introMessage(title: string): void {
@@ -76,20 +72,6 @@ export async function textPrompt(opts: {
     defaultValue: opts.defaultValue,
     validate: opts.validate,
   });
-  if (clack.isCancel(result)) cancelAndExit();
-  return result;
-}
-
-export async function passwordPrompt(opts: {
-  message: string;
-  validate?: (value: string | undefined) => string | Error | undefined;
-}): Promise<string> {
-  if (nonInteractive()) {
-    throw new CLIError(`Cannot prompt "${opts.message}" in non-interactive mode`, {
-      hint: "Set the value via flags/environment, or run this command interactively.",
-    });
-  }
-  const result = await clack.password({ message: opts.message, validate: opts.validate });
   if (clack.isCancel(result)) cancelAndExit();
   return result;
 }

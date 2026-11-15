@@ -1,5 +1,3 @@
-// Run with: pnpm -F server test
-//
 // A rename/move leaves the old path's derivatives behind in cache/, where
 // nothing serves them (the cache key hashes the full path) and nothing used to
 // collect them either. deleteCachedTransformations is what sweeps them, and it

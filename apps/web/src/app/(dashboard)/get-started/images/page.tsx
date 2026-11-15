@@ -1,5 +1,4 @@
-import { GetStartedPage } from "@/components/get-started/page-shell";
-import { ImagesPlayground } from "@/components/playground/images-playground";
+import { GetStartedPage, ImagesPlayground } from "@openinary/dashboard";
 
 export default function Page() {
   return (

@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 
-import { PageIntro, PageShell } from "@/components/page-shell";
-import { focusRing, pressable } from "@/components/home/cta-button";
+import { PageIntro, PageShell } from "@/components/site/page-shell";
+import { focusRing, pressable } from "@/components/site/cta-button";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {

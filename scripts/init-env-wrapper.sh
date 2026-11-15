@@ -1,36 +1,11 @@
 #!/bin/sh
-# Wrapper script to run init-env.js and export variables for Docker
-# This ensures BETTER_AUTH_SECRET is available as an environment variable
+# Sourced by the Docker images' CMD: a child process cannot export to its
+# parent, so init-env.js prints the exports and this shell evals them for the
+# servers (and supervisord) started after it.
 
-# Run init-env.js to generate/update .env file
-cd /app && node scripts/init-env.js || echo "Warning: init-env.js failed, continuing with existing environment variables"
-
-# Load .env file and export variables to current shell and child processes
-if [ -f /app/apps/api/.env ]; then
-  # Read BETTER_AUTH_SECRET from .env file and export it
-  # This makes it available to supervisor and child processes
-  SECRET=$(grep "^BETTER_AUTH_SECRET=" /app/apps/api/.env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
-  if [ -n "$SECRET" ] && [ "$SECRET" != "" ]; then
-    export BETTER_AUTH_SECRET="$SECRET"
-  fi
-  
-  # Also export other important variables if they exist
-  # For BETTER_AUTH_URL, prefer the runtime environment variable if it's set.
-  # Only fall back to the value from .env when the env var is empty.
-  if [ -z "${BETTER_AUTH_URL:-}" ]; then
-    if grep -q "^BETTER_AUTH_URL=" /app/apps/api/.env; then
-      URL=$(grep "^BETTER_AUTH_URL=" /app/apps/api/.env | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
-      if [ -n "$URL" ]; then
-        export BETTER_AUTH_URL="$URL"
-      fi
-    fi
-  fi
+if INIT_ENV_EXPORTS=$(cd /app && node scripts/init-env.js --shell); then
+  eval "$INIT_ENV_EXPORTS"
+else
+  echo "Warning: init-env.js failed, continuing with existing environment variables"
 fi
-
-# If BETTER_AUTH_SECRET is still not set, use the one from environment (if provided)
-if [ -z "$BETTER_AUTH_SECRET" ] || [ "$BETTER_AUTH_SECRET" = "" ]; then
-  # Keep the existing value from environment if it exists
-  if [ -n "${BETTER_AUTH_SECRET:-}" ]; then
-    export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET}"
-  fi
-fi
+unset INIT_ENV_EXPORTS

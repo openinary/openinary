@@ -33,6 +33,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { Skeleton } from "skullet/react";
+import { dashboardThumbSegment } from "@openinary/core/url/dashboard-thumbs";
 import { Button } from "./ui/button";
 import {
   Empty,
@@ -134,26 +135,19 @@ type SelectionEntry = { path: string; name: string; kind: "file" | "folder" };
 const BULK_TOAST_ID = "bulk-selection-bar";
 
 function getFolderThumbnailUrl(
-  transformBaseUrl: string,
+  transformBaseUrl: string | null,
   item: { path: string; type: "image" | "video" },
   size: "square" | "tall" | "large",
 ): string {
-  if (item.type === "video") {
-    const dims =
-      size === "large"
-        ? "w_500,h_500"
-        : size === "tall"
-          ? "w_250,h_500"
-          : "w_250,h_250";
-    return `${transformBaseUrl}/t/t_true,tt_5,f_webp,${dims},c_fill,q_70/${encodePath(item.path)}`;
-  }
-  const dims =
-    size === "large"
-      ? "w_500,h_500"
-      : size === "tall"
-        ? "w_250,h_500"
-        : "w_250,h_250";
-  return `${transformBaseUrl}/t/${dims},q_70/${encodePath(item.path)}`;
+  if (transformBaseUrl === null) return "";
+  return `${transformBaseUrl}/t/${dashboardThumbSegment(item.type, size)}/${encodePath(item.path)}`;
+}
+
+/** "" while the base is unknown: VideoThumbnail holds its skeleton. */
+function gridThumbnailUrl(transformBaseUrl: string | null, media: MediaFile) {
+  if (transformBaseUrl === null) return "";
+  const kind = media.type === "image" ? "image" : "video";
+  return `${transformBaseUrl}/t/${dashboardThumbSegment(kind, "preview")}/${encodePath(media.path)}`;
 }
 
 export interface MediaGridProps {
@@ -684,11 +678,8 @@ function MediaGridBody({
   // thumbnail (what the grid renders), not the original: /t/<video> now streams
   // the untouched file, which would pull hundreds of MB on a hover.
   const handleMediaHover = (media: MediaFile) => {
-    const previewUrl =
-      media.type === "image"
-        ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(media.path)}`
-        : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(media.path)}`;
-    preloadMedia(previewUrl, "image");
+    const previewUrl = gridThumbnailUrl(transformBaseUrl, media);
+    if (previewUrl) preloadMedia(previewUrl, "image");
   };
 
   const handleDownload = (path: string, name: string) => {
@@ -703,6 +694,7 @@ function MediaGridBody({
   };
 
   const handleCopyUrl = (path: string, id?: string) => {
+    if (transformBaseUrl === null) return;
     navigator.clipboard.writeText(
       toAbsoluteUrl(`${transformBaseUrl}/t/${encodePath(path)}`),
     );
@@ -1780,10 +1772,10 @@ function MediaGridBody({
                         {row.map((media) => {
                           // For images: resize and optimize
                           // For videos: extract thumbnail at 1 second as jpg image with crop mode to avoid stretching
-                          const thumbnailUrl =
-                            media.type === "image"
-                              ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(media.path)}`
-                              : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(media.path)}`;
+                          const thumbnailUrl = gridThumbnailUrl(
+                            transformBaseUrl,
+                            media,
+                          );
                           const isHovered = hoveredId === media.id;
 
                           return (
@@ -1961,10 +1953,10 @@ function MediaGridBody({
                   // Reuse the exact same transformed URL as the grid view so the
                   // transform server's cache is shared instead of generating a
                   // second thumbnail variant.
-                  const thumbnailUrl =
-                    media.type === "image"
-                      ? `${transformBaseUrl}/t/w_500,h_500,q_80/${encodePath(media.path)}`
-                      : `${transformBaseUrl}/t/t_true,tt_5,f_webp,w_500,h_500,c_fill,q_80/${encodePath(media.path)}`;
+                  const thumbnailUrl = gridThumbnailUrl(
+                    transformBaseUrl,
+                    media,
+                  );
 
                   return (
                     <div

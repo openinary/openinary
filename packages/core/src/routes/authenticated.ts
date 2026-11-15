@@ -2,48 +2,31 @@ import { Hono } from "hono";
 import { TransformService } from "../services/transform.service";
 import type { RouteDeps } from "../config/deps";
 import logger, { serializeError } from "../utils/logger";
-import {
-  verifySignature,
-  SIGNATURE_LENGTH,
-  sanitizeFilePath,
-} from "../utils/signature";
-import { isTransformSegment } from "../utils/parser";
-import { contentTypeForExt } from "../utils/upload-validation";
-
-// Get API_SECRET from environment variables
-const API_SECRET = process.env.API_SECRET;
+import { verifySignature, sanitizeFilePath } from "../utils/signature";
+import { SIGNATURE_LENGTH } from "../url/hmac";
+import { splitTransformPath } from "../url/grammar";
+import { pathBelowMount, respond } from "./delivery";
 
 export function createAuthenticatedRoute(deps: RouteDeps) {
-  const transformService = new TransformService(deps.storage, deps.queue);
+  const transformService = new TransformService(deps.storage, deps.queue, deps.paths);
   const t = new Hono();
 
   t.get("/*", async (c) => {
-    const path = c.req.path;
-    const userAgent = c.req.header("User-Agent") ?? "";
-    const acceptHeader = c.req.header("Accept");
+    const path = pathBelowMount(c);
 
     try {
-      // Parse the authenticated URL format: /s--{signature}/{transformations}/{route}
-      const segments = path.split("/").slice(2); // Remove '/authenticated' prefix
-
+      // s--{signature}/{transformations}/{file}
+      const segments = path.split("/");
       if (segments.length < 2) {
         return c.text(
           "Invalid authenticated URL format. Expected: /s--{signature}/{transformations}/{route}",
           400,
         );
       }
-
-      // Extract signature from first segment (format: s--{signature})
-      const firstSegment = segments[0];
-      if (!firstSegment.startsWith("s--")) {
-        return c.text(
-          "Invalid signature format. Expected: s--{signature}",
-          400,
-        );
+      if (!segments[0].startsWith("s--")) {
+        return c.text("Invalid signature format. Expected: s--{signature}", 400);
       }
-
-      const signature = firstSegment.slice(3); // Remove 's--' prefix
-
+      const signature = segments[0].slice(3);
       if (signature.length !== SIGNATURE_LENGTH) {
         return c.text(
           `Invalid signature length. Expected ${SIGNATURE_LENGTH} characters.`,
@@ -51,128 +34,41 @@ export function createAuthenticatedRoute(deps: RouteDeps) {
         );
       }
 
-      // Extract transformations and route from remaining segments
-      const routeSegments = segments.slice(1);
-      if (routeSegments.length < 1) {
-        return c.text("No route specified.", 400);
-      }
-
-      // Determine transformation string and file path
-      // Format: {transformations}/{route}
-      const hasTransform =
-        routeSegments.length > 0 && isTransformSegment(routeSegments[0]);
-
-      const transformations = hasTransform ? routeSegments[0] : "";
-      const filePathSegments = hasTransform
-        ? routeSegments.slice(1)
-        : routeSegments;
-      const filePath = filePathSegments.join("/");
-
+      const { transform, filePath } = splitTransformPath(segments.slice(1).join("/"));
       if (!filePath) {
         return c.text("No file path specified.", 400);
       }
 
-      // Sanitize the file path to prevent path traversal attacks
       let sanitizedFilePath: string;
       try {
         sanitizedFilePath = sanitizeFilePath(filePath);
       } catch (error) {
         logger.warn(
-          {
-            path,
-            filePath,
-            error,
-          },
+          { path, filePath, error },
           "Path traversal attempt detected in authenticated request",
         );
         return c.text("Invalid file path", 400);
       }
 
-      // Verify the signature using timing-safe comparison and HMAC-SHA256
-      if (!API_SECRET) {
+      if (!deps.apiSecret) {
         return c.text("API_SECRET not configured on server.", 500);
       }
-
-      const isValidSignature = verifySignature(
-        signature,
-        transformations,
-        sanitizedFilePath,
-        API_SECRET,
-      );
-
-      if (!isValidSignature) {
+      if (!verifySignature(signature, transform, sanitizedFilePath, deps.apiSecret)) {
         logger.warn(
-          {
-            path,
-            signature,
-            transformations,
-            filePath: sanitizedFilePath,
-          },
+          { path, signature, transformations: transform, filePath: sanitizedFilePath },
           "Invalid signature for authenticated request",
         );
-
         return c.text("Invalid signature", 401);
       }
 
-      // Construct the path for the transform service using the sanitized path
-      // Format: /t/{transformations}/{filePath}
-      const transformPath = `/t/${transformations ? `${transformations}/` : ""}${sanitizedFilePath}`;
-
-      // Use the transform service with the constructed path
       const result = await transformService.transform({
-        path: transformPath,
-        userAgent,
-        acceptHeader,
-        context: c,
+        path: `/t/${transform ? `${transform}/` : ""}${sanitizedFilePath}`,
+        userAgent: c.req.header("User-Agent") ?? "",
+        acceptHeader: c.req.header("Accept"),
       });
-
-      // Set response headers
-      Object.entries(result.headers).forEach(([key, value]) => {
-        c.header(key, value);
-      });
-
-      // Same exposure as /t/: a bare authenticated URL streams the stored
-      // original back untouched, so a file whose bytes are markup must not be
-      // allowed to become HTML in the browser. The signature gates who can
-      // request a URL, not what the stored bytes are.
-      c.header("X-Content-Type-Options", "nosniff");
-
-      // Determine content type if not set in headers. Falls back to the shared
-      // media-type table rather than a local map, so an extension can never be
-      // labelled here differently from how it is labelled at upload.
-      c.header(
-        "Content-Type",
-        result.contentType ||
-          contentTypeForExt(sanitizedFilePath.split(".").pop()),
-      );
-
-      // Large payloads (e.g. untransformed originals) are streamed
-      if (result.stream) {
-        return c.body(result.stream);
-      }
-
-      // Video transform still running: no content to serve yet
-      if (result.status === 202) {
-        return c.body(new Uint8Array(result.buffer!), 202);
-      }
-
-      // Transform params requested on a type that can't be transformed
-      if (result.status === 400) {
-        return c.text(result.buffer!.toString(), 400);
-      }
-      // Check if this is an error response
-      if (
-        result.contentType === "text/plain" &&
-        result.buffer!.toString().includes("failed")
-      ) {
-        const errorMessage = result.buffer!.toString();
-        if (errorMessage.includes("File not found")) {
-          return c.text(errorMessage, 404);
-        }
-        return c.text(errorMessage, 500);
-      }
-
-      return c.body(new Uint8Array(result.buffer!));
+      // The signature gates who can request a URL, not what the stored bytes
+      // are: respond() applies the same nosniff and content-type rules as /t.
+      return respond(c, result, sanitizedFilePath);
     } catch (error) {
       logger.error(
         { error: serializeError(error), path },

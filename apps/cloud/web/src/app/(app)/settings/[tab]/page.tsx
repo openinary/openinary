@@ -1,9 +1,9 @@
-import { SettingsPage } from "@/components/settings/settings-page";
+import { Settings } from "@/components/settings/settings-pages";
 
 export default async function Page({
   params,
 }: {
   params: Promise<{ tab: string }>;
 }) {
-  return <SettingsPage tab={(await params).tab} />;
+  return <Settings tab={(await params).tab} />;
 }

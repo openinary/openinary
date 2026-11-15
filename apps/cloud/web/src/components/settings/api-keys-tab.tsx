@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Input } from "@/components/ui/input";
+import { Input } from "@openinary/dashboard/ui/input";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_EXPIRES = "365";

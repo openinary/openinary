@@ -4,8 +4,8 @@ import { mkdtemp, writeFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import sharp from "sharp";
-import { isTransformSegment, parseParams } from "../parser";
-import { parseEffect } from "./effect-spec";
+import { isTransformSegment, parseParams } from "../../url/grammar";
+import { parseEffect } from "../../url/effect-spec";
 import { transformImage } from "./index";
 
 // --- parsing ----------------------------------------------------------------

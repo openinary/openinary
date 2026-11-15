@@ -3,8 +3,8 @@
 import { ImageIcon, MousePointer2, UploadCloud, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { FILE_UPLOADER_DOCS } from "@/components/get-started/uploader-card";
-import { Button } from "@/components/ui/button";
+import { FILE_UPLOADER_DOCS } from "@/components/dashboard-providers";
+import { Button } from "@openinary/dashboard/ui/button";
 
 
 const DISMISSED_KEY = "openinary:uploader-nudge-dismissed";
@@ -45,7 +45,7 @@ export function useUploaderNudge(): [boolean, () => void] {
 }
 
 /**
- * The sidebar-sized cut of UploaderCard: same 7s keyframes (index.css), one
+ * The sidebar-sized cut of UploaderCard: same 7s keyframes (index.css's uploader-*), one
  * file instead of two, and the dropzone's copy dropped - at 240px the icon
  * carries it. Sharing the CSS rather than the markup is deliberate; a
  * `compact` prop threading through every className would cost more than the

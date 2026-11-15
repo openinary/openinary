@@ -1,134 +1,100 @@
-import { Context } from "hono";
-import { getCachePath, existsInCache, deleteCachedFiles } from "../utils/cache";
-import { parseParams, isTransformSegment } from "../utils/parser";
-import { CloudStorage } from "../utils/storage/index";
+import path from "path";
+import { derivativeCachePath, deleteCachedFiles } from "../utils/cache";
+import { deliveryTarget } from "../url/grammar";
+import type { CloudStorage } from "../utils/storage/index";
+import { determineOptimalFormatForCache } from "../url/negotiate";
 import { Compression } from "../utils/image/compression";
 import logger, { serializeError } from "../utils/logger";
 import type { VideoJobQueue } from "../utils/video-job-queue";
+import type { EnginePaths } from "../config/paths";
 import {
   checkCloudCache,
   checkLocalCache,
-  verifyFileExists,
-  prepareSourceFile,
+  findSource,
   processImage,
   processVideo,
   saveToCaches,
-  cleanupTempFile,
-  performPeriodicCacheCleanup,
-} from "../routes/transform-helpers";
+} from "./transform-steps";
+import { stageSource, type StagedSource } from "../utils/stage-source";
 import { TRANSFORMATION_PRIORITY } from "../utils/video/config";
 import { processingBody, processingHeaders } from "../eta";
 import {
-  VIDEO_FORMATS,
   contentTypeForFormat,
   determineOutputFormat,
-} from "../utils/video/format";
-import path from "path";
-import { CombindedTransformParams } from "../types";
-import { ValidationError } from "../utils/errors";
-import {
-  derivativeEtag,
-  sniffImageContentType,
-} from "../utils/delivery-headers";
+  isTransformableImageExt,
+  isVideoExt,
+} from "../url/media-types";
+import type { CombindedTransformParams } from "../types";
+import { NotFoundError, ValidationError } from "../utils/errors";
+import { derivativeEtag, sniffImageContentType } from "../utils/delivery-headers";
 
-const isVideo = (ext: string | undefined): ext is string =>
-  !!ext && VIDEO_FORMATS.has(ext);
-
+// libvips' wording for camera JPEGs browsers decode but libjpeg refuses.
 const isRecoverableJpegError = (error: unknown, ext: string | undefined) => {
   if (!ext?.match(/^jpe?g$/i)) return false;
   const message = error instanceof Error ? error.message : String(error);
   return /VipsJpeg:\s*Invalid SOS parameters for sequential JPEG/i.test(message);
 };
 
+const IMMUTABLE = "public, max-age=31536000, must-revalidate";
 
-// Types for the service
 export interface TransformRequest {
+  /** "/t/{transform}/{file}" */
   path: string;
   userAgent: string;
   acceptHeader?: string;
-  context: Context;
   /**
-   * Read the original from here rather than from this instance's storage. Only
-   * ever set on an instance that opted in - see remoteSourceUrl in
-   * routes/transform-helpers. Changes where the source bytes come from and
-   * nothing else: the cache, on both sides, stays this instance's own.
+   * Read the original from here rather than from this instance's storage.
+   * Changes where the source bytes come from and nothing else: the cache, on
+   * both sides, stays this instance's own.
    */
   sourceUrl?: string;
 }
 
 export interface TransformResult {
   buffer?: Buffer;
-  /** Set instead of buffer for large payloads served without in-memory buffering */
+  /** Set instead of buffer for large payloads served without buffering */
   stream?: ReadableStream<Uint8Array>;
   contentType: string;
   headers: Record<string, string>;
-  isProcessing?: boolean;
-  optimizationResult?: any;
-  /** Non-200 status the route handler must apply (e.g. 202 while transcoding) */
+  /** 200 when unset */
   status?: number;
 }
 
-export interface CacheCheckResult {
-  cloudCacheBuffer?: Buffer;
-  localCacheBuffer?: Buffer;
-  cachePath?: string;
-  effectiveParams: any;
-}
+const textResult = (status: number, message: string, headers: Record<string, string>): TransformResult => ({
+  buffer: Buffer.from(message),
+  contentType: "text/plain",
+  status,
+  headers,
+});
 
 export class TransformService {
-  private storage: CloudStorage | null;
-  private compression: Compression;
-  private queue: VideoJobQueue;
+  private compression = new Compression();
 
-  constructor(storage: CloudStorage | null, queue: VideoJobQueue) {
-    this.storage = storage;
-    this.queue = queue;
-    this.compression = new Compression();
-  }
+  constructor(
+    private storage: CloudStorage | null,
+    private queue: VideoJobQueue,
+    private paths: EnginePaths,
+  ) {}
 
-  /**
-   * Main transformation method that handles the complete flow
-   */
   async transform(request: TransformRequest): Promise<TransformResult> {
     const { path: pathname, userAgent, acceptHeader, sourceUrl } = request;
 
     try {
-      // Parse path and parameters
-      const segments = pathname.split("/").slice(2); // Remove '/t' prefix
-      const params = parseParams(pathname);
-      // d_ only matters if the file is missing; keep it out of every cache key.
-      const defaultImage = params.defaultImage;
-      delete params.defaultImage;
-
-      // Determine file path segments
-      const hasTransform = this.hasTransformSegment(segments);
-      const fileSegments = hasTransform ? segments.slice(1) : segments;
-      const filePath = fileSegments.join("/");
-      const localPath = `./public/${filePath}`;
+      const { transform, filePath, params, defaultImage } = deliveryTarget(
+        pathname.split("/").slice(2).join("/"),
+      );
       const ext = filePath.split(".").pop()?.toLowerCase();
 
-      // Get effective parameters with format optimization
-      const { effectiveParams, cachePath } =
-        await this.getEffectiveParamsAndCachePath(
-          pathname,
-          params,
-          userAgent,
-          acceptHeader,
-        );
+      const effectiveParams = this.effectiveParams(ext, params, userAgent, acceptHeader);
+      const cachePath = derivativeCachePath(this.paths.cache, filePath, effectiveParams);
 
-      // Verify original file exists
-      const fileCheck = await verifyFileExists(
-        this.storage,
-        filePath,
-        localPath,
-        sourceUrl,
-      );
-      if (!fileCheck.exists) {
-        await this.handleFileNotFound(filePath);
-        if (defaultImage && defaultImage !== filePath && hasTransform && !sourceUrl) {
-          return await this.transformDefaultImage(request, segments[0], defaultImage);
+      const missing = await findSource(this.storage, this.paths.public, filePath, sourceUrl);
+      if (missing) {
+        await this.forgetDerivatives(filePath);
+        if (defaultImage && defaultImage !== filePath && transform && !sourceUrl) {
+          return await this.transformDefaultImage(request, transform, defaultImage);
         }
-        throw new Error(fileCheck.error || "File not found");
+        throw new NotFoundError(missing);
       }
 
       // A bare /t/<path> URL delivers the untouched original for any stored type
@@ -136,60 +102,20 @@ export class TransformService {
       // point, so they keep optimizing; transcoding only happens when the URL
       // asks for it, either with explicit parameters or with q_auto.
       if (Object.keys(effectiveParams).length === 0) {
-        return await this.streamOriginal(
-          filePath,
-          localPath,
-          ext ?? "",
-          sourceUrl,
-        );
+        return await this.streamOriginal(filePath, ext ?? "", sourceUrl);
       }
 
-      // Check caches
-      const cacheResult = await this.checkCaches(
-        this.storage,
-        filePath,
-        effectiveParams,
-        cachePath,
-      );
+      const cached =
+        (await checkCloudCache(this.storage, filePath, effectiveParams)) ??
+        (await checkLocalCache(cachePath));
+      if (cached) return this.cachedResult(cached, effectiveParams, ext);
 
-      if (cacheResult.cloudCacheBuffer) {
-        return this.formatCacheResponse(
-          cacheResult.cloudCacheBuffer,
-          effectiveParams,
-          ext,
-          "cloud",
-        );
-      }
-
-      if (cacheResult.localCacheBuffer) {
-        return this.formatCacheResponse(
-          cacheResult.localCacheBuffer,
-          effectiveParams,
-          ext,
-          "local",
-        );
-      }
-
-      // Process the file
-      return await this.processFile(
-        pathname,
-        filePath,
-        localPath,
-        ext,
-        effectiveParams,
-        cachePath,
-        userAgent,
-        acceptHeader,
-        sourceUrl,
-      );
+      return await this.processFile(pathname, filePath, ext, effectiveParams, cachePath, request);
     } catch (error) {
-      return this.handleTransformationError(error, request);
+      return this.errorResult(error, request);
     }
   }
 
-  /**
-   * Check if the first segment is a transformation string
-   */
   /**
    * d_: serve the default image, with the same transformation, in place of a
    * missing one. Rendered and cached under the default image's own path, so
@@ -219,452 +145,189 @@ export class TransformService {
     return result;
   }
 
-  private hasTransformSegment(segments: string[]): boolean {
-    return segments.length > 0 && isTransformSegment(segments[0]);
-  }
-
-  /**
-   * Get effective parameters with format optimization and cache path
-   */
-  private async getEffectiveParamsAndCachePath(
-    path: string,
-    params: any,
+  /** Params with the negotiated format an image without f_ is encoded in. */
+  private effectiveParams(
+    ext: string | undefined,
+    params: CombindedTransformParams,
     userAgent?: string,
     acceptHeader?: string,
-  ): Promise<{ effectiveParams: any; cachePath: string }> {
-    const ext = path.split(".").pop()?.toLowerCase();
-    let effectiveParams = { ...params };
-    let cachePath = getCachePath(path);
-
-    // Determine optimal format if not explicitly specified
-    if (!params.format && ext?.match(/jpe?g|png|webp|avif|gif|psd/)) {
-      const optimalFormat = this.compression.determineOptimalFormatForCache(
-        userAgent,
-        acceptHeader,
-        ext,
-      );
-      effectiveParams = { ...params, format: optimalFormat };
-
-      // Update cache path to include the optimal format
-      const pathWithFormat = path.replace(
-        /\/t\/(.*)$/,
-        `/t/format:${optimalFormat}/$1`,
-      );
-      cachePath = getCachePath(pathWithFormat);
-    }
-
-    return { effectiveParams, cachePath };
+  ): CombindedTransformParams {
+    if (params.format || !isTransformableImageExt(ext)) return { ...params };
+    const format = determineOptimalFormatForCache(userAgent, acceptHeader, ext);
+    return { ...params, format: format as CombindedTransformParams["format"] };
   }
 
-  /**
-   * Check both cloud and local caches
-   */
-  private async checkCaches(
-    storage: any,
-    filePath: string,
-    effectiveParams: any,
-    cachePath: string,
-  ): Promise<CacheCheckResult> {
-    const result: CacheCheckResult = {
-      effectiveParams,
-      cachePath,
-    };
-
-    // Check cloud cache first
-    const cloudCacheBuffer = await checkCloudCache(
-      storage,
-      filePath,
-      effectiveParams,
-    );
-    if (cloudCacheBuffer) {
-      result.cloudCacheBuffer = cloudCacheBuffer;
-      return result;
-    }
-
-    // Check local cache
-    const localCacheBuffer = await checkLocalCache(cachePath);
-    if (localCacheBuffer) {
-      result.localCacheBuffer = localCacheBuffer;
-    }
-
-    return result;
-  }
-
-  /**
-   * Format response for cached content
-   */
-  private formatCacheResponse(
+  private cachedResult(
     buffer: Buffer,
-    effectiveParams: any,
+    effectiveParams: CombindedTransformParams,
     ext: string | undefined,
-    _cacheType: "cloud" | "local",
   ): TransformResult {
     const headers: Record<string, string> = {
-      "Cache-Control": "public, max-age=31536000, must-revalidate",
+      "Cache-Control": IMMUTABLE,
       ETag: derivativeEtag(buffer),
       "Content-Length": buffer.length.toString(),
     };
+    if (isVideoExt(ext)) headers["X-Video-Status"] = "ready";
 
-    // For videos, add video-specific headers
-    if (isVideo(ext)) {
-      headers["X-Video-Status"] = "ready";
-    }
+    // Video sources derive the type from the requested output format: f_avif
+    // on a .mp4 caches an image, and the path's extension would mislabel it
+    // video/mp4 (browsers then render an empty player). Images: the cached
+    // bytes say what they are; the path keeps the source extension, so
+    // falling back to it labelled AVIF as image/jpeg.
+    const contentType = isVideoExt(ext)
+      ? contentTypeForFormat(determineOutputFormat(ext, effectiveParams.format).format)
+      : (sniffImageContentType(buffer) ?? "");
 
-    // Video sources must derive the type from the requested output format:
-    // f_avif on a .mp4 caches an image, and the route's path-extension
-    // fallback would mislabel it video/mp4 (browsers then render an empty
-    // player). Mirrors the contentType the worker uploads to cloud cache.
-    const contentType = isVideo(ext)
-      ? contentTypeForFormat(
-          determineOutputFormat(ext, effectiveParams.format).format,
-        )
-      : // Images: the cached bytes say what they are. The path keeps the
-        // source extension, so falling back to it labelled AVIF as image/jpeg.
-        (sniffImageContentType(buffer) ?? "");
-
-    return {
-      buffer,
-      contentType,
-      headers,
-      isProcessing: false,
-    };
+    return { buffer, contentType, headers };
   }
 
-  /**
-   * Process the file (images and videos)
-   */
   private async processFile(
     requestPath: string,
     filePath: string,
-    localPath: string,
     ext: string | undefined,
     effectiveParams: CombindedTransformParams,
     cachePath: string,
-    userAgent?: string,
-    acceptHeader?: string,
-    sourceUrl?: string,
+    { userAgent, acceptHeader, sourceUrl }: TransformRequest,
   ): Promise<TransformResult> {
     // Video transformations (non-thumbnail) are processed by the background
-    // job queue, which downloads its own source copy. Skip prepareSourceFile
-    // entirely: downloading the full original here would only delay the
-    // response and waste memory/bandwidth.
-    //
-    // That own copy is why sourceUrl stops here: the worker reads the original
-    // through this instance's storage when it picks the job up, which may be
-    // minutes later and long after any signed URL would have expired. A remote
-    // source therefore covers images and video thumbnails, not transcodes.
-    if (isVideo(ext) && !effectiveParams.thumbnail) {
-      return await this.handleVideoJobQueue(
-        requestPath,
-        filePath,
-        localPath,
-        effectiveParams,
-        cachePath,
-      );
+    // job queue, which stages its own source copy when it picks the job up,
+    // possibly minutes later and long after a signed sourceUrl would have
+    // expired. A remote source therefore covers images and video thumbnails,
+    // not transcodes.
+    if (isVideoExt(ext) && !effectiveParams.thumbnail) {
+      return await this.queueVideo(requestPath, filePath, effectiveParams);
     }
 
-    const isTransformableImage = !!ext?.match(/jpe?g|png|webp|avif|gif|psd/);
+    const isImage = isTransformableImageExt(ext);
 
     // Reached only when effectiveParams is non-empty - the bare-URL case
-    // short-circuits to streamOriginal above. A transform was requested on a
-    // type nothing here knows how to transform (audio, 3D, or any other
-    // stored-original type, e.g. /t/w_500/doc.pdf). Reject before staging the
-    // source file rather than downloading it only to throw the params away:
-    // silently dropping the params and serving the original would also hide
-    // a bug in whatever built this URL, so this fails loud and points at the
-    // URL that actually works.
-    if (!isTransformableImage && !isVideo(ext)) {
-      const message =
-        (ext ? "." + ext : "This file type") +
-        " can't be transformed. Request /t/" +
-        filePath +
-        " for the original.";
-      return {
-        buffer: Buffer.from(message),
-        contentType: "text/plain",
-        status: 400,
-        headers: {
-          "Content-Length": Buffer.byteLength(message).toString(),
-          "Cache-Control": "no-store",
-        },
-      };
+    // streams the original above. A transform was requested on a type nothing
+    // here knows how to transform (audio, 3D, /t/w_500/doc.pdf). Rejected
+    // before staging the source rather than serving the original, which would
+    // hide a bug in whatever built this URL.
+    if (!isImage && !isVideoExt(ext)) {
+      const message = `${ext ? `.${ext}` : "This file type"} can't be transformed. Request /t/${filePath} for the original.`;
+      return textResult(400, message, {
+        "Content-Length": Buffer.byteLength(message).toString(),
+        "Cache-Control": "no-store",
+      });
     }
 
-    // Overlays are checked before the source is staged, so a bad l_ never
-    // leaves a downloaded original behind in ./temp.
-    if (effectiveParams.overlayPath) {
-      const overlayCheck = await verifyFileExists(
-        this.storage,
-        effectiveParams.overlayPath,
-        path.join("./public", effectiveParams.overlayPath),
-      );
-      if (!overlayCheck.exists) {
-        throw new ValidationError(
-          `Overlay image not found: ${effectiveParams.overlayPath}`,
-        );
-      }
+    // Checked before the source is staged, so a bad l_ never downloads it.
+    if (effectiveParams.overlayPath && (await findSource(this.storage, this.paths.public, effectiveParams.overlayPath))) {
+      throw new ValidationError(`Overlay image not found: ${effectiveParams.overlayPath}`);
     }
 
-    // Prepare source file
-    const sourcePath = await prepareSourceFile(
-      this.storage,
-      filePath,
-      localPath,
-      sourceUrl,
-    );
-
-    // Images get their overlay staged here. Video thumbnails do not:
-    // transformVideo stages the overlay itself, and handing it an already
-    // staged path made it look for public/public/<overlay> (or download
-    // ./temp/... from the bucket). The staged path lives in a copy so the
-    // ETag and anything else reading effectiveParams keeps the public key.
-    let imageParams = effectiveParams;
-    let stagedOverlay: string | undefined;
-    if (effectiveParams.overlayPath && isTransformableImage) {
-      stagedOverlay = await prepareSourceFile(
-        this.storage,
-        effectiveParams.overlayPath,
-        path.join("./public", effectiveParams.overlayPath),
-      );
-      imageParams = { ...effectiveParams, overlayPath: stagedOverlay };
-    }
-
-    // A remote source is staged to ./temp the same way a cloud download is, so
-    // it has to be cleaned up the same way. Only the no-storage, no-URL case
-    // reads a file in ./public that must survive the request.
-    const isTempFile = !!this.storage || !!sourceUrl;
-
+    let source: StagedSource | undefined;
+    let overlay: StagedSource | undefined;
     try {
-      let buffer: Buffer;
-      let contentType: string;
-      let optimizationResult: any;
+      source = await stageSource(this.storage, this.paths, filePath, sourceUrl);
 
-      // Process based on file type. isTransformableImage / isVideo(ext) are
-      // the only two possibilities here: anything else already returned a
-      // 400 above, before this file was staged.
-      if (isTransformableImage) {
-        let result: Awaited<ReturnType<TransformService["processImageFile"]>>;
-        try {
-          result = await this.processImageFile(
-            sourcePath,
-            imageParams,
-            userAgent,
-            acceptHeader,
-          );
-        } catch (error) {
-          // Some camera JPEGs are browser-readable but rejected by libjpeg's
-          // strict SOS validation. Do not make the uploaded original
-          // unreachable: serve it untouched, without writing it into the
-          // transformed cache under a misleading key.
-          if (!isRecoverableJpegError(error, ext)) throw error;
-          const fallback = await this.streamOriginal(
-            filePath,
-            localPath,
-            ext ?? "jpg",
-            sourceUrl,
-          );
-          fallback.headers["Cache-Control"] = "no-store";
-          fallback.headers["X-Transform-Fallback"] = "original";
-          logger.warn(
-            { error: serializeError(error), filePath },
-            "JPEG transform failed; serving original",
-          );
-          return fallback;
-        }
-        buffer = result.buffer;
-        contentType = result.contentType;
-        optimizationResult = result.optimizationResult;
-      } else {
-        // Only thumbnail requests reach this point (non-thumbnail video
-        // transformations are intercepted before prepareSourceFile above);
-        // thumbnails are extracted synchronously like images
-        const result = await processVideo(sourcePath, effectiveParams, this.storage);
+      if (!isImage) {
+        // A video thumbnail. transformVideo stages its own overlay.
+        const result = await processVideo(source.path, effectiveParams, {
+          storage: this.storage,
+          paths: this.paths,
+          settings: this.queue.videoSettings,
+        });
         return {
           buffer: result.buffer,
           contentType: result.contentType,
           headers: {
             "Content-Length": result.buffer.length.toString(),
-            "Cache-Control": "public, max-age=31536000, must-revalidate",
+            "Cache-Control": IMMUTABLE,
           },
         };
       }
 
-      // Save to caches
-      if (cachePath) {
-        await saveToCaches(
-          this.storage,
-          filePath,
-          effectiveParams,
-          cachePath,
-          buffer,
-          contentType,
-        );
+      // The staged overlay lives in a copy of the params so the cache key and
+      // ETag keep the public overlay path.
+      let imageParams = effectiveParams;
+      if (effectiveParams.overlayPath) {
+        overlay = await stageSource(this.storage, this.paths, effectiveParams.overlayPath);
+        imageParams = { ...effectiveParams, overlayPath: overlay.path };
       }
 
-      // Periodic cache cleanup
-      await performPeriodicCacheCleanup();
+      let result: Awaited<ReturnType<typeof processImage>>;
+      try {
+        result = await processImage(source.path, imageParams, userAgent, acceptHeader, this.compression, this.paths.temp);
+      } catch (error) {
+        // Do not make the uploaded original unreachable: serve it untouched,
+        // without writing it into the transformed cache under a misleading key.
+        if (!isRecoverableJpegError(error, ext)) throw error;
+        const fallback = await this.streamOriginal(filePath, ext ?? "jpg", sourceUrl);
+        fallback.headers["Cache-Control"] = "no-store";
+        fallback.headers["X-Transform-Fallback"] = "original";
+        logger.warn({ error: serializeError(error), filePath }, "JPEG transform failed; serving original");
+        return fallback;
+      }
 
-      // Format response
-      // Same ETag as the cached response for the same bytes (see derivativeEtag)
+      await saveToCaches(this.storage, filePath, effectiveParams, cachePath, result.buffer, result.contentType);
+
       const headers: Record<string, string> = {
-        "Content-Length": buffer.length.toString(),
-        "Cache-Control": "public, max-age=31536000, must-revalidate",
-        ETag: derivativeEtag(buffer),
+        "Content-Length": result.buffer.length.toString(),
+        "Cache-Control": IMMUTABLE,
+        ETag: derivativeEtag(result.buffer),
       };
-
-      // Add optimization headers if available
-      if (optimizationResult) {
-        headers["X-Original-Size"] = optimizationResult.originalSize.toString();
-        headers["X-Optimized-Size"] =
-          optimizationResult.optimizedSize.toString();
-        headers["X-Compression-Ratio"] =
-          optimizationResult.compressionRatio.toFixed(2);
-        headers["X-Savings-Percent"] = optimizationResult.savings.toFixed(1);
+      const optimization = result.optimizationResult;
+      if (optimization) {
+        headers["X-Original-Size"] = optimization.originalSize.toString();
+        headers["X-Optimized-Size"] = optimization.optimizedSize.toString();
+        headers["X-Compression-Ratio"] = optimization.compressionRatio.toFixed(2);
+        headers["X-Savings-Percent"] = optimization.savings.toFixed(1);
       }
-
-      // For videos, indicate this is the optimized version
-      if (isVideo(ext)) {
-        headers["X-Video-Status"] = "ready";
-      }
-
-      return {
-        buffer,
-        contentType,
-        headers,
-        optimizationResult,
-      };
+      return { buffer: result.buffer, contentType: result.contentType, headers };
     } finally {
-      // Clean up temporary source file if used
-      if (isTempFile) {
-        await cleanupTempFile(sourcePath);
-      }
-      // Only a bucket download is a temp copy. Without storage the staged
-      // path is the overlay's original in ./public, which must survive (a
-      // remote sourceUrl alone used to make this delete it).
-      if (stagedOverlay && this.storage) {
-        await cleanupTempFile(stagedOverlay);
-      }
+      await source?.cleanup();
+      await overlay?.cleanup();
     }
   }
 
-  /**
-   * Process image file
-   */
-  private async processImageFile(
-    sourcePath: string,
-    effectiveParams: CombindedTransformParams,
-    userAgent?: string,
-    acceptHeader?: string,
-  ): Promise<{
-    buffer: Buffer;
-    contentType: string;
-    optimizationResult?: any;
-  }> {
-    return await processImage(
-      sourcePath,
-      effectiveParams,
-      userAgent,
-      acceptHeader,
-      this.compression,
-    );
-  }
-
-  /**
-   * Handle video job queue management
-   */
-  private async handleVideoJobQueue(
+  private async queueVideo(
     requestPath: string,
     filePath: string,
-    localPath: string,
-    params: any,
-    cachePath: string,
+    params: CombindedTransformParams,
   ): Promise<TransformResult> {
-    // Check if already being processed
-    let existingJob = this.queue.getJobByPath(filePath, params);
-    let shouldRequeue = false;
+    let job = this.queue.getJobByPath(filePath, params);
 
-    if (existingJob) {
-      logger.debug(
-        { jobId: existingJob.id, status: existingJob.status },
-        "Video job exists",
-      );
-
-      // If completed, verify cache actually exists before serving
-      if (existingJob.status === "completed" && cachePath) {
-        const localCacheExists = await existsInCache(cachePath);
-        const cloudCacheExists = this.storage
-          ? await this.storage.exists(filePath, params)
-          : false;
-
-        if (localCacheExists || cloudCacheExists) {
-          // Cache exists, try to serve from local cache first
-          const cachedBuffer = await checkLocalCache(cachePath);
-          if (cachedBuffer) {
-            return {
-              buffer: cachedBuffer,
-              contentType: contentTypeForFormat(
-                determineOutputFormat(
-                  filePath.split(".").pop()?.toLowerCase(),
-                  params.format,
-                ).format,
-              ),
-              headers: {
-                "X-Video-Status": "ready",
-                "Content-Length": cachedBuffer.length.toString(),
-                "Cache-Control": "public, max-age=31536000, must-revalidate",
-              },
-            };
-          }
-        } else {
-          // Job is marked as completed but cache doesn't exist
-          logger.warn(
-            { jobId: existingJob.id, filePath, cachePath },
-            "Job marked as completed but cache missing - resetting to pending",
-          );
-          try {
-            this.queue.getStore().updateJobStatus(existingJob.id, "pending", 0);
-            shouldRequeue = true;
-            existingJob = { ...existingJob, status: "pending" as const };
-          } catch (error) {
-            logger.error(
-              { error: serializeError(error), jobId: existingJob.id },
-              "Failed to reset job status",
-            );
-            shouldRequeue = true;
-          }
-        }
+    if (job?.status === "completed") {
+      // Where the worker wrote it: jobs from older versions carry a path
+      // derived differently from derivativeCachePath.
+      const local = await checkLocalCache(job.cachePath);
+      if (local) {
+        return {
+          buffer: local,
+          contentType: contentTypeForFormat(
+            determineOutputFormat(filePath.split(".").pop()?.toLowerCase(), params.format).format,
+          ),
+          headers: {
+            "X-Video-Status": "ready",
+            "Content-Length": local.length.toString(),
+            "Cache-Control": IMMUTABLE,
+          },
+        };
+      }
+      // A cloud copy only reaches this point if the cloud cache check above
+      // missed it; otherwise the output is gone and the job has to run again.
+      if (!(this.storage && (await this.storage.exists(filePath, params)))) {
+        logger.warn(
+          { jobId: job.id, filePath, cachePath: job.cachePath },
+          "Job marked as completed but cache missing - resetting to pending",
+        );
+        this.queue.resetJob(job.id);
+        job = { ...job, status: "pending" };
       }
     }
 
-    // Add to background processing queue
-    if (
-      !existingJob ||
-      existingJob.status === "error" ||
-      existingJob.status === "pending" ||
-      shouldRequeue
-    ) {
-      this.queue
-        .addJob(
-          filePath,
-          params,
-          cachePath,
-          localPath,
-          this.storage,
-          TRANSFORMATION_PRIORITY,
-        )
-        .catch((error) => {
-          logger.error(
-            { error: serializeError(error), filePath },
-            "Failed to add video job",
-          );
-        });
+    if (!job || job.status === "error" || job.status === "pending") {
+      this.queue.enqueueTransform(filePath, params, TRANSFORMATION_PRIORITY);
     }
 
     // Never fall back to the original while the transform is pending: it would
     // ship content whose transformations (watermark, crop, trim) have not been
     // applied yet. Answer 202 and let the client poll /video-status, or simply
     // retry this URL once Retry-After has passed.
-    const estimate = await this.queue.estimate(filePath, params, localPath);
+    const estimate = await this.queue.estimate(filePath, params);
     return {
       buffer: Buffer.from(
         JSON.stringify(
@@ -683,39 +346,30 @@ export class TransformService {
         "Cache-Control": "no-store",
         ...processingHeaders(estimate),
       },
-      isProcessing: true,
     };
   }
 
   /**
-   * Stream the untouched original without buffering it in memory: originals can
-   * weigh hundreds of MB and buffering both delays the first byte and pressures
-   * the container memory while ffmpeg jobs are running. Serves any stored type
-   * (video, audio, 3D, image) with its real content-type.
+   * Streams the untouched original: it can weigh hundreds of MB, and
+   * buffering it delays the first byte and competes with running ffmpeg jobs
+   * for memory.
    */
   private async streamOriginal(
     filePath: string,
-    localPath: string,
     ext: string,
     sourceUrl?: string,
   ): Promise<TransformResult> {
-    // encodeURIComponent keeps ETag ASCII-only: HTTP header values must be a
-    // ByteString, and raw file paths can contain non-ASCII or NFD-decomposed
-    // accented characters (e.g. a combining accent has a code point > 255)
+    // encodeURIComponent keeps ETag ASCII-only: header values must be a
+    // ByteString, and file names can hold NFD-decomposed accents (> 255).
     const headers: Record<string, string> = {
-      "Cache-Control": "public, max-age=31536000, must-revalidate",
+      "Cache-Control": IMMUTABLE,
       ETag: `"${encodeURIComponent(filePath)}-original"`,
     };
-    if (isVideo(ext)) {
-      headers["X-Video-Status"] = "original";
-    }
+    if (isVideoExt(ext)) headers["X-Video-Status"] = "original";
 
     try {
       let stream: ReadableStream<Uint8Array>;
-
       if (sourceUrl) {
-        // Passed straight through rather than staged to disk - this route
-        // hands back the untouched original, so there is nothing to process.
         const response = await fetch(sourceUrl);
         if (!response.ok || !response.body) {
           throw new Error(`Source URL answered ${response.status}`);
@@ -733,108 +387,47 @@ export class TransformService {
         const { createReadStream } = await import("fs");
         const { stat } = await import("fs/promises");
         const { Readable } = await import("stream");
-        const stats = await stat(localPath);
-        headers["Content-Length"] = stats.size.toString();
-        stream = Readable.toWeb(
-          createReadStream(localPath),
-        ) as ReadableStream<Uint8Array>;
+        const localPath = path.join(this.paths.public, filePath);
+        headers["Content-Length"] = (await stat(localPath)).size.toString();
+        stream = Readable.toWeb(createReadStream(localPath)) as ReadableStream<Uint8Array>;
       }
-
       return { stream, contentType: contentTypeForFormat(ext), headers };
     } catch (error) {
-      logger.error(
-        { error: serializeError(error), filePath },
-        "Failed to serve original",
-      );
+      logger.error({ error: serializeError(error), filePath }, "Failed to serve original");
       throw new Error("Failed to load original");
     }
   }
 
-  /**
-   * Handle file not found scenario
-   */
-  private async handleFileNotFound(filePath: string): Promise<void> {
+  /** Drops every cached trace of a file that turned out to be missing. */
+  private async forgetDerivatives(filePath: string): Promise<void> {
+    this.storage?.invalidateAllCacheEntries(filePath);
     try {
-      await deleteCachedFiles(filePath);
+      await deleteCachedFiles(this.paths.cache, filePath);
     } catch (error) {
-      logger.warn(
-        { error: serializeError(error), filePath },
-        "Failed to delete cached files",
-      );
+      logger.warn({ error: serializeError(error), filePath }, "Failed to delete cached files");
     }
   }
 
-  /**
-   * Handle transformation errors
-   */
-  private async handleTransformationError(
-    error: any,
-    request: TransformRequest,
-  ): Promise<TransformResult> {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  private errorResult(error: unknown, request: TransformRequest): TransformResult {
+    const message = error instanceof Error ? error.message : String(error);
 
-    // Bad transformation parameters are the client's mistake: answer 400
-    // instead of a 500 that would page us and invite retries.
+    // Bad transformation parameters are the client's mistake: 400 instead of
+    // a 500 that would page us and invite retries.
     if (error instanceof ValidationError) {
-      logger.info({ error: errorMessage, path: request.path }, error.name);
-      return {
-        buffer: Buffer.from(errorMessage),
-        contentType: "text/plain",
-        status: 400,
-        headers: {
-          "Content-Length": Buffer.byteLength(errorMessage).toString(),
-          "Cache-Control": "no-store",
-        },
-      };
+      logger.info({ error: message, path: request.path }, error.name);
+      return textResult(400, message, {
+        "Content-Length": Buffer.byteLength(message).toString(),
+        "Cache-Control": "no-store",
+      });
     }
 
-    logger.error(
-      {
-        error: serializeError(error),
-        path: request.path,
-      },
-      "Processing error",
-    );
-
-    // Check if this is a "file not found" error from cloud storage
-    const isNotFoundError =
-      errorMessage.includes("NoSuchKey") ||
-      errorMessage.includes("NotFound") ||
-      errorMessage.includes("404") ||
-      errorMessage.includes("does not exist") ||
-      errorMessage.includes("not found");
-
-    if (isNotFoundError && this.storage) {
-      // Invalidate cache since the file doesn't exist
-      const pathSegments = request.path.split("/").slice(2);
-      const hasTransform =
-        pathSegments.length > 0 && isTransformSegment(pathSegments[0]);
-      const filePath = hasTransform
-        ? pathSegments.slice(1).join("/")
-        : pathSegments.join("/");
-
-      this.storage.invalidateAllCacheEntries(filePath);
-
-      // Delete local cache files
-      try {
-        await deleteCachedFiles(filePath);
-      } catch (cleanupError) {
-        logger.warn(
-          { error: serializeError(cleanupError), filePath },
-          "Failed to cleanup cache after not found error",
-        );
-      }
+    if (!(error instanceof NotFoundError)) {
+      logger.error({ error: serializeError(error), path: request.path }, "Processing error");
     }
-
-    // Return error result (route handler will convert to appropriate HTTP response)
-    return {
-      buffer: Buffer.from(`Processing failed: ${errorMessage}`),
-      contentType: "text/plain",
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    };
+    return textResult(error instanceof NotFoundError ? 404 : 500, `Processing failed: ${message}`, {
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
   }
 }

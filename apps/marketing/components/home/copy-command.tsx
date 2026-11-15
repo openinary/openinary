@@ -2,7 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 
-import { focusRing, pressable } from "@/components/home/cta-button";
+import { focusRing, pressable } from "@/components/site/cta-button";
 import { useCopy } from "@/hooks/use-copy";
 import { cn } from "@/lib/utils";
 

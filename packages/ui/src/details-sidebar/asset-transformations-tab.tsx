@@ -66,7 +66,7 @@ export function AssetTransformationsTab({
   transformBaseUrl,
 }: {
   asset: MediaFile;
-  transformBaseUrl: string;
+  transformBaseUrl: string | null;
 }) {
   const { apiBaseUrl } = useOpeninary();
   const [params, setParams] = useState<Params>(PRESETS[asset.type][0].params);
@@ -76,9 +76,10 @@ export function AssetTransformationsTab({
   const options = OPTIONS[asset.type];
   const segment = serialize(params);
   const path = encodePath(asset.path);
-  const url = toAbsoluteUrl(
-    `${transformBaseUrl}/t/${segment ? `${segment}/` : ""}${path}`,
-  );
+  const url =
+    transformBaseUrl === null
+      ? ""
+      : toAbsoluteUrl(`${transformBaseUrl}/t/${segment ? `${segment}/` : ""}${path}`);
 
   // The preview is drawn by the browser from the original, not requested as
   // a real transformation: changing a setting costs nothing, and it shows

@@ -21,8 +21,16 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 # file even for a filtered install that never applies it.
 COPY patches/ ./patches/
 
-# Copy shared packages
-COPY packages/ ./packages/
+# The API's own workspace closure in full, every other package by manifest
+# only: packages/dashboard alone carries 25 MB of demo media for the web build.
+COPY packages/core/ ./packages/core/
+COPY packages/shared/ ./packages/shared/
+COPY packages/telemetry-schema/ ./packages/telemetry-schema/
+COPY packages/cli/package.json ./packages/cli/
+COPY packages/dashboard/package.json ./packages/dashboard/
+COPY packages/plans/package.json ./packages/plans/
+COPY packages/registry/package.json ./packages/registry/
+COPY packages/ui/package.json ./packages/ui/
 
 # Copy API
 COPY apps/api/ ./apps/api/
@@ -48,26 +56,25 @@ RUN pnpm install --frozen-lockfile --filter api... --filter shared...
 RUN mkdir -p apps/api/cache apps/api/temp apps/api/public /app/data && \
     chown -R node:node apps/api/cache apps/api/temp apps/api/public /app/data
 
-# Make wrapper script executable and fix line endings (CRLF to LF)
+# CRLF to LF, in case the checkout was made on Windows
 RUN chmod +x /app/scripts/init-env-wrapper.sh && \
-    sed -i 's/\r$//' /app/scripts/init-env-wrapper.sh || true
+    sed -i 's/\r$//' /app/scripts/init-env-wrapper.sh
 
-# Build shared and core packages first (API depends on them)
-RUN pnpm --filter shared build
-RUN pnpm --filter @openinary/core build
-# Build API using workspace filter
-RUN pnpm --filter api build
+# "api..." builds the API after every workspace package it depends on.
+RUN pnpm --filter api... build
 
 # Bake the image version for runtime consumers (telemetry, /api/version)
 # when no IMAGE_TAG env var is provided (Railway, k8s, plain docker run).
 ARG IMAGE_TAG="latest"
 RUN echo "${IMAGE_TAG}" > /app/version.txt
 
-# Set default environment variables (will be overridden by docker-compose or init-env.js)
+# Defaults; docker-compose or the platform overrides them. An empty
+# BETTER_AUTH_SECRET makes init-env.js reuse the one persisted on the data
+# volume or generate it.
 ENV BETTER_AUTH_SECRET=""
 ENV BETTER_AUTH_URL="http://localhost:3000"
-ENV DOCKER_CONTAINER="true"
 ENV MODE="api"
+ENV DB_PATH="/app/data/auth.db"
 
 # Switch to non-root user
 USER node
@@ -78,6 +85,4 @@ EXPOSE 3000
 # Change to API directory for runtime
 WORKDIR /app/apps/api
 
-# Run init script wrapper to set env vars, run security script and start server
-# Run from /app root so turbo can find turbo.json, then use pnpm filter to start only the API
 CMD ["/bin/sh", "-c", ". /app/scripts/init-env-wrapper.sh && node /app/scripts/secure-db.js && cd /app && pnpm --filter api start"]

@@ -7,13 +7,14 @@ import {
   BookTitle,
   PerspectiveBook,
 } from "@/components/perspective-book";
-import { Section, SectionHeader } from "@/components/home/section";
-import { focusRing } from "@/components/home/cta-button";
+import { Section, SectionHeader } from "@/components/site/section";
+import { focusRing } from "@/components/site/cta-button";
 import { cn } from "@/lib/utils";
+import { DOCS_URL } from "@/lib/site";
 
 const docs = [
   {
-    href: "https://docs.openinary.dev/quickstart",
+    href: `${DOCS_URL}/quickstart`,
     tint: "bg-gradient-to-br from-emerald-200 to-emerald-300 text-emerald-950 dark:from-emerald-900 dark:to-emerald-950 dark:text-emerald-50",
     icon: Rocket,
     label: "Get started",
@@ -22,7 +23,7 @@ const docs = [
       "Set up Openinary and serve your first optimized image in under five minutes.",
   },
   {
-    href: "https://docs.openinary.dev/migrate-from-cloudinary",
+    href: `${DOCS_URL}/migrate-from-cloudinary`,
     tint: "bg-gradient-to-br from-sky-200 to-sky-300 text-sky-950 dark:from-sky-900 dark:to-sky-950 dark:text-sky-50",
     icon: ArrowRightLeft,
     label: "Migration",
@@ -31,7 +32,7 @@ const docs = [
       "Move your files, uploads and URLs from Cloudinary in five steps.",
   },
   {
-    href: "https://docs.openinary.dev/configuration/storage",
+    href: `${DOCS_URL}/configuration/storage`,
     tint: "bg-gradient-to-br from-rose-200 to-rose-300 text-rose-950 dark:from-rose-900 dark:to-rose-950 dark:text-rose-50",
     icon: Server,
     label: "Configuration",
@@ -40,7 +41,7 @@ const docs = [
       "Point Openinary at the S3, R2 or MinIO bucket you already run.",
   },
   {
-    href: "https://docs.openinary.dev/guides/coolify-deployment",
+    href: `${DOCS_URL}/guides/coolify-deployment`,
     tint: "bg-gradient-to-br from-violet-200 to-violet-300 text-violet-950 dark:from-violet-900 dark:to-violet-950 dark:text-violet-50",
     icon: BookOpen,
     label: "Guide",

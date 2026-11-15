@@ -1,15 +1,17 @@
 import { StorageConfig, StorageClientOptions } from "./types";
 import { StorageCache } from "./cache";
-import { KeyGenerator } from "./key-generator";
+import { sortedKey, type CacheKeyFn } from "../../url/cache-key";
 import { S3ClientWrapper } from "./s3-client";
 import logger, { serializeError } from "../logger";
 import {
   FOLDER_SUMMARY_MAX_KEYS,
+  isReservedMediaPath,
+  normalizeMediaPrefix,
   shapeFolderSummary,
   shapeLevel,
   type FolderSummary,
   type LevelFile,
-} from "../storage-level";
+} from "../../url/storage-layout";
 import {
   adjustBucketStats,
   type AggregateStats,
@@ -20,55 +22,6 @@ import {
 // Lives at the bucket root, outside the media prefix and cache/, so it never
 // shows up in media listings or cache stats
 const STATS_OBJECT_KEY = ".openinary/stats.json";
-
-/** The media prefix every deployment used before it became configurable. */
-export const DEFAULT_MEDIA_PREFIX = "public";
-
-/**
- * Namespaces the product owns at the bucket root. Media must not be configured
- * into either: cache cleanup lists and deletes everything under `cache/`, so a
- * prefix inside it would have the media deleted out from under it.
- */
-const RESERVED_PREFIXES = ["cache", ".openinary"];
-
-/**
- * Normalizes a configured prefix into a value that is safe to concatenate: no
- * leading slash, exactly one trailing slash when non-empty.
- *
- * An explicitly empty prefix means "store media at the bucket root" and yields
- * "". Leaving it undefined keeps the historical "public/" layout.
- *
- * Throws on a prefix that collides with a reserved namespace. Startup is the
- * only place this is cheap to catch: the alternative is discovering it when the
- * cache sweep removes the media.
- */
-export function normalizeMediaPrefix(prefix: string | undefined): string {
-  if (prefix === undefined) return `${DEFAULT_MEDIA_PREFIX}/`;
-  const trimmed = prefix.trim().replace(/^\/+/, "").replace(/\/+$/, "");
-  if (trimmed === "") return "";
-  // Only the first segment matters, and comparison is case-sensitive because S3
-  // keys are: "Cache/" is a different namespace, "cache/media" is not.
-  const head = trimmed.split("/")[0];
-  if (RESERVED_PREFIXES.includes(head)) {
-    throw new Error(
-      `Invalid storage prefix ${JSON.stringify(trimmed)}: "${head}/" is reserved ` +
-        `for Openinary's own use. Pick a prefix outside ` +
-        `${RESERVED_PREFIXES.map((r) => `"${r}/"`).join(" and ")}.`,
-    );
-  }
-  return `${trimmed}/`;
-}
-
-/**
- * True when a delivery path would land in a namespace the product owns. Only
- * possible with the empty prefix: under any other prefix the key is nested
- * below it and cannot reach cache/ or .openinary/.
- */
-export function isReservedMediaPath(mediaPrefix: string, path: string): boolean {
-  if (mediaPrefix !== "") return false;
-  const head = path.replace(/^\/+/, "").split("/")[0];
-  return RESERVED_PREFIXES.includes(head);
-}
 
 function isAggregateStats(value: unknown): value is AggregateStats {
   return (
@@ -84,11 +37,18 @@ export class CloudStorage implements StatsBackend {
   private cache: StorageCache;
   /** Normalized media prefix, e.g. "public/" or "" for the bucket root. */
   readonly mediaPrefix: string;
+  private keyFor: CacheKeyFn;
 
   constructor(config: StorageConfig, clientOptions?: StorageClientOptions) {
     this.s3Client = new S3ClientWrapper(config, clientOptions);
     this.cache = new StorageCache();
     this.mediaPrefix = normalizeMediaPrefix(config.prefix);
+    this.keyFor = config.keyFor ?? sortedKey;
+  }
+
+  /** In-memory existence entry of a derivative, grouped by its original. */
+  private derivativeEntry(originalPath: string, key: string): string {
+    return `exists:${originalPath}\0${key}`;
   }
 
   /**
@@ -115,18 +75,12 @@ export class CloudStorage implements StatsBackend {
     );
   }
 
-  /**
-   * Lists objects in storage (cloud only)
-   */
   async list(
     prefix?: string,
   ): Promise<{ key: string; size?: number; lastModified?: Date }[]> {
     return await this.s3Client.listObjects(prefix);
   }
 
-  /**
-   * Lists one directory level (direct child prefixes + objects) using Delimiter: "/"
-   */
   async listDelimited(prefix: string): Promise<{
     prefixes: string[];
     objects: { key: string; size?: number; lastModified?: Date }[];
@@ -134,9 +88,6 @@ export class CloudStorage implements StatsBackend {
     return await this.s3Client.listDelimited(prefix);
   }
 
-  /**
-   * Lists a single page of one directory level (bounded by maxKeys)
-   */
   async listDelimitedPage(
     prefix: string,
     maxKeys?: number,
@@ -174,9 +125,6 @@ export class CloudStorage implements StatsBackend {
     return results;
   }
 
-  /**
-   * Lists one directory level of original files (under the media prefix)
-   */
   async listLevel(
     folderPath: string,
   ): Promise<{ folderNames: string[]; files: LevelFile[] }> {
@@ -216,9 +164,6 @@ export class CloudStorage implements StatsBackend {
     await this.s3Client.createFolderMarker(storageKey);
   }
 
-  /**
-   * Checks whether a folder exists (marker or any object with the folder prefix)
-   */
   async folderExists(folderPath: string): Promise<boolean> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
     const markerKey = this.mediaKey(`${normalized}/`);
@@ -231,9 +176,6 @@ export class CloudStorage implements StatsBackend {
     return prefixedObjects.length > 0;
   }
 
-  /**
-   * Renames/moves all objects under a folder prefix to a new prefix (copy + delete each)
-   */
   async renameFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
     const normalizedOld = oldFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
     const normalizedNew = newFolderPath.replace(/^\/+/, "").replace(/\/+$/, "");
@@ -251,9 +193,6 @@ export class CloudStorage implements StatsBackend {
     this.cache.delete(`original:${normalizedOld}`);
   }
 
-  /**
-   * Deletes all objects under a folder prefix (marker + contents)
-   */
   async deleteFolder(folderPath: string): Promise<number> {
     const normalized = folderPath.replace(/^\/+/, "").replace(/\/+$/, "");
     const prefix = this.mediaKey(`${normalized}/`);
@@ -281,26 +220,20 @@ export class CloudStorage implements StatsBackend {
       });
     }
 
-    // Invalidate in-memory cache for all deleted keys
     this.cache.delete(`original:${normalized}`);
 
     return deleted;
   }
 
-  /**
-   * Checks file existence with intelligent caching for transformed files
-   */
-  async exists(originalPath: string, params: any): Promise<boolean> {
-    const key = KeyGenerator.generateKey(originalPath, params);
-    const cacheKey = `exists:${key}`;
+  async exists(originalPath: string, params: object): Promise<boolean> {
+    const key = this.keyFor(originalPath, params);
+    const cacheKey = this.derivativeEntry(originalPath, key);
     const cached = this.cache.get(cacheKey);
 
-    // OPTIMIZATION: Cache hit = 0 Class B operation
     if (cached) {
       return cached.exists;
     }
 
-    // Only if not in cache
     let exists: boolean;
     try {
       exists = await this.s3Client.objectExists(key);
@@ -322,48 +255,8 @@ export class CloudStorage implements StatsBackend {
     return exists;
   }
 
-  /**
-   * Checks the existence of an original file with cache (by original path)
-   */
-  async existsOriginal(originalPath: string): Promise<boolean> {
-    return this.existsOriginalPath(originalPath);
-  }
-
-  /**
-   * Checks the existence of an original file WITHOUT using cache
-   * Used after deletion to ensure we don't serve stale cache data
-   */
-  async existsOriginalNoCache(originalPath: string): Promise<boolean> {
-    const storageKey = this.mediaKey(originalPath);
-    try {
-      const exists = await this.s3Client.objectExists(storageKey);
-
-      // Update cache with the fresh result
-      this.cache.set(`original:${originalPath}`, {
-        exists,
-        timestamp: Date.now(),
-      });
-
-      return exists;
-    } catch (error: any) {
-      logger.error(
-        {
-          error: error.message,
-          filePath: originalPath,
-          metadata: error.$metadata,
-        },
-        "Cloud storage error while checking original path (no cache)",
-      );
-      return false;
-    }
-  }
-
-  /**
-   * Checks existence of an arbitrary original-path key (without params),
-   * using the same semantics as uploadOriginal/downloadOriginal.
-   * This is useful for detecting duplicate uploads by full path.
-   */
-  async existsOriginalPath(filePath: string): Promise<boolean> {
+  /** Whether an original exists, cached briefly per instance. */
+  async existsOriginal(filePath: string): Promise<boolean> {
     const cacheKey = `original:${filePath}`;
     const cached = this.cache.get(cacheKey);
 
@@ -371,37 +264,14 @@ export class CloudStorage implements StatsBackend {
       return cached.exists;
     }
 
-    const storageKey = this.mediaKey(filePath);
-    try {
-      const exists = await this.s3Client.objectExists(storageKey);
-
-      this.cache.set(cacheKey, {
-        exists,
-        timestamp: Date.now(),
-      });
-
-      return exists;
-    } catch (error: any) {
-      logger.error(
-        {
-          error: error.message,
-          filePath,
-          metadata: error.$metadata,
-        },
-        "Cloud storage error while checking original path",
-      );
-
-      // Deliberately NOT cached: a transient storage error must not
-      // pin "file missing" for NEGATIVE_CACHE_TTL on this instance.
-      return false;
-    }
+    // Only a 404 answers false; any other storage error throws (objectExists),
+    // and is never cached, so a transient failure cannot read as "missing".
+    const exists = await this.s3Client.objectExists(this.mediaKey(filePath));
+    this.cache.set(cacheKey, { exists, timestamp: Date.now() });
+    return exists;
   }
 
-  /**
-   * Retrieves an original (unprocessed) file from the bucket
-   */
   async downloadOriginal(originalPath: string): Promise<Buffer> {
-    // Delivery path -> storage key
     const storageKey = this.mediaKey(originalPath);
     return await this.s3Client.downloadObject(storageKey);
   }
@@ -420,21 +290,16 @@ export class CloudStorage implements StatsBackend {
     return await this.s3Client.downloadObjectStream(storageKey);
   }
 
-  /**
-   * Uploads an original (unprocessed) file to the bucket
-   */
   async uploadOriginal(
     filePath: string,
     buffer: Buffer,
     contentType: string,
   ): Promise<string> {
-    // Delivery path -> storage key
     const storageKey = this.mediaKey(filePath);
     await this.s3Client.uploadObject(storageKey, buffer, contentType);
 
     adjustBucketStats(this, "storage", { size: buffer.length, fileCount: 1 });
 
-    // Mark the file as existing in the cache
     this.cache.set(`original:${filePath}`, {
       exists: true,
       timestamp: Date.now(),
@@ -444,18 +309,14 @@ export class CloudStorage implements StatsBackend {
     return this.s3Client.getPublicUrl(storageKey);
   }
 
-  /**
-   * Upload with cache invalidation
-   */
   async upload(
     originalPath: string,
-    params: any,
+    params: object,
     buffer: Buffer,
     contentType: string,
   ): Promise<string> {
-    const key = KeyGenerator.generateKey(originalPath, params);
+    const key = this.keyFor(originalPath, params);
 
-    // Add metadata for easy cleanup later
     // Encoded because x-amz-meta-* header values must be ASCII-safe;
     // some S3-compatible providers reject non-ASCII bytes outright.
     const metadata = {
@@ -466,40 +327,19 @@ export class CloudStorage implements StatsBackend {
 
     adjustBucketStats(this, "cache", { size: buffer.length, fileCount: 1 });
 
-    // Mark the file as existing in the cache
-    this.cache.set(`exists:${key}`, {
+    this.cache.set(this.derivativeEntry(originalPath, key), {
       exists: true,
       timestamp: Date.now(),
     });
-    // Returns the public URL
     return this.s3Client.getPublicUrl(key);
   }
 
-  /**
-   * Retrieves a file from the bucket
-   */
-  async download(originalPath: string, params: any): Promise<Buffer> {
-    const key = KeyGenerator.generateKey(originalPath, params);
+  async download(originalPath: string, params: object): Promise<Buffer> {
+    const key = this.keyFor(originalPath, params);
     return await this.s3Client.downloadObject(key);
   }
 
-  /**
-   * Generates a signed URL for temporary access (optional)
-   */
-  async getSignedUrl(
-    originalPath: string,
-    params: any,
-    expiresIn: number = 3600,
-  ): Promise<string> {
-    const key = KeyGenerator.generateKey(originalPath, params);
-    return await this.s3Client.getSignedUrl(key, expiresIn);
-  }
-
-  /**
-   * Deletes an original file from storage
-   */
   async deleteOriginal(originalPath: string): Promise<void> {
-    // Delivery path -> storage key
     const storageKey = this.mediaKey(originalPath);
     // HEAD first: the deleted object's size is needed for stats tracking,
     // and a delete on a missing key succeeds silently
@@ -513,13 +353,9 @@ export class CloudStorage implements StatsBackend {
       });
     }
 
-    // Invalidate cache
     this.cache.delete(`original:${originalPath}`);
   }
 
-  /**
-   * Copies an original file to a new path within storage
-   */
   async copyOriginal(sourcePath: string, destPath: string): Promise<void> {
     const sourceKey = this.mediaKey(sourcePath);
     const destKey = this.mediaKey(destPath);
@@ -533,24 +369,17 @@ export class CloudStorage implements StatsBackend {
       });
     }
 
-    // Mark the new file as existing in the cache
     this.cache.set(`original:${destPath}`, {
       exists: true,
       timestamp: Date.now(),
     });
   }
 
-  /**
-   * Renames/moves an original file to a new path (copy + delete)
-   */
   async renameOriginal(sourcePath: string, destPath: string): Promise<void> {
     await this.copyOriginal(sourcePath, destPath);
     await this.deleteOriginal(sourcePath);
   }
 
-  /**
-   * Gets metadata for an original file (size, dates)
-   */
   async getOriginalMetadata(
     originalPath: string,
   ): Promise<{ size: number; createdAt: Date; updatedAt: Date } | null> {
@@ -569,14 +398,11 @@ export class CloudStorage implements StatsBackend {
     };
   }
 
-  /**
-   * Gets metadata for an optimized/transformed file (size only)
-   */
   async getOptimizedMetadata(
     originalPath: string,
-    params: any,
+    params: object,
   ): Promise<{ size: number } | null> {
-    const key = KeyGenerator.generateKey(originalPath, params);
+    const key = this.keyFor(originalPath, params);
     const metadata = await this.s3Client.getObjectMetadata(key);
 
     if (!metadata) {
@@ -589,29 +415,16 @@ export class CloudStorage implements StatsBackend {
   }
 
   /**
-   * Invalidates the cache for a specific file
-   */
-  invalidateCache(originalPath: string, params?: any): void {
-    if (params) {
-      const key = KeyGenerator.generateKey(originalPath, params);
-      this.cache.delete(`exists:${key}`);
-    }
-    this.cache.delete(`original:${originalPath}`);
-  }
-
-  /**
    * Deletes all cached transformations for an original file from cloud storage
    * Uses metadata to identify files belonging to the original path
    */
   async deleteAllCachedTransformations(originalPath: string): Promise<number> {
     try {
-      // List all objects with cache/ prefix
       const cacheObjects = await this.s3Client.listObjects("cache/");
 
       const keysToDelete: string[] = [];
       let sizeToDelete = 0;
 
-      // Check each object's metadata to see if it belongs to this original path
       for (const obj of cacheObjects) {
         try {
           const metadata = await this.s3Client.getObjectMetadata(obj.key);
@@ -623,7 +436,6 @@ export class CloudStorage implements StatsBackend {
             sizeToDelete += obj.size ?? 0;
           }
         } catch (error) {
-          // If we can't get metadata, skip this object
           logger.warn(
             { error: serializeError(error), key: obj.key },
             "Failed to get metadata for cache object",
@@ -639,7 +451,6 @@ export class CloudStorage implements StatsBackend {
         return 0;
       }
 
-      // Delete all identified objects
       const deletedCount = await this.s3Client.deleteObjects(keysToDelete);
 
       adjustBucketStats(this, "cache", {
@@ -755,34 +566,12 @@ export class CloudStorage implements StatsBackend {
     return deletedCount;
   }
 
-  /**
-   * Invalidates all cache entries for a given original path
-   * This clears the in-memory cache for both the original file and all its transformations
-   */
+  /** Forgets the in-memory existence of an original and of its derivatives. */
   invalidateAllCacheEntries(originalPath: string): void {
-    // Clear the original file cache
     this.cache.delete(`original:${originalPath}`);
-
-    // Clear all transformation caches that might exist
-    // We need to iterate through all cache keys and remove those related to this original path
-    const allKeys = this.cache.getAllKeys();
-    let deletedCount = 0;
-
-    for (const key of allKeys) {
-      // Keys for transformations contain the original path in their storage key
-      // Format: exists:cache/${originalPath}-${hash}.ext
-      if (
-        key.includes(originalPath) ||
-        key.startsWith(`exists:cache/${originalPath}`)
-      ) {
-        this.cache.delete(key);
-        deletedCount++;
-      }
+    const prefix = this.derivativeEntry(originalPath, "");
+    for (const key of this.cache.getAllKeys()) {
+      if (key.startsWith(prefix)) this.cache.delete(key);
     }
-
-    logger.debug(
-      { originalPath, deletedCount },
-      "Invalidated cache entries for original path",
-    );
   }
 }

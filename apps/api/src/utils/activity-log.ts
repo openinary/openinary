@@ -1,12 +1,17 @@
 // What one publicly served asset looks like in the dashboard's Logs page, the
 // rules deciding whether a request is worth a line there, the hourly counts
 // its chart reads, and the two facts the Get started checklist reads.
-//
-// Takes its database as an argument rather than importing shared/auth, which
-// opens the real one on import: every rule below runs against an in-memory
-// database in activity-log.test.ts.
 
-import type { Database } from "better-sqlite3";
+import {
+  extOf,
+  isTransformableImageExt,
+  isVideoExt,
+  seenRecently,
+} from "@openinary/core/url";
+import { type Db, kvGet, kvInit } from "shared";
+
+// Shared with the Cloud, which bills on the same rules.
+export { isOpeningRange, seenRecently } from "@openinary/core/url";
 
 export type DeliveryKind = "image" | "video" | "other";
 
@@ -41,52 +46,12 @@ const COUNTS_RETENTION_MS = 365 * 24 * HOUR_MS;
 // Long enough for a real nested path with a transformation in front of it.
 const PATH_MAX = 200;
 
-const IMAGE_EXT = /\.(jpe?g|png|webp|avif|gif|heic|heif|svg|bmp|tiff?)$/i;
-const VIDEO_EXT = /\.(mp4|mov|webm|mkv|avi|m4v)$/i;
-
+/** Same split as the Cloud's: what the transform pipeline handles as each. */
 export function deliveryKind(path: string): DeliveryKind {
-  if (IMAGE_EXT.test(path)) return "image";
-  if (VIDEO_EXT.test(path)) return "video";
+  const ext = extOf(path);
+  if (isTransformableImageExt(ext)) return "image";
+  if (isVideoExt(ext)) return "video";
   return "other";
-}
-
-/**
- * One playback is many HTTP hits: a <video> element pulls the file in byte
- * ranges and re-requests on seek and buffer. Only the opening request is a
- * delivery worth a line.
- */
-export function isOpeningRange(range: string | undefined): boolean {
-  return !range || range.startsWith("bytes=0-");
-}
-
-/**
- * How long after a viewer opens an asset a second opening of the same asset by
- * the same viewer is still the same delivery. A browser navigating straight to
- * a video URL fetches it once for the document and again for the <video>
- * inside it, a second or so apart.
- */
-const DEDUPE_WINDOW_MS = 15_000;
-const DEDUPE_MAX_KEYS = 2_000;
-
-/**
- * Whether `key` was already counted inside the window, recording it if not.
- * A repeat does not refresh the timestamp: the window runs from the first
- * delivery.
- */
-export function seenRecently(
-  seen: Map<string, number>,
-  key: string,
-  now: number,
-): boolean {
-  const at = seen.get(key);
-  if (at !== undefined && now - at < DEDUPE_WINDOW_MS) return true;
-  seen.set(key, now);
-  if (seen.size > DEDUPE_MAX_KEYS) {
-    for (const [k, t] of seen) {
-      if (now - t >= DEDUPE_WINDOW_MS) seen.delete(k);
-    }
-  }
-  return false;
 }
 
 /**
@@ -102,42 +67,13 @@ export function isDashboardTraffic(cookie: string | undefined): boolean {
 }
 
 export class ActivityLog {
-  #db: Database;
+  #db: Db;
   #seen = new Map<string, number>();
   #prunedHour = 0;
 
-  constructor(db: Database) {
+  /** `db` must already be migrated, as shared's openDb leaves it. */
+  constructor(db: Db) {
     this.#db = db;
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS delivery_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        t INTEGER NOT NULL,
-        path TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        status INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS app_state (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS delivery_counts (
-        hour INTEGER NOT NULL,
-        kind TEXT NOT NULL,
-        delivered INTEGER NOT NULL,
-        failed INTEGER NOT NULL,
-        PRIMARY KEY (hour, kind)
-      );
-    `);
-    // An instance upgrading to counts starts them from the lines it already
-    // holds, so its chart doesn't open empty.
-    if (!db.prepare("SELECT 1 FROM delivery_counts LIMIT 1").get()) {
-      db.exec(`
-        INSERT INTO delivery_counts (hour, kind, delivered, failed)
-        SELECT (t / ${HOUR_MS}) * ${HOUR_MS}, kind,
-               SUM(status < 400), SUM(status >= 400)
-        FROM delivery_log GROUP BY 1, 2
-      `);
-    }
   }
 
   /**
@@ -216,43 +152,10 @@ export class ActivityLog {
 
   /** An upload that came from an app (API key or signature), not from here. */
   markApiUpload(): void {
-    this.#db
-      .prepare(
-        "INSERT OR IGNORE INTO app_state (key, value) VALUES ('api_upload_seen', '1')",
-      )
-      .run();
+    kvInit(this.#db, "api_upload_seen", "1");
   }
 
   apiUploadSeen(): boolean {
-    return !!this.#db
-      .prepare("SELECT 1 FROM app_state WHERE key = 'api_upload_seen'")
-      .get();
-  }
-
-  /**
-   * When `key` was first asked for: stored on the first call, read back on
-   * every one after, across restarts.
-   */
-  since(key: string, now = Date.now()): number {
-    this.#db
-      .prepare("INSERT OR IGNORE INTO app_state (key, value) VALUES (?, ?)")
-      .run(key, JSON.stringify(now));
-    return this.getState<number>(key) ?? now;
-  }
-
-  /** A JSON document kept in app_state, e.g. onboarding answers. */
-  getState<T>(key: string): T | undefined {
-    const row = this.#db
-      .prepare("SELECT value FROM app_state WHERE key = ?")
-      .get(key) as { value: string } | undefined;
-    return row ? (JSON.parse(row.value) as T) : undefined;
-  }
-
-  setState(key: string, value: unknown): void {
-    this.#db
-      .prepare(
-        "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-      )
-      .run(key, JSON.stringify(value));
+    return kvGet(this.#db, "api_upload_seen") !== undefined;
   }
 }

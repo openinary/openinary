@@ -1,1 +1,1 @@
-export { cn, isMac, toAbsoluteUrl } from "@openinary/ui/server";
+export { cn, toAbsoluteUrl } from "@openinary/ui/server";

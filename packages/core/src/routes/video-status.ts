@@ -1,33 +1,12 @@
 import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
-import {
-  decodeRequestPath,
-  parseParams,
-  isTransformSegment,
-} from "../utils/parser";
-import { getCachePath, existsInCache } from "../utils/cache";
+import { deliveryTarget } from "../url/grammar";
+import { derivativeCachePath, existsInCache } from "../utils/cache";
 import logger, { serializeError } from "../utils/logger";
-
-/**
- * Split a /video-status URL into the same (filePath, params, cachePath) triple
- * the transform route derives, so a status lookup finds the job that the
- * matching /t/ URL queued. The transformation segment, when present, belongs to
- * the params, not to the file path the job is keyed on.
- */
-function resolveStatusTarget(requestPath: string) {
-  const segments = decodeRequestPath(requestPath).split("/").slice(2); // drop '/video-status'
-  const hasTransform = segments.length > 0 && isTransformSegment(segments[0]);
-  const fullPath = `/t/${segments.join("/")}`;
-
-  return {
-    filePath: (hasTransform ? segments.slice(1) : segments).join("/"),
-    params: parseParams(fullPath),
-    cachePath: getCachePath(fullPath),
-  };
-}
+import { pathBelowMount } from "./delivery";
 
 export function createVideoStatusRoute(deps: RouteDeps) {
-  const { storage, queue: videoJobQueue } = deps;
+  const { storage, queue: videoJobQueue, paths } = deps;
   const videoStatus = new Hono();
 
   /**
@@ -37,13 +16,11 @@ export function createVideoStatusRoute(deps: RouteDeps) {
    */
   videoStatus.get("/*/size", async (c) => {
     const path = c.req.path;
-    // Remove the '/size' suffix, the rest is parsed like a transform path
-    const { filePath, params, cachePath } = resolveStatusTarget(
-      path.replace(/\/size$/, ""),
-    );
+    const { filePath, params } = deliveryTarget(pathBelowMount(c).replace(/\/size$/, ""));
 
     // Get job status first - if job is completed, we know the cache exists
     const job = videoJobQueue.getJobByPath(filePath, params);
+    const cachePath = job?.cachePath ?? derivativeCachePath(paths.cache, filePath, params);
 
     logger.info(
       {
@@ -104,38 +81,12 @@ export function createVideoStatusRoute(deps: RouteDeps) {
       "Local cache check result",
     );
 
+    // saveToCache writes atomically, so a cache file that exists is complete.
     if (existsLocally || job?.status === "completed") {
       try {
         const fs = await import("fs/promises");
         const stats = await fs.stat(cachePath);
-        const fileAge = Date.now() - stats.mtime.getTime();
-        const minAge = 5000; // 5 seconds minimum age
-
-        logger.info(
-          {
-            cachePath,
-            size: stats.size,
-            fileAge,
-            minAge,
-            isValid: fileAge >= minAge || job?.status === "completed",
-          },
-          "Local cache file stats",
-        );
-
-        // If job is completed, trust the cache file even if it's new
-        // Otherwise, check file age
-        if (job?.status === "completed" || fileAge >= minAge) {
-          // File is old enough to be considered valid or job is completed
-          return c.json({
-            size: stats.size,
-            status: "ready",
-          });
-        } else {
-          logger.debug(
-            { filePath, fileAge, jobStatus: job?.status },
-            "Cache file too new and job not completed",
-          );
-        }
+        return c.json({ size: stats.size, status: "ready" });
       } catch (error) {
         logger.error(
           { error: serializeError(error), cachePath, jobStatus: job?.status },
@@ -152,16 +103,6 @@ export function createVideoStatusRoute(deps: RouteDeps) {
           );
         }
       }
-    } else {
-      logger.warn(
-        {
-          cachePath,
-          filePath,
-          jobStatus: job?.status,
-          jobExists: !!job,
-        },
-        "Cache file does not exist and job not completed",
-      );
     }
 
     // No optimized video found
@@ -179,47 +120,14 @@ export function createVideoStatusRoute(deps: RouteDeps) {
    * Check video processing status
    */
   videoStatus.get("/*", async (c) => {
-    const { filePath, params, cachePath } = resolveStatusTarget(c.req.path);
+    const { filePath, params } = deliveryTarget(pathBelowMount(c));
 
     // Get job status
     const job = videoJobQueue.getJobByPath(filePath, params);
 
     if (!job) {
-      // Job doesn't exist - check if optimized video exists in cache/storage
-      // BUT: Only return "completed" if the file is recent enough to be valid
-      // This prevents false positives for newly uploaded videos
-
-      const existsLocally = await existsInCache(cachePath);
-
-      if (existsLocally) {
-        // Check file age to ensure it's not a stale cache entry
-        // If file was created less than 5 seconds ago, it might be incomplete
-        try {
-          const fs = await import("fs/promises");
-          const stats = await fs.stat(cachePath);
-          const fileAge = Date.now() - stats.mtime.getTime();
-          const minAge = 5000; // 5 seconds minimum age
-
-          if (fileAge >= minAge) {
-            // File is old enough to be considered valid
-            return c.json({
-              status: "completed",
-              progress: 100,
-            });
-          } else {
-            // File is too new - might be incomplete, return not_found to trigger job creation
-            logger.debug(
-              { filePath, fileAge },
-              "Cache file too new, treating as not found",
-            );
-          }
-        } catch (error) {
-          // If we can't check file stats, don't assume it's ready
-          logger.warn(
-            { error: serializeError(error), cachePath },
-            "Failed to check cache file stats",
-          );
-        }
+      if (await existsInCache(derivativeCachePath(paths.cache, filePath, params))) {
+        return c.json({ status: "completed", progress: 100 });
       }
 
       // Check cloud storage if configured
@@ -260,7 +168,7 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     // statusUrl learns when to look again too
     const estimate =
       status === "pending" || status === "processing"
-        ? await videoJobQueue.estimate(filePath, params, `./public/${filePath}`)
+        ? await videoJobQueue.estimate(filePath, params)
         : null;
 
     return c.json({
@@ -278,15 +186,6 @@ export function createVideoStatusRoute(deps: RouteDeps) {
           }
         : {}),
     });
-  });
-
-  /**
-   * GET /video-status-stats
-   * Get queue statistics (for debugging)
-   */
-  videoStatus.get("/stats", (c) => {
-    const stats = videoJobQueue.getStats();
-    return c.json(stats);
   });
 
   return videoStatus;

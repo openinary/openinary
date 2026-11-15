@@ -5,7 +5,7 @@ import logger, { serializeError } from "../utils/logger";
 
 export function createQueueRoute(deps: RouteDeps) {
   const { queue: videoJobQueue } = deps;
-  const store = videoJobQueue.getStore();
+  const { store } = videoJobQueue;
   const queue = new Hono();
 
   /**
@@ -136,8 +136,7 @@ export function createQueueRoute(deps: RouteDeps) {
    */
   queue.get("/worker/stats", (c) => {
     try {
-      const worker = videoJobQueue.getWorker();
-      const stats = worker.getStats();
+      const stats = videoJobQueue.workerStats();
       return c.json(stats);
     } catch (error) {
       logger.error(

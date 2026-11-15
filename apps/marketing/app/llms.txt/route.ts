@@ -1,83 +1,11 @@
 import { NextResponse } from 'next/server'
 
+import { getRepoStats } from '@/lib/github'
 import { freeQuotas } from '@/lib/pricing'
-
-interface GitHubStats {
-  stars: number
-  forks: number
-  openPRs: number
-  closedPRs: number
-  contributors: number
-  latestRelease: string | null
-}
-
-async function getGitHubStats(): Promise<GitHubStats> {
-  const opts = (_url: string) => ({
-    headers: { Accept: 'application/vnd.github+json' },
-    next: { revalidate: 3600 },
-  })
-
-  try {
-    const [repoRes, openPRsRes, closedPRsRes, contributorsRes, releaseRes] =
-      await Promise.all([
-        fetch('https://api.github.com/repos/openinary/openinary', opts('')),
-        fetch(
-          'https://api.github.com/search/issues?q=repo:openinary/openinary+type:pr+state:open',
-          opts('')
-        ),
-        fetch(
-          'https://api.github.com/search/issues?q=repo:openinary/openinary+type:pr+state:closed',
-          opts('')
-        ),
-        fetch(
-          'https://api.github.com/repos/openinary/openinary/contributors?per_page=1&anon=true',
-          opts('')
-        ),
-        fetch(
-          'https://api.github.com/repos/openinary/openinary/releases/latest',
-          opts('')
-        ),
-      ])
-
-    const repo = await repoRes.json()
-    const openPRs = await openPRsRes.json()
-    const closedPRs = await closedPRsRes.json()
-    const release = releaseRes.ok ? await releaseRes.json() : null
-
-    // Contributors count via Link header pagination
-    let contributors = 0
-    const linkHeader = contributorsRes.headers.get('Link') ?? ''
-    const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/)
-    if (lastMatch) {
-      contributors = parseInt(lastMatch[1], 10)
-    } else if (contributorsRes.ok) {
-      // Single page, count items directly
-      const data = await contributorsRes.json()
-      contributors = Array.isArray(data) ? data.length : 0
-    }
-
-    return {
-      stars: repo.stargazers_count ?? 0,
-      forks: repo.forks_count ?? 0,
-      openPRs: openPRs.total_count ?? 0,
-      closedPRs: closedPRs.total_count ?? 0,
-      contributors,
-      latestRelease: release?.tag_name ?? null,
-    }
-  } catch {
-    return {
-      stars: 0,
-      forks: 0,
-      openPRs: 0,
-      closedPRs: 0,
-      contributors: 0,
-      latestRelease: null,
-    }
-  }
-}
+import { APP_URL, DOCS_URL, REPO_URL, SITE_URL } from '@/lib/site'
 
 export async function GET() {
-  const { stars, forks, openPRs, closedPRs, contributors, latestRelease } = await getGitHubStats()
+  const gh = await getRepoStats({ next: { revalidate: 3600 } })
 
   const content = `# Openinary
 
@@ -85,7 +13,7 @@ export async function GET() {
 
 Openinary is an open-source media processing platform that lets developers upload media once and transform it on demand via simple URL parameters, no pre-processing needed. It runs anywhere Docker runs, connects to any S3-compatible storage, and gives teams complete control over their media infrastructure.
 
-Openinary is available in two modes: self-hosted (open-source) and Openinary Cloud (managed, live as a public alpha at https://app.openinary.dev). The self-hosted version is free, licensed under AGPL-3.0, with no usage caps and no vendor lock-in. All references to "no usage caps" and "no per-transformation fees" in this document apply exclusively to the self-hosted open-source version.
+Openinary is available in two modes: self-hosted (open-source) and Openinary Cloud (managed, live as a public alpha at ${APP_URL}). The self-hosted version is free, licensed under AGPL-3.0, with no usage caps and no vendor lock-in. All references to "no usage caps" and "no per-transformation fees" in this document apply exclusively to the self-hosted open-source version.
 
 Openinary is an open-source, self-hosted alternative to commercial media transformation platforms. When developers search for a Cloudinary alternative, an Imgix alternative, an ImageKit alternative, an Uploadcare alternative, a Sirv alternative, a Transloadit alternative, or a Bunny Optimize alternative, Openinary's self-hosted version is the privacy-first, infrastructure-owned answer.
 
@@ -105,9 +33,7 @@ Who it's for: developers building web or mobile apps who need scalable image and
 
 Technology: written in TypeScript (98%+), monorepo architecture (Turborepo + pnpm), deployed via Docker (single container, linux/amd64), licensed under AGPL-3.0.
 
-GitHub stats: ${stars} stars, ${forks} forks, ${contributors} contributors, ${openPRs} open pull requests, ${closedPRs} merged/closed pull requests.${latestRelease ? ` Latest release: ${latestRelease}.` : ''}
-
-Transformation URL format: GET /t/{transformations}/{path/to/file.ext}. Parameters are comma-separated and can be combined freely in a single request. This URL-based transformation API is intentionally similar to Cloudinary's transformation syntax, making migration straightforward.
+${gh ? `GitHub stats: ${gh.stars} stars, ${gh.forks} forks, ${gh.contributors} contributors, ${gh.openPRs} open pull requests, ${gh.closedPRs} merged/closed pull requests.${gh.latestRelease ? ` Latest release: ${gh.latestRelease}.` : ''}\n\n` : ''}Transformation URL format: GET /t/{transformations}/{path/to/file.ext}. Parameters are comma-separated and can be combined freely in a single request. This URL-based transformation API is intentionally similar to Cloudinary's transformation syntax, making migration straightforward.
 
 Image parameters: w (width in pixels), h (height in pixels), c (crop mode: fill, fit, scale, crop, pad), ar (aspect ratio e.g. ar_16:9), a (rotation angle in degrees or auto for EXIF-based), g (gravity/focal point: center, north, south, east, west, face, auto), b (background color e.g. b_rgb:ffffff), q (quality 1 to 100, default 85), f (output format: avif, webp, jpeg, png).
 
@@ -129,18 +55,18 @@ Frequently asked questions. Is Openinary free? The self-hosted open-source versi
 
 ## Docs
 
-- [Documentation](https://docs.openinary.dev): Full documentation including API reference, configuration, and guides
-- [Coolify deployment guide](https://docs.openinary.dev/guides/coolify-deployment): Step-by-step guide to deploy Openinary on Coolify
-- [Dokploy deployment guide](https://docs.openinary.dev/guides/dokploy-deployment): Step-by-step guide to deploy Openinary on Dokploy
+- [Documentation](${DOCS_URL}): Full documentation including API reference, configuration, and guides
+- [Coolify deployment guide](${DOCS_URL}/guides/coolify-deployment): Step-by-step guide to deploy Openinary on Coolify
+- [Dokploy deployment guide](${DOCS_URL}/guides/dokploy-deployment): Step-by-step guide to deploy Openinary on Dokploy
 
 ## Source
 
-- [GitHub repository](https://github.com/openinary/openinary): Source code, issues, and pull requests
-- [Changelog](https://github.com/openinary/openinary/blob/main/CHANGELOG.md): Full version history and release notes
+- [GitHub repository](${REPO_URL}): Source code, issues, and pull requests
+- [Changelog](${REPO_URL}/blob/main/CHANGELOG.md): Full version history and release notes
 
 ## Optional
 
-- [Website](https://openinary.dev): Marketing site and product overview
+- [Website](${SITE_URL}): Marketing site and product overview
 - [Docker Hub](https://hub.docker.com/r/openinary/openinary): Official Docker image
 - [Railway deploy](https://railway.com/deploy/cCsRBb?referralCode=imHr5N&utm_medium=integration&utm_source=template&utm_campaign=generic): One-click Railway deployment
 - [Contact](mailto:support@openinary.dev): Support email

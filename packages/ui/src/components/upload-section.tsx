@@ -3,6 +3,7 @@
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatFileSize } from "../details-sidebar/utils";
 import { useOpeninary } from "../provider/openinary-provider";
 import { invalidateStorage } from "../hooks/use-storage-tree";
 import { toast } from "sonner";
@@ -214,10 +215,6 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
     } finally {
       setUploading(false);
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    return (bytes / 1024 / 1024).toFixed(2) + " MB";
   };
 
   const getFileIcon = (file: File) => {

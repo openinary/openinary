@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import sharp from "sharp";
 import { TransformService } from "./transform.service";
+import { enginePathsIn } from "../config/paths";
 import { derivativeEtag, sniffImageContentType } from "../utils/delivery-headers";
 
 test("sniffImageContentType reads the encoded format, not the name", async () => {
@@ -24,18 +25,16 @@ test("derivativeEtag is a valid strong entity-tag that follows the bytes", () =>
   assert.notEqual(derivativeEtag(Buffer.from("b")), a);
 });
 
-const inTempPublic = async (fn: (dir: string) => Promise<void>) => {
+/** A service over a temp public folder holding photo.jpg. */
+const withService = async (fn: (service: TransformService) => Promise<void>) => {
   const dir = await mkdtemp(join(tmpdir(), "cache-headers-"));
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
-    await mkdir("public", { recursive: true });
+    await mkdir(join(dir, "public"));
     await sharp({ create: { width: 64, height: 48, channels: 3, background: "#c33" } })
       .jpeg()
       .toFile(join(dir, "public", "photo.jpg"));
-    await fn(dir);
+    await fn(new TransformService(null, {} as any, enginePathsIn(dir)));
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 };
@@ -45,19 +44,19 @@ for (const [accept, expected] of [
   ["image/webp,image/*", "image/webp"],
 ] as const) {
   test(`a cached derivative keeps its real type and ETag (${expected}) (#102)`, async () => {
-    await inTempPublic(async () => {
-      const service = new TransformService(null, { getJobByPath: () => undefined } as any);
-      const request = { path: "/t/w_32/photo.jpg", userAgent: "", acceptHeader: accept, context: {} as any };
+    await withService(async (service) => {
+      // A non-browser agent, so only Accept decides the format.
+      const request = { path: "/t/w_32/photo.jpg", userAgent: "test-client", acceptHeader: accept };
 
-      const fresh = await service.transform(request as any);
-      const cached = await service.transform(request as any);
+      // The local cache keeps a derivative from its second request on.
+      const fresh = await service.transform(request);
+      await service.transform(request);
+      const cached = await service.transform(request);
 
-      const freshType = fresh.contentType;
-      assert.equal(sniffImageContentType(fresh.buffer!), freshType, "fresh body matches its label");
-      assert.ok(freshType === expected || freshType.startsWith("image/"), freshType);
-      assert.equal(cached.contentType, sniffImageContentType(cached.buffer!), "cached label matches its body");
-      assert.equal(cached.contentType, freshType);
-      assert.ok(cached.buffer!.equals(fresh.buffer!), "second request came from cache");
+      assert.equal(fresh.contentType, expected);
+      assert.equal(sniffImageContentType(fresh.buffer!), expected, "fresh body matches its label");
+      assert.equal(cached.contentType, expected);
+      assert.equal(sniffImageContentType(cached.buffer!), expected, "cached body matches its label");
       assert.equal(cached.headers.ETag, fresh.headers.ETag);
       assert.match(fresh.headers.ETag, /^"[0-9a-f]{32}"$/);
     });
@@ -65,10 +64,9 @@ for (const [accept, expected] of [
 }
 
 test("a different output gets a different ETag", async () => {
-  await inTempPublic(async () => {
-    const service = new TransformService(null, { getJobByPath: () => undefined } as any);
-    const a = await service.transform({ path: "/t/w_32/photo.jpg", userAgent: "", context: {} as any } as any);
-    const b = await service.transform({ path: "/t/w_16/photo.jpg", userAgent: "", context: {} as any } as any);
+  await withService(async (service) => {
+    const a = await service.transform({ path: "/t/w_32/photo.jpg", userAgent: "" });
+    const b = await service.transform({ path: "/t/w_16/photo.jpg", userAgent: "" });
     assert.notEqual(a.headers.ETag, b.headers.ETag);
   });
 });

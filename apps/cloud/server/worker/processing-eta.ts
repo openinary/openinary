@@ -6,11 +6,10 @@
 // back is most of the wait.
 //
 // Everything here is read without waking the container: video jobs from
-// Postgres (the same rows worker/video.ts serves /video-status from), the
+// Postgres (the same rows routes/video.ts serves /video-status from), the
 // container's state and timings from its Durable Object, which answers for a
 // sleeping instance too.
 
-import { getContainer } from "@cloudflare/containers";
 import {
   DEFAULT_VIDEO_STATS,
   estimateImage,
@@ -23,19 +22,19 @@ import {
   type VideoTimingStats,
   videoCodecFamily,
 } from "@openinary/core/eta";
-import { and, desc, eq, gt, inArray } from "drizzle-orm";
-import { db } from "../api/db/index.js";
-import { mediaDuration } from "../api/db/schema/media-duration.js";
-import { videoJob } from "../api/db/schema/video-job.js";
+import { and, desc, eq, gt } from "drizzle-orm";
+import { db } from "../shared/db/index.js";
+import { mediaDuration } from "../shared/db/schema/media-duration.js";
+import { videoJob } from "../shared/db/schema/video-job.js";
 import type { ProcessingTiming } from "./container.js";
-import { sameVideoParams } from "./transform-cache.js";
+import { mediaContainer } from "./media-container.js";
+import { durationOf } from "./media-duration.js";
+import { activeVideoJobs } from "./video-jobs.js";
 
 // The container's MAX_CONCURRENT_JOBS on its instance type (1 vCPU, 3 GiB:
 // see detectOptimalConcurrency in core's video config), with CdnAssets'
 // singleton keeping it to one instance. Revisit both together.
 const VIDEO_CONCURRENCY = 1;
-// Same cut-off the container uses to tell a live job from a zombie row
-const ACTIVE_JOB_MAX_AGE_MS = 30 * 60_000;
 const STATS_WINDOW_MS = 14 * 24 * 60 * 60_000;
 const STATS_MAX_JOBS = 200;
 // Per isolate: speed drifts over days, not seconds, and this keeps the
@@ -99,9 +98,10 @@ async function containerTiming(
 ): Promise<ProcessingTiming> {
   try {
     // RPC widens the tuples to number[]; rebuild them
-    const timing = await getContainer(
-      env.MEDIA_CONTAINER,
-    ).getProcessingEstimate(path, format);
+    const timing = await mediaContainer(env).getProcessingEstimate(
+      path,
+      format,
+    );
     return {
       wake: [timing.wake[0], timing.wake[1]],
       image: [timing.image[0], timing.image[1]],
@@ -114,45 +114,25 @@ async function containerTiming(
 }
 
 /**
- * A video transform. filePath and paramsJson are the job's own key, as
- * PgVideoJobStore writes it.
+ * A video transform. filePath and params (core's, from deliveryTarget) are
+ * the job's own key, as PgVideoJobStore writes it.
  */
 export async function videoProcessingEstimate(
   env: Env,
   filePath: string,
-  params: Record<string, string>,
+  params: object,
 ): Promise<ProcessingEstimate> {
   const [active, duration, stats, timing] = await Promise.all([
-    db
-      .select({
-        filePath: videoJob.filePath,
-        paramsJson: videoJob.paramsJson,
-        status: videoJob.status,
-        priority: videoJob.priority,
-        progress: videoJob.progress,
-        createdAt: videoJob.createdAt,
-        startedAt: videoJob.startedAt,
-      })
-      .from(videoJob)
-      .where(
-        and(
-          inArray(videoJob.status, ["pending", "processing"]),
-          gt(videoJob.createdAt, Date.now() - ACTIVE_JOB_MAX_AGE_MS),
-        ),
-      ),
-    db
-      .select({ seconds: mediaDuration.seconds })
-      .from(mediaDuration)
-      .where(eq(mediaDuration.filePath, filePath))
-      .then((rows) => rows[0]?.seconds ?? null),
+    activeVideoJobs(),
+    durationOf(filePath),
     videoTimingStats(),
     containerTiming(env, null, null),
   ]);
 
+  const paramsJson = JSON.stringify(params);
   const job =
-    active.find(
-      (j) => j.filePath === filePath && sameVideoParams(j.paramsJson, params),
-    ) ?? null;
+    active.find((j) => j.filePath === filePath && j.paramsJson === paramsJson) ??
+    null;
   // Same order PgVideoJobStore.getNextPendingJob claims in. Without a job
   // yet (its first request is still reaching the queue), everything pending
   // is ahead of it.

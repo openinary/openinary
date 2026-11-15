@@ -1,97 +1,25 @@
 import { Hono } from "hono";
 import { TransformService } from "../services/transform.service";
 import type { RouteDeps } from "../config/deps";
-import { remoteSourceUrl } from "./transform-helpers";
-import { contentTypeForExt } from "../utils/upload-validation";
+import { pathBelowMount, remoteSourceUrl, respond } from "./delivery";
 import logger, { serializeError } from "../utils/logger";
-import { decodeRequestPath } from "../utils/parser";
 
 export function createTransformRoute(deps: RouteDeps) {
-  const transformService = new TransformService(deps.storage, deps.queue);
+  const transformService = new TransformService(deps.storage, deps.queue, deps.paths);
   const t = new Hono();
 
   t.get("/*", async (c) => {
-    const path = decodeRequestPath(c.req.path);
-    const userAgent = c.req.header("User-Agent") ?? "";
-    const acceptHeader = c.req.header("Accept");
-
+    const path = `/t/${pathBelowMount(c)}`;
     try {
       const result = await transformService.transform({
         path,
-        userAgent,
-        acceptHeader,
-        context: c,
-        sourceUrl: remoteSourceUrl(c),
+        userAgent: c.req.header("User-Agent") ?? "",
+        acceptHeader: c.req.header("Accept"),
+        sourceUrl: remoteSourceUrl(c, deps.allowRemoteSource ?? false),
       });
-
-      // Set response headers.
-      //
-      // Content-Length is dropped for a buffered body and kept for a streamed
-      // one, because @hono/node-server only writes its own when it can measure
-      // the body:
-      //
-      //   buffer + our header  -> "content-length" AND "Content-Length", twice
-      //   buffer, no header    -> Content-Length, correct
-      //   stream + our header  -> Content-Length, correct, no duplicate
-      //   stream, no header    -> Transfer-Encoding: chunked, length lost
-      //
-      // Two Content-Lengths is a framing error (RFC 9110 8.6): undici rejects
-      // the response outright, and a caller proxying this instance over fetch
-      // can be left awaiting one that never settles, with no status to report.
-      // Dropping it unconditionally trades that for the last line above -
-      // a bare /t/<video> would stream the original with no length at all.
-      Object.entries(result.headers).forEach(([key, value]) => {
-        if (key.toLowerCase() === "content-length" && !result.stream) return;
-        c.header(key, value);
-      });
-
-      // A stored original is served back untouched, so a file whose bytes are
-      // markup must not be allowed to become HTML in the browser: without this
-      // it would run as a page on our own origin. Set on every response - the
-      // transformed ones are re-encoded and safe already, but the header costs
-      // nothing and this way no delivery path is left uncovered.
-      c.header("X-Content-Type-Options", "nosniff");
-
-      // Determine content type if not set in headers. Falls back to the shared
-      // media-type table rather than a local map, so an extension can never be
-      // labelled here differently from how it is labelled at upload.
-      c.header(
-        "Content-Type",
-        result.contentType || contentTypeForExt(path.split(".").pop()),
-      );
-
-      // Large payloads (e.g. untransformed originals) are streamed
-      if (result.stream) {
-        return c.body(result.stream);
-      }
-
-      // Video transform still running: no content to serve yet
-      if (result.status === 202) {
-        return c.body(new Uint8Array(result.buffer!), 202);
-      }
-
-      // Transform params requested on a type that can't be transformed
-      if (result.status === 400) {
-        return c.text(result.buffer!.toString(), 400);
-      }
-      // Check if this is an error response
-      if (
-        result.contentType === "text/plain" &&
-        result.buffer!.toString().includes("failed")
-      ) {
-        const errorMessage = result.buffer!.toString();
-        if (errorMessage.includes("File not found")) {
-          return c.text(errorMessage, 404);
-        }
-        return c.text(errorMessage, 500);
-      }
-
-      return c.body(new Uint8Array(result.buffer!));
+      return respond(c, result, path);
     } catch (error) {
-      logger.error(
-        { error: serializeError(error), path },
-        "Transform route error",
-      );
+      logger.error({ error: serializeError(error), path }, "Transform route error");
       return c.text("Internal server error", 500);
     }
   });

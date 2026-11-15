@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
+} from "@openinary/dashboard/ui/dropdown-menu"
 
 interface UserDropdownProps {
   userName: string

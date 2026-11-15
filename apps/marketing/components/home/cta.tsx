@@ -1,6 +1,7 @@
-import { CtaLink } from "@/components/home/cta-button";
+import { CtaLink } from "@/components/site/cta-button";
 import { CopyCommand } from "@/components/home/copy-command";
-import { Section, SectionHeader, gutter } from "@/components/home/section";
+import { Section, SectionHeader, gutter } from "@/components/site/section";
+import { APP_URL } from "@/lib/site";
 
 /** `location` lands in the analytics event, so each page names its own. */
 export function Cta({ location = "footer_cta" }: { location?: string }) {
@@ -12,7 +13,7 @@ export function Cta({ location = "footer_cta" }: { location?: string }) {
       />
       <div className={`${gutter} flex flex-wrap items-center gap-x-5 gap-y-3 pb-14 pt-8 md:pb-20`}>
         <CtaLink
-          href="https://app.openinary.dev"
+          href={APP_URL}
           target="_blank"
           rel="noopener noreferrer"
           data-track-event="cloud_cta_clicked"

@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  DEFAULT_PLAN,
+  FEATURES,
+  formatAmount,
+  PLAN_IDS,
+  PLANS,
+} from "@openinary/plans";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -9,7 +16,7 @@ import {
   Empty,
   Field,
   Freshness,
-  LoadingRows,
+  NoData,
   StatusBadge,
 } from "@/components/fields";
 import { Badge } from "@/components/ui/badge";
@@ -32,32 +39,11 @@ import {
 import { formatBytes, formatDate, formatMoney } from "@/lib/utils";
 import { adminFetch, orpc } from "@/utils/orpc";
 
-/**
- * Autumn meters each feature in its own unit, and the balance it hands back is
- * a bare number in that unit. Two of the four are counts and read fine as-is;
- * the other two do not. Storage is metered in megabytes, so printing the
- * balance gives "1,234" where the answer is "1.2 GB", and video is metered in
- * seconds of container time while the plan quotes minutes.
- *
- * Same units the customer sees on their own plan tab (apps/web/src/lib/
- * usage.ts) - an admin reading a different number from the one being disputed
- * is the one thing this page must never do.
- */
-const count = (value: number) => value.toLocaleString();
-
-const FEATURES = {
-  storage_mb: {
-    label: "Storage",
-    format: (mb: number) => formatBytes(mb * 1024 * 1024),
-  },
-  image_transformations: { label: "Image transformations", format: count },
-  video_processing_seconds: {
-    label: "Video processing",
-    format: (seconds: number) =>
-      `${Math.round(seconds / 60).toLocaleString()} min`,
-  },
-  cdn_requests: { label: "CDN requests", format: count },
-} as const;
+// Autumn's sandbox and live dashboards live under different paths; the panel
+// points at whichever environment AUTUMN_SECRET_KEY on the server belongs to.
+const AUTUMN_DASHBOARD =
+  process.env.NEXT_PUBLIC_AUTUMN_DASHBOARD_URL ??
+  "https://app.useautumn.com/sandbox";
 
 /**
  * PostHog's log view takes its filters as URL-encoded JSON. Built here rather
@@ -118,13 +104,9 @@ export default function UserPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: query.queryKey });
     },
-    onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
-  // `data` rather than `isPending`: a refetch behind a cached fiche is not a
-  // reason to take it off the screen. Only having never had one is.
-  if (error && !data) return <Empty>{error.message}</Empty>;
-  if (!data) return <LoadingRows rows={6} />;
+  if (!data) return <NoData error={error} rows={6} />;
 
   const { user, usage, billing, buckets, apiKeys, sessions, activity, attio } =
     data;
@@ -265,9 +247,13 @@ export default function UserPage() {
               "Only meaningful for free or deliberately comped plans.",
             ]}
             field={{
-              label: "Plan id",
-              placeholder: "free",
+              label: "Plan",
+              defaultValue: PLAN_IDS.find((id) => id === usage.planId) ?? DEFAULT_PLAN,
               required: true,
+              options: PLAN_IDS.map((id) => ({
+                value: id,
+                label: `${PLANS[id].name} (${id})`,
+              })),
             }}
             confirmLabel="Change plan"
             onConfirm={(planId) =>
@@ -310,19 +296,21 @@ export default function UserPage() {
       {/* The quota tiles from dashboard-01's SectionCards, on the four
           features the plan actually meters. */}
       <div className="grid @5xl/main:grid-cols-4 @xl/main:grid-cols-2 grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card">
-        {Object.entries(FEATURES).map(([id, { label, format }]) => {
-          const feature = usage.features[id as keyof typeof FEATURES];
+        {FEATURES.map((feature) => {
+          const balance = usage.features[feature.id];
           return (
-            <Card key={id} size="sm" className="@container/card">
+            <Card key={feature.id} size="sm" className="@container/card">
               <CardHeader>
-                <CardDescription>{label}</CardDescription>
+                <CardDescription>{feature.label}</CardDescription>
                 <CardTitle className="font-semibold @[250px]/card:text-3xl text-2xl tabular-nums">
-                  {feature.unlimited ? "Unlimited" : format(feature.used)}
+                  {balance.unlimited
+                    ? "Unlimited"
+                    : formatAmount(feature, balance.used)}
                 </CardTitle>
-                {feature.unlimited ? null : (
+                {balance.unlimited ? null : (
                   <CardAction>
                     <Badge variant="outline">
-                      of {format(feature.granted)}
+                      of {formatAmount(feature, balance.granted)}
                     </Badge>
                   </CardAction>
                 )}
@@ -338,7 +326,7 @@ export default function UserPage() {
             <CardTitle>Billing — {usage.planName ?? "Free"}</CardTitle>
             <CardAction>
               <CardLink
-                href={`https://app.useautumn.com/sandbox/customers/${userId}`}
+                href={`${AUTUMN_DASHBOARD}/customers/${userId}`}
               >
                 Open in Autumn
               </CardLink>

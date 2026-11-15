@@ -16,7 +16,7 @@ API_SECRET=$(openssl rand -hex 32)
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `BETTER_AUTH_SECRET` | **required** | Signs sessions and tokens. Use 32+ characters. Startup fails only if it is unset or left at the build placeholder, so the length is on you |
+| `BETTER_AUTH_SECRET` | **required** | Signs sessions and tokens. Use 32+ characters. Startup fails if it is unset, or if it differs from the secret the database was first used with. A template placeholder or a shorter value only logs a warning |
 | `MODE` | `fullstack` | `fullstack` runs API and dashboard. `api` runs the API alone and generates a key on first boot |
 | `PORT` | `3000` | Port the API listens on. See [ports under Docker](#ports-under-docker) |
 | `BETTER_AUTH_URL` | `http://localhost:3000` | Public base URL, used for auth callbacks and CORS |

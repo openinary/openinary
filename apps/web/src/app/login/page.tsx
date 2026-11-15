@@ -7,8 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@openinary/dashboard/ui/button";
+import { Input } from "@openinary/dashboard/ui/input";
 import {
   Form,
   FormControl,

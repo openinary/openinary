@@ -9,15 +9,9 @@ import {
   preflight,
   waitForHealthy,
 } from "../lib/docker.js";
-import { getVar, parseEnv, serializeEnv, upsertVar } from "../lib/env.js";
-import {
-  requireProject,
-  type Project,
-  type ProjectMode,
-} from "../lib/project.js";
-import { DEFAULT_PORT } from "../utils/constants.js";
-import { CLIError } from "../utils/errors.js";
-import { fail, hint, pc, success, withSpinner } from "../utils/logger.js";
+import { parseEnv, serializeEnv, upsertVar } from "../lib/env.js";
+import { getProjectPort, requireProject, type Project } from "../lib/project.js";
+import { hint, pc, success, withSpinner } from "../utils/logger.js";
 import { note as noteBlock } from "../utils/prompts.js";
 
 export interface StartOptions {
@@ -28,35 +22,23 @@ export interface StartOptions {
   cwd?: string;
 }
 
-async function resolvePort(
-  project: Project,
-  overridePort?: number,
-): Promise<number> {
+/** --port is remembered in .env for the next start. */
+async function resolvePort(project: Project, overridePort?: number): Promise<number> {
+  if (overridePort === undefined) return getProjectPort(project);
   const envPath = path.join(project.dir, ".env");
   const content = (await fs.pathExists(envPath))
     ? await fs.readFile(envPath, "utf8")
     : "";
-  const lines = parseEnv(content);
-
-  if (overridePort === undefined) {
-    const current = getVar(lines, "OPENINARY_PORT");
-    return current ? Number(current) : DEFAULT_PORT;
-  }
-
-  const updated = upsertVar(lines, "OPENINARY_PORT", String(overridePort));
+  const updated = upsertVar(parseEnv(content), "OPENINARY_PORT", String(overridePort));
   await fs.writeFile(envPath, serializeEnv(updated));
   return overridePort;
-}
-
-function resolveMode(project: Project, apiOnly?: boolean): ProjectMode {
-  return apiOnly ? "api" : project.config.mode;
 }
 
 export async function runStart(options: StartOptions): Promise<void> {
   const project = await requireProject(options.cwd ?? process.cwd());
   await withSpinner("Checking Docker", () => preflight());
 
-  const mode = resolveMode(project, options.apiOnly);
+  const mode = options.apiOnly ? "api" : project.config.mode;
   const port = await resolvePort(project, options.port);
 
   if (!options.attach && (await isHealthy(port))) {
@@ -99,21 +81,19 @@ export async function runStart(options: StartOptions): Promise<void> {
   success(`Openinary is running at http://localhost:${port}`);
 }
 
-export function buildStartCommand(): Command {
-  return new Command("start")
-    .description("Start Openinary services")
+/** The options `start` and `restart` share. */
+export function addStartOptions(command: Command): Command {
+  return command
     .option("--api-only", "Start in API-only mode")
     .option("--attach", "Run in the foreground")
     .option("--port <port>", "Host port", (v) => Number(v))
-    .option("--pull", "Pull the latest images first")
+    .option("--pull", "Pull the latest images first");
+}
+
+export function buildStartCommand(): Command {
+  return addStartOptions(new Command("start"))
+    .description("Start Openinary services")
     .action(async (opts, command) => {
-      const globals = command.optsWithGlobals();
-      try {
-        await runStart({ ...opts, cwd: globals.cwd });
-      } catch (err) {
-        fail(err instanceof Error ? err.message : String(err));
-        if (err instanceof CLIError && err.hint) hint(err.hint);
-        process.exitCode = err instanceof CLIError ? err.exitCode : 1;
-      }
+      await runStart({ ...opts, cwd: command.optsWithGlobals().cwd });
     });
 }

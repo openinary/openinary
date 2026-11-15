@@ -10,6 +10,7 @@ import {
   UsageTime,
   useOpeninary,
 } from "@openinary/ui";
+import { formatSeconds, splitDelivery } from "@openinary/dashboard";
 import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
@@ -41,25 +42,6 @@ type VideoJob = {
   started_at: number | null;
   completed_at: number | null;
 };
-
-// Must match LOG_LIMIT in apps/api/src/utils/activity-log.ts.
-const LOG_LIMIT = 500;
-
-function formatSeconds(seconds: number) {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ${seconds % 60}s`;
-}
-
-/** "w_500,f_auto/photos/a.jpg" -> the transformation and the file behind it. */
-function splitDelivery(path: string): { transform: string; file: string } {
-  const slash = path.indexOf("/");
-  const first = slash === -1 ? "" : path.slice(0, slash);
-  // A transformation segment is key_value pairs; a folder is not.
-  return /^[a-z]+_[^/]+$/.test(first)
-    ? { transform: first, file: path.slice(slash + 1) }
-    : { transform: "", file: path };
-}
 
 function jobParams(json: string): string {
   try {
@@ -121,7 +103,9 @@ export function ActivityTab() {
   const deliveries = useQuery({
     queryKey: ["openinary", "activity", apiBaseUrl],
     queryFn: () =>
-      get<{ deliveries: Delivery[]; counts: DeliveryCount[] }>("/activity"),
+      get<{ deliveries: Delivery[]; counts: DeliveryCount[]; limit: number }>(
+        "/activity",
+      ),
     refetchInterval: 10_000,
   });
   const jobs = useQuery({
@@ -157,7 +141,7 @@ export function ActivityTab() {
         isError={deliveries.isError}
         isLoading={deliveries.isLoading}
         isRefreshing={deliveries.isFetching || jobs.isFetching}
-        limit={LOG_LIMIT}
+        limit={deliveries.data?.limit ?? Infinity}
         onRefresh={() => {
           deliveries.refetch();
           jobs.refetch();

@@ -1,5 +1,3 @@
-// Run with: pnpm -F server test
-//
 // DELETE /buckets/:bucketId sweeps a whole bucket by calling deleteFolder with
 // an empty folder path, which is the one place r2-storage.ts's prefix maths is
 // load-bearing in a destructive direction: too narrow and the bucket is dropped

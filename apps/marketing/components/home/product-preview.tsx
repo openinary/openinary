@@ -4,8 +4,9 @@ import { ArrowUpRight, Volume2, VolumeX } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 
-import { focusRing, pressable } from "@/components/home/cta-button";
+import { focusRing, pressable } from "@/components/site/cta-button";
 import { cn } from "@/lib/utils";
+import { APP_URL } from "@/lib/site";
 
 /**
  * The product film: 18 s, 1920x1080, made to loop, with its own score. It is
@@ -118,7 +119,7 @@ export function ProductPreview() {
           toggle stays (the hero's CTA is right above). */}
       <div className="absolute right-2.5 bottom-2.5 flex h-7 items-center rounded-full border border-black/[0.08] bg-white/55 text-xs font-medium text-black/55 backdrop-blur-md sm:right-4 sm:bottom-4 dark:border-white/10 dark:bg-black/40 dark:text-white/55">
         <a
-          href="https://app.openinary.dev"
+          href={APP_URL}
           target="_blank"
           rel="noopener noreferrer"
           data-track-event="cloud_cta_clicked"

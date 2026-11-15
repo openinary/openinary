@@ -7,15 +7,15 @@ on:
     paths:
       - 'packages/registry/**'
       - 'packages/ui/src/file-uploader/**'
-      - 'packages/core/src/utils/upload-signature.ts'
-      - 'apps/marketing/public/r/**'
+      - 'apps/marketing/components/openinary/**'
+      - 'scripts/sync-registry-block.mjs'
       - '.github/workflows/registry.yml'
   pull_request:
     paths:
       - 'packages/registry/**'
       - 'packages/ui/src/file-uploader/**'
-      - 'packages/core/src/utils/upload-signature.ts'
-      - 'apps/marketing/public/r/**'
+      - 'apps/marketing/components/openinary/**'
+      - 'scripts/sync-registry-block.mjs'
       - '.github/workflows/registry.yml'
   workflow_dispatch: {}
 
@@ -38,21 +38,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Sync file-uploader block from @openinary/ui
+      - name: Regenerate the file-uploader copies from packages/registry
         run: node scripts/sync-registry-block.mjs
 
-      - name: Fail if registry's file-uploader is out of sync with @openinary/ui
+      - name: Fail if a generated file-uploader copy was edited by hand
         run: |
-          if ! git diff --exit-code -- packages/registry/src/file-uploader/; then
-            echo "::error::packages/registry/src/file-uploader is out of sync with packages/ui. Run 'node scripts/sync-registry-block.mjs' and commit the result."
+          if ! git diff --exit-code -- packages/ui/src/file-uploader/ apps/marketing/components/openinary/; then
+            echo "::error::packages/registry/src/file-uploader is the source. Edit it, run 'node scripts/sync-registry-block.mjs' and commit the result."
             exit 1
           fi
-
-      - name: Type-check registry
-        run: pnpm --filter registry type-check
-
-      - name: Test the upload signature the registry helper depends on
-        run: pnpm --filter @openinary/core test
 
       # The output is not committed: marketing's prebuild regenerates public/r
       # on every build, so this only proves the registry builds from source.
