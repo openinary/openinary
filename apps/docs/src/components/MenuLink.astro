@@ -1,0 +1,25 @@
+---
+/** One entry of a header menu, as on the marketing site. */
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import type { NavItem } from "./nav";
+import { focusRing } from "./site";
+
+interface Props {
+  item: NavItem;
+  current?: boolean;
+}
+
+const { item, current = false } = Astro.props;
+---
+
+<a
+  href={item.href}
+  aria-current={current ? "page" : undefined}
+  class:list={["group/item press flex gap-2.5 rounded-lg px-2.5 py-2 no-underline hover:bg-chip active:scale-[0.99]!", current && "bg-chip", focusRing]}
+>
+  <Icon name={item.icon} class="mt-0.5 size-4 shrink-0 text-ink-11 transition-colors duration-150 group-hover/item:text-ink-12" />
+  <span class="min-w-0">
+    <span class="block text-[13px] font-medium leading-5 text-ink-12">{item.label}</span>
+    <span class="block text-[12px] leading-4 text-ink-10">{item.description}</span>
+  </span>
+</a>

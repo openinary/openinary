@@ -1,0 +1,17 @@
+---
+/** Mintlify's `<Accordion title>`. */
+import { Accordion, AccordionContent, AccordionTrigger } from "@/components/ui/accordion";
+
+interface Props {
+  title: string;
+  id?: string;
+  defaultOpen?: boolean;
+}
+
+const { title, id, defaultOpen } = Astro.props;
+---
+
+<Accordion id={id} open={defaultOpen}>
+  <AccordionTrigger>{title}</AccordionTrigger>
+  <AccordionContent><slot /></AccordionContent>
+</Accordion>

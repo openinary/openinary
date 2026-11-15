@@ -1,0 +1,10 @@
+---
+/** Mintlify's `<CardGroup cols={2}>`. Every page uses two columns, which is CardGrid's layout. */
+import { CardGrid } from "@/components/ui/card-grid";
+
+interface Props {
+  cols?: number;
+}
+---
+
+<CardGrid><slot /></CardGrid>

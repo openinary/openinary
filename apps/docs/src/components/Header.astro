@@ -1,0 +1,124 @@
+---
+/**
+ * The marketing site's header, 1:1 (apps/marketing/components/site/header.tsx),
+ * so no search here: it sits at the top of the sidebar.
+ * the same menus, links and buttons. Resources, which holds the docs' two
+ * parts (Documentation and the API reference), is the current item.
+ */
+import type { SidebarSection } from "@cloudflare/nimbus-docs/types";
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { stripBase } from "@cloudflare/nimbus-docs/runtime";
+import GitHubMark from "./GitHubMark.astro";
+import Mark from "./Mark.astro";
+import MenuLink from "./MenuLink.astro";
+import { docsMenu, productMenu, resourcesMenu, solutionsMenu, type NavItem } from "./nav";
+import { APP_URL, GITHUB_URL, buttonClass, docs, focusRing, linkClass, site } from "./site";
+
+interface Props {
+  /** Astro collection id for the current page, forwarded from DocsLayout. */
+  collection?: string;
+  /** Astro entry id for the current page, forwarded from DocsLayout. */
+  entryId?: string;
+  /** Whether the page has a sidebar for the phone menu button to open. */
+  showSidebar?: boolean;
+  sections?: SidebarSection[];
+}
+
+const { collection, showSidebar = true } = Astro.props;
+
+const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
+const inReference = currentSlug === "/api-reference" || currentSlug.startsWith("/api-reference/");
+const isCurrent = (item: NavItem) =>
+  collection !== undefined && (item.href === docs("/api-reference") ? inReference : item.href === docs("/") && !inReference);
+
+const menus = [
+  { label: "Product", items: productMenu },
+  { label: "Solutions", items: solutionsMenu },
+  { label: "Resources", items: resourcesMenu },
+];
+---
+
+{/* The bottom hairline shows once the page scrolls, as on the marketing site (header.client.ts). */}
+<header data-site-header class="sticky top-0 z-30 border-b-[0.5px] border-transparent bg-page transition-colors data-scrolled:border-ink-4">
+  <nav data-site-nav aria-label="Main" class="mx-auto flex h-[46px] max-w-[1248px] items-center justify-between gap-4 px-5 md:px-6">
+    <div class="flex items-center gap-6">
+      <a
+        href={site("/")}
+        aria-label="Openinary home"
+        class:list={["flex items-center gap-2 rounded-md text-[15px] font-medium tracking-[-0.02em] text-ink-12 no-underline", focusRing]}
+      >
+        <Mark class="size-[17px] text-mark" />
+        Openinary
+      </a>
+
+      <ul class="m-0 hidden list-none items-center p-0 md:flex">
+        {menus.map((menu) => (
+          <li class="relative" data-site-menu>
+            {/* The docs live under Resources, the current item here. */}
+            <button
+              type="button"
+              aria-expanded="false"
+              aria-haspopup="true"
+              aria-current={menu.label === "Resources" ? "page" : undefined}
+              data-site-menu-trigger
+              class:list={[linkClass, menu.label === "Resources" && "bg-chip text-ink-12"]}
+            >
+              {menu.label}
+              <Icon name="lucide:chevron-down" aria-hidden="true" class="size-3 text-ink-10 transition-transform duration-150 ease-(--ease-out) [[aria-expanded=true]>&]:rotate-180" />
+            </button>
+            {/* pt bridges the gap to the trigger so the pointer can travel into it. */}
+            <div data-state="closed" class="menu-pop absolute top-full -left-2 pt-2.5">
+              <ul class="m-0 grid w-[460px] list-none grid-cols-2 gap-0.5 rounded-xl bg-[var(--popover)] p-1.5 shadow-menu">
+                {menu.items.map((item) => (
+                  <li><MenuLink item={item} current={isCurrent(item)} /></li>
+                ))}
+              </ul>
+            </div>
+          </li>
+        ))}
+        <li>
+          <a href={site("/pricing")} class={linkClass}>Pricing</a>
+        </li>
+        <li>
+          <a href={site("/transparency")} class={linkClass}>Transparency</a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class:list={[linkClass, "hidden h-9 gap-1.5 lg:inline-flex"]}>
+        <GitHubMark />
+        Open source
+        <span data-github-stars class="tabular-nums text-ink-10"></span>
+      </a>
+      <a href={APP_URL} target="_blank" rel="noopener noreferrer" class:list={[buttonClass.secondary, "hidden sm:inline-flex"]}>
+        Sign in
+      </a>
+      <a href={APP_URL} target="_blank" rel="noopener noreferrer" class={buttonClass.primary}>
+        Start free
+      </a>
+      {showSidebar && (
+        <button
+          type="button"
+          aria-label="Open menu"
+          data-menu-btn
+          class:list={["grid size-9 place-items-center rounded-md text-ink-11 md:hidden", focusRing]}
+        >
+          <Icon name="lucide:menu" class="size-5" />
+        </button>
+      )}
+    </div>
+  </nav>
+  {/* Phones have no menus: the docs' two parts sit on a row under the bar. */}
+  <nav aria-label="Docs" data-nb-header-tabs class="flex h-10 items-center gap-1 overflow-x-auto border-t-[0.5px] border-ink-4 px-4 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+    {docsMenu.map((item) => (
+      <a href={item.href} aria-current={isCurrent(item) ? "page" : undefined} class:list={[linkClass, "shrink-0 whitespace-nowrap", isCurrent(item) && "bg-chip text-ink-12"]}>
+        {item.label}
+      </a>
+    ))}
+  </nav>
+</header>
+
+<script>
+  import "./header.client";
+</script>

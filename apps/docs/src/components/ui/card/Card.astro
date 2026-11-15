@@ -1,0 +1,55 @@
+---
+/**
+ * Card — a titled panel, optionally with an icon. With `href`, the whole card
+ * is the link.
+ *
+ *   <Card title="Write a page" icon="lucide:pencil">Create an .mdx file.</Card>
+ *   <Card title="Quickstart" href="/get-started/quickstart/">Your first request.</Card>
+ *
+ * For a rich title or a custom mark, use the `title` and `icon` slots.
+ */
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { cn } from "@/lib/cn";
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"article"> {
+  title?: string;
+  /** Iconify icon name, e.g. `ph:lightning`. */
+  icon?: string;
+  /** Makes the whole card a link. */
+  href?: string;
+}
+
+const { title, icon, href, class: className, ...attrs } = Astro.props;
+const hasIcon = Boolean(icon) || Astro.slots.has("icon");
+const hasTitle = Boolean(title) || Astro.slots.has("title");
+const Tag = href ? "a" : "article";
+// A linked card is named by its link, so its title is not a heading: a row of
+// cards under the page title would otherwise skip a heading level.
+const Title = href ? "p" : "h3";
+---
+
+<Tag
+  data-slot="card"
+  href={href}
+  class={cn(
+    "my-4 block rounded-xl bg-tile p-5 shadow-default",
+    href && "press group text-inherit no-underline hover:bg-control-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+    className,
+  )}
+  {...attrs}
+>
+  {hasIcon && (
+    <div data-slot="card-icon" class="mb-3 text-ink-11 transition-colors group-hover:text-ink-12">
+      <slot name="icon">{icon && <Icon name={icon} class="block size-5" />}</slot>
+    </div>
+  )}
+  {hasTitle && (
+    <Title data-slot="card-title" class={cn("m-0 text-[14px] font-medium leading-5 tracking-[-0.01em] text-ink-12")}>
+      <slot name="title">{title}</slot>
+    </Title>
+  )}
+  <div data-slot="card-content" class:list={["text-[13px] leading-5 text-ink-10", hasTitle && "mt-1"]}>
+    <slot />
+  </div>
+</Tag>

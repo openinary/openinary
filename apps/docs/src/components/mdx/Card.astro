@@ -1,0 +1,19 @@
+---
+/**
+ * Mintlify's `<Card icon="rocket">`: a bare (Font Awesome) name renders in
+ * Solar, see src/lib/icons.ts. Iconify names (`solar:…`) and local ones
+ * (`local:coolify`, from src/icons) pass through.
+ */
+import { Card } from "@/components/ui/card";
+import { iconName } from "@/lib/icons";
+
+interface Props {
+  title?: string;
+  icon?: string;
+  href?: string;
+}
+
+const { icon, ...props } = Astro.props;
+---
+
+<Card icon={icon && iconName(icon)} {...props}><slot /></Card>
