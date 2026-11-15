@@ -34,8 +34,9 @@ jobs:
       - name: Check every Dockerfile copies every workspace manifest
         run: node scripts/check-docker-manifests.mjs
 
+      # docs (Astro) needs Node 22.12+, so it runs in the Node 22 step below.
       - name: Test and type-check
-        run: pnpm exec turbo run test type-check --continue
+        run: pnpm exec turbo run test type-check --continue --filter=!docs
 
       # The Worker must never bundle sharp, ffmpeg or the filesystem (core's
       # main entrypoint pulls all three). Bundled by wrangler itself, dry run,
@@ -45,6 +46,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Test, type-check and build the docs
+        run: pnpm exec turbo run test type-check build --filter=docs
 
       - name: Check the Cloud Worker bundle
         working-directory: apps/cloud/server

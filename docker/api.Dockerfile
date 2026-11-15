@@ -42,6 +42,7 @@ COPY scripts/ ./scripts/
 # the apps this image never builds still need their manifest present.
 COPY apps/web/package.json ./apps/web/
 COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/docs/package.json ./apps/docs/
 COPY apps/telemetry/package.json ./apps/telemetry/
 COPY apps/cloud/server/package.json ./apps/cloud/server/
 COPY apps/cloud/web/package.json ./apps/cloud/web/

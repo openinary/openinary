@@ -29,6 +29,7 @@ COPY apps/web/package.json ./apps/web/
 # --frozen-lockfile compares the lockfile against every workspace project, so
 # the apps this stage never builds still need their manifest present.
 COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/docs/package.json ./apps/docs/
 COPY apps/telemetry/package.json ./apps/telemetry/
 COPY apps/cloud/server/package.json ./apps/cloud/server/
 COPY apps/cloud/web/package.json ./apps/cloud/web/
@@ -68,6 +69,7 @@ COPY apps/api/package.json ./apps/api/
 # --frozen-lockfile compares the lockfile against every workspace project, so
 # the apps this stage never builds still need their manifest present.
 COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/docs/package.json ./apps/docs/
 COPY apps/telemetry/package.json ./apps/telemetry/
 COPY apps/cloud/server/package.json ./apps/cloud/server/
 COPY apps/cloud/web/package.json ./apps/cloud/web/

@@ -31,6 +31,7 @@ COPY packages/plans/package.json ./packages/plans/
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY apps/marketing/package.json ./apps/marketing/
+COPY apps/docs/package.json ./apps/docs/
 COPY apps/telemetry/package.json ./apps/telemetry/
 COPY apps/cloud/web/package.json ./apps/cloud/web/
 COPY apps/cloud/admin/package.json ./apps/cloud/admin/
