@@ -52,10 +52,19 @@ data() {
   fi
 
   echo "== Files: $PROD_BUCKET -> $PREPROD_BUCKET (prod is only read)"
-  AWS_ACCESS_KEY_ID="$(val "$SERVER/.env" R2_ACCESS_KEY_ID)" \
-  AWS_SECRET_ACCESS_KEY="$(val "$SERVER/.env" R2_SECRET_ACCESS_KEY)" \
-    aws s3 sync "s3://$PROD_BUCKET" "s3://$PREPROD_BUCKET" --delete --only-show-errors \
-      --endpoint-url "$(val "$SERVER/.env" R2_ENDPOINT)" --region auto
+  local s3=(--endpoint-url "$(val "$SERVER/.env" R2_ENDPOINT)" --region auto)
+  export AWS_ACCESS_KEY_ID="$(val "$SERVER/.env" R2_ACCESS_KEY_ID)"
+  export AWS_SECRET_ACCESS_KEY="$(val "$SERVER/.env" R2_SECRET_ACCESS_KEY)"
+  # metadata-directive: the default also copies tags, and R2 answers
+  # NotImplemented to GetObjectTagging, which fails every multipart copy.
+  aws s3 sync "s3://$PROD_BUCKET" "s3://$PREPROD_BUCKET" --delete --only-show-errors \
+    --copy-props metadata-directive "${s3[@]}"
+  # sync skips empty "folder/" marker objects: they are the empty folders.
+  aws s3api list-objects-v2 --bucket "$PROD_BUCKET" "${s3[@]}" \
+    --query "Contents[?ends_with(Key, '/')].Key" --output text | tr '\t' '\n' | grep -v '^None$' |
+    while read -r key; do
+      [ -n "$key" ] && aws s3api put-object --bucket "$PREPROD_BUCKET" --key "$key" "${s3[@]}" >/dev/null
+    done
   echo "Data refreshed."
 }
 
