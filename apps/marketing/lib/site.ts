@@ -1,6 +1,8 @@
 export const SITE_URL = "https://openinary.dev";
 export const APP_URL = "https://app.openinary.dev";
-export const DOCS_URL = "https://docs.openinary.dev";
+/** The docs share this origin: the `docs` Worker answers openinary.dev/docs*
+ * (apps/docs), and in dev a route handler proxies /docs to a local build. */
+export const DOCS_URL = "/docs";
 export const REPO = "openinary/openinary";
 export const REPO_URL = `https://github.com/${REPO}`;
 

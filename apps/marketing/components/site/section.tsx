@@ -20,8 +20,8 @@ export function Section({
   );
 }
 
-/** Horizontal inset used by every section: 24px on phones, 40px from md up. */
-export const gutter = "px-6 md:px-10";
+/** Kept for the text pages: PageShell's container already pads them now. */
+export const gutter = "";
 
 /** `as="h2"` when the eyebrow is the section's only heading, so the outline has no gap. */
 export function Eyebrow({
@@ -33,7 +33,7 @@ export function Eyebrow({
   return (
     <Tag
       className={cn(
-        "text-[11px] font-normal uppercase leading-[1.5] tracking-[0.14em] text-muted-foreground/80",
+        "text-[13px] font-normal leading-5 text-ink-10",
         className,
       )}
       {...props}

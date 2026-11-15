@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getRepoStats } from '@/lib/github'
 import { freeQuotas } from '@/lib/pricing'
-import { APP_URL, DOCS_URL, REPO_URL, SITE_URL } from '@/lib/site'
+import { REPO_URL, SITE_URL } from '@/lib/site'
 
 export async function GET() {
   const gh = await getRepoStats({ next: { revalidate: 3600 } })
@@ -13,7 +13,7 @@ export async function GET() {
 
 Openinary is an open-source media processing platform that lets developers upload media once and transform it on demand via simple URL parameters, no pre-processing needed. It runs anywhere Docker runs, connects to any S3-compatible storage, and gives teams complete control over their media infrastructure.
 
-Openinary is available in two modes: self-hosted (open-source) and Openinary Cloud (managed, live as a public alpha at ${APP_URL}). The self-hosted version is free, licensed under AGPL-3.0, with no usage caps and no vendor lock-in. All references to "no usage caps" and "no per-transformation fees" in this document apply exclusively to the self-hosted open-source version.
+Openinary is available in two modes: self-hosted (open-source) and Openinary Cloud (managed, live at https://app.openinary.dev). The self-hosted version is free, licensed under AGPL-3.0, with no usage caps and no vendor lock-in. All references to "no usage caps" and "no per-transformation fees" in this document apply exclusively to the self-hosted open-source version.
 
 Openinary is an open-source, self-hosted alternative to commercial media transformation platforms. When developers search for a Cloudinary alternative, an Imgix alternative, an ImageKit alternative, an Uploadcare alternative, a Sirv alternative, a Transloadit alternative, or a Bunny Optimize alternative, Openinary's self-hosted version is the privacy-first, infrastructure-owned answer.
 
@@ -55,9 +55,9 @@ Frequently asked questions. Is Openinary free? The self-hosted open-source versi
 
 ## Docs
 
-- [Documentation](${DOCS_URL}): Full documentation including API reference, configuration, and guides
-- [Coolify deployment guide](${DOCS_URL}/guides/coolify-deployment): Step-by-step guide to deploy Openinary on Coolify
-- [Dokploy deployment guide](${DOCS_URL}/guides/dokploy-deployment): Step-by-step guide to deploy Openinary on Dokploy
+- [Documentation](https://openinary.dev/docs): Full documentation including API reference, configuration, and guides
+- [Coolify deployment guide](https://openinary.dev/docs/guides/coolify-deployment): Step-by-step guide to deploy Openinary on Coolify
+- [Dokploy deployment guide](https://openinary.dev/docs/guides/dokploy-deployment): Step-by-step guide to deploy Openinary on Dokploy
 
 ## Source
 

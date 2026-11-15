@@ -1,36 +1,19 @@
-import { Footer } from "@/components/site/footer";
-import { Header } from "@/components/site/header";
-import { Eyebrow, gutter } from "@/components/site/section";
-import { cn } from "@/lib/utils";
+import { SiteShell } from "@/components/site/shell";
+import { Container, H1, Lede } from "@/components/site/ui";
 
 /**
- * Every public page's shell: the 1100px column whose hairline side borders the
- * sections' own rules run out to. One place, so the
- * pages cannot drift apart on width or chrome again.
+ * Shell for the text pages (compare, legal, terms, privacy): the site's
+ * header and footer around a narrower reading column.
  */
 export function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-background">
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:ring-2 focus:ring-ring"
-      >
-        Skip to content
-      </a>
-      <div className="mx-auto w-full max-w-[1100px] md:border-x md:border-border">
-        <Header />
-        <main id="main">{children}</main>
-        <Footer />
-      </div>
-    </div>
+    <SiteShell>
+      <Container className="max-w-[1100px] pb-24">{children}</Container>
+    </SiteShell>
   );
 }
 
-/**
- * Page opener in the hero's voice, one step down: same eyebrow, same tracking,
- * a size below the homepage h1. `children` render above the eyebrow, for a
- * back link.
- */
+/** Page opener: a small label, the title, an optional line. `children` render above, for a back link. */
 export function PageIntro({
   eyebrow,
   title,
@@ -43,17 +26,11 @@ export function PageIntro({
   children?: React.ReactNode;
 }) {
   return (
-    <div className={cn(gutter, "pb-14 pt-14 md:pb-20 md:pt-20")}>
+    <div className="pt-16 pb-12 md:pt-20 md:pb-14">
       {children}
-      <Eyebrow>{eyebrow}</Eyebrow>
-      <h1 className="mt-4 max-w-[24ch] text-balance text-3xl font-semibold leading-[1.1] tracking-[-0.03em] text-foreground sm:text-4xl">
-        {title}
-      </h1>
-      {lede ? (
-        <p className="mt-5 max-w-[36rem] text-[15px] leading-[1.63] text-muted-foreground sm:text-base">
-          {lede}
-        </p>
-      ) : null}
+      <p className="text-[13px] text-ink-10">{eyebrow}</p>
+      <H1 className="mt-3 max-w-[22ch]">{title}</H1>
+      {lede ? <Lede className="mt-4">{lede}</Lede> : null}
     </div>
   );
 }

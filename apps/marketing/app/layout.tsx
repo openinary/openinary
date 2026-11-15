@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { MarkPlay } from "@/components/site/mark-play";
+import { SmoothScroll } from "@/components/site/smooth-scroll";
+import { Geist_Mono, Mona_Sans } from "next/font/google";
+import "lenis/dist/lenis.css";
 import "../styles/index.css";
 import { ThemeProvider } from "next-themes";
 import Script from "next/script";
 import { SITE_URL } from "@/lib/site";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const monaSans = Mona_Sans({
+  variable: "--font-mona",
   subsets: ["latin"],
 });
 
@@ -37,7 +40,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      // The font variables go on <html>: Tailwind sets font-family there, and a
+      // variable defined lower down leaves it invalid, so the system font shows.
+      className={`${monaSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <link
           rel="preconnect"
@@ -52,17 +61,17 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
-          storageKey="openinary-theme"
           enableSystem
-          enableColorScheme
           disableTransitionOnChange
         >
           {children}
+          <SmoothScroll />
+          <MarkPlay />
         </ThemeProvider>
       </body>
     </html>

@@ -8,6 +8,13 @@ const base = SITE_URL;
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     "/",
+    "/features",
+    "/pricing",
+    ...["developers", "startups", "agencies", "ecommerce"].map((s) => `/solutions/${s}`),
+    "/changelog",
+    "/security",
+    "/open-source",
+    "/transparency",
     "/compare",
     ...Object.keys(competitorsData.competitors).map((slug) => `/compare/${slug}`),
     "/legal",

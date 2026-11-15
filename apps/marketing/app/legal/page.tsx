@@ -73,6 +73,12 @@ export default function LegalNoticePage() {
               Openinary name and logo, remain the property of their respective owners and are not
               covered by that license.
             </P>
+            <P>
+              The icons on this website and in the Openinary dashboard come from the{" "}
+              <A href="https://www.figma.com/community/file/1166831539721848736">Solar icon set</A> by
+              480 Design, used under the{" "}
+              <A href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0 license</A>.
+            </P>
           </Section>
 
           <Section>
