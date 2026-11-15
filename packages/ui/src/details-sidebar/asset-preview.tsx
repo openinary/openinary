@@ -23,19 +23,19 @@ export function AssetPreview({
     <div>
       {/* As tall as the page header beside it, so the two rows line up. */}
       <div className="flex h-12 items-center justify-between">
-        <h3 className="text-sm font-semibold">Preview</h3>
+        <h3 className="font-medium text-[14px]/5">Preview</h3>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="relative rounded-sm text-muted-foreground transition-colors before:absolute before:-inset-2 before:content-[''] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="-mr-1.5 flex size-7 cursor-pointer items-center justify-center rounded-[8px] text-ds-muted outline-none transition-colors hover:bg-ds-hover hover:text-ds-text focus-visible:outline-2 focus-visible:outline-ds-ring"
           >
-            <X className="size-3.5" />
+            <X className="size-4" />
           </button>
         )}
       </div>
-      <div className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
+      <div className="ds-tile-inner relative aspect-square">
         {/*
           Both media types go through the same component, which owns the
           skeleton, the fade and the retry.

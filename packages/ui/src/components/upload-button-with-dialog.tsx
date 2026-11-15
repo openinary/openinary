@@ -19,7 +19,7 @@ export function UploadDialog({
 }) {
   return (
     <DefaultDialog
-      title={`Upload Files ${uploadToFolder ? `to '${uploadToFolder}'` : ""}`}
+      title={uploadToFolder ? `Upload to ${uploadToFolder}` : "Upload files"}
       isOpen={open}
       onClose={() => onOpenChange?.(false)}
       trigger={trigger}
@@ -38,7 +38,7 @@ export function UploadButtonWithDialog({
     <UploadDialog
       uploadToFolder={uploadToFolder}
       trigger={
-        <Button variant="outline" className="gap-2">
+        <Button className="gap-1.5">
           <Upload className="h-4 w-4" />
           Upload
         </Button>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { Skeleton } from "skullet/react";
 
 import { useHydrated, useOnboarding } from "@openinary/dashboard";
@@ -11,7 +10,6 @@ import {
   useUploaderNudge,
 } from "@/components/sidebar/uploader-nudge";
 import { Button } from "@openinary/dashboard/ui/button";
-import { CircularProgress } from "@openinary/dashboard/ui/circular-progress";
 import { CLOUD_AVAILABLE, isMeteredPlan, usageRatio } from "@/lib/usage";
 import { orpc } from "@/utils/orpc";
 
@@ -74,32 +72,12 @@ export function UpgradeCard() {
 function UpgradeCardContent() {
   const { data } = useQuery(orpc.usage.get.queryOptions());
   const setSettingsTab = useSettingsPage();
-  const { completed, total, isComplete, isReady } = useOnboarding();
+  const { isComplete, isReady } = useOnboarding();
   const [nudgeDismissed, dismissNudge] = useUploaderNudge();
 
-  // Until the checklist can be judged this renders the checklist row, under
-  // the skeleton: usage.get answers well before isReady does (which also waits
-  // on the API keys and the bucket listing), so judging early showed "Double
-  // your limits" for a beat and then swapped it for "Get started".
-  if (!isReady || !isComplete) {
-    return (
-      <Link
-        href="/get-started"
-        className="mb-2 flex h-9 items-center gap-2 rounded-lg border bg-background px-2.5 shadow-xs transition-colors hover:bg-accent"
-      >
-        <CircularProgress
-          value={(completed / total) * 100}
-          size={16}
-          thickness={2}
-          className="shrink-0 text-primary"
-        />
-        <p className="flex-1 truncate font-medium text-sm">Getting started</p>
-        <p className="text-muted-foreground text-xs tabular-nums">
-          {completed} of {total}
-        </p>
-      </Link>
-    );
-  }
+  // Setup has its own guide in the top bar: the upsell waits until it is
+  // done, and until it can be judged (usage.get answers before isReady).
+  if (!isReady || !isComplete) return null;
 
   // The usage payload, but only when this account is one the Alpha pitch is
   // for. planId is null without a subscription, "free" with one - both are
@@ -111,7 +89,7 @@ function UpgradeCardContent() {
   if (free && usageRatio(free.features) >= UPSELL_AT) {
     return (
       <div
-        className="mb-2 rounded-lg border bg-background p-3 shadow-xs"
+        className="mb-2 rounded-[10px] bg-(--ds-raised) shadow-(--ds-raised-shadow) p-3"
       >
         <p className="font-medium text-sm">Double your limits</p>
         <p className="mt-1 text-muted-foreground text-xs leading-relaxed">

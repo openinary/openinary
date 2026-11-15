@@ -28,9 +28,9 @@ export function DeliveryUrl({
     <p className={cn("break-all font-mono text-xs leading-relaxed", className)}>
       <span className="text-muted-foreground">{base}</span>
       {params && (
-        <span className="text-emerald-600 dark:text-emerald-400">{params}/</span>
+        <span className="text-ds-green dark:text-ds-green">{params}/</span>
       )}
-      <span className="text-sky-600 dark:text-sky-400">{path}</span>
+      <span className="text-ds-blue dark:text-ds-blue">{path}</span>
     </p>
   );
 }
@@ -50,7 +50,7 @@ export function DetailsCard({
   return (
     <section
       className={cn(
-        "space-y-3 rounded-xl border bg-background p-3 shadow-xs",
+        "ds-tile space-y-3 p-3",
         className,
       )}
     >
@@ -88,7 +88,7 @@ export function CopyButton({
         setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {copied ? <Check className="stroke-emerald-500" /> : <Copy />}
+      {copied ? <Check className="stroke-ds-green" /> : <Copy />}
       {copied ? "Copied" : label}
     </Button>
   );

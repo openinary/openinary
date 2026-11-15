@@ -105,7 +105,6 @@ export function AssetDetailsSidebar({
               asset={asset}
               isDeleting={isDeleting}
               onDownload={handleDownload}
-              onOpenInNewTab={handleOpenInNewTab}
               onRename={handleRename}
               onMove={handleMove}
               onDelete={handleDeleteRequest}

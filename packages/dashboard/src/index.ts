@@ -7,6 +7,7 @@ export {
   GetStartedHome,
   GetStartedPage,
 } from "./components/get-started/page-shell";
+export { SetupGuide } from "./components/get-started/setup-guide";
 export { useOnboarding } from "./components/get-started/use-onboarding";
 export { ImagesPlayground } from "./components/playground/images-playground";
 export { VideosPlayground } from "./components/playground/videos-playground";
@@ -16,6 +17,14 @@ export {
 } from "./components/settings/settings-page";
 export { ShellInset } from "./components/shell";
 export { AppSidebar } from "./components/sidebar/app-sidebar";
+export type { NavItem } from "./components/sidebar/nav-main";
+export {
+  initials,
+  SidebarAccount,
+  WorkspaceTile,
+} from "./components/sidebar/sidebar-account";
+export { PageHead, PageHeader, Page, Sheet } from "./components/page";
+export * from "./ui/solar-icons";
 export { useDeliveryBase } from "./hooks/use-delivery-base";
 export { useHydrated } from "./hooks/use-hydrated";
 export { formatSeconds, splitDelivery } from "./lib/activity";

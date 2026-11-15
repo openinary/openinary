@@ -99,7 +99,7 @@ export function ApiKeysTab() {
               <ApiKeyScope
                 key="bucket"
                 title="Legacy key: writes to whichever bucket is active. Replace it with a bucket-scoped one."
-                className="border-amber-600/30 text-amber-700 dark:text-amber-500"
+                className="border-ds-amber/30 text-ds-amber dark:text-ds-amber"
               >
                 any bucket
               </ApiKeyScope>

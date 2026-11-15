@@ -19,7 +19,6 @@ import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { Button } from "@openinary/dashboard/ui/button";
 import { Input } from "@openinary/dashboard/ui/input";
-import { Separator } from "@openinary/dashboard/ui/separator";
 import { Skeleton } from "skullet/react";
 import {
   Tooltip,
@@ -206,7 +205,6 @@ export function BucketsTab() {
         </SettingsSection>
       </form>
 
-      <Separator />
 
       <SettingsSection
         title="Your buckets"

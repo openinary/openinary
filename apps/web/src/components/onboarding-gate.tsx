@@ -47,9 +47,7 @@ export function OnboardingGate() {
       variant="self-hosted"
       user={session.user}
       workspace={{ name: data.workspace?.name, logo: data.workspace?.logo }}
-      workspaceMark={
-        <img src="/icon.svg" alt="" className="size-6 p-0.5 dark:invert" />
-      }
+      brand={<img src="/icon.svg" alt="" className="size-5 dark:invert" />}
       note={
         data.telemetry ? (
           <>

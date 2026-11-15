@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,7 +19,7 @@ import {
 import { Skeleton } from "skullet/react";
 import logger from "@/lib/logger";
 import { validateAuthConfig } from "@/lib/validate-auth-config";
-import { VersionBadge } from "@/components/ui/version-badge";
+import { AuthError, AuthShell } from "@/components/auth-shell";
 
 const setupFormSchema = z
   .object({
@@ -145,37 +144,15 @@ export default function SetupPage() {
   // The form itself, measured into a skeleton while the setup check runs.
   return (
     <Skeleton loading={checkingSetup} label="Loading setup">
-      <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
-        <VersionBadge />
-        <div className="relative z-10 w-full max-w-md space-y-8">
-          <div className="flex justify-center">
-            <Image
-              src="/openinary.svg"
-              alt="Openinary"
-              width={120}
-              height={120}
-              className="dark:invert"
-            />
-          </div>
-          <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Initial Setup
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Create the first administrator account
-            </p>
-          </div>
-
+      <AuthShell title="Create your account" description="You'll own this instance. Pick a password you don't use anywhere else.">
           {configError && (
-            <div className="rounded-md bg-destructive/15 p-4 border border-destructive/30">
-              <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
-                {configError}
-              </pre>
-            </div>
+            <pre className="mb-4 whitespace-pre-wrap rounded-[10px] bg-ds-red/10 px-3.5 py-2.5 font-mono text-ds-red text-xs">
+              {configError}
+            </pre>
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <div className="space-y-4">
                 <FormField
                   control={form.control}
@@ -239,7 +216,7 @@ export default function SetupPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
+                      <FormLabel>Confirm password</FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -254,11 +231,7 @@ export default function SetupPage() {
                 />
               </div>
 
-              {error && (
-                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+              {error && <AuthError>{error}</AuthError>}
 
               <Button
                 type="submit"
@@ -266,13 +239,12 @@ export default function SetupPage() {
                 className="w-full"
               >
                 {form.formState.isSubmitting
-                  ? "Creating account..."
-                  : "Create administrator account"}
+                  ? "Creating account…"
+                  : "Create account"}
               </Button>
             </form>
           </Form>
-        </div>
-      </div>
+      </AuthShell>
     </Skeleton>
   );
 }

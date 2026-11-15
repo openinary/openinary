@@ -57,7 +57,7 @@ export function AssetDeliverTab({
                 href={guide.href}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex items-center justify-between rounded-[8px] px-2 py-1.5 text-[13px] text-ds-secondary transition-colors hover:bg-ds-hover hover:text-ds-text"
               >
                 {guide.label}
                 <ArrowUpRight className="size-3.5" />

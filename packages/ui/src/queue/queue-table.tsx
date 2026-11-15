@@ -82,7 +82,7 @@ export function QueueTable({ jobs, onActionComplete }: QueueTableProps) {
               <TableCell className="font-medium max-w-xs truncate">
                 {job.file_path}
                 {job.error && (
-                  <div className="text-xs text-red-500 mt-1">{job.error}</div>
+                  <div className="text-xs text-ds-red mt-1">{job.error}</div>
                 )}
               </TableCell>
               <TableCell>
@@ -92,7 +92,7 @@ export function QueueTable({ jobs, onActionComplete }: QueueTableProps) {
                 <span
                   className={
                     job.priority === 1
-                      ? "text-orange-600 font-medium"
+                      ? "text-ds-amber font-medium"
                       : "text-muted-foreground"
                   }
                 >

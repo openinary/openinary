@@ -85,6 +85,10 @@ export function AssetsView({
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
   const panelGroupRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // State, not a ref: MediaGrid has to render again once the slot exists.
+  const [selectionSlot, setSelectionSlot] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [sidebarMinSize, setSidebarMinSize] = useState(25);
   const [sidebarMaxSize, setSidebarMaxSize] = useState(50);
   // Below md the details open as a bottom sheet instead, and the side panel
@@ -194,12 +198,13 @@ export function AssetsView({
               view={view}
               onViewChange={handleViewChange}
               showControls={!showsEmptyState}
+              selectionSlotRef={setSelectionSlot}
             />
             <div
               ref={scrollContainerRef}
               aria-busy={busy}
               className={cn(
-                "min-h-0 flex-1 space-y-6 overflow-auto @2xl/main:p-6 p-4 transition-opacity",
+                "min-h-0 flex-1 space-y-6 overflow-auto px-3 pt-1 pb-12 transition-opacity sm:px-5",
                 busy && "pointer-events-none opacity-50",
               )}
             >
@@ -210,6 +215,7 @@ export function AssetsView({
                 columns={columns}
                 view={view}
                 scrollContainerRef={scrollContainerRef}
+                selectionSlot={selectionSlot}
                 folderPath={folderPath}
                 onFolderPathChange={setFolderPath}
                 // The beam pushes onboarding, not upload.

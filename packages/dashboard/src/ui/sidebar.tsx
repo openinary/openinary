@@ -25,7 +25,7 @@ import { cn } from "@openinary/ui/server";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
+const SIDEBAR_WIDTH = "15rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
@@ -346,7 +346,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-header"
       data-sidebar="header"
       className={cn(
-        "flex flex-col gap-2 p-3 pb-1 group-data-[collapsible=icon]:px-2",
+        "flex flex-col gap-2 p-2 pb-1 group-data-[collapsible=icon]:px-2",
         className,
       )}
       {...props}
@@ -359,7 +359,7 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sidebar-footer"
       data-sidebar="footer"
-      className={cn("flex flex-col gap-2 p-3 group-data-[collapsible=icon]:px-2", className)}
+      className={cn("flex flex-col gap-2 p-2 group-data-[collapsible=icon]:px-2", className)}
       {...props}
     />
   );
@@ -379,17 +379,147 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+const MENU_BUTTON = '[data-sidebar="menu-button"]';
+
+/**
+ * The active and hover backgrounds of the rows in a SidebarContent: two pills
+ * that slide from row to row instead of a background on each. They are
+ * measured from the DOM, so any SidebarMenuButton in the content gets them
+ * without knowing. The active one moves on click, before the route answers.
+ */
+function SidebarPills({
+  root,
+}: {
+  root: React.RefObject<HTMLDivElement | null>;
+}) {
+  const activeRef = React.useRef<HTMLSpanElement>(null);
+  const hoverRef = React.useRef<HTMLSpanElement>(null);
+
+  React.useEffect(() => {
+    const el = root.current;
+    const active = activeRef.current;
+    const hover = hoverRef.current;
+    if (!el || !active || !hover) return;
+
+    let pending: Element | null = null;
+    let pendingTimer: ReturnType<typeof setTimeout> | undefined;
+    let hovered: Element | null = null;
+
+    const place = (pill: HTMLElement, target: Element | null) => {
+      if (!target || !el.contains(target)) {
+        pill.style.opacity = "0";
+        return;
+      }
+      const r = target.getBoundingClientRect();
+      const c = el.getBoundingClientRect();
+      pill.style.opacity = "1";
+      pill.style.width = `${r.width}px`;
+      pill.style.height = `${r.height}px`;
+      pill.style.transform = `translate(${r.left - c.left + el.scrollLeft}px, ${r.top - c.top + el.scrollTop}px)`;
+    };
+    const current = () =>
+      pending ?? el.querySelector(`${MENU_BUTTON}[data-active="true"]`);
+    const sync = () => {
+      const now = current();
+      place(active, now);
+      place(hover, hovered === now ? null : hovered);
+    };
+
+    const onOver = (event: PointerEvent) => {
+      const row = (event.target as Element).closest(MENU_BUTTON);
+      if (!row || row === hovered) return;
+      // Glide between rows, but appear in place on the first one.
+      hover.classList.toggle("sidebar-pill--glide", hovered !== null);
+      hovered = row;
+      sync();
+    };
+    const onLeave = () => {
+      hovered = null;
+      sync();
+    };
+    const onClick = (event: MouseEvent) => {
+      const row = (event.target as Element).closest(`a${MENU_BUTTON}`);
+      if (!row || row.getAttribute("target") === "_blank") return;
+      pending = row;
+      clearTimeout(pendingTimer);
+      pendingTimer = setTimeout(() => {
+        pending = null;
+        sync();
+      }, 1500);
+      sync();
+    };
+
+    const mutations = new MutationObserver((records) => {
+      if (records.some((record) => record.type === "attributes")) {
+        pending = null;
+      }
+      sync();
+    });
+    mutations.observe(el, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-active"],
+    });
+    const resize = new ResizeObserver(sync);
+    resize.observe(el);
+
+    el.addEventListener("pointerover", onOver);
+    el.addEventListener("pointerleave", onLeave);
+    el.addEventListener("click", onClick);
+    sync();
+    // Springs only once it has been placed, so it does not fly in on load.
+    const frame = requestAnimationFrame(() =>
+      active.classList.add("sidebar-pill--spring"),
+    );
+
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(pendingTimer);
+      mutations.disconnect();
+      resize.disconnect();
+      el.removeEventListener("pointerover", onOver);
+      el.removeEventListener("pointerleave", onLeave);
+      el.removeEventListener("click", onClick);
+    };
+  }, [root]);
+
+  return (
+    <>
+      <span
+        ref={hoverRef}
+        aria-hidden
+        className="sidebar-pill sidebar-pill--hover opacity-0"
+      />
+      <span
+        ref={activeRef}
+        aria-hidden
+        className="sidebar-pill sidebar-pill--active opacity-0"
+      />
+    </>
+  );
+}
+
+function SidebarContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div">) {
+  const ref = React.useRef<HTMLDivElement>(null);
   return (
     <div
+      ref={ref}
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        "relative flex min-h-0 flex-1 flex-col gap-1 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
         className,
       )}
       {...props}
-    />
+    >
+      <SidebarPills root={ref} />
+      {children}
+    </div>
   );
 }
 
@@ -399,7 +529,7 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-group"
       data-sidebar="group"
       className={cn(
-        "relative flex w-full min-w-0 flex-col px-3 py-1.5 group-data-[collapsible=icon]:px-2",
+        "relative flex w-full min-w-0 flex-col px-2 py-1 group-data-[collapsible=icon]:px-2",
         className,
       )}
       {...props}
@@ -419,7 +549,7 @@ function SidebarGroupLabel({
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
-        "flex h-7 shrink-0 items-center rounded-md px-2 text-muted-foreground text-xs outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        "flex h-7 shrink-0 items-center rounded-md px-2.5 text-ds-faint text-xs outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "group-data-[collapsible=icon]:-mt-7 group-data-[collapsible=icon]:opacity-0",
         className,
       )}
@@ -488,7 +618,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-1 text-sidebar-foreground/80 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-muted-foreground data-[active=true]:[&>svg]:text-sidebar-accent-foreground",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-[10px] px-2.5 py-1 text-sidebar-foreground text-left tracking-[-0.006em] outline-hidden ring-sidebar-ring transition-[width,height,padding,color,scale] duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:scale-[0.97] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-[15px] [&>svg]:shrink-0 [&>svg]:text-ds-muted data-[active=true]:[&>svg]:text-sidebar-accent-foreground",
   {
     variants: {
       variant: {
@@ -497,9 +627,9 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
       size: {
-        default: "h-7 text-sm",
-        sm: "h-7 text-xs",
-        lg: "h-9 text-sm group-data-[collapsible=icon]:p-0!",
+        default: "h-8 text-[14px]/5",
+        sm: "h-7 text-[13px]/4",
+        lg: "h-10 text-[14px]/5 group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {

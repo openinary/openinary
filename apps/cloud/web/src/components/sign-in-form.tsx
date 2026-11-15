@@ -144,7 +144,7 @@ export function GoogleButton({
 export function AuthSeparator() {
   return (
     <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
-      <span className="relative z-10 bg-card px-2 text-muted-foreground">
+      <span className="relative z-10 bg-(--ds-modal-bg) px-2 text-ds-faint text-xs">
         Or continue with
       </span>
     </div>
@@ -153,7 +153,7 @@ export function AuthSeparator() {
 
 export function AuthFooter() {
   return (
-    <div className="text-balance px-6 text-center text-muted-foreground text-xs [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">
+    <div className="text-pretty px-6 text-center text-ds-faint text-xs [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-ds-text">
       By continuing, you agree to our{" "}
       <a
         href="https://www.openinary.dev/terms"
@@ -262,22 +262,22 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-ds-panel px-4 py-10 text-ds-text">
+      <div className="ds-rise flex w-full max-w-[420px] flex-col gap-6">
         <a
           href="https://www.openinary.dev"
           className="self-center text-foreground"
         >
-          <Logo className="h-7 w-auto" />
+          <Logo className="h-6 w-auto" />
         </a>
 
-        <Card>
-          <CardHeader className="text-center">
+        <Card className="ds-modal gap-6 border-0 py-6 sm:py-8 [&>div]:px-6 sm:[&>div]:px-8">
+          <CardHeader>
             {/* This page signs in *and* signs up, so it only greets someone as
                 returning when the last-used cookie proves they are - otherwise
                 it stays neutral. Same cookie as the badge below, so both light
                 up together after hydration. */}
-            <CardTitle className="text-xl">
+            <CardTitle className="font-semibold text-[18px]/6 tracking-[-0.01em]">
               {sentTo
                 ? "Check your email"
                 : lastMethod

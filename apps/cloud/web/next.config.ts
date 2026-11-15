@@ -57,11 +57,15 @@ const config = (dev: boolean): NextConfig => ({
   skipTrailingSlashRedirect: true,
 });
 
-export default (phase: string) =>
-  withEnvStyles(config(phase === PHASE_DEVELOPMENT_SERVER), {
+// withEnvStyles takes the phase function itself: outside production it
+// returns a function of its own, and Next does not unwrap two.
+export default withEnvStyles(
+  (phase: string) => config(phase === PHASE_DEVELOPMENT_SERVER),
+  {
     color: {
       development: "#3b82f6",
       preview: "#f59e0b",
       staging: "#6b7280",
     },
-  });
+  },
+);

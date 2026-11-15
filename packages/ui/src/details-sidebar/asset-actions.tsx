@@ -2,61 +2,34 @@
 
 import {
   Download,
-  ExternalLink,
   FolderInput,
+  MoreHorizontal,
   Pencil,
   Trash2,
-  type LucideIcon,
 } from "lucide-react";
-import { type ComponentProps, forwardRef, useState } from "react";
+import { useState } from "react";
 import { DefaultDialog } from "../components/default-dialog";
 import { MoveToNavigator } from "../components/move-to-navigator";
 import { RenameSection } from "../components/rename-section";
-import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Spinner } from "../ui/spinner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
 import type { MediaFile } from "../types";
 
-const IconAction = forwardRef<
-  HTMLButtonElement,
-  ComponentProps<typeof Button> & { icon: LucideIcon; label: string }
->(({ icon: Icon, label, className, children, ...props }, ref) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        ref={ref}
-        variant="ghost"
-        size="icon"
-        aria-label={label}
-        className={cn("size-8 text-muted-foreground", className)}
-        {...props}
-      >
-        {children ?? <Icon />}
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>{label}</TooltipContent>
-  </Tooltip>
-));
-IconAction.displayName = "IconAction";
-
-/** The asset's own actions, one row of icons under its name. */
+/** The asset's own actions, under its name. */
 export function AssetActions({
   asset,
   isDeleting,
   onDownload,
-  onOpenInNewTab,
   onRename,
   onMove,
   onDelete,
@@ -64,7 +37,6 @@ export function AssetActions({
   asset: MediaFile;
   isDeleting: boolean;
   onDownload: () => void;
-  onOpenInNewTab: () => void;
   onRename: (newName: string) => Promise<boolean>;
   onMove: (destination: string) => Promise<boolean>;
   onDelete: () => void;
@@ -75,40 +47,50 @@ export function AssetActions({
     : "";
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <div className="flex justify-center gap-1">
-        <IconAction icon={Download} label="Download" onClick={onDownload} />
-        <IconAction
-          icon={ExternalLink}
-          label="Open in new tab"
-          onClick={onOpenInNewTab}
-        />
-        <IconAction
-          icon={Pencil}
-          label="Rename"
-          onClick={() => setRenaming(true)}
-        />
+    <>
+      {/* Download, named; the file's housekeeping behind one menu. Opening
+          it lives on the delivery URL card below, next to the URL it opens. */}
+      <div className="flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={onDownload}>
+          <Download />
+          Download
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <IconAction icon={FolderInput} label="Move to" />
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="More actions"
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Spinner size={14} /> : <MoreHorizontal />}
+            </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-h-[400px] w-48 overflow-y-auto">
-            <MoveToNavigator
-              ItemComponent={DropdownMenuItem}
-              currentDir={dir}
-              onSelect={onMove}
-            />
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onSelect={() => setRenaming(true)}>
+              <Pencil />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <FolderInput />
+                Move to
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-[400px] w-48 overflow-y-auto">
+                <MoveToNavigator
+                  ItemComponent={DropdownMenuItem}
+                  currentDir={dir}
+                  onSelect={onMove}
+                />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+              <Trash2 />
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <IconAction
-          icon={Trash2}
-          label="Delete"
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="hover:bg-destructive/10 hover:text-destructive"
-        >
-          {isDeleting ? <Spinner size={16} /> : undefined}
-        </IconAction>
       </div>
 
       <DefaultDialog
@@ -129,6 +111,6 @@ export function AssetActions({
           />
         )}
       </DefaultDialog>
-    </TooltipProvider>
+    </>
   );
 }

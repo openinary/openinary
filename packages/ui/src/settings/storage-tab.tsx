@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Database, HardDrive, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { Separator } from "../ui/separator";
 import { Skeleton } from "skullet/react";
 import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
@@ -112,9 +111,12 @@ export function StorageTab() {
         )}
       </SettingsSection>
 
-      <Separator />
 
-      <SettingsSection title="Cache">
+      <SettingsSection
+        danger
+        title="Cache"
+        description="Cached transformations are rebuilt on the next request, which is slower the first time."
+      >
         <SettingsList>
           <SettingsRow
             label="Clear cache"

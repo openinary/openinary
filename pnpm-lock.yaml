@@ -36,7 +36,7 @@ patchedDependencies:
     hash: cc3c405bc72ec0818cf2750758e1500de9f4e16fbda15bda39eefaebcd82d255
     path: patches/@cossistant__core@0.2.0.patch
   skullet@0.0.3:
-    hash: 686a5dce215ad673aed4fd48ed2ae1fa060647edd2e0eec915bc703b513b0be6
+    hash: aebcd5953342648766ce34903c2ffb3cfb34b4384dea486bc4f059208c0efad1
     path: patches/skullet@0.0.3.patch
 
 importers:
@@ -327,7 +327,7 @@ importers:
         version: 19.2.8(react@19.2.8)
       skullet:
         specifier: 0.0.3
-        version: 0.0.3(patch_hash=686a5dce215ad673aed4fd48ed2ae1fa060647edd2e0eec915bc703b513b0be6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.0.3(patch_hash=aebcd5953342648766ce34903c2ffb3cfb34b4384dea486bc4f059208c0efad1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -522,7 +522,7 @@ importers:
         version: link:../../packages/shared
       skullet:
         specifier: 0.0.3
-        version: 0.0.3(patch_hash=686a5dce215ad673aed4fd48ed2ae1fa060647edd2e0eec915bc703b513b0be6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.0.3(patch_hash=aebcd5953342648766ce34903c2ffb3cfb34b4384dea486bc4f059208c0efad1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -675,7 +675,7 @@ importers:
         version: 3.0.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       skullet:
         specifier: 0.0.3
-        version: 0.0.3(patch_hash=686a5dce215ad673aed4fd48ed2ae1fa060647edd2e0eec915bc703b513b0be6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.0.3(patch_hash=aebcd5953342648766ce34903c2ffb3cfb34b4384dea486bc4f059208c0efad1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     devDependencies:
       '@openinary/ui':
         specifier: workspace:*
@@ -851,7 +851,7 @@ importers:
         version: 7.66.1(react@19.2.8)
       skullet:
         specifier: 0.0.3
-        version: 0.0.3(patch_hash=686a5dce215ad673aed4fd48ed2ae1fa060647edd2e0eec915bc703b513b0be6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.0.3(patch_hash=aebcd5953342648766ce34903c2ffb3cfb34b4384dea486bc4f059208c0efad1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
@@ -20261,7 +20261,7 @@ snapshots:
 
   sisteransi@1.0.5: {}
 
-  skullet@0.0.3(patch_hash=686a5dce215ad673aed4fd48ed2ae1fa060647edd2e0eec915bc703b513b0be6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  skullet@0.0.3(patch_hash=aebcd5953342648766ce34903c2ffb3cfb34b4384dea486bc4f059208c0efad1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     optionalDependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)

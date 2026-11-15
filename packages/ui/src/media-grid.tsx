@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { createPortal } from "react-dom";
 import {
   useCallback,
   useState,
@@ -157,6 +158,12 @@ export interface MediaGridProps {
   columns?: number;
   view?: "grid" | "list";
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /**
+   * Where the selection's actions go when the host has a toolbar for them:
+   * they replace what the toolbar shows while something is selected. Without
+   * it they float over the grid as a bar.
+   */
+  selectionSlot?: HTMLElement | null;
   /** Current folder, e.g. "photos/2024". Root is `null`. Lifted to the caller since this package doesn't dictate a router. */
   folderPath?: string | null;
   onFolderPathChange?: (folderPath: string | null) => void;
@@ -285,7 +292,7 @@ function MediaGridSample({
     // is the virtual list's total, border included, as in the real list.
     const box = (rows: React.ReactNode[]) => (
       <div
-        className="@container rounded-lg border border-border overflow-hidden"
+        className="@container ds-tile"
         style={{ height: rows.length * 41 }}
       >
         {rows}
@@ -361,6 +368,7 @@ function MediaGridBody({
   beamProps,
   emptyActions,
   emptyFooter,
+  selectionSlot,
 }: MediaGridProps) {
   const { apiBaseUrl, transformBaseUrl, fetch } = useOpeninary();
   const [hideThumbnails] = useHideThumbnails();
@@ -574,7 +582,7 @@ function MediaGridBody({
   // stacks with regular toasts instead of floating independently. Must run
   // unconditionally (before the early returns below) per the Rules of Hooks.
   useEffect(() => {
-    if (selection.size === 0) {
+    if (selection.size === 0 || selectionSlot) {
       toast.dismiss(BULK_TOAST_ID);
       return;
     }
@@ -593,13 +601,15 @@ function MediaGridBody({
         id: BULK_TOAST_ID,
         duration: Infinity,
         unstyled: true,
+        // Feedback hangs from the top; the selection bar stays by the thumb.
+        position: "bottom-center",
         classNames: {
           toast:
             "!bg-transparent !border-0 !p-0 !shadow-none !w-fit !max-w-[90vw]",
         },
       },
     );
-  }, [selection, currentDir]);
+  }, [selection, currentDir, selectionSlot]);
 
   if (error) {
     return (
@@ -1093,11 +1103,25 @@ function MediaGridBody({
 
   return (
     <>
+      {selectionSlot &&
+        selection.size > 0 &&
+        createPortal(
+          <BulkActionBarContent
+            inline
+            count={selection.size}
+            onClear={clearSelection}
+            onDownload={() => bulkActionsRef.current.onDownload()}
+            onDelete={() => bulkActionsRef.current.onDelete()}
+            onMove={(destination) => setBulkMoveDestination({ destination })}
+            currentDir={currentDir}
+          />,
+          selectionSlot,
+        )}
       {/* Dialogs for grid-level context menu */}
       <DefaultDialog
         isOpen={gridUploadOpen}
         onClose={() => setGridUploadOpen(false)}
-        title={`Upload Files${folderPath ? ` to '${folderPath}'` : ""}`}
+        title={folderPath ? `Upload to ${folderPath}` : "Upload files"}
       >
         <UploadSection uploadToFolder={folderPath ?? undefined} />
       </DefaultDialog>
@@ -1116,7 +1140,7 @@ function MediaGridBody({
       <DefaultDialog
         isOpen={folderUploadTarget !== null}
         onClose={() => setFolderUploadTarget(null)}
-        title={`Upload Files to '${folderUploadTarget}'`}
+        title={`Upload to ${folderUploadTarget}`}
       >
         <UploadSection uploadToFolder={folderUploadTarget ?? undefined} />
       </DefaultDialog>
@@ -1269,12 +1293,9 @@ function MediaGridBody({
                               key="__new-folder__"
                               uploadToFolder={folderPath || undefined}
                               trigger={
-                                <div className="group relative w-[190px] h-[180px] rounded-lg border border-dashed border-border cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 flex flex-col items-center justify-center gap-2">
-                                  <Plus
-                                    className="h-6 w-6 text-muted-foreground"
-                                    strokeWidth={1.5}
-                                  />
-                                  <p className="text-sm text-muted-foreground">
+                                <div className="group relative flex h-[180px] w-[190px] cursor-pointer flex-col items-center justify-center gap-2 rounded-[14px] border border-ds-border-strong border-dashed text-ds-muted transition-colors hover:bg-ds-row-hover hover:text-ds-text">
+                                  <Plus className="size-5" strokeWidth={1.5} />
+                                  <p className="text-[13px]/5">
                                     New folder
                                   </p>
                                 </div>
@@ -1318,16 +1339,16 @@ function MediaGridBody({
                             <ContextMenuTrigger asChild>
                               <div
                                 className={cn(
-                                  "group relative w-[190px] h-[180px] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer transition-all hover:border-primary/30 hover:shadow-md data-[state=open]:border-primary/30 data-[state=open]:shadow-md",
+                                  "ds-tile group flex h-[180px] w-[190px] cursor-pointer flex-col p-1.5 transition-shadow hover:[--ds-edge:var(--ds-border-strong)] data-[state=open]:[--ds-edge:var(--ds-border-strong)]",
                                   isSelected(folder.path) &&
-                                    "ring-2 ring-primary border-primary",
+                                    "outline-2 outline-primary -outline-offset-1",
                                 )}
                                 onClick={() => handleFolderClick(folder.path)}
                                 onContextMenu={(e) => e.stopPropagation()}
                               >
                                 <div
                                   className={cn(
-                                    "absolute top-2 left-2 z-10 transition-opacity",
+                                    "absolute top-3 left-3 z-10 transition-opacity",
                                     selectionMode || isSelected(folder.path)
                                       ? "opacity-100"
                                       : "opacity-0 group-hover:opacity-100 group-data-[state=open]:opacity-100",
@@ -1345,7 +1366,10 @@ function MediaGridBody({
                                     }
                                   />
                                 </div>
-                                <div className="relative w-full h-full">
+                                {/* The contents on an inset well, the name on the tile under it:
+                                    readable on any thumbnail, and an empty
+                                    folder is just the well with its icon. */}
+                                <div className="ds-tile-inner relative min-h-0 flex-1">
                                   {previewItems.length === 4 ? (
                                     <div className="grid grid-cols-2 gap-0.5 w-full h-full">
                                       {previewItems.map((item, i) => (
@@ -1385,40 +1409,19 @@ function MediaGridBody({
                                   ) : previewItems.length === 1 ? (
                                     renderPreview(previewItems[0], "large")
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                                    <div className="flex h-full w-full items-center justify-center">
                                       <Folder
-                                        className="h-8 w-8 text-muted-foreground"
+                                        className="size-7 text-ds-faint"
                                         strokeWidth={1.5}
                                       />
                                     </div>
                                   )}
                                 </div>
-                                <div
-                                  className={cn(
-                                    "absolute inset-x-0 bottom-0 max-w-full p-3 text-left",
-                                    hideThumbnails
-                                      ? ""
-                                      : "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
-                                  )}
-                                >
-                                  <p
-                                    className={cn(
-                                      "text-sm font-medium truncate",
-                                      hideThumbnails
-                                        ? "text-foreground"
-                                        : "text-white",
-                                    )}
-                                  >
+                                <div className="flex min-w-0 items-baseline gap-2 px-1.5 pt-2 pb-0.5">
+                                  <p className="min-w-0 flex-1 truncate font-medium text-[13px]/5 text-ds-text">
                                     {folder.name}
                                   </p>
-                                  <p
-                                    className={cn(
-                                      "text-xs",
-                                      hideThumbnails
-                                        ? "text-muted-foreground"
-                                        : "text-white/70",
-                                    )}
-                                  >
+                                  <p className="shrink-0 text-[12px]/4 text-ds-faint tabular-nums">
                                     {itemCountLabel}{" "}
                                     {summary &&
                                     summary.itemCount === 1 &&
@@ -1504,7 +1507,7 @@ function MediaGridBody({
                 ref={folderListWrapperRef}
                 // A container, so the columns below drop out as the list
                 // narrows (type first, then size) and the name keeps room.
-                className="@container rounded-lg border border-border overflow-hidden"
+                className="@container ds-tile"
                 style={{
                   height: folderListVirtualizer.getTotalSize(),
                   position: "relative",
@@ -1527,7 +1530,7 @@ function MediaGridBody({
                         <CreateFolderButtonWithDialog
                           uploadToFolder={folderPath || undefined}
                           trigger={
-                            <div className="flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 text-muted-foreground">
+                            <div className="flex items-center gap-4 px-4 py-2.5 border-b border-ds-divider cursor-pointer transition-colors hover:bg-ds-row-hover text-muted-foreground">
                               <div className="flex h-6 w-6 shrink-0 items-center justify-center">
                                 <Plus className="h-4 w-4" strokeWidth={1.5} />
                               </div>
@@ -1569,8 +1572,8 @@ function MediaGridBody({
                         <ContextMenuTrigger asChild>
                           <div
                             className={cn(
-                              "group flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50",
-                              isSelected(folder.path) && "bg-muted/40",
+                              "group flex items-center gap-4 px-4 py-2.5 border-b border-ds-divider cursor-pointer transition-colors hover:bg-ds-row-hover data-[state=open]:bg-ds-row-hover",
+                              isSelected(folder.path) && "bg-ds-subtle",
                             )}
                             onClick={() => handleFolderClick(folder.path)}
                             onContextMenu={(e) => e.stopPropagation()}
@@ -1937,11 +1940,27 @@ function MediaGridBody({
             )}
 
             {files.length > 0 && view === "list" && (
+              // A container, so the columns below drop out as the list
+              // narrows (type first, then size) and the name keeps room.
+              // static: the rows measure their offset (scrollMargin) from
+              // the same ancestor as before, not from this tile.
+              <div className="@container ds-tile static!">
+              <div
+                aria-hidden
+                className="flex h-9.5 items-center gap-4 border-ds-divider border-b px-4 font-medium text-ds-muted text-xs/4"
+              >
+                <span className="w-6 shrink-0" />
+                <span className="min-w-0 flex-1">Name</span>
+                <span className="hidden w-32 shrink-0 text-right @xl:block">
+                  Type
+                </span>
+                <span className="hidden w-24 shrink-0 text-right @md:block">
+                  Size
+                </span>
+                <span className="w-20 shrink-0 @md:w-28" />
+              </div>
               <div
                 ref={listWrapperRef}
-                // A container, so the columns below drop out as the list
-                // narrows (type first, then size) and the name keeps room.
-                className="@container rounded-lg border border-border overflow-hidden"
                 style={{
                   height: listVirtualizer.getTotalSize(),
                   position: "relative",
@@ -1977,8 +1996,8 @@ function MediaGridBody({
                         <ContextMenuTrigger asChild>
                           <div
                             className={cn(
-                              "group flex items-center gap-4 px-3 py-2 border-b border-border cursor-pointer transition-colors hover:bg-muted/50 data-[state=open]:bg-muted/50 [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
-                              isSelected(media.id) && "bg-muted/40",
+                              "group flex items-center gap-4 px-4 py-2.5 border-b border-ds-divider cursor-pointer transition-colors hover:bg-ds-row-hover data-[state=open]:bg-ds-row-hover [content-visibility:auto] [contain-intrinsic-size:auto_41px]",
+                              isSelected(media.id) && "bg-ds-subtle",
                             )}
                             onClick={() => onMediaSelect(media)}
                             onContextMenu={(e) => e.stopPropagation()}
@@ -1989,7 +2008,7 @@ function MediaGridBody({
                             onMouseLeave={() => setHoveredId(null)}
                           >
                             <div
-                              className="relative h-6 w-6 shrink-0 overflow-hidden rounded bg-muted/50 cursor-pointer"
+                              className="relative size-7 shrink-0 overflow-hidden rounded-md bg-ds-hover inset-ring inset-ring-ds-border cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleSelection(media.id, {
@@ -2032,15 +2051,15 @@ function MediaGridBody({
                               </div>
                             </div>
                             <p
-                              className="min-w-0 flex-1 truncate text-sm"
+                              className="min-w-0 flex-1 truncate font-medium text-[13.5px]/4 text-ds-text"
                               title={media.name}
                             >
                               {media.name}
                             </p>
-                            <span className="hidden w-32 shrink-0 text-right text-xs text-muted-foreground @xl:block">
+                            <span className="hidden w-32 shrink-0 text-right font-mono text-[11.5px] text-ds-faint @xl:block">
                               {getMimeType(media.name)}
                             </span>
-                            <span className="hidden w-24 shrink-0 text-right text-xs text-muted-foreground @md:block">
+                            <span className="hidden w-24 shrink-0 text-right font-mono text-[11.5px] text-ds-faint tabular-nums @md:block">
                               {formatListSize(media.size)}
                             </span>
                             <div className="flex w-20 shrink-0 items-center justify-end @md:w-28">
@@ -2183,6 +2202,7 @@ function MediaGridBody({
                     </div>
                   );
                 })}
+              </div>
               </div>
             )}
           </div>

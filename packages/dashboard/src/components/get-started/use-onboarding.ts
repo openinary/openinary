@@ -7,6 +7,10 @@ export interface OnboardingStep {
   title: string;
   description: string;
   href: string;
+  /** What the button says while this is the step to do next. */
+  action: string;
+  /** For steps only the user's app can complete: what is being waited on. */
+  waiting?: string;
   done: boolean;
 }
 
@@ -35,6 +39,7 @@ export function useOnboarding(): {
       description:
         "Create an API key, then install the uploader and its secure signing route.",
       href: "/get-started/integrate",
+      action: "Connect your app",
       done: hasKey ?? false,
     },
     {
@@ -42,6 +47,8 @@ export function useOnboarding(): {
       title: "Send your first upload",
       description: "From your own app, not from here.",
       href: "/get-started/integrate",
+      action: "See how to upload",
+      waiting: "Waiting for your first upload",
       done: hasUploaded ?? false,
     },
     {
@@ -50,6 +57,8 @@ export function useOnboarding(): {
       description:
         "Render the URL you stored, then add a transformation to it.",
       href: "/get-started/images",
+      action: "Try a transformation",
+      waiting: "Waiting for your first delivery",
       done: hasDelivered ?? false,
     },
   ];

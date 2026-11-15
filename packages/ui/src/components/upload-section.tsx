@@ -219,7 +219,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
 
   const getFileIcon = (file: File) => {
     if (file.type.startsWith("image/")) {
-      return <FileImage className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
+      return <FileImage className="h-4 w-4 text-ds-blue dark:text-ds-blue" />;
     } else if (file.type.startsWith("video/")) {
       return (
         <FileVideo className="h-4 w-4 text-purple-500 dark:text-purple-400" />
@@ -255,7 +255,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
             transition-all duration-200
             ${
               isDragActive
-                ? "border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
+                ? "border-ds-blue/30 dark:border-ds-blue/30 bg-ds-blue/10 dark:bg-ds-blue/10"
                 : "border-border hover:border-muted-foreground/50 bg-muted/30"
             }
           `}
@@ -263,10 +263,10 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
           <input {...getInputProps()} />
           <div className="flex flex-col items-center gap-4">
             <Upload
-              className={`h-12 w-12 ${isDragActive ? "text-blue-500 dark:text-blue-400" : "text-muted-foreground"}`}
+              className={`h-12 w-12 ${isDragActive ? "text-ds-blue dark:text-ds-blue" : "text-muted-foreground"}`}
             />
             {isDragActive ? (
-              <p className="text-lg font-medium text-blue-600 dark:text-blue-400">
+              <p className="text-lg font-medium text-ds-blue dark:text-ds-blue">
                 Drop files here...
               </p>
             ) : (
@@ -290,7 +290,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                     className="gap-2"
                   >
                     <FolderOpen className="h-4 w-4" />
-                    Select Folder
+                    Select folder
                   </Button>
                 </div>
               </>
@@ -318,7 +318,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Upload Files
+                    Upload files
                   </>
                 )}
               </Button>
@@ -362,10 +362,10 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
             {uploadResult.success &&
               uploadResult.files &&
               uploadResult.files.length > 0 && (
-                <div className="border border-green-200 dark:border-green-800 rounded-lg p-4 bg-green-50 dark:bg-green-950/20">
+                <div className="border border-ds-green/30 dark:border-ds-green/30 rounded-lg p-4 bg-ds-green/10 dark:bg-ds-green/10">
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    <h3 className="font-semibold text-green-900 dark:text-green-100">
+                    <CheckCircle2 className="h-5 w-5 text-ds-green dark:text-ds-green" />
+                    <h3 className="font-semibold text-ds-green dark:text-ds-green">
                       Successfully uploaded {uploadResult.files.length} file(s)
                     </h3>
                   </div>
@@ -373,7 +373,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                     {uploadResult.files.map((file, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 bg-card rounded border border-green-100 dark:border-green-900/50"
+                        className="flex items-center justify-between p-3 bg-card rounded border border-ds-green/30 dark:border-ds-green/30"
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
@@ -387,7 +387,7 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                           href={`${apiBaseUrl}${file.url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium ml-4"
+                          className="text-xs text-ds-blue dark:text-ds-blue hover:text-ds-blue dark:hover:text-ds-blue font-medium ml-4"
                         >
                           View
                         </a>
@@ -398,10 +398,10 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
               )}
 
             {uploadResult.errors && uploadResult.errors.length > 0 && (
-              <div className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50 dark:bg-red-950/20">
+              <div className="border border-ds-red/30 dark:border-ds-red/30 rounded-lg p-4 bg-ds-red/10 dark:bg-ds-red/10">
                 <div className="flex items-center gap-2 mb-3">
-                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  <h3 className="font-semibold text-red-900 dark:text-red-100">
+                  <XCircle className="h-5 w-5 text-ds-red dark:text-ds-red" />
+                  <h3 className="font-semibold text-ds-red dark:text-ds-red">
                     {uploadResult.errors.length} file(s) failed
                   </h3>
                 </div>
@@ -409,12 +409,12 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
                   {uploadResult.errors.map((error, index) => (
                     <div
                       key={index}
-                      className="p-3 bg-card rounded border border-red-100 dark:border-red-900/50"
+                      className="p-3 bg-card rounded border border-ds-red/30 dark:border-ds-red/30"
                     >
-                      <p className="text-sm font-medium text-red-900 dark:text-red-100">
+                      <p className="text-sm font-medium text-ds-red dark:text-ds-red">
                         {error.filename}
                       </p>
-                      <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                      <p className="text-xs text-ds-red dark:text-ds-red mt-1">
                         {error.error}
                       </p>
                     </div>
@@ -424,14 +424,14 @@ export function UploadSection({ uploadToFolder }: { uploadToFolder?: string }) {
             )}
 
             {uploadResult.error && !uploadResult.success && (
-              <div className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50 dark:bg-red-950/20">
+              <div className="border border-ds-red/30 dark:border-ds-red/30 rounded-lg p-4 bg-ds-red/10 dark:bg-ds-red/10">
                 <div className="flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  <p className="font-semibold text-red-900 dark:text-red-100">
+                  <XCircle className="h-5 w-5 text-ds-red dark:text-ds-red" />
+                  <p className="font-semibold text-ds-red dark:text-ds-red">
                     Upload failed
                   </p>
                 </div>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                <p className="text-sm text-ds-red dark:text-ds-red mt-2">
                   {uploadResult.error}
                 </p>
               </div>

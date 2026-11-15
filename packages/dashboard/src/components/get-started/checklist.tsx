@@ -1,64 +1,112 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { buttonVariants } from "@openinary/ui";
+import { cn } from "@openinary/ui/server";
+import { ArrowRight, Check } from "lucide-react";
 import { Skeleton } from "skullet/react";
 
 import { useDashboard } from "../../adapter";
 
 import { useOnboarding } from "./use-onboarding";
-import { cn } from "@openinary/ui/server";
 
-const ROW = "flex items-center gap-3 px-3 py-3";
+const MARK =
+  "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]/none font-medium tabular-nums";
 
+/**
+ * The setup checklist. Done steps fold to one faint line, the next one opens
+ * with what to do and a button that does it, later ones wait as a number.
+ * Progress comes from what the user's app has really done, not from clicks.
+ */
 export function Checklist() {
   const { Link } = useDashboard();
   const { steps, completed, total, isReady } = useOnboarding();
+  const next = steps.findIndex((step) => !step.done);
 
   // The steps are static, only their progress loads: the real list is
   // measured into the skeleton until it is known.
   return (
     <Skeleton loading={!isReady} label="Loading your progress">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="font-medium text-sm">Your first workflow</p>
-          <p className="text-muted-foreground text-xs tabular-nums">
+      <section className="flex flex-col gap-2.5">
+        <div className="flex items-center gap-2 px-1 text-[13px]/5">
+          <h2 className="font-medium">Get set up</h2>
+          <span className="text-ds-faint tabular-nums">
             {completed} of {total}
-          </p>
+          </span>
         </div>
-        <ol className="overflow-hidden rounded-lg border">
-          {steps.map((step) => (
-            <li key={step.id} className="border-b last:border-0">
-              <Link
-                href={step.href}
-                className={cn(ROW, "transition-colors hover:bg-muted/50")}
-              >
-                <span
+        <ol className="ds-tile ds-tile-rows">
+          {steps.map((step, index) => {
+            const current = index === next;
+            return (
+              <li key={step.id} className="ds-tile-row">
+                <Link
+                  href={step.href}
                   className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded-full border",
-                    step.done &&
-                      "border-transparent bg-primary text-primary-foreground",
+                    "flex gap-3 px-4 transition-colors hover:bg-ds-row-hover",
+                    current ? "items-start py-3.5" : "h-11 items-center",
                   )}
                 >
-                  {step.done && <Check className="size-3" />}
-                </span>
-                <span className="min-w-0 flex-1">
                   <span
                     className={cn(
-                      "block font-medium text-sm",
-                      step.done && "text-muted-foreground line-through",
+                      MARK,
+                      step.done && "bg-ds-active text-ds-muted",
+                      current && "bg-ds-inverse text-ds-inverse-text",
+                      !step.done &&
+                        !current &&
+                        "text-ds-faint inset-ring inset-ring-ds-border-strong",
                     )}
                   >
-                    {step.title}
+                    {step.done ? (
+                      <Check className="mi-pop size-3" strokeWidth={2.4} />
+                    ) : (
+                      index + 1
+                    )}
                   </span>
-                  <span className="block text-muted-foreground text-xs">
-                    {step.description}
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block text-[13.5px]/5",
+                        current && "font-medium",
+                        step.done && "text-ds-faint",
+                        !step.done && !current && "text-ds-muted",
+                      )}
+                    >
+                      {step.title}
+                    </span>
+                    {current && (
+                      <>
+                        <span className="mt-0.5 block text-[13px]/5 text-ds-muted text-pretty">
+                          {step.description}
+                        </span>
+                        <span
+                          className={cn(
+                            buttonVariants({ size: "xs" }),
+                            "mt-3",
+                          )}
+                        >
+                          {step.action}
+                          <ArrowRight className="mi-arrow" />
+                        </span>
+                        {step.waiting && (
+                          <span
+                            aria-live="polite"
+                            className="ds-pill ds-pill-blue mt-3 ml-2 align-middle"
+                          >
+                            <span className="mi-spin size-2.5 rounded-full border-[1.5px] border-current border-t-transparent" />
+                            {step.waiting}
+                          </span>
+                        )}
+                      </>
+                    )}
                   </span>
-                </span>
-              </Link>
-            </li>
-          ))}
+                  {step.done && (
+                    <span className="text-[12.5px]/4 text-ds-faint">Done</span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
         </ol>
-      </div>
+      </section>
     </Skeleton>
   );
 }

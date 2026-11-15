@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { BucketAvatar } from "@/components/bucket-avatar";
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import {
   trackOnboardingStarted,
@@ -39,7 +38,6 @@ export function OnboardingGate() {
       variant="cloud"
       user={user}
       workspace={{ name: bucket.name }}
-      workspaceMark={<BucketAvatar id={bucket.id} size={24} />}
       onStepComplete={(step, answers, skipped) => {
         if (step === 0) {
           trackOnboardingStepCompleted({

@@ -275,7 +275,7 @@ function PreviewFrame({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex h-44 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+      <div className="ds-tile-inner flex h-44 items-center justify-center">
         {ratio ? (
           <div
             className={cn("overflow-hidden", params.c === "pad" && "bg-background")}

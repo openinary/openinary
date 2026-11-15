@@ -60,7 +60,7 @@ function TabsList({
         "relative z-0 flex w-fit items-center justify-center gap-x-0.5 text-muted-foreground",
         "data-[orientation=vertical]:flex-col",
         variant === "default"
-          ? "rounded-xl bg-muted p-[3px] text-muted-foreground"
+          ? "rounded-xl bg-ds-active p-[3px] text-ds-muted inset-ring inset-ring-ds-border dark:bg-ds-panel"
           : "data-[orientation=vertical]:px-1 data-[orientation=horizontal]:py-1 *:data-[slot=tabs-trigger]:hover:bg-accent",
         className,
       )}
@@ -70,10 +70,10 @@ function TabsList({
       {children}
       <TabsPrimitive.Indicator
         className={cn(
-          "-translate-y-(--active-tab-bottom) absolute bottom-0 left-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) transition-[width,translate] duration-200 ease-in-out [[data-resizing]_&]:transition-none",
+          "-translate-y-(--active-tab-bottom) absolute bottom-0 left-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) transition-[width,translate] duration-300 ease-move [[data-resizing]_&]:transition-none",
           variant === "underline"
             ? "data-[orientation=vertical]:-translate-x-px z-10 bg-primary data-[orientation=horizontal]:h-0.5 data-[orientation=vertical]:w-0.5 data-[orientation=horizontal]:translate-y-px"
-            : "-z-1 rounded-[9px] border bg-background shadow-xs dark:bg-input",
+            : "-z-1 rounded-[9px] bg-(--ds-raised) shadow-(--ds-thumb-shadow) dark:bg-ds-active",
         )}
         data-slot="tab-indicator"
       />
@@ -85,9 +85,9 @@ function TabsTab({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
       className={cn(
-        "[&_svg]:-mx-0.5 flex shrink-0 grow cursor-pointer items-center justify-center whitespace-nowrap rounded-[9px] border border-transparent font-medium text-base outline-none transition-[color,background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring data-disabled:pointer-events-none data-disabled:opacity-64 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        "hover:text-foreground data-active:font-semibold data-active:text-foreground",
-        "h-9 gap-1.5 px-[calc(--spacing(2.5)-1px)] sm:h-8",
+        "[&_svg]:-mx-0.5 flex shrink-0 grow cursor-pointer items-center justify-center whitespace-nowrap rounded-[9px] border border-transparent font-medium text-[13.5px]/5 tracking-[-0.01em] outline-none transition-[color,scale] duration-150 focus-visible:outline-2 focus-visible:outline-ds-ring active:scale-[0.97] data-disabled:pointer-events-none data-disabled:opacity-64 motion-reduce:active:scale-100 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "hover:text-ds-text data-active:text-ds-text",
+        "h-7 gap-1.5 px-3",
         "data-[orientation=vertical]:w-full data-[orientation=vertical]:justify-start",
         className,
       )}

@@ -1,27 +1,33 @@
 "use client";
 
-import { AppSidebar as DashboardSidebar } from "@openinary/dashboard";
-import { SidebarFooter } from "@openinary/dashboard/ui/sidebar";
 import {
-  Boxes,
-  ChartColumn,
-  KeyRound,
-  LayoutGrid,
-  Palette,
-  ScrollText,
-} from "lucide-react";
+  AppSidebar as DashboardSidebar,
+  SolarAssets,
+  SolarBuckets,
+  SolarKey,
+  SolarLogs,
+  SolarPalette,
+  SolarUsage,
+} from "@openinary/dashboard";
 
 import { FILE_UPLOADER_DOCS } from "@/components/dashboard-providers";
+import { Logo } from "@/components/logo";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { BucketSwitcher } from "@/components/sidebar/bucket-switcher";
-import { NavSettings } from "@/components/sidebar/nav-plan";
 import { UpgradeCard } from "@/components/sidebar/upgrade-card";
 
 const mainItems = [
-  { title: "Assets", icon: LayoutGrid, url: "/" },
-  { title: "Usage", icon: ChartColumn, url: "/settings/billing" },
-  { title: "Logs", icon: ScrollText, url: "/settings/logs" },
-  { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
+  { title: "Assets", icon: SolarAssets, url: "/" },
+  { title: "Usage", icon: SolarUsage, url: "/settings/billing" },
+  { title: "Logs", icon: SolarLogs, url: "/settings/logs" },
+  { title: "API keys", icon: SolarKey, url: "/settings/api-keys" },
+];
+
+// The settings pages the sidebar does not already list above.
+const settingsPages = [
+  { title: "Buckets", url: "/settings/buckets" },
+  { title: "Storage", url: "/settings/storage" },
+  { title: "Appearance", url: "/settings/appearance" },
 ];
 
 export function AppSidebar() {
@@ -29,30 +35,25 @@ export function AppSidebar() {
 
   return (
     <DashboardSidebar
-      header={<BucketSwitcher />}
+      brand={<Logo markOnly className="size-[18px]" />}
       mainItems={mainItems}
+      settingsPages={settingsPages}
       settingsActions={[
         {
           label: "Manage buckets",
           group: "Settings",
-          icon: Boxes,
+          icon: SolarBuckets,
           onSelect: () => setSettingsTab("buckets"),
         },
         {
           label: "Appearance",
           group: "Settings",
-          icon: Palette,
+          icon: SolarPalette,
           onSelect: () => setSettingsTab("appearance"),
         },
       ]}
-      footer={
-        <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:px-0">
-          <UpgradeCard />
-          <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
-            <NavSettings />
-          </div>
-        </SidebarFooter>
-      }
+      notices={<UpgradeCard />}
+      account={<BucketSwitcher />}
       uploaderHref={FILE_UPLOADER_DOCS}
     />
   );

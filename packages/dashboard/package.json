@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./ui/*": "./src/ui/*.tsx",
+    "./theme.css": "./src/theme.css",
     "./uploader-demo.css": "./src/uploader-demo.css"
   },
   "scripts": {

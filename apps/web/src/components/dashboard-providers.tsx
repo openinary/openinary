@@ -46,6 +46,10 @@ function useOnboardingSignals() {
       if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
       return res.json();
     },
+    // The checklist is waiting on the user's own app: look again every few
+    // seconds until both have happened, so a step ticks while they watch.
+    refetchInterval: ({ state }) =>
+      state.data?.uploaded && state.data.delivered ? false : 4000,
   });
 
   return {

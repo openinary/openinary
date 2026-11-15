@@ -225,7 +225,7 @@ function ApiKeyRow({
   ];
 
   return (
-    <details className="group open:bg-muted/40">
+    <details className="group open:bg-ds-subtle">
       {/* One row of four columns when there's room, stacked when not. */}
       <summary className="grid cursor-pointer list-none items-center gap-x-6 gap-y-2 px-5 py-3.5 outline-none [grid-template-areas:'name_chevron'_'scopes_scopes'_'meta_meta'] grid-cols-[minmax(0,1fr)_auto] focus-visible:bg-muted/40 @xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,11rem)_auto] @xl:[grid-template-areas:'name_scopes_meta_chevron'] [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 [grid-area:name]">
@@ -321,7 +321,7 @@ export function ApiKeysCard({
     ).length ?? 0;
 
   return (
-    <div className="@container overflow-hidden rounded-xl border bg-card">
+    <div className="@container ds-tile">
       <div className="flex items-center justify-between gap-4 px-5 py-3">
         <Skeleton loading={!!isLoading}>
           <p className="text-sm text-muted-foreground">
@@ -340,7 +340,7 @@ export function ApiKeysCard({
           recalls the list as it last looked (how many keys, or none), so the
           card is its final height from the start. */}
       <Skeleton id="api-keys" loading={!!isLoading} label="Loading API keys">
-        <div className="divide-y border-t">
+        <div className="divide-y divide-(--ds-rule) border-(--ds-rule) border-t">
           {isLoading ? (
             SAMPLE_KEYS.map((key) => (
               <ApiKeyRow

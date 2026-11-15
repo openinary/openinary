@@ -85,7 +85,7 @@ const longDate = (ms: number) =>
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("min-w-0 rounded-xl border bg-card p-5", className)}
+      className={cn("ds-tile min-w-0 p-5", className)}
       {...props}
     />
   );
@@ -94,12 +94,12 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
 type Tone = "neutral" | "warning" | "danger";
 const TONE_TEXT: Record<Tone, string> = {
   neutral: "",
-  warning: "text-amber-600 dark:text-amber-500",
+  warning: "text-ds-amber dark:text-ds-amber",
   danger: "text-destructive",
 };
 const TONE_FILL: Record<Tone, string> = {
   neutral: "bg-foreground/70",
-  warning: "bg-amber-500",
+  warning: "bg-ds-amber",
   danger: "bg-destructive",
 };
 
@@ -164,7 +164,7 @@ function PeriodChart({
                 x2="100"
                 y1={y(limit)}
                 y2={y(limit)}
-                className="stroke-amber-500"
+                className="stroke-ds-amber"
                 strokeDasharray="2 3"
                 vectorEffect="non-scaling-stroke"
               />
@@ -204,7 +204,7 @@ function PeriodChart({
         <div className="relative w-16 shrink-0 text-[11px] text-muted-foreground tabular-nums">
           {limit !== null && (
             <span
-              className="absolute -translate-y-1/2 truncate text-amber-600 dark:text-amber-500"
+              className="absolute -translate-y-1/2 truncate text-ds-amber dark:text-ds-amber"
               style={{ top: `${y(limit)}%` }}
             >
               {format(limit)}
@@ -566,7 +566,7 @@ export function BillingTab() {
               </>
             ) : runningOut ? (
               <>
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-ds-amber dark:text-ds-amber" />
                 <span>
                   On pace to run out of {runningOut.label.toLowerCase()} around{" "}
                   {shortDate(runningOut.at)}.
@@ -618,7 +618,7 @@ export function BillingTab() {
               <>
                 {" · "}
                 <span
-                  className={cn(!card && "text-amber-600 dark:text-amber-500")}
+                  className={cn(!card && "text-ds-amber dark:text-ds-amber")}
                 >
                   {cardText}
                 </span>
@@ -627,7 +627,7 @@ export function BillingTab() {
           </p>
 
           {cancelsAt && (
-            <p className="mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-700 text-xs dark:text-amber-400">
+            <p className="mt-3 flex items-start gap-1.5 rounded-md border border-ds-amber/30 bg-ds-amber px-2.5 py-1.5 text-ds-amber text-xs dark:text-ds-amber">
               <AlertTriangle className="mt-px size-3.5 shrink-0" />
               <span>
                 Subscription cancelled. {planName} stays active until{" "}

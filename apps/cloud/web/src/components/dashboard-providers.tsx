@@ -71,7 +71,12 @@ function useHasApiKey() {
  */
 function useOnboardingSignals() {
   const usage = useQuery(orpc.usage.get.queryOptions());
-  const onboarding = useQuery(orpc.usage.onboarding.queryOptions());
+  // The checklist is waiting on the user's own app: look again every few
+  // seconds until the first upload lands, so the step ticks while they watch.
+  const onboarding = useQuery({
+    ...orpc.usage.onboarding.queryOptions(),
+    refetchInterval: ({ state }) => (state.data?.uploaded ? false : 4000),
+  });
 
   return {
     hasUploaded: onboarding.data?.uploaded,

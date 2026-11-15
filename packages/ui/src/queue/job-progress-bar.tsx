@@ -17,14 +17,14 @@ export function JobProgressBar({ progress, status, className }: JobProgressBarPr
         value={progress}
         className={cn(
           "h-2",
-          isCompleted && "[&>div]:bg-green-500",
-          isError && "[&>div]:bg-red-500",
+          isCompleted && "[&>div]:bg-ds-green",
+          isError && "[&>div]:bg-ds-red",
         )}
       />
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{progress}%</span>
-        {isCompleted && <span className="text-green-600">Done</span>}
-        {isError && <span className="text-red-600">Failed</span>}
+        {isCompleted && <span className="text-ds-green">Done</span>}
+        {isError && <span className="text-ds-red">Failed</span>}
       </div>
     </div>
   );
