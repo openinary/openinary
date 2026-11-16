@@ -206,6 +206,8 @@
   }
   html {
     scroll-padding-top: 72px;
+    /* Keeps the scrollbar's room when the mobile menu locks the page: no sideways jump. */
+    scrollbar-gutter: stable;
   }
   body {
     @apply bg-page text-ink-12;
