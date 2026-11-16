@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import logger from "@/lib/logger";
-import { Input } from "./ui/input";
+import { Input } from "@openinary/dashboard/ui/input";
 
 const DEFAULT_EXPIRES = "365";
 const DAY_SECONDS = 24 * 60 * 60;
@@ -40,12 +40,8 @@ export function ApiKeyManager() {
   const loadKeys = async () => {
     try {
       const result = await authClient.apiKey.list();
-      if (result.data) {
-        const apiKeys = Array.isArray(result.data)
-          ? result.data
-          : ((result.data as { apiKeys?: unknown[] }).apiKeys ?? []);
-        setKeys(apiKeys as unknown as ApiKey[]);
-      }
+      if (result.error) throw new Error(result.error.message);
+      setKeys(result.data.apiKeys);
     } catch (err) {
       logger.error("Error loading API keys", { error: err });
       setError("Failed to load API keys.");

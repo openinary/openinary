@@ -4,23 +4,12 @@ import { useState } from "react";
 import { Database, HardDrive, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { Separator } from "../ui/separator";
 import { Skeleton } from "skullet/react";
 import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
+import { formatFileSize } from "../details-sidebar/utils";
 import { cn } from "../lib/utils";
 import { SettingsList, SettingsRow, SettingsSection } from "./settings-section";
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const exponent = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  const value = bytes / 1024 ** exponent;
-  return `${exponent === 0 ? value : value.toFixed(2)} ${units[exponent]}`;
-}
 
 function formatUpdatedAt(iso: string): string {
   const elapsedMs = Date.now() - new Date(iso).getTime();
@@ -42,7 +31,7 @@ export function StorageTab() {
   const stat = (size?: number, count?: number, noun = "file") => (
     <Skeleton loading={isLoading}>
       <span className="font-medium tabular-nums">
-        {formatBytes(isLoading ? 123_456_789 : (size ?? 0))}
+        {formatFileSize(isLoading ? 123_456_789 : (size ?? 0))}
       </span>
       <span className="ml-2 text-muted-foreground tabular-nums">
         {isLoading ? 128 : (count ?? 0)} {noun}
@@ -122,9 +111,12 @@ export function StorageTab() {
         )}
       </SettingsSection>
 
-      <Separator />
 
-      <SettingsSection title="Cache">
+      <SettingsSection
+        danger
+        title="Cache"
+        description="Cached transformations are rebuilt on the next request, which is slower the first time."
+      >
         <SettingsList>
           <SettingsRow
             label="Clear cache"

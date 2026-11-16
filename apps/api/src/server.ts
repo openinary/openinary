@@ -2,65 +2,31 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import app from "./index";
 import { getSharedStorage } from "./config/storage";
-import { auth } from "shared/auth";
-import fs from "fs";
-import path from "path";
+import { getDb, hasAdmin } from "shared";
+import { getAuth } from "shared/auth";
 import { randomUUID } from "crypto";
-import { logger, serializeError } from "@openinary/core";
-import { videoJobQueue } from "./config/queue";
+import { clearAllCache, logger } from "@openinary/core";
+import { enginePaths, videoJobQueue } from "./config/queue";
 import { initTelemetry } from "./utils/telemetry";
+import { deploymentMode } from "./config/mode";
 
-// Function to clean local cache in cloud mode on startup
-const cleanupLocalCacheIfCloudMode = () => {
-  const storage = getSharedStorage();
-  if (storage) {
-    const cacheDir = "./cache";
-    if (fs.existsSync(cacheDir)) {
-      try {
-        const files = fs.readdirSync(cacheDir);
-        files.forEach((file) => {
-          const filePath = path.join(cacheDir, file);
-          fs.unlinkSync(filePath);
-        });
-      } catch (error) {
-        logger.warn(
-          { error: serializeError(error) },
-          "Failed to cleanup local cache on startup",
-        );
-      }
-    }
-  }
-};
+// In cloud mode the bucket is the cache: local files from a previous run go.
+if (getSharedStorage()) await clearAllCache(enginePaths.cache);
 
-// Clean local cache on startup if in cloud mode
-cleanupLocalCacheIfCloudMode();
+videoJobQueue.start();
 
-// Create necessary directories
-const dirs = ["./cache", "./temp"];
-dirs.forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-    logger.info({ dir }, "Created directory");
-  }
-});
-
-// Initialize video job queue with storage client
-videoJobQueue.initialize(getSharedStorage());
-
-// Initialize authentication and generate API key if needed (only in standalone mode)
+/**
+ * First boot only: creates the admin from OPENINARY_ADMIN_* and, in API mode
+ * or when asked, an initial API key printed once to the log (the CLI reads it
+ * back from the "API Key: " line).
+ */
 async function initializeAuth() {
   try {
-    const mode = process.env.MODE?.toLowerCase().trim() || "fullstack";
-    const db = auth.options.database;
-    const users = db.prepare("SELECT COUNT(*) as count FROM user").get() as {
-      count: number;
-    };
-
-    if (users.count > 0)
-      return logger.info(
-        { userCount: users.count },
-        `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
-      );
+    const mode = deploymentMode();
+    const modeLabel = mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode";
+    // Fails fast on a missing or changed BETTER_AUTH_SECRET.
+    const auth = getAuth();
+    if (hasAdmin()) return logger.info(`Database initialized (${modeLabel})`);
 
     const accName = process.env.OPENINARY_ADMIN_NAME?.trim();
     const accEmail = process.env.OPENINARY_ADMIN_EMAIL?.trim();
@@ -83,10 +49,9 @@ async function initializeAuth() {
         "In fullstack mode you have to also configure admin credentials for generating an API key on initialization.",
       );
 
-    // Setup user and API key if configured
     logger.info("Creating admin user...");
 
-    // Create a system user (because configured OR required for API key association)
+    // API mode needs a user to own the key even without configured credentials.
     const signUpResult = await auth.api.signUpEmail({
       body: {
         email: accEmail || "system@openinary.local",
@@ -100,28 +65,23 @@ async function initializeAuth() {
     logger.info("Initial user created successfully!");
 
     if (!generateApiKey && mode === "fullstack")
-      return logger.info(
-        { userCount: users.count },
-        `Database initialized (FULLSTACK mode)`,
-      );
+      return logger.info(`Database initialized (${modeLabel})`);
 
-    // Create an API key for this user
     const apiKeyResult = await auth.api.createApiKey({
       body: {
         name: "Initial API Key",
         userId: signUpResult.user.id,
-        expiresIn: 365 * 24 * 60 * 60, // 1 year in seconds
+        expiresIn: 365 * 24 * 60 * 60,
       },
     });
 
     if (!apiKeyResult || !("key" in apiKeyResult)) {
-      const deleteResult = db
-        .prepare(`DELETE FROM user WHERE id=${signUpResult.user.id}`)
-        .get() as {
-        rowsAffected: number;
-      };
+      // Removed so the next boot can try again with the same credentials.
+      const { changes } = getDb()
+        .prepare("DELETE FROM user WHERE id = ?")
+        .run(signUpResult.user.id);
 
-      if (deleteResult.rowsAffected === 0)
+      if (changes === 0)
         throw new Error(
           "Initial API Key could not be generated. Deleting user for cleanup failed.",
         );
@@ -137,13 +97,10 @@ async function initializeAuth() {
         apiKeyResult.key +
         "                                   │\n│                                                                 │\n│  Save this key now! It will not be shown again.                 │\n│                                                                 │\n└─────────────────────────────────────────────────────────────────┘",
     );
-    logger.info(
-      { userCount: users.count },
-      `Database initialized (${mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode"})`,
-    );
+    logger.info(`Database initialized (${modeLabel})`);
   } catch (error: any) {
     logger.error(error?.message || "Database setup failed.");
-    process.exit(0);
+    process.exit(1);
   }
 }
 

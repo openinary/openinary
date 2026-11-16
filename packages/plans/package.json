@@ -1,0 +1,25 @@
+{
+  "name": "@openinary/plans",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Openinary Cloud plan catalog: plans, metered features, grants, rates and limits.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "node --import tsx --test src/index.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.2"
+  }
+}

@@ -1,41 +1,48 @@
 import { cn } from "../lib/utils";
 
 /**
- * The one shape every settings page is built from. A section names itself on
- * the left and holds its content on the right: labelled fields for anything
- * typed, a bordered list of rows for toggles, values and existing items, and
- * any buttons in a right-aligned row underneath.
+ * The one shape every settings page is built from: a tile. Its head names the
+ * section (with an optional action on the right), its body holds labelled
+ * fields for anything typed, a list of rows for toggles, values and existing
+ * items, and any buttons in a right-aligned row underneath.
  */
 export function SettingsSection({
   title,
   description,
   action,
+  danger,
   children,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
-  /** Sits under the description, for something that acts on the section. */
+  /** Sits at the right of the head, for something that acts on the section. */
   action?: React.ReactNode;
+  /** A destructive section: red edge and title. Goes last on the page. */
+  danger?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    // Container queries, not breakpoints: what matters is the room the page
-    // leaves this section, which the sidebar and any side panel change.
-    <section className="@container">
-      <div className="grid gap-x-10 gap-y-4 @2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div>
-        <h3 className="flex items-center gap-1 text-sm font-semibold">
-          {title}
-        </h3>
-        {description && (
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            {description}
-          </p>
-        )}
-        {action && <div className="mt-3">{action}</div>}
+    <section className={cn("ds-tile", danger && "ds-tile-danger")}>
+      <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        <div className="min-w-[min(100%,14rem)] flex-1">
+          <h3
+            className={cn(
+              "flex items-center gap-1 font-medium text-[14px]/5",
+              danger && "text-ds-red",
+            )}
+          >
+            {title}
+          </h3>
+          {description && (
+            <p className="mt-0.5 text-[13px]/5 text-ds-muted text-pretty">
+              {description}
+            </p>
+          )}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
-      <div className="@container space-y-4">{children}</div>
-      </div>
+      <div className="ds-tile-divider" />
+      <div className="@container space-y-4 p-4">{children}</div>
     </section>
   );
 }
@@ -52,7 +59,7 @@ export function SettingsFields({
 
 /** Shared with fields that bring their own label (react-hook-form). */
 export const settingsFieldClass = "space-y-1.5";
-export const settingsFieldLabelClass = "text-[13px] font-medium";
+export const settingsFieldLabelClass = "text-[13px]/5 font-medium text-ds-muted";
 
 /** A label over its control, with an optional hint under it. */
 export function SettingsField({
@@ -72,7 +79,7 @@ export function SettingsField({
       <span className={cn("block", settingsFieldLabelClass)}>{label}</span>
       {children}
       {hint && (
-        <span className="block text-xs text-muted-foreground">{hint}</span>
+        <span className="block text-[12.5px]/[18px] text-ds-faint">{hint}</span>
       )}
     </label>
   );
@@ -84,7 +91,7 @@ export function SettingsList({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("divide-y overflow-hidden rounded-lg border", className)}
+      className={cn("ds-tile-inner divide-y divide-(--ds-rule)", className)}
       {...props}
     />
   );
@@ -104,15 +111,15 @@ export function SettingsRow({
     // control moves to its own line below it.
     <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
       <div className="min-w-[min(100%,14rem)] flex-1">
-        <p className="text-sm font-medium">{label}</p>
+        <p className="font-medium text-[13px]/5">{label}</p>
         {description && (
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
+          <p className="mt-0.5 text-[13px]/5 text-ds-muted">
             {description}
           </p>
         )}
       </div>
       {children && (
-        <div className="flex shrink-0 items-center gap-1 text-sm">
+        <div className="flex shrink-0 items-center gap-1 text-[13px]">
           {children}
         </div>
       )}

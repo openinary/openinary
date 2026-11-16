@@ -4,9 +4,10 @@ import { mkdtemp, mkdir, writeFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import sharp from "sharp";
-import { isTransformSegment, parseParams } from "../parser";
-import { parseBlurredBackground, parseBorder } from "./effect-spec";
+import { isTransformSegment, parseParams } from "../../url/grammar";
+import { parseBlurredBackground, parseBorder } from "../../url/effect-spec";
 import { transformImage } from "./index";
+import { enginePathsIn } from "../../config/paths";
 import { TransformService } from "../../services/transform.service";
 
 // --- parsing ----------------------------------------------------------------
@@ -98,15 +99,13 @@ test("b_blurred pads with a blurred copy of the image", async () => {
 
 test("d_ serves the default image, transformed, when the file is missing", async () => {
   const dir = await mkdtemp(join(tmpdir(), "default-"));
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
     await mkdir(join(dir, "public", "placeholders"), { recursive: true });
     await solid(join(dir, "public", "placeholders", "avatar.png"), 200, 200, "#ff00ff");
     await solid(join(dir, "public", "real.png"), 200, 200, "#00ffff");
-    const service = new TransformService(null, { getJobByPath: () => undefined } as any);
+    const service = new TransformService(null, {} as any, enginePathsIn(dir));
     const request = (path: string) =>
-      service.transform({ path, userAgent: "", acceptHeader: "image/png", context: {} as any });
+      service.transform({ path, userAgent: "", acceptHeader: "image/png"});
 
     const missing = await request("/t/w_50,f_png,d_placeholders:avatar.png/nope.png");
     assert.equal(missing.headers["X-Default-Image"], "placeholders/avatar.png");
@@ -123,7 +122,6 @@ test("d_ serves the default image, transformed, when the file is missing", async
     const neither = await request("/t/w_50,d_placeholders:gone.png/nope.png");
     assert.match(neither.buffer!.toString(), /not found/i);
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });

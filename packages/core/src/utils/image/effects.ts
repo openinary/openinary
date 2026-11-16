@@ -7,7 +7,7 @@ import {
   parseContrast,
   parseEffect,
   parseTint,
-} from "./effect-spec";
+} from "../../url/effect-spec";
 
 /**
  * Image effects (Cloudinary's `e_` parameter) and opacity (`o_`).

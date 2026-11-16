@@ -4,6 +4,8 @@ import { zipSync } from "fflate";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
+import { pathBelowMount } from "./delivery";
+import { cleanStorageKey } from "../url/storage-layout";
 
 function collectLocalFiles(
   dir: string,
@@ -24,7 +26,7 @@ function collectLocalFiles(
 }
 
 export function createDownloadFolderRoute(deps: RouteDeps) {
-  const { storage } = deps;
+  const { storage, paths } = deps;
   const downloadFolder = new Hono();
 
   /**
@@ -32,24 +34,13 @@ export function createDownloadFolderRoute(deps: RouteDeps) {
    * Returns all files under the given folder path as a ZIP archive.
    */
   downloadFolder.get("/*", async (c) => {
-    const requestPath = c.req.path;
-    const rawFolderPath = requestPath.replace(/^\/download-folder\/?/, "");
+    const rawFolderPath = pathBelowMount(c);
 
     if (!rawFolderPath) {
       return c.text("Folder path is required", 400);
     }
 
-    let folderPath: string;
-    try {
-      folderPath = decodeURIComponent(rawFolderPath)
-        .replace(/\.\./g, "")
-        .replace(/\\/g, "/")
-        .replace(/\/+/g, "/")
-        .replace(/^\/+/, "")
-        .replace(/\/+$/, "");
-    } catch {
-      return c.text("Invalid folder path", 400);
-    }
+    const folderPath = cleanStorageKey(rawFolderPath);
 
     if (!folderPath) {
       return c.text("Invalid folder path", 400);
@@ -61,7 +52,6 @@ export function createDownloadFolderRoute(deps: RouteDeps) {
       const zipFiles: Record<string, Uint8Array> = {};
 
       if (storage) {
-        // Cloud storage: list all objects under the prefix
         const prefix = storage.mediaKey(`${folderPath}/`);
         const objects = await storage.list(prefix);
 
@@ -81,8 +71,7 @@ export function createDownloadFolderRoute(deps: RouteDeps) {
           zipFiles[relPath] = new Uint8Array(buffer);
         }
       } else {
-        // Local storage
-        const localDir = path.join("./public", folderPath);
+        const localDir = path.join(paths.public, folderPath);
         if (!fs.existsSync(localDir) || !fs.statSync(localDir).isDirectory()) {
           return c.text("Folder not found", 404);
         }

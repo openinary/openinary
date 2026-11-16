@@ -1,3 +1,5 @@
+import type { CacheKeyFn } from "./url/cache-key";
+
 export type CropMode = "fill" | "fit" | "scale" | "crop" | "pad";
 export type GravityMode =
   | "center"
@@ -114,6 +116,8 @@ export interface StorageConfig {
    * /t/photos/2024/sunset.jpg without moving a single object.
    */
   prefix?: string;
+  /** How derivative keys are derived. Defaults to sortedKey. */
+  keyFor?: CacheKeyFn;
 }
 
 /** HTTP client tuning for the storage backend. All fields optional; timeouts of 0/undefined mean "disabled". */

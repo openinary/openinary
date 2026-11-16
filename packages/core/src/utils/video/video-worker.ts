@@ -1,11 +1,13 @@
 import { EventEmitter } from "events";
 import { transformVideo } from "./index";
 import { saveToCache } from "../cache";
+import { stageSource, type StagedSource } from "../stage-source";
 import type { CloudStorage } from "../storage/index";
 import logger, { serializeError } from "../logger";
 import type { VideoJob, VideoJobStore } from "./queue-store";
-import { MAX_CONCURRENT_JOBS, WORKER_POLL_INTERVAL_MS } from "./config";
-import { contentTypeForFormat, determineOutputFormat } from "./format";
+import type { detectVideoSettings } from "./config";
+import type { EnginePaths } from "../../config/paths";
+import { contentTypeForFormat, determineOutputFormat } from "../../url/media-types";
 import {
   summarizeVideoSamples,
   videoCodecFamily,
@@ -29,29 +31,24 @@ export interface WorkerEvents {
   "job:error": (job: VideoJob, error: Error) => void;
 }
 
-/**
- * Background worker for processing video jobs
- */
 export class VideoWorker extends EventEmitter {
   private intervalId: NodeJS.Timeout | null = null;
   private maxConcurrent: number;
   private pollInterval: number;
-  private storage: CloudStorage | null;
-  private store: VideoJobStore;
   private isAcquiring: boolean = false;
   private timingSamples: VideoTimingSample[] = [];
 
-  constructor(storage: CloudStorage | null, store: VideoJobStore) {
+  constructor(
+    private storage: CloudStorage | null,
+    private store: VideoJobStore,
+    private paths: EnginePaths,
+    private video: ReturnType<typeof detectVideoSettings>,
+  ) {
     super();
-    this.storage = storage;
-    this.store = store;
-    this.maxConcurrent = MAX_CONCURRENT_JOBS;
-    this.pollInterval = WORKER_POLL_INTERVAL_MS;
+    this.maxConcurrent = video.settings.maxConcurrent;
+    this.pollInterval = video.settings.pollIntervalMs;
   }
 
-  /**
-   * Start the worker
-   */
   start(): void {
     if (this.intervalId) {
       logger.warn("Worker already started");
@@ -62,12 +59,14 @@ export class VideoWorker extends EventEmitter {
       {
         maxConcurrent: this.maxConcurrent,
         pollInterval: this.pollInterval,
+        ...this.video.source,
+        ffmpegThreads: this.video.settings.ffmpegThreads,
+        ffmpegNiceness: this.video.settings.ffmpegNiceness,
       },
       "Starting video worker",
     );
 
-    // Reset any orphaned "processing" jobs from previous crashes/restarts
-    // These are jobs marked as "processing" but not actually being processed
+    // Jobs left "processing" by a crash or restart, which nothing is running.
     const resetCount = this.store.resetOrphanedProcessingJobs();
     if (resetCount > 0) {
       logger.info(
@@ -78,7 +77,6 @@ export class VideoWorker extends EventEmitter {
 
     this.seedTimingSamples();
 
-    // Start polling for jobs
     this.intervalId = setInterval(() => {
       this.fillAvailableSlots().catch((error) => {
         logger.error(
@@ -88,7 +86,6 @@ export class VideoWorker extends EventEmitter {
       });
     }, this.pollInterval);
 
-    // Also process immediately on start
     this.fillAvailableSlots().catch((error) => {
       logger.error(
         { error: serializeError(error) },
@@ -133,23 +130,12 @@ export class VideoWorker extends EventEmitter {
     return summarizeVideoSamples(this.timingSamples);
   }
 
-  /**
-   * Stop the worker
-   */
   stop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
       logger.info("Video worker stopped");
     }
-  }
-
-  /**
-   * Set maximum concurrent jobs
-   */
-  setMaxConcurrent(n: number): void {
-    this.maxConcurrent = n;
-    logger.info({ maxConcurrent: n }, "Updated max concurrent jobs");
   }
 
   /**
@@ -174,7 +160,7 @@ export class VideoWorker extends EventEmitter {
           break;
         }
 
-        // Get next pending job (atomically marks it as processing)
+        // Atomically marks it as processing
         const job = this.store.getNextPendingJob();
         if (!job) {
           break; // No more pending jobs
@@ -204,44 +190,24 @@ export class VideoWorker extends EventEmitter {
     }
   }
 
-  /**
-   * Process a single video job (runs concurrently with other jobs)
-   */
   private async processJob(job: VideoJob): Promise<void> {
-    // Emit started event
     this.emit("job:started", job);
 
+    let source: StagedSource | undefined;
     try {
-      // Parse params from JSON
       const params = JSON.parse(job.params_json);
-
-      // Download source file if using cloud storage
-      let sourcePath = `./public/${job.file_path}`;
-      if (this.storage) {
-        try {
-          const fs = await import("fs/promises");
-          const path = await import("path");
-
-          // Download to temp directory
-          const buffer = await this.storage.downloadOriginal(job.file_path);
-          const tempDir = "./temp";
-          sourcePath = path.join(tempDir, path.basename(job.file_path));
-          await fs.writeFile(sourcePath, buffer);
-        } catch (error) {
-          logger.error(
-            { error: serializeError(error), filePath: job.file_path },
-            "Failed to download source file from cloud storage",
-          );
-          throw error;
-        }
-      }
+      source = await stageSource(this.storage, this.paths, job.file_path);
 
       // Process video, persisting how far it has got so a 202 or a status
       // poll can tell the caller when it will be done
       let outputSeconds: number | null = null;
       let lastPercent = 0;
       let lastWriteAt = 0;
-      const buffer = await transformVideo(sourcePath, params, this.storage, (progress) => {
+      const buffer = await transformVideo(source.path, params, {
+        storage: this.storage,
+        paths: this.paths,
+        settings: this.video.settings,
+      }, (progress) => {
         outputSeconds = progress.outputSeconds;
         // 100 is the store's "done" and only completion may write it
         const percent = Math.min(99, Math.floor(progress.fraction * 100));
@@ -266,10 +232,8 @@ export class VideoWorker extends EventEmitter {
         }
       });
 
-      // Save to cache
       await saveToCache(job.cache_path, buffer);
 
-      // Upload to cloud storage if configured
       if (this.storage) {
         const sourceExt = job.file_path.split(".").pop()?.toLowerCase();
         const { format } = determineOutputFormat(sourceExt, params.format);
@@ -277,7 +241,6 @@ export class VideoWorker extends EventEmitter {
         await this.storage.upload(job.file_path, params, buffer, contentType);
       }
 
-      // Mark as completed
       this.store.updateJobStatus(job.id, "completed", 100);
 
       if (job.started_at) {
@@ -293,7 +256,6 @@ export class VideoWorker extends EventEmitter {
         "Video job completed successfully",
       );
 
-      // Emit completion event
       this.emit("job:completed", {
         ...job,
         status: "completed",
@@ -312,7 +274,6 @@ export class VideoWorker extends EventEmitter {
         "Video job processing failed",
       );
 
-      // Check if we should retry
       if (job.retry_count < job.max_retries) {
         logger.info(
           {
@@ -327,7 +288,6 @@ export class VideoWorker extends EventEmitter {
         this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
         this.store.retryFailedJob(job.id);
       } else {
-        // Mark as error if max retries reached
         this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
         this.emit(
           "job:error",
@@ -335,12 +295,11 @@ export class VideoWorker extends EventEmitter {
           error as Error,
         );
       }
+    } finally {
+      await source?.cleanup();
     }
   }
 
-  /**
-   * Get worker statistics
-   */
   getStats() {
     return {
       maxConcurrent: this.maxConcurrent,

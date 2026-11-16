@@ -1,9 +1,16 @@
 // Openinary wordmark (icon + name), from www.openinary.dev. Text follows
 // currentColor so it adapts to light/dark; the mark stays brand red.
-export function Logo({ className }: { className?: string }) {
+export function Logo({
+  className,
+  markOnly,
+}: {
+  className?: string;
+  /** Just the red mark, cropped from the wordmark. */
+  markOnly?: boolean;
+}) {
   return (
     <svg
-      viewBox="0 0 417 104"
+      viewBox={markOnly ? "0 0 104 104" : "0 0 417 104"}
       fill="none"
       className={className}
       xmlns="http://www.w3.org/2000/svg"

@@ -10,16 +10,19 @@ export type OpeninaryFetch = (
 export interface OpeninaryConfig {
   /** No trailing slash. e.g. "https://media.example.com/api" or "/api" */
   apiBaseUrl: string;
-  /** Base for /t/ transformation URLs. No trailing slash. */
-  transformBaseUrl: string;
+  /** Base for /t/ transformation URLs. No trailing slash. Null while the
+   *  host app cannot know it yet: nothing is built on it until it is set. */
+  transformBaseUrl: string | null;
   /** Every request the package makes goes through this. */
   fetch: OpeninaryFetch;
 }
 
 export interface OpeninaryProviderProps {
   apiBaseUrl: string;
-  /** Defaults to apiBaseUrl with a trailing "/api" segment stripped. */
-  transformBaseUrl?: string;
+  /** Defaults to apiBaseUrl with a trailing "/api" segment stripped. Pass
+   *  null for "not known yet" (e.g. it depends on a request still in flight):
+   *  thumbnails and delivery URLs wait instead of pointing somewhere wrong. */
+  transformBaseUrl?: string | null;
   /** Override to attach auth headers, retries, tracing. Defaults to
    *  `credentials: "include"`, matching the dashboard's current behaviour.
    *  Cannot be passed as a prop from a Server Component — functions aren't
@@ -41,9 +44,10 @@ export function OpeninaryProvider({
   const value = React.useMemo<OpeninaryConfig>(
     () => ({
       apiBaseUrl: stripSlash(apiBaseUrl),
-      transformBaseUrl: stripSlash(
-        transformBaseUrl ?? apiBaseUrl.replace(/\/api$/, ""),
-      ),
+      transformBaseUrl:
+        transformBaseUrl === null
+          ? null
+          : stripSlash(transformBaseUrl ?? apiBaseUrl.replace(/\/api$/, "")),
       fetch:
         fetchImpl ??
         ((input, init) =>

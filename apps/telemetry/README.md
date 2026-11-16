@@ -12,7 +12,7 @@ design: the whitelist is the contract, and it is worth more reviewed than
 hidden.
 
 What Openinary instances send is documented in
-[`apps/docs/configuration/telemetry.mdx`](https://github.com/openinary/openinary/blob/main/apps/docs/configuration/telemetry.mdx).
+[`apps/docs/src/content/docs/configuration/telemetry.mdx`](https://github.com/openinary/openinary/blob/main/apps/docs/src/content/docs/configuration/telemetry.mdx).
 Keep the event schema in `src/index.ts` in sync with
 [`apps/api/src/utils/telemetry.ts`](https://github.com/openinary/openinary/blob/main/apps/api/src/utils/telemetry.ts):
 a property the instance sends and this whitelist does not accept is dropped

@@ -1,5 +1,5 @@
 import { mkdtemp } from "fs/promises";
-import path, { join } from "path";
+import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import type { VideoTransformParams } from "../../types";
@@ -7,7 +7,7 @@ import {
   determineOutputFormat,
   IMAGE_FORMATS,
   normalizeFormat,
-} from "./format";
+} from "../../url/media-types";
 import { applyThumbnailExtraction } from "./thumbnail";
 import { applyTrimming } from "./trim";
 import { applyAutoDownscale } from "./auto-downscale";
@@ -16,8 +16,10 @@ import { applyQuality } from "./quality";
 import { VideoCommandBuilder, type EncodeProgress } from "./command-builder";
 import type { VideoContext } from "./types";
 import { applyOverlay } from "./overlay";
-import { cleanupTempFile, prepareSourceFile } from "../../routes/transform-helpers";
-import { CloudStorage, createStorageClient } from "../storage";
+import { stageSource, type StagedSource } from "../stage-source";
+import type { CloudStorage } from "../storage";
+import type { EnginePaths } from "../../config/paths";
+import type { VideoSettings } from "./config";
 
 // Re-export types for backward compatibility
 export * from "./types";
@@ -80,7 +82,7 @@ async function convertWithSharp(
 export const transformVideo = async (
   inputPath: string,
   params: VideoTransformParams,
-  storage: CloudStorage | null,
+  run: { storage: CloudStorage | null; paths: EnginePaths; settings: VideoSettings },
   onProgress?: (progress: EncodeProgress) => void,
 ): Promise<Buffer> => {
   // Create temporary directory for output
@@ -121,21 +123,17 @@ export const transformVideo = async (
     isThumbnail,
   };
 
-  let isTempOverlay = false;
+  let overlay: StagedSource | undefined;
 
   try {
     if (context.params.overlayPath) {
-      context.params.overlayPath = await prepareSourceFile(
-        storage,
-        context.params.overlayPath,
-        path.join("./public", context.params.overlayPath),
-      );
-      isTempOverlay = !!storage;
+      overlay = await stageSource(run.storage, run.paths, context.params.overlayPath);
+      context.params.overlayPath = overlay.path;
     }
 
     // Apply transformations pipeline and execute
     // Order matters: thumbnail extraction or trimming first, auto-downscale, resize, then quality
-    const builder = new VideoCommandBuilder(context);
+    const builder = new VideoCommandBuilder(context, run.settings);
 
     let buffer = await (
       await builder.apply(
@@ -165,7 +163,6 @@ export const transformVideo = async (
 
     return buffer;
   } finally {
-    // Staged overlay copies are temp files on success as well as on failure.
-    if (isTempOverlay) await cleanupTempFile(context.params.overlayPath!);
+    await overlay?.cleanup();
   }
 };

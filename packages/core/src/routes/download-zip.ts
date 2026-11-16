@@ -4,19 +4,13 @@ import { zipSync } from "fflate";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
+import { decodeRequestPath } from "../url/grammar";
+import { cleanStorageKey } from "../url/storage-layout";
 
 const MAX_PATHS = 200;
 
 type ZipItem = { path: string; kind?: "file" | "folder" };
 
-function sanitizePath(raw: string): string {
-  return decodeURIComponent(raw)
-    .replace(/\.\./g, "")
-    .replace(/\\/g, "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "");
-}
 
 function collectLocalFiles(
   dir: string,
@@ -48,7 +42,7 @@ function collectLocalFiles(
  * item) and lets every item download in parallel instead of one at a time.
  */
 export function createDownloadZipRoute(deps: RouteDeps) {
-  const { storage } = deps;
+  const { storage, paths } = deps;
   const downloadZip = new Hono();
 
   downloadZip.post("/", async (c) => {
@@ -120,7 +114,7 @@ export function createDownloadZipRoute(deps: RouteDeps) {
 
       await Promise.all(
         items.map(async ({ path: raw, kind }) => {
-          const cleanPath = sanitizePath(raw);
+          const cleanPath = cleanStorageKey(decodeRequestPath(raw));
           if (!cleanPath) return;
 
           if (storage) {
@@ -138,7 +132,7 @@ export function createDownloadZipRoute(deps: RouteDeps) {
               }
             }
           } else {
-            const localPath = path.join("./public", cleanPath);
+            const localPath = path.join(paths.public, cleanPath);
             if (!fs.existsSync(localPath)) return;
             if (fs.statSync(localPath).isDirectory()) {
               for (const entry of collectLocalFiles(localPath, cleanPath)) {

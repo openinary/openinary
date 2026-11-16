@@ -1,0 +1,72 @@
+---
+/**
+ * The bottom bar of the marketing site's footer
+ * (apps/marketing/components/site/shell.tsx), under every docs page.
+ */
+import GitHubMark from "./GitHubMark.astro";
+import { GITHUB_URL, focusRing, site } from "./site";
+
+const legal = [
+  { href: site("/terms"), label: "Terms" },
+  { href: site("/privacy"), label: "Privacy" },
+  { href: site("/legal"), label: "Legal" },
+];
+---
+
+<footer class="mt-16 flex flex-col gap-4 border-t-[0.5px] border-ink-4 py-5 text-[12px] text-ink-10 sm:flex-row sm:items-center sm:justify-between" data-pagefind-ignore>
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <span>© {new Date().getFullYear()} Openinary</span>
+    {legal.map((l) => (
+      <a href={l.href} class="text-ink-10 no-underline transition-colors hover:text-ink-12">{l.label}</a>
+    ))}
+    <span>AGPL-3.0</span>
+  </div>
+  <div class="flex items-center gap-4">
+    <button type="button" data-site-theme class:list={["w-fit cursor-pointer rounded-sm transition-colors hover:text-ink-12", focusRing]}>
+      Theme: <span data-site-theme-label>System</span>
+    </button>
+    <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="Openinary on GitHub" class="text-ink-10 transition-colors hover:text-ink-12">
+      <GitHubMark />
+    </a>
+  </div>
+</footer>
+
+<script>
+  // "Theme: System", like the marketing footer: each click moves to the next.
+  // Same localStorage key as the marketing site, so the choice follows you.
+  const order = ["system", "light", "dark"] as const;
+  type Theme = (typeof order)[number];
+  const label: Record<Theme, string> = { system: "System", light: "Light", dark: "Dark" };
+
+  const read = (): Theme => {
+    try {
+      const v = localStorage.getItem("theme");
+      return v === "light" || v === "dark" ? v : "system";
+    } catch {
+      return "system";
+    }
+  };
+
+  const sync = () => {
+    const current = read();
+    const next = order[(order.indexOf(current) + 1) % order.length];
+    document.querySelectorAll<HTMLElement>("[data-site-theme]").forEach((b) => {
+      b.querySelector("[data-site-theme-label]")!.textContent = label[current];
+      b.setAttribute("aria-label", `Theme: ${label[current]}. Switch to ${label[next]}`);
+    });
+  };
+
+  document.addEventListener("click", (e) => {
+    if (!(e.target as Element).closest?.("[data-site-theme]")) return;
+    const next = order[(order.indexOf(read()) + 1) % order.length];
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      // Storage blocked: the change lasts for this page only.
+    }
+    (window as { __nbApplyTheme?: (mode?: "light" | "dark") => void }).__nbApplyTheme?.(next === "system" ? undefined : next);
+    sync();
+  });
+  document.addEventListener("astro:page-load", sync);
+  sync();
+</script>

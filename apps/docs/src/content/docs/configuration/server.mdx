@@ -1,0 +1,101 @@
+---
+title: "Server Configuration"
+description: "Environment variables for server mode, secrets, CORS, upload limits, rate limiting and the admin bootstrap."
+---
+
+Set these in your `.env`, your Docker environment, or your platform's environment settings. Only `BETTER_AUTH_SECRET` is required.
+
+```bash
+BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+BETTER_AUTH_URL=https://media.example.com
+NEXT_PUBLIC_API_BASE_URL=https://media.example.com
+API_SECRET=$(openssl rand -hex 32)
+```
+
+## Core
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `BETTER_AUTH_SECRET` | **required** | Signs sessions and tokens. Use 32+ characters. Startup fails if it is unset, or if it differs from the secret the database was first used with. A template placeholder or a shorter value only logs a warning |
+| `MODE` | `fullstack` | `fullstack` runs API and dashboard. `api` runs the API alone and generates a key on first boot |
+| `PORT` | `3000` | Port the API listens on. See [ports under Docker](#ports-under-docker) |
+| `BETTER_AUTH_URL` | `http://localhost:3000` | Public base URL, used for auth callbacks and CORS |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3000` | Base URL the browser uses to reach the API. Baked in as `/api` in the bundled `full` image, since nginx proxies the API there |
+| `CORS_ORIGIN` | | Extra allowed origins, comma-separated. `http://localhost:3001` and `http://localhost:3000` are always allowed. Avoid `*` |
+| `API_SECRET` | | Signs [signed URLs](/media-transformations/signed-urls) and presigned uploads. At least 16 characters; `openssl rand -hex 32` gives a strong one. Required for `/authenticated/*` and [presigned uploads](/guides/file-uploader) |
+| `DB_PATH` | `/app/data/auth.db` | SQLite database path. Only needed for a non-standard mount |
+
+## Upload and rate limiting
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `MAX_FILE_SIZE_MB` | `50` | Maximum upload size. This is the only ceiling: nginx in the `full` image passes bodies through without a limit of its own |
+| `PUBLIC_RATE_LIMIT_MAX` | `100` | Requests per window on public routes (`/t/*`, `/download/*`, `/health`) |
+| `PUBLIC_RATE_LIMIT_WINDOW_MS` | `60000` | Window length in milliseconds. `60000` is a minute, `300000` five, `3600000` an hour |
+
+## Admin bootstrap
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `OPENINARY_ADMIN_EMAIL` | | Admin account created on first boot |
+| `OPENINARY_ADMIN_PASSWORD` | | Password for that account |
+| `OPENINARY_ADMIN_NAME` | `Admin` | Display name |
+| `OPENINARY_GENERATE_API_KEY` | `false` | Create an API key too and print it to the logs. Must be exactly `true` |
+
+These run **only on the very first boot**, while the user table is empty. They cannot reset a password or add a second admin later. Without them, a `fullstack` instance waits for you to create the account at `/setup`.
+
+Three rules worth knowing before you wire this into a deploy:
+
+- Email and password go together. One without the other stops startup.
+- In `fullstack` mode, generating a key also requires the credentials.
+- In `api` mode a key is generated on first boot regardless, since an API-only instance would otherwise have no way in.
+
+The key is printed once and cannot be retrieved afterwards. Capture it on first boot, then drop the password from your environment, since it is no longer read.
+
+## Advanced
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LOG_LEVEL` | `info` in production, `debug` in development | `trace` `debug` `info` `warn` `error` `fatal` |
+| `NEXT_PUBLIC_LOG_LEVEL` | | Same, for the dashboard's browser-side logger |
+| `BETTER_AUTH_INTERNAL_URL` | | Base URL for server-to-server auth calls inside the container, skipping the public hostname. The `full` profile sets this for you |
+| `NEXT_PUBLIC_TRANSFORM_BASE_URL` | | Origin the dashboard builds delivery URLs against, when media is served from a CDN domain |
+| `IMAGE_TAG` | `latest` | Docker image tag the Compose file pulls. Pin it to a release such as `v0.3.1` for reproducible deploys |
+| `ALLOW_REMOTE_SOURCE` | `false` | See below. Must be exactly `true` |
+
+<Warning>
+  `ALLOW_REMOTE_SOURCE` lets a request name its own HTTPS source URL through the
+  `x-openinary-source-url` header. `/t/*` is a public route, so an instance with
+  this on will fetch any HTTPS URL it can reach on behalf of whoever asks, which
+  makes it a proxy into your network. Enable it only where the transform route
+  is not publicly reachable and every caller is trusted.
+</Warning>
+
+### Ports under Docker
+
+`PORT` applies when running from source. Both Compose profiles publish `3000:3000` without passing `PORT` through, and in the `full` image the API is pinned to an internal port behind nginx. Setting it there either does nothing or breaks the published mapping. Change the port mapping instead.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Storage" icon="cloud" href="/configuration/storage">
+    Connect S3-compatible cloud storage.
+  </Card>
+  <Card
+    title="Signed URLs"
+    icon="lock"
+    href="/media-transformations/signed-urls"
+  >
+    Use `API_SECRET` to sign transformation URLs.
+  </Card>
+  <Card
+    title="Video Processing"
+    icon="film"
+    href="/configuration/video-processing"
+  >
+    Worker concurrency, retries and encode limits.
+  </Card>
+  <Card title="Telemetry" icon="chart-simple" href="/configuration/telemetry">
+    What is sent, and how to turn it off.
+  </Card>
+</CardGroup>

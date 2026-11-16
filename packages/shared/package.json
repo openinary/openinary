@@ -11,34 +11,32 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./types": {
-      "types": "./src/types.ts",
-      "import": "./dist/types.js",
-      "default": "./dist/types.js"
-    },
     "./auth": {
       "types": "./src/auth.ts",
       "import": "./dist/auth.js",
       "default": "./dist/auth.js"
     },
     "./auth-client": {
-      "types": "./src/auth-client-only.ts",
-      "import": "./dist/auth-client-only.js",
-      "default": "./dist/auth-client-only.js"
+      "types": "./src/auth-client.ts",
+      "import": "./dist/auth-client.js",
+      "default": "./dist/auth-client.js"
     }
   },
   "scripts": {
-    "build": "tsc && node scripts/add-js-extensions.cjs",
-    "type-check": "tsc --noEmit"
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/add-js-extensions.cjs",
+    "type-check": "tsc --noEmit",
+    "test": "node --import tsx --test $(find src -name '*.test.ts')"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",
+    "@openinary/telemetry-schema": "workspace:*",
     "better-auth": "^1.6.23",
     "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.0.0"
   }
 }

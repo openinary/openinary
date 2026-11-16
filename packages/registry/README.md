@@ -42,7 +42,8 @@ pnpm --filter registry registry:build # rebuild apps/marketing/public/r from reg
   `@/lib/utils`) that the shadcn CLI rewrites on install.
 - `src/upload-token/upload-token.ts`, thin client for `POST /upload/sign`
   (`apps/api/src/routes/upload.ts`). It does not compute any signature itself,
-  Openinary does, via `packages/core/src/utils/upload-signature.ts`, so there is
+  Openinary does, via `packages/core/src/utils/signature.ts` (on top of
+  `packages/core/src/url/hmac.ts`), so there is
   nothing to keep byte-compatible here.
 - `src/stubs/`, type-check-only stand-ins for the consumer's shadcn components;
   **not** part of the registry output.

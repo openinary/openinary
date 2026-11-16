@@ -14,6 +14,7 @@
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.2.3",
     "@hugeicons/react": "^1.1.9",
+    "@openinary/plans": "workspace:*",
     "@opennextjs/cloudflare": "^1.20.1",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.14.8",

@@ -3,13 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, ExternalLink, Info } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@openinary/dashboard/ui/button";
 import { Skeleton } from "skullet/react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@openinary/dashboard/ui/tooltip";
 import {
   type Balance,
   CLOUD_AVAILABLE,
@@ -22,17 +22,21 @@ import {
   usageCost,
 } from "@/lib/usage";
 import { cn } from "@/lib/utils";
+import { PLANS, UPGRADE_PLAN } from "@openinary/plans";
 import { orpc } from "@/utils/orpc";
 
 // Buckets are a hard cap, not a metered allowance: there's no Autumn balance
 // behind them and no overage, so this only belongs in the comparison table.
-// Must match BUCKET_LIMITS in apps/server/api/lib/autumn.ts, which is what
-// actually enforces it.
-const BUCKET_ROW = { label: "Buckets", free: "1", early: "2", cloud: "10" };
+const BUCKET_ROW = {
+  label: "Buckets",
+  free: String(PLANS.free.buckets),
+  early: String(PLANS.early_access.buckets),
+  cloud: String(PLANS.cloud.buckets),
+};
 
 // CDN hits still reach the billing ledger on a one-minute timer so serving an
 // asset never waits on a usage write, but the figure shown here folds in the
-// meter's unflushed count (see apps/server/api/routers/usage.ts), so it is
+// meter's unflushed count (see apps/cloud/server/worker/rpc/usage.ts), so it is
 // current even though the ledger behind it is not yet.
 const HINTS: Partial<Record<(typeof FEATURES)[number]["id"], string>> = {
   cdn_requests:
@@ -81,7 +85,7 @@ const longDate = (ms: number) =>
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("min-w-0 rounded-xl border bg-card p-5", className)}
+      className={cn("ds-tile min-w-0 p-5", className)}
       {...props}
     />
   );
@@ -90,12 +94,12 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
 type Tone = "neutral" | "warning" | "danger";
 const TONE_TEXT: Record<Tone, string> = {
   neutral: "",
-  warning: "text-amber-600 dark:text-amber-500",
+  warning: "text-ds-amber dark:text-ds-amber",
   danger: "text-destructive",
 };
 const TONE_FILL: Record<Tone, string> = {
   neutral: "bg-foreground/70",
-  warning: "bg-amber-500",
+  warning: "bg-ds-amber",
   danger: "bg-destructive",
 };
 
@@ -160,7 +164,7 @@ function PeriodChart({
                 x2="100"
                 y1={y(limit)}
                 y2={y(limit)}
-                className="stroke-amber-500"
+                className="stroke-ds-amber"
                 strokeDasharray="2 3"
                 vectorEffect="non-scaling-stroke"
               />
@@ -200,7 +204,7 @@ function PeriodChart({
         <div className="relative w-16 shrink-0 text-[11px] text-muted-foreground tabular-nums">
           {limit !== null && (
             <span
-              className="absolute -translate-y-1/2 truncate text-amber-600 dark:text-amber-500"
+              className="absolute -translate-y-1/2 truncate text-ds-amber dark:text-ds-amber"
               style={{ top: `${y(limit)}%` }}
             >
               {format(limit)}
@@ -266,13 +270,13 @@ export function BillingTab() {
   const paidPlan =
     CLOUD_AVAILABLE && planId !== "early_access"
       ? {
-          name: "Cloud",
+          name: PLANS.cloud.name,
           column: "cloud" as const,
           price: `$${CLOUD_MONTHLY} / mo`,
-          cta: "Upgrade to Cloud",
+          cta: UPGRADE_PLAN.cta,
         }
       : {
-          name: "Alpha",
+          name: PLANS.early_access.name,
           column: "early" as const,
           // Not just "$0": the card is what checkout collects, so the price
           // has to say usage is billed rather than imply nothing is.
@@ -562,7 +566,7 @@ export function BillingTab() {
               </>
             ) : runningOut ? (
               <>
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-ds-amber dark:text-ds-amber" />
                 <span>
                   On pace to run out of {runningOut.label.toLowerCase()} around{" "}
                   {shortDate(runningOut.at)}.
@@ -614,7 +618,7 @@ export function BillingTab() {
               <>
                 {" · "}
                 <span
-                  className={cn(!card && "text-amber-600 dark:text-amber-500")}
+                  className={cn(!card && "text-ds-amber dark:text-ds-amber")}
                 >
                   {cardText}
                 </span>
@@ -623,7 +627,7 @@ export function BillingTab() {
           </p>
 
           {cancelsAt && (
-            <p className="mt-3 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-700 text-xs dark:text-amber-400">
+            <p className="mt-3 flex items-start gap-1.5 rounded-md border border-ds-amber/30 bg-ds-amber px-2.5 py-1.5 text-ds-amber text-xs dark:text-ds-amber">
               <AlertTriangle className="mt-px size-3.5 shrink-0" />
               <span>
                 Subscription cancelled. {planName} stays active until{" "}

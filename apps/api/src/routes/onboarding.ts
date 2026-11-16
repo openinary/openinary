@@ -1,7 +1,6 @@
 import { Hono } from "hono";
-import { db } from "shared/auth";
+import { getDb, kvGet, kvInit, kvSet, MAX_USE_CASES, SLUG } from "shared";
 
-import { activityLog } from "../config/activity";
 import type { AuthVariables } from "../middleware/auth";
 import { telemetryEnabled, trackOnboardingCompleted } from "../utils/telemetry";
 
@@ -14,21 +13,26 @@ const onboarding = new Hono<AuthVariables>();
 
 type Workspace = { name: string; logo: string | null };
 
-const SLUG = /^[a-z0-9-]{1,40}$/;
 // 128px squares encode to ~10 KB; this leaves room for a PNG fallback.
 const LOGO = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const LOGO_MAX = 200_000;
 
 const answersKey = (userId: string) => `onboarding:${userId}`;
 
+const readJson = <T>(key: string) => {
+  const value = kvGet(getDb(), key);
+  return value === undefined ? undefined : (JSON.parse(value) as T);
+};
+
 // Accounts that existed before this instance first ran a version with the
 // questionnaire never see it: Cloud's rule, but per instance, since each one
 // upgrades on its own day. The minute of slack keeps a fresh install's first
 // admin in, even one created from OPENINARY_ADMIN_* while the server boots.
-const onboardingSince = activityLog.since("onboarding_since") - 60_000;
+const onboardingSince =
+  Number(kvInit(getDb(), "onboarding_since", String(Date.now()))) - 60_000;
 
 function predatesOnboarding(userId: string): boolean {
-  const row = db
+  const row = getDb()
     .prepare("SELECT createdAt FROM user WHERE id = ?")
     .get(userId) as { createdAt: string | number } | undefined;
   return !!row && new Date(row.createdAt).getTime() < onboardingSince;
@@ -38,8 +42,9 @@ onboarding.get("/", (c) => {
   const userId = c.get("user")?.id ?? "";
   return c.json({
     completed:
-      !!activityLog.getState(answersKey(userId)) || predatesOnboarding(userId),
-    workspace: activityLog.getState<Workspace>("workspace") ?? null,
+      kvGet(getDb(), answersKey(userId)) !== undefined ||
+      predatesOnboarding(userId),
+    workspace: readJson<Workspace>("workspace") ?? null,
     telemetry: telemetryEnabled,
   });
 });
@@ -61,7 +66,7 @@ onboarding.post("/", async (c) => {
     typeof role !== "string" ||
     !SLUG.test(role) ||
     !Array.isArray(useCases) ||
-    useCases.length > 20 ||
+    useCases.length > MAX_USE_CASES ||
     !useCases.every((v) => typeof v === "string" && SLUG.test(v)) ||
     (source !== null && (typeof source !== "string" || !SLUG.test(source))) ||
     !name ||
@@ -71,13 +76,12 @@ onboarding.post("/", async (c) => {
     return c.json({ error: "Invalid onboarding answers" }, 400);
   }
 
-  activityLog.setState("workspace", { name, logo } satisfies Workspace);
-  activityLog.setState(answersKey(userId), {
-    role,
-    useCases,
-    source,
-    completedAt: Date.now(),
-  });
+  kvSet(getDb(), "workspace", JSON.stringify({ name, logo } satisfies Workspace));
+  kvSet(
+    getDb(),
+    answersKey(userId),
+    JSON.stringify({ role, useCases, source, completedAt: Date.now() }),
+  );
   void trackOnboardingCompleted({ role, use_cases: useCases, source });
 
   return c.json({ ok: true });

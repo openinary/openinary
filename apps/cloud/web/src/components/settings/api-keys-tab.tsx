@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Input } from "@/components/ui/input";
+import { Input } from "@openinary/dashboard/ui/input";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_EXPIRES = "365";
@@ -99,7 +99,7 @@ export function ApiKeysTab() {
               <ApiKeyScope
                 key="bucket"
                 title="Legacy key: writes to whichever bucket is active. Replace it with a bucket-scoped one."
-                className="border-amber-600/30 text-amber-700 dark:text-amber-500"
+                className="border-ds-amber/30 text-ds-amber dark:text-ds-amber"
               >
                 any bucket
               </ApiKeyScope>

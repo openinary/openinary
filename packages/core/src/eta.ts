@@ -2,7 +2,7 @@
 //
 // Pure on purpose, and exported on its own subpath (@openinary/core/eta):
 // the self-hosted server calls it from TransformService, and the cloud
-// Worker - which cannot afford the main entrypoint, see transform-cache.ts -
+// Worker - which cannot afford the main entrypoint (it pulls sharp and ffmpeg) -
 // calls the very same functions from its own 202. One contract for every
 // integrator, whichever deployment answers them: the cloud only adds a
 // "waking" phase that a self-hosted server never reports.

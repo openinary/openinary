@@ -1,0 +1,158 @@
+---
+title: "Project Structure"
+description: "Where everything lives in the Openinary monorepo, and which package owns what."
+---
+
+Openinary is a **pnpm monorepo** orchestrated by [Turbo](https://turbo.build/). It
+holds both the AGPL-3.0 self-hosted product and the source of the managed Cloud
+service, so a fix to the shared engine lands in both at once. The engine itself is
+`packages/core`, not `apps/api`.
+
+```bash
+openinary/
+├── apps/
+│   ├── api/          # Hono.js media processing API         (AGPL-3.0)
+│   ├── web/          # Next.js admin dashboard              (AGPL-3.0)
+│   ├── telemetry/    # Anonymous self-host telemetry worker (AGPL-3.0)
+│   ├── marketing/    # openinary.dev                        (MIT)
+│   ├── docs/         # This documentation
+│   └── cloud/        # Openinary Cloud, see apps/cloud/LICENSE
+│       ├── server/   #   API worker + media container
+│       ├── web/      #   Customer dashboard
+│       └── admin/    #   Back office
+├── packages/         # core, ui, dashboard, plans, cli, registry, shared (AGPL-3.0)
+├── docker/           # Optimized Dockerfiles
+├── scripts/          # Release, env bootstrap, database hardening
+└── docker-compose.yml
+```
+
+Everything is AGPL-3.0 except `apps/cloud/`, which is source-available under a
+commercial license, and `apps/marketing/`, which is MIT. Self-hosting needs
+nothing from `apps/cloud/`.
+
+## packages/
+
+| Package | What it is |
+| --- | --- |
+| `@openinary/core` | The transformation engine: image and video pipelines, storage clients, the job queue. Used by `apps/api` and by the Cloud's media container. |
+| `@openinary/ui` | React components, including the file uploader. |
+| `@openinary/dashboard` | The dashboard screens shared by `apps/web` and `apps/cloud/web`. Source only: each app compiles it with `transpilePackages` and plugs in its own adapter. |
+| `@openinary/plans` | The Cloud plan catalog (plans, metered features, limits), read by the marketing site, the Cloud dashboard, the back office and the Cloud server. |
+| `create-openinary` | The CLI (`npx create-openinary`), published to npm. |
+| `registry` | shadcn/ui registry source. Builds into `apps/marketing/public/r`, which is what serves `openinary.dev/r`. The output is generated, not committed. |
+| `shared` | The self-hosted SQLite database (schema and migrations), auth config and environment helpers, used by `apps/api` and `apps/web`. |
+
+The apps consume the packages through `workspace:*`, so nothing has to be
+published between fixing something and shipping it. Both were published to npm up
+to `@openinary/core` 1.6.0 and `@openinary/ui` 0.8.1, and both are marked
+`private` now, so those versions are frozen. To use them in your own app, go
+through the [shadcn registry](/guides/file-uploader).
+
+## packages/core
+
+Nearly all media, storage and queue logic lives here rather than in `apps/api`.
+That is what lets the self-hosted API and the Cloud's media container share one
+implementation.
+
+```bash
+packages/core/src/
+├── url/              # "@openinary/core/url": URL grammar, cache keys, format negotiation,
+│                     #   media types, storage layout, HMAC. No sharp, ffmpeg or fs, so the
+│                     #   Cloud Worker imports it too
+├── config/           # RouteDeps and the engine's local paths (public, cache, temp)
+├── routes/           # transform, authenticated, storage, queue, download, invalidate, video-status
+├── services/         # TransformService, the entry point for every delivery request
+└── utils/
+    ├── image/        # Sharp-based image pipeline
+    ├── video/        # FFmpeg pipeline and worker settings (the SQLite job store lives in apps/api)
+    ├── storage/      # S3-compatible client (AWS, R2, MinIO…)
+    ├── video-job-queue.ts  # The video queue and its worker
+    ├── cache.ts      # Local derivative cache
+    └── signature.ts  # Signed URLs and presigned uploads
+```
+
+The routes take their storage, queue and secrets from the app that mounts them
+(`RouteDeps`, local paths included), and the queue takes its video settings the
+same way, so nothing is read from the environment inside the engine.
+
+**Key dependencies:** `sharp`, `fluent-ffmpeg`, `@aws-sdk/client-s3`, `@webtoon/psd`, `fflate`, `hono`, `pino`
+
+## apps/api
+
+The self-hosted server. It wires the engine to HTTP: startup, auth, rate limiting,
+and the three routes specific to a self-hosted instance. Everything else is
+mounted from `@openinary/core`.
+
+```bash
+apps/api/src/
+├── routes/           # activity, api-keys, health, onboarding, upload
+├── middleware/       # apiKeyAuth, rate limiting, presigned upload auth, delivery log
+├── config/           # STORAGE_* and VIDEO_* resolution, queue wiring, deployment mode
+└── utils/            # Delivery log, client IP, telemetry
+```
+
+**Key dependencies:** `hono`, `@openinary/core`, `shared`, `heic-convert`, `zod`
+
+## apps/web
+
+The Next.js 15 admin dashboard, for uploads, API keys and video queue status.
+
+```bash
+apps/web/src/app/
+├── (dashboard)/      # Protected dashboard routes (requires login)
+│   ├── page.tsx      # Media browser
+│   ├── get-started/  # First-run checklist
+│   ├── settings/     # API keys, logs and the other settings tabs
+│   └── debug/queue/  # Video queue inspector
+├── login/            # Login page
+├── setup/            # First-run admin account creation
+├── uploader-demo/    # File uploader playground
+└── api/
+    ├── auth/         # Better Auth handler
+    ├── check-setup/  # Whether first-run setup is still pending
+    ├── upload-token/ # Mints presigned upload signatures for the demo
+    └── version/      # Running version, used by the update banner
+```
+
+Most screens come from `@openinary/dashboard`; `apps/web` supplies the adapter
+that points them at the self-hosted API.
+
+**Key dependencies:** `next`, `react`, `@openinary/dashboard`, `@tanstack/react-query`, `better-auth`, Tailwind CSS v4
+
+## packages/shared
+
+Consumed by both `api` and `web`. It owns the one SQLite file a self-hosted
+instance keeps, so both apps always use the same database and schema.
+
+```bash
+packages/shared/src/
+├── db.ts           # DB path, connection, every table and its migrations
+├── auth.ts         # Better Auth config and API key plugin (createAuth / getAuth)
+├── auth-client.ts  # Client-side auth helpers
+├── env.ts          # Allowed origins, placeholder secrets, version
+├── telemetry.ts    # Telemetry payload schema
+└── index.ts
+```
+
+Both apps import through the `"shared"` and `"shared/*"` entry points defined in
+`packages/shared/package.json`.
+
+## Dependency flow
+
+```
+api  →  @openinary/core  →  sharp, fluent-ffmpeg, @aws-sdk/client-s3
+api  →  shared           →  better-auth, @better-auth/api-key, better-sqlite3
+web  →  @openinary/dashboard  →  @openinary/ui
+web  →  shared
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Local Development" icon="terminal" href="/local-development">
+    Run the monorepo locally with pnpm.
+  </Card>
+  <Card title="Security" icon="lock" href="/security">
+    Auth architecture, API keys, and route reference.
+  </Card>
+</CardGroup>

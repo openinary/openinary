@@ -11,11 +11,12 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 
+import { formatSeconds, splitDelivery } from "@openinary/dashboard";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@openinary/dashboard/ui/tooltip";
 import { FEATURES, formatUsd, isMeteredPlan } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -25,9 +26,9 @@ const RATES = Object.fromEntries(FEATURES.map((f) => [f.id, f.rate])) as Record<
   number
 >;
 
-// Wire format is single-letter keys (see apps/server/api/lib/delivery-log.ts -
-// 500 of these per account are stored and shipped, so the names are paid for
-// by the byte). Expanded once, here.
+// Wire format is single-letter keys (see apps/cloud/server/worker/lib/delivery-log.ts -
+// up to MAX_EVENTS of these per account are stored and shipped, so the names
+// are paid for by the byte). Expanded once, here.
 type Delivery = {
   t: number;
   b: string;
@@ -49,12 +50,6 @@ type VideoJob = {
   seconds: number | null;
   metered: boolean;
 };
-
-function formatSeconds(seconds: number) {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ${seconds % 60}s`;
-}
 
 /** What this one delivery added to the metered balances, in plain units. */
 function deliveryUsage(delivery: Delivery): string {
@@ -91,17 +86,12 @@ export function ActivityTab() {
 
   const events: UsageEvent[] = deliveries.map((delivery, index) => {
     const cost = deliveryCost(delivery);
-    const slash = delivery.p.indexOf("/");
-    const first = slash === -1 ? "" : delivery.p.slice(0, slash);
-    // A transformation segment is key_value pairs; a folder is not.
-    const transformed = /^[a-z]+_[^/]+$/.test(first);
     return {
       id: `${delivery.t}-${index}`,
       time: delivery.t,
       status: delivery.s,
       kind: delivery.k,
-      file: transformed ? delivery.p.slice(slash + 1) : delivery.p,
-      transform: transformed ? first : "",
+      ...splitDelivery(delivery.p),
       extra: {
         Bucket: delivery.b,
         Cache: delivery.c,
@@ -163,7 +153,7 @@ export function ActivityTab() {
         isError={isError}
         isLoading={isLoading}
         isRefreshing={isFetching}
-        limit={500}
+        limit={data?.limit ?? Infinity}
         onRefresh={() => refetch()}
       />
 

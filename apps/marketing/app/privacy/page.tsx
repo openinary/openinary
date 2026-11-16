@@ -1,5 +1,5 @@
-import { PageIntro, PageShell } from "@/components/page-shell";
-import { gutter } from "@/components/home/section";
+import { PageIntro, PageShell } from "@/components/site/page-shell";
+import { gutter } from "@/components/site/section";
 import { Section, H2, P, Ul, A } from "@/components/legal";
 import type { Metadata } from "next";
 
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
               <li><strong>PostHog</strong> - product analytics and session replay (EU hosted)</li>
               <li><strong>Autumn &amp; Stripe</strong> - subscription management and payment processing</li>
               <li><strong>Google</strong> - sign-in, only if you choose to log in with Google</li>
-              <li><strong>Attio</strong> - customer relationship management, including waitlist and contact requests</li>
+              <li><strong>Attio</strong> - customer relationship management, including the Cloud waitlist</li>
             </Ul>
           </Section>
 

@@ -1,11 +1,11 @@
 // One square source crop per asset, whatever slot renders it. @openinary/ui
 // asks for four sizes (500² and 250² previews plus a 1:2 folder card), but
 // they all resolve to the same stored object server-side (see
-// dashboardThumbParams in worker/transform-cache.ts), and every slot fits
-// what it gets to its own box: the folder-card ones are object-cover (so the
-// 1:2 slot just center-crops this square horizontally), and AssetPreview's is
-// object-contain inside an aspect-square container, which a square fills
-// exactly.
+// dashboardThumbParams in the server's worker/cdn/dashboard-thumbs.ts), and
+// every slot fits what it gets to its own box: the folder-card ones are
+// object-cover (so the 1:2 slot just center-crops this square horizontally),
+// and AssetPreview's is object-contain inside an aspect-square container,
+// which a square fills exactly.
 //
 // 400px is that one size: the largest slot asks for 500, and a webp thumbnail
 // upscaled 1.25x there is indistinguishable from a native one, while encoding
@@ -13,7 +13,7 @@
 export const THUMB_SIZE = 400;
 
 // webp is the one format these are ever stored and served in - see
-// DASHBOARD_THUMB_FORMAT in worker/transform-cache.ts.
+// DASHBOARD_THUMB_FORMAT in the server's worker/cdn/dashboard-thumbs.ts.
 export const THUMB_MIME = "image/webp";
 export const THUMB_QUALITY = 0.75;
 

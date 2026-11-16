@@ -1,0 +1,25 @@
+---
+/**
+ * PostHog, the same project as the marketing site (the Mintlify site had it
+ * too, with session recording). The docs live on openinary.dev/docs, so
+ * `/ingest` is the marketing Worker's PostHog proxy on the same origin.
+ * Production builds only, and never on localhost (a local build served with
+ * `pnpm serve` is a production build too).
+ */
+---
+
+{import.meta.env.PROD && (
+  <script>
+    import posthog from "posthog-js";
+
+    // phc_ key is public by design, it ships in the client bundle either way.
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)) {
+      posthog.init("phc_kSWX2q7bTDJPoqv5oLWAYzShJ5u7kaqjgzAzeosShVzc", {
+        api_host: "/ingest",
+        ui_host: "https://eu.posthog.com",
+        // Counts the ClientRouter's page swaps as page views.
+        defaults: "2025-05-24",
+      });
+    }
+  </script>
+)}

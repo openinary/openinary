@@ -54,6 +54,7 @@ const eslintConfig = [
       ".wrangler/**",
       "next-env.d.ts",
       "public/r/**",
+      "film/**",
     ],
   },
 ];

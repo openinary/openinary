@@ -1,12 +1,10 @@
-import { StorageConfig, StorageClientOptions } from "shared";
-import { createStorageClient } from "@openinary/core";
+import {
+  createStorageClient,
+  type StorageClientOptions,
+  type StorageConfig,
+} from "@openinary/core";
 
-/**
- * Single place where the self-hosted app reads STORAGE_* environment
- * variables. Keeping this out of utils/storage keeps that layer a pure
- * function of its inputs, so it can be reused by callers that resolve
- * storage config a different way (e.g. per-tenant, from a database).
- */
+/** The one place the self-hosted app reads STORAGE_* variables. */
 export function getStorageConfigFromEnv(): {
   config: StorageConfig;
   clientOptions: StorageClientOptions;
@@ -18,9 +16,8 @@ export function getStorageConfigFromEnv(): {
     bucketName: process.env.STORAGE_BUCKET_NAME || "",
     endpoint: process.env.STORAGE_ENDPOINT,
     publicUrl: process.env.STORAGE_PUBLIC_URL,
-    // Left undefined when unset so the default "public/" layout is preserved.
-    // Set STORAGE_PREFIX="" to store media at the bucket root, which is what
-    // lets Openinary serve a bucket whose layout it does not own.
+    // Undefined keeps the default "public/" layout; "" stores media at the
+    // bucket root, so Openinary can serve a bucket whose layout it does not own.
     prefix: process.env.STORAGE_PREFIX,
   };
 
@@ -37,28 +34,13 @@ export function getStorageConfigFromEnv(): {
   return { config, clientOptions };
 }
 
-/**
- * Convenience wrapper for the common case (self-hosted, single global
- * config). Equivalent to the old zero-arg createStorageClient(). Builds a
- * fresh client on every call - most callers want getSharedStorage() instead.
- */
-export function createStorageClientFromEnv() {
-  const { config, clientOptions } = getStorageConfigFromEnv();
-  return createStorageClient(config, clientOptions);
-}
+let sharedStorage: ReturnType<typeof createStorageClient> | undefined;
 
-let sharedStorage: ReturnType<typeof createStorageClientFromEnv> | undefined;
-
-/**
- * The one CloudStorage instance shared by every route and background worker
- * in this process. Lazily built on first use so it doesn't matter whether
- * index.ts (route wiring) or server.ts (queue init, cache cleanup) resolves
- * it first - both get the same client instead of each opening its own S3
- * connection pool.
- */
+/** One client (and one S3 connection pool) for the whole process. */
 export function getSharedStorage() {
   if (sharedStorage === undefined) {
-    sharedStorage = createStorageClientFromEnv();
+    const { config, clientOptions } = getStorageConfigFromEnv();
+    sharedStorage = createStorageClient(config, clientOptions);
   }
   return sharedStorage;
 }

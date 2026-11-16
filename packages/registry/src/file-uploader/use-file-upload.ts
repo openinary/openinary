@@ -169,7 +169,12 @@ function uploadViaXhr({
     };
 
     xhr.onload = () => {
-      let body: any = null;
+      let body: {
+        success?: boolean;
+        files?: UploadedFile[];
+        errors?: { error?: string }[];
+        error?: string;
+      } | null = null;
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
@@ -208,15 +213,11 @@ export function useFileUpload(options: UseFileUploadOptions) {
   const {
     baseUrl,
     sign,
-    transformations,
     accept = DEFAULT_ACCEPT,
     maxSize = DEFAULT_MAX_SIZE,
     maxFiles,
     multiple = true,
     concurrency = 3,
-    onSuccess,
-    onError,
-    onProgress,
   } = options;
 
   const resolvedBaseUrl =
@@ -229,9 +230,12 @@ export function useFileUpload(options: UseFileUploadOptions) {
   const [files, setFiles] = React.useState<FileUploadState[]>([]);
   const [isUploading, setIsUploading] = React.useState(false);
 
-  // Keep option callbacks fresh without re-creating upload functions.
+  // Written in an effect: mutating a ref during render is unsafe under
+  // concurrent rendering, and only post-commit callbacks read it.
   const optionsRef = React.useRef(options);
-  optionsRef.current = options;
+  React.useEffect(() => {
+    optionsRef.current = options;
+  });
 
   // Track active XHRs by file id for abort.
   const xhrRef = React.useRef<Map<string, XMLHttpRequest>>(new Map());

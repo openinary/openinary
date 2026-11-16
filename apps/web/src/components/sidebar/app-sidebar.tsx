@@ -1,164 +1,143 @@
 "use client";
 
-import { type MediaFile, type QuickAction, QuickActions } from "@openinary/ui";
 import {
-  BookOpen,
-  HardDrive,
-  Image as ImageIcon,
-  KeyRound,
-  LayoutGrid,
-  Palette,
-  Plug,
-  ScrollText,
-  Settings,
-  UploadCloud,
-  User,
-  Video,
-} from "lucide-react";
+  AppSidebar as DashboardSidebar,
+  initials,
+  SidebarAccount,
+  SolarAccount,
+  SolarAssets,
+  SolarKey,
+  SolarLogs,
+  SolarPalette,
+  SolarStorage,
+  WorkspaceTile,
+} from "@openinary/dashboard";
+import {
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@openinary/dashboard/ui/dropdown-menu";
+import { ArrowUpRight, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { GettingStarted } from "@/components/sidebar/getting-started";
-import { type NavItem, NavMain } from "@/components/sidebar/nav-main";
-import { NavProjects } from "@/components/sidebar/nav-projects";
-import { NavUser } from "@/components/sidebar/nav-user";
-import { VersionLink } from "@/components/sidebar/version-display";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { useOnboardingState } from "@/components/onboarding-gate";
+import { useVersion } from "@/components/sidebar/version-display";
+import { signOut, useSession } from "@/lib/auth-client";
 
 const GITHUB_URL = "https://github.com/openinary/openinary";
-const DOCS_URL = "https://docs.openinary.dev";
 
-export const mainItems: NavItem[] = [
-  { title: "Assets", icon: LayoutGrid, url: "/" },
-  { title: "Logs", icon: ScrollText, url: "/settings/logs" },
-  { title: "Storage", icon: HardDrive, url: "/settings/storage" },
-  { title: "API keys", icon: KeyRound, url: "/settings/api-keys" },
+const mainItems = [
+  { title: "Assets", icon: SolarAssets, url: "/" },
+  { title: "Logs", icon: SolarLogs, url: "/settings/logs" },
+  { title: "Storage", icon: SolarStorage, url: "/settings/storage" },
+  { title: "API keys", icon: SolarKey, url: "/settings/api-keys" },
 ];
 
-export const toolItems: NavItem[] = [
-  {
-    title: "Integrate",
-    icon: Plug,
-    url: "/get-started/integrate",
-    tile: "from-orange-400 to-rose-500",
-  },
-  {
-    title: "Images",
-    icon: ImageIcon,
-    url: "/get-started/images",
-    tile: "from-sky-400 to-indigo-500",
-  },
-  {
-    title: "Videos",
-    icon: Video,
-    url: "/get-started/videos",
-    tile: "from-emerald-400 to-teal-600",
-  },
-  {
-    title: "Uploader",
-    icon: UploadCloud,
-    url: "/uploader-demo",
-    tile: "from-fuchsia-400 to-violet-600",
-  },
+// The settings pages the sidebar does not already list above.
+const settingsPages = [
+  { title: "Account", url: "/settings/account" },
+  { title: "Appearance", url: "/settings/appearance" },
 ];
 
-// One palette entry per sidebar link, filed under the section it sits in.
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  onMediaSelect?: (media: MediaFile) => void;
-}
-
-export function AppSidebar({ onMediaSelect, ...props }: AppSidebarProps) {
+/** The workspace (this instance) and the signed-in account, at the bottom. */
+function Account() {
   const router = useRouter();
-  const toAction =
-    (group: string) =>
-    (item: NavItem): QuickAction => ({
-      label: item.title,
-      group,
-      icon: item.icon,
-      onSelect:
-        item.onSelect ??
-        (() =>
-          item.url?.startsWith("http")
-            ? window.open(item.url, "_blank", "noreferrer")
-            : router.push(item.url ?? "/")),
-    });
-
-  const quickActions: QuickAction[] = [
-    ...mainItems.map(toAction("Pages")),
-    ...toolItems.map(toAction("Tools")),
-    {
-      label: "Account",
-      group: "Settings",
-      icon: User,
-      onSelect: () => router.push("/settings/account"),
-    },
-    {
-      label: "Appearance",
-      group: "Settings",
-      icon: Palette,
-      onSelect: () => router.push("/settings/appearance"),
-    },
-    {
-      label: "Documentation",
-      group: "Help",
-      icon: BookOpen,
-      onSelect: () => window.open(DOCS_URL, "_blank", "noreferrer"),
-    },
-  ];
+  const user = useSession().data?.user;
+  const workspace = useOnboardingState().data?.workspace;
+  const version = useVersion();
+  const name = workspace?.name ?? "Openinary";
+  const userName = user?.name || user?.email?.split("@")[0] || "You";
 
   return (
-    <Sidebar collapsible="icon" variant="inset" {...props}>
-      <SidebarHeader>
-        <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
-          <NavUser />
-          <SidebarTrigger className="text-muted-foreground" />
-        </div>
-        <QuickActions actions={quickActions} />
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={mainItems} />
-        <NavMain label="Tools" items={toolItems} />
-        <NavProjects
-          // Off the assets page there is no details panel to open, so go there.
-          onMediaSelect={
-            onMediaSelect ??
-            ((media) =>
-              router.push(`/?asset=${encodeURIComponent(media.id)}`))
-          }
-        />
-      </SidebarContent>
-      <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:px-0">
-        <GettingStarted />
-        <div className="border-t px-3 py-2 group-data-[collapsible=icon]:px-2">
-        <SidebarMenu>
-          <SidebarMenuItem className="flex items-center gap-2">
-            <SidebarMenuButton
-              asChild
-              tooltip="Settings"
-              className="min-w-0 flex-1 text-sidebar-foreground"
-            >
-              <Link href="/settings">
-                <Settings />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-            {/* Still worth a glance when reporting a bug, so it stays, quietly. */}
-            <VersionLink href={`${GITHUB_URL}/releases`} />
-          </SidebarMenuItem>
-        </SidebarMenu>
-        </div>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+    <SidebarAccount
+      tile={<WorkspaceTile name={name} logo={workspace?.logo} />}
+      name={name}
+      detail={version ? `Self-hosted · ${version}` : "Self-hosted"}
+      workspaceMenu={
+        <>
+          <DropdownMenuLabel>{name}</DropdownMenuLabel>
+          <DropdownMenuItem asChild>
+            <Link href="/settings/storage">
+              <Settings />
+              Workspace settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <a href={`${GITHUB_URL}/releases`} target="_blank" rel="noreferrer">
+              <ArrowUpRight />
+              What's new
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <ArrowUpRight />
+              Star on GitHub
+            </a>
+          </DropdownMenuItem>
+        </>
+      }
+      avatar={
+        user?.image ? (
+          <img src={user.image} alt="" className="size-full object-cover" />
+        ) : (
+          initials(userName)
+        )
+      }
+      accountMenu={
+        <>
+          <DropdownMenuLabel className="flex flex-col gap-0.5">
+            <span className="truncate font-medium text-[13px] text-ds-text">
+              {userName}
+            </span>
+            <span className="truncate">{user?.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/settings/account">
+              <SolarAccount />
+              Account settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/settings/appearance">
+              <SolarPalette />
+              Appearance
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={async () => {
+              await signOut();
+              router.push("/login");
+            }}
+          >
+            <LogOut />
+            Log out
+          </DropdownMenuItem>
+        </>
+      }
+    />
+  );
+}
+
+export function AppSidebar() {
+  const router = useRouter();
+
+  return (
+    <DashboardSidebar
+      brand={<img src="/icon.svg" alt="" className="size-[18px] dark:invert" />}
+      mainItems={mainItems}
+      settingsPages={settingsPages}
+      settingsActions={settingsPages.map((page) => ({
+        label: page.title,
+        group: "Settings",
+        icon: page.title === "Account" ? SolarAccount : SolarPalette,
+        onSelect: () => router.push(page.url),
+      }))}
+      account={<Account />}
+      uploaderHref="/uploader-demo"
+    />
   );
 }

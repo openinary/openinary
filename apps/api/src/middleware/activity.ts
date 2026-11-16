@@ -3,12 +3,8 @@ import { logger, serializeError } from "@openinary/core";
 
 import { activityLog } from "../config/activity";
 import { isDashboardTraffic, isOpeningRange } from "../utils/activity-log";
+import { clientIp } from "../utils/client-ip";
 import type { AuthVariables } from "./auth";
-
-const viewerOf = (c: Context) =>
-  c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-  c.req.header("x-real-ip") ||
-  "unknown";
 
 /**
  * Writes a line to the delivery log once the response is known. Runs after the
@@ -27,7 +23,7 @@ export function logDelivery(prefix: string) {
 
       const path = decodeURIComponent(c.req.path.slice(prefix.length + 1));
       if (!path) return;
-      activityLog.recordDelivery({ p: path, s: c.res.status }, viewerOf(c));
+      activityLog.recordDelivery({ p: path, s: c.res.status }, clientIp(c));
     } catch (error) {
       logger.error(
         { error: serializeError(error) },

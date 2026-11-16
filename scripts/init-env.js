@@ -1,144 +1,98 @@
 #!/usr/bin/env node
 /**
- * Initialize environment variables
- * Generates BETTER_AUTH_SECRET if not already set
- * 
- * Cross-platform Node.js version (works on Windows, macOS, Linux, Docker)
+ * Settles BETTER_AUTH_SECRET before the servers start (`pnpm init-env` in
+ * dev; the Docker images source init-env-wrapper.sh, which evals the
+ * `--shell` output of this script).
+ *
+ * Order: the environment, then the value already in apps/api/.env (dev, and
+ * containers started before the secret lived on the volume), then the copy
+ * persisted next to the database (DB_PATH's directory, the data volume in
+ * Docker), else a new one. The result is written back to both, so
+ * recreating a container keeps the secret the database was created with.
  */
 
 import crypto from 'crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { writeFileSync, existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { parseEnv } from 'util';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, '..');
+const shell = process.argv.includes('--shell');
+// stdout is eval'd by the wrapper in --shell mode, so logs go to stderr.
+const log = shell ? console.error : console.log;
 
-// Get the API .env file path
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = join(projectRoot, 'apps', 'api', '.env');
 const envTemplatePath = join(projectRoot, 'apps', 'api', 'env.template');
+const secretPath = process.env.DB_PATH
+  ? join(dirname(process.env.DB_PATH), '.secret')
+  : undefined;
 
-// Initialize web .env from template if it doesn't exist
+// Dev convenience; apps/web does not exist in the images.
 const webEnvPath = join(projectRoot, 'apps', 'web', '.env');
 const webEnvTemplatePath = join(projectRoot, 'apps', 'web', 'env.template');
 if (!existsSync(webEnvPath) && existsSync(webEnvTemplatePath)) {
   writeFileSync(webEnvPath, readFileSync(webEnvTemplatePath, 'utf-8'), 'utf-8');
-  console.log('Creating apps/web/.env from template...');
-  console.log(`   Saved to: ${webEnvPath}`);
+  log(`Created ${webEnvPath} from template`);
 }
 
-console.log('Initializing environment...');
+let envContent = existsSync(envPath)
+  ? readFileSync(envPath, 'utf-8')
+  : existsSync(envTemplatePath)
+    ? readFileSync(envTemplatePath, 'utf-8')
+    : '';
+const fileEnv = parseEnv(envContent);
 
-// Read existing .env file or create from template
-let envContent = '';
-if (existsSync(envPath)) {
-  envContent = readFileSync(envPath, 'utf-8');
-} else if (existsSync(envTemplatePath)) {
-  envContent = readFileSync(envTemplatePath, 'utf-8');
-  console.log('Creating .env from template...');
+const fromEnv = process.env.BETTER_AUTH_SECRET;
+const fromFile = fileEnv.BETTER_AUTH_SECRET?.trim();
+const fromVolume =
+  secretPath && existsSync(secretPath)
+    ? readFileSync(secretPath, 'utf-8').trim()
+    : undefined;
+const secret =
+  fromEnv || fromFile || fromVolume || crypto.randomBytes(32).toString('hex');
+
+log(
+  fromEnv
+    ? 'Using BETTER_AUTH_SECRET from the environment'
+    : fromFile
+      ? 'Using BETTER_AUTH_SECRET from apps/api/.env'
+      : fromVolume
+        ? `Using BETTER_AUTH_SECRET from ${secretPath}`
+        : 'Generated a new BETTER_AUTH_SECRET',
+);
+
+if (secretPath && secret !== fromVolume) {
+  mkdirSync(dirname(secretPath), { recursive: true });
+  writeFileSync(secretPath, `${secret}\n`, { mode: 0o600 });
 }
 
-// Check if BETTER_AUTH_SECRET is set in environment or file
-const secretFromEnv = process.env.BETTER_AUTH_SECRET;
-const secretMatch = envContent.match(/^BETTER_AUTH_SECRET=(.+)$/m);
-const existingSecret = secretMatch ? secretMatch[1].trim() : null;
-
-// Check if secret needs to be generated
-// In Docker, if secret is set via env var, use it. Otherwise, generate and write to .env
-const needsGeneration = !secretFromEnv || 
-  secretFromEnv === '' ||
-  secretFromEnv === 'build-time-secret-will-be-replaced' ||
-  (!existingSecret && !secretFromEnv) ||
-  (existingSecret && (
-    existingSecret === 'your-secret-key-here-generate-with-openssl-rand-hex-32' ||
-    existingSecret === '' ||
-    existingSecret === 'build-time-secret-will-be-replaced'
-  ));
-
-if (needsGeneration && !secretFromEnv) {
-  console.log('Generating BETTER_AUTH_SECRET...');
-  
-  // Generate 32-byte (256-bit) hex secret
-  const secret = crypto.randomBytes(32).toString('hex');
-  
-  // Update or add BETTER_AUTH_SECRET in env content
-  if (secretMatch) {
-    // Replace existing line
-    envContent = envContent.replace(
-      /^BETTER_AUTH_SECRET=.*$/m,
-      `BETTER_AUTH_SECRET=${secret}`
-    );
+if (secret !== fromFile) {
+  const line = `BETTER_AUTH_SECRET=${secret}`;
+  if (/^BETTER_AUTH_SECRET=.*$/m.test(envContent)) {
+    envContent = envContent.replace(/^BETTER_AUTH_SECRET=.*$/m, line);
   } else {
-    // Add new line
-    if (envContent && !envContent.endsWith('\n')) {
-      envContent += '\n';
-    }
-    envContent += `BETTER_AUTH_SECRET=${secret}\n`;
+    if (envContent && !envContent.endsWith('\n')) envContent += '\n';
+    envContent += `${line}\n`;
   }
-  
-  // Write updated .env file
-  writeFileSync(envPath, envContent, 'utf-8');
-  console.log('BETTER_AUTH_SECRET generated successfully');
-  console.log(`   Saved to: ${envPath}`);
-} else {
-  if (secretFromEnv && secretFromEnv !== '' && secretFromEnv !== 'build-time-secret-will-be-replaced') {
-    console.log('Using existing BETTER_AUTH_SECRET from environment');
-    
-    // Also update .env file if it exists to keep it in sync
-    if (existsSync(envPath)) {
-      if (secretMatch) {
-        envContent = envContent.replace(
-          /^BETTER_AUTH_SECRET=.*$/m,
-          `BETTER_AUTH_SECRET=${secretFromEnv}`
-        );
-      } else {
-        if (envContent && !envContent.endsWith('\n')) {
-          envContent += '\n';
-        }
-        envContent += `BETTER_AUTH_SECRET=${secretFromEnv}\n`;
-      }
-      writeFileSync(envPath, envContent, 'utf-8');
-    }
-  } else if (existingSecret && existingSecret !== '' && existingSecret !== 'your-secret-key-here-generate-with-openssl-rand-hex-32' && existingSecret !== 'build-time-secret-will-be-replaced') {
-    console.log('Using existing BETTER_AUTH_SECRET from .env file');
-  } else {
-    // Fallback: generate if nothing valid exists
-    console.log('Generating BETTER_AUTH_SECRET...');
-    const secret = crypto.randomBytes(32).toString('hex');
-    if (secretMatch) {
-      envContent = envContent.replace(
-        /^BETTER_AUTH_SECRET=.*$/m,
-        `BETTER_AUTH_SECRET=${secret}`
-      );
-    } else {
-      if (envContent && !envContent.endsWith('\n')) {
-        envContent += '\n';
-      }
-      envContent += `BETTER_AUTH_SECRET=${secret}\n`;
-    }
+  try {
     writeFileSync(envPath, envContent, 'utf-8');
-    console.log('BETTER_AUTH_SECRET generated successfully');
-    console.log(`   Saved to: ${envPath}`);
+  } catch (error) {
+    // The API image runs as `node` and apps/api is root-owned. The volume
+    // copy above is the one that persists, so this file is only a convenience.
+    if (!secretPath) throw error;
+    log(`Could not write ${envPath} (${error.code}); the secret lives in ${secretPath}`);
   }
 }
 
-// Write runtime configuration for Next.js (variables that might be filtered by standalone mode)
-const runtimeConfig = {
-  IMAGE_TAG: process.env.IMAGE_TAG || 'latest',
-  NODE_ENV: process.env.NODE_ENV || 'production',
-  generatedAt: new Date().toISOString()
-};
-
-const runtimeConfigPath = join(projectRoot, 'runtime-config.json');
-try {
-  writeFileSync(runtimeConfigPath, JSON.stringify(runtimeConfig, null, 2), 'utf-8');
-  console.log('Runtime configuration written to:', runtimeConfigPath);
-  console.log('  IMAGE_TAG:', runtimeConfig.IMAGE_TAG);
-} catch (err) {
-  console.error('Warning: Could not write runtime-config.json:', err.message);
+if (shell) {
+  const quote = (value) => `'${value.replaceAll("'", `'\\''`)}'`;
+  const exports = { BETTER_AUTH_SECRET: secret };
+  // The runtime BETTER_AUTH_URL wins; the file is only a fallback.
+  if (!process.env.BETTER_AUTH_URL && fileEnv.BETTER_AUTH_URL) {
+    exports.BETTER_AUTH_URL = fileEnv.BETTER_AUTH_URL;
+  }
+  for (const [key, value] of Object.entries(exports)) {
+    console.log(`export ${key}=${quote(value)}`);
+  }
 }
-
-console.log('Environment initialized');
-

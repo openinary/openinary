@@ -1,6 +1,6 @@
 /**
- * What the Integrate page hands over, prefilled with this instance's API URL -
- * a snippet the user has to go and substitute values into is just
+ * What the Integrate page hands over, prefilled with this instance's URLs - a
+ * snippet the user has to go and substitute values into is just
  * documentation with extra steps.
  *
  * None of them ever contains the API key. Openinary keys are secret (they mint
@@ -9,12 +9,15 @@
  * `POST /upload/sign` returns and what the FileUploader expects.
  */
 
-export interface SnippetContext {
+export function aiPrompt({
+  apiBaseUrl,
+  deliveryBase,
+}: {
   /** This instance's API URL, e.g. https://media.example.com/api */
   apiBaseUrl: string;
-}
-
-export function aiPrompt({ apiBaseUrl }: SnippetContext) {
+  /** Where files are served from: {deliveryBase}/t/<path> */
+  deliveryBase: string;
+}) {
   return `# Integrate Openinary
 
 Wire file uploads and media delivery into this project using a self-hosted
@@ -23,7 +26,7 @@ Openinary instance.
 ## 1 - Values
 
 - API URL:   ${apiBaseUrl}
-- Delivery:  ${apiBaseUrl}/t/<path>
+- Delivery:  ${deliveryBase}/t/<path>
 
 OPENINARY_API_KEY is the one value only the user has. It mints upload
 signatures, so it is a secret: backend environment only. Never a NEXT_PUBLIC_*
@@ -109,7 +112,7 @@ nowhere to go.
 Every delivery URL goes through /t/. To show the file that was just uploaded,
 use the bare form, with no transformation segment:
 
-  ${apiBaseUrl}/t/<path>
+  ${deliveryBase}/t/<path>
 
 Render it ONCE, and never swap it for another URL. That form is served
 straight from storage, so it renders on the first try, every time. Image

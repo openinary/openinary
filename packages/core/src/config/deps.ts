@@ -1,14 +1,17 @@
 import type { CloudStorage } from "../utils/storage/index";
 import type { VideoJobQueue } from "../utils/video-job-queue";
+import type { EnginePaths } from "./paths";
 
-/**
- * Dependencies a route factory needs to build its Hono sub-app. Every route
- * factory takes this same shape, even if it only reads one field, so
- * index.ts can wire all routes uniformly and a future caller (e.g. a
- * per-tenant SaaS mount) only has to build one object per mount instead of
- * matching each factory's own parameter list.
- */
+/** What every route factory is built from. */
 export interface RouteDeps {
   storage: CloudStorage | null;
   queue: VideoJobQueue;
+  paths: EnginePaths;
+  /** Signs /authenticated URLs; that route answers 500 without it. */
+  apiSecret?: string;
+  /**
+   * Honour the x-openinary-source-url header on /t. Only for instances whose
+   * transform route is not public and whose every caller is trusted.
+   */
+  allowRemoteSource?: boolean;
 }

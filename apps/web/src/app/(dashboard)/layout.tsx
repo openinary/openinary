@@ -1,8 +1,10 @@
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { ChatbotButton } from "@/components/chatbot-button";
-import { OnboardingGate } from "@/components/onboarding-gate";
+import { SidebarProvider } from "@openinary/dashboard/ui/sidebar";
 import { cookies } from "next/headers";
+
+import { ChatbotButton } from "@/components/chatbot-button";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { WebDashboardProvider } from "@/components/dashboard-providers";
+import { OnboardingGate } from "@/components/onboarding-gate";
 
 export default async function DashboardLayout({
   children,
@@ -13,10 +15,12 @@ export default async function DashboardLayout({
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (
-    <SidebarProvider defaultOpen={sidebarOpen}>
-      <DashboardShell>{children}</DashboardShell>
-      <ChatbotButton />
-      <OnboardingGate />
-    </SidebarProvider>
+    <WebDashboardProvider>
+      <SidebarProvider defaultOpen={sidebarOpen}>
+        <DashboardShell>{children}</DashboardShell>
+        <ChatbotButton />
+        <OnboardingGate />
+      </SidebarProvider>
+    </WebDashboardProvider>
   );
 }

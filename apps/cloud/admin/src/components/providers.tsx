@@ -21,7 +21,7 @@ function ThemedToaster() {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    // Same settings as the customer app (apps/web/src/components/providers.tsx):
+    // Same settings as the customer app (apps/cloud/web/src/components/providers.tsx):
     // the .dark class carries the palette, and the OS preference decides until
     // the header's toggle is used.
     <ThemeProvider

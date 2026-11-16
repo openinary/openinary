@@ -1,8 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, mkdir, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Hono } from "hono";
+import sharp from "sharp";
 import { TransformService } from "./transform.service";
 import { createVideoStatusRoute } from "../routes/video-status";
+import { enginePathsIn } from "../config/paths";
+
+const paths = enginePathsIn(tmpdir());
 
 const fakeStorage = (): any => ({
   existsOriginal: async () => true,
@@ -29,23 +36,22 @@ const fakeEstimate = {
 const fakeQueue = (job?: unknown): any => ({
   getJobByPath: () => job,
   estimate: async () => fakeEstimate,
-  addJob: async () => "job-1",
-  getStore: () => ({ updateJobStatus: () => {} }),
+  enqueueTransform: () => "job-1",
+  resetJob: () => {},
 });
 
 test("a bare video URL serves the original and queues nothing", async () => {
   const queue = fakeQueue();
   let queued = false;
-  queue.addJob = async () => {
+  queue.enqueueTransform = () => {
     queued = true;
     return "job-1";
   };
-  const service = new TransformService(fakeStorage(), queue);
+  const service = new TransformService(fakeStorage(), queue, paths);
 
   const result = await service.transform({
     path: "/t/clip.mp4",
     userAgent: "",
-    context: {} as any,
   });
 
   assert.equal(queued, false);
@@ -54,72 +60,46 @@ test("a bare video URL serves the original and queues nothing", async () => {
   assert.equal(result.contentType, "video/mp4");
 });
 
-test("a recoverable JPEG transform failure serves the stored original", async () => {
-  const original = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-  const storage = {
-    ...fakeStorage(),
-    downloadOriginal: async () => original,
-    downloadOriginalStream: async () => ({
-      stream: new ReadableStream({
-        start(controller) {
-          controller.enqueue(new Uint8Array(original));
-          controller.close();
-        },
-      }),
-      contentLength: original.length,
-    }),
-  };
-  const service = new TransformService(storage, fakeQueue());
-  const prototype = TransformService.prototype as any;
-  const previous = prototype.processImageFile;
-  prototype.processImageFile = async () => {
-    throw new Error("VipsJpeg: Invalid SOS parameters for sequential JPEG");
-  };
-
+// Camera JPEGs libjpeg refuses but browsers decode: served as the original
+// instead of a 500, and never cached as if it were the transform. Anything
+// else must still surface as an error. sharp's encoder is made to fail with
+// libvips' wording, since a file that reproduces it is not easy to craft.
+async function transformWhileSharpFails(message: string, file: string) {
+  const dir = await mkdtemp(join(tmpdir(), "jpeg-fallback-"));
+  const sharpProto = Object.getPrototypeOf(sharp()) as { toBuffer: unknown };
+  const toBuffer = sharpProto.toBuffer;
   try {
-    const result = await service.transform({
-      path: "/t/w_640/photos/camera.jpg",
-      userAgent: "",
-      context: {} as any,
-    });
-
-    assert.ok(result.stream);
-    assert.deepEqual(
-      Buffer.from(await new Response(result.stream).arrayBuffer()),
-      original,
-    );
-    assert.equal(result.contentType, "image/jpeg");
-    assert.equal(result.headers?.["X-Transform-Fallback"], "original");
-    assert.equal(result.headers?.["Cache-Control"], "no-store");
+    await mkdir(join(dir, "public"));
+    await sharp({ create: { width: 8, height: 8, channels: 3, background: "#c33" } }).toFile(join(dir, "public", file));
+    sharpProto.toBuffer = async () => {
+      throw new Error(message);
+    };
+    const service = new TransformService(null, fakeQueue(), enginePathsIn(dir));
+    const result = await service.transform({ path: `/t/w_4/${file}`, userAgent: "" });
+    const cached = await readdir(join(dir, "cache")).catch(() => []);
+    return { result, cached };
   } finally {
-    prototype.processImageFile = previous;
+    sharpProto.toBuffer = toBuffer;
+    await rm(dir, { recursive: true, force: true });
   }
+}
+
+const SOS = "VipsJpeg: Invalid SOS parameters for sequential JPEG";
+
+test("a JPEG libvips refuses with the SOS error is served as the original", async () => {
+  const { result, cached } = await transformWhileSharpFails(SOS, "camera.jpg");
+  assert.ok(result.stream, "the original is streamed");
+  assert.equal(result.contentType, "image/jpeg");
+  assert.equal(result.headers["Cache-Control"], "no-store");
+  assert.equal(result.headers["X-Transform-Fallback"], "original");
+  assert.deepEqual(cached, [], "the original is not cached as the transform");
 });
 
-test("a non-recoverable JPEG error is not hidden by the original fallback", async () => {
-  const storage = {
-    ...fakeStorage(),
-    downloadOriginal: async () => Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
-  };
-  const service = new TransformService(storage, fakeQueue());
-  const prototype = TransformService.prototype as any;
-  const previous = prototype.processImageFile;
-  prototype.processImageFile = async () => {
-    throw new Error("JPEG encoder unavailable");
-  };
-
-  try {
-    const result = await service.transform({
-      path: "/t/w_640/photos/camera.jpg",
-      userAgent: "",
-      context: {} as any,
-    });
-
-    assert.equal(result.contentType, "text/plain");
-    assert.match(result.buffer!.toString(), /JPEG encoder unavailable/);
-    assert.equal(result.headers?.["X-Transform-Fallback"], undefined);
-  } finally {
-    prototype.processImageFile = previous;
+test("other transform errors, or the SOS error on a non-JPEG, are not hidden", async () => {
+  for (const [message, file] of [["JPEG encoder unavailable", "camera.jpg"], [SOS, "photo.png"]]) {
+    const { result } = await transformWhileSharpFails(message, file);
+    assert.equal(result.status, 500, `${message} on ${file}`);
+    assert.equal(result.headers["X-Transform-Fallback"], undefined);
   }
 });
 
@@ -127,12 +107,12 @@ test("a pending video transform answers 202 instead of the original", async () =
   const service = new TransformService(
     fakeStorage(),
     fakeQueue({ id: "j1", status: "processing" }),
+    paths,
   );
 
   const result = await service.transform({
     path: "/t/w_640,q_80/clip.mp4",
     userAgent: "",
-    context: {} as any,
   });
 
   assert.equal(result.status, 202);
@@ -155,20 +135,19 @@ test("the 202 status URL resolves to the job the transform queued", async () => 
     return { id: "j1", status: "processing", progress: 42 };
   };
 
-  const service = new TransformService(fakeStorage(), queue);
+  const service = new TransformService(fakeStorage(), queue, paths);
   const { statusUrl } = JSON.parse(
     (
       await service.transform({
         path: "/t/w_640,q_80/videos/clip.mp4",
         userAgent: "",
-        context: {} as any,
-      })
+          })
     ).buffer!.toString(),
   );
 
   const app = new Hono().route(
     "/video-status",
-    createVideoStatusRoute({ storage: null, queue } as any),
+    createVideoStatusRoute({ storage: null, queue, paths } as any),
   );
   const response = await app.request(statusUrl);
 
@@ -192,30 +171,27 @@ test("a cached video→image transform is served as an image, not video/mp4", as
   const storage = fakeStorage();
   storage.exists = async () => true; // cloud cache hit
   storage.download = async () => Buffer.from("avif-bytes");
-  const service = new TransformService(storage, fakeQueue());
+  const service = new TransformService(storage, fakeQueue(), paths);
 
   const image = await service.transform({
     path: "/t/f_avif/clip.mp4",
     userAgent: "",
-    context: {} as any,
   });
   assert.equal(image.contentType, "image/avif");
 
   const video = await service.transform({
     path: "/t/w_640,q_80/clip.mp4",
     userAgent: "",
-    context: {} as any,
   });
   assert.equal(video.contentType, "video/mp4");
 });
 
 test("q_auto opts a video into transformation", async () => {
-  const service = new TransformService(fakeStorage(), fakeQueue());
+  const service = new TransformService(fakeStorage(), fakeQueue(), paths);
 
   const result = await service.transform({
     path: "/t/q_auto/clip.mp4",
     userAgent: "",
-    context: {} as any,
   });
 
   assert.equal(result.status, 202);
@@ -223,12 +199,11 @@ test("q_auto opts a video into transformation", async () => {
 });
 
 test("a bare audio/3D URL streams the original with its real content-type", async () => {
-  const service = new TransformService(fakeStorage(), fakeQueue());
+  const service = new TransformService(fakeStorage(), fakeQueue(), paths);
 
   const glb = await service.transform({
     path: "/t/models/duck.glb",
     userAgent: "",
-    context: {} as any,
   });
   assert.ok(glb.stream, "glb original should be streamed");
   assert.equal(glb.contentType, "model/gltf-binary");
@@ -236,19 +211,17 @@ test("a bare audio/3D URL streams the original with its real content-type", asyn
   const wav = await service.transform({
     path: "/t/audio/sfx.wav",
     userAgent: "",
-    context: {} as any,
   });
   assert.ok(wav.stream, "wav original should be streamed");
   assert.equal(wav.contentType, "audio/wav");
 });
 
 test("transform params on a non-transformable type 400 instead of serving or erroring", async () => {
-  const service = new TransformService(fakeStorage(), fakeQueue());
+  const service = new TransformService(fakeStorage(), fakeQueue(), paths);
 
   const result = await service.transform({
     path: "/t/w_500/audio/sfx.wav",
     userAgent: "",
-    context: {} as any,
   });
 
   assert.equal(result.status, 400);

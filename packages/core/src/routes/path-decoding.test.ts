@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { createTransformRoute } from "./transform";
+import { tmpdir } from "node:os";
+import { enginePathsIn } from "../config/paths";
 
 // Reported as "my image is still processing after 15 minutes": Hono's c.req.path
 // is only decodeURI'd, which leaves reserved characters (, & @ + = ; : $)
@@ -34,7 +36,8 @@ test("/t/* looks the source up under the fully decoded key", async () => {
           },
           invalidateAllCacheEntries: () => {},
         },
-        queue: { getJobByPath: () => undefined, addJob: async () => "job-1" },
+        queue: {},
+        paths: enginePathsIn(tmpdir()),
       } as any),
     );
     const encoded = key.split("/").map(encodeURIComponent).join("/");

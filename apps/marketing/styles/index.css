@@ -3,24 +3,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * The marketing site's look follows serveros.com 1:1 (dark page, Mona Sans,
+ * hairline-ringed controls, 20px tiles over painted skies). Only the look is
+ * borrowed: every value here is retyped, the skies are our own gradients and
+ * none of their assets ship. The site is dark only, like the reference.
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --font-sans: var(--font-mona), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -37,89 +30,356 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* The ink scale: 12 is headings, 11 body, 10 and 9 quieter text. Every
+     colour is a variable so the light and dark themes swap in one place. */
+  --color-page: var(--page);
+  --color-ink-12: var(--ink-12);
+  --color-ink-11: var(--ink-11);
+  --color-ink-10: var(--ink-10);
+  --color-ink-9: var(--ink-9);
+  --color-ink-6: var(--ink-6);
+  --color-ink-4: var(--ink-4);
+  --color-ink-3: var(--ink-3);
+  --color-tile: var(--tile);
+  --color-surface: var(--surface);
+  --color-surface-top: var(--surface-top);
+  --color-frame: var(--frame);
+  --color-line: var(--line);
+  --color-hair: var(--hair);
+  /* Inside product shots: hairlines, code wells, chips, card panels. */
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-well: var(--well);
+  --color-chip: var(--chip);
+  --color-panel: var(--panel);
+  --color-control: var(--control);
+  --color-control-hover: var(--control-hover);
+  --color-primary-hover: var(--primary-hover);
+  /* Status: text, tinted background, ring. */
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-keyword: var(--keyword);
+  --color-brand: #fc1f1c;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: light;
+  /* Light values follow serveros.com's light theme. */
+  --page: #ffffff;
+  --ink-12: #151515;
+  --ink-11: #62625d;
+  --ink-10: #7c7c76;
+  --ink-9: #8e8e88;
+  --ink-6: #d9d9d6;
+  --ink-4: #e8e8e4;
+  --ink-3: #efefec;
+  --tile: #f7f7f5;
+  --surface: #f3f3f1;
+  --surface-top: #ffffff;
+  --frame: #ffffff;
+  --line: #d9d9d6;
+  --hair: rgb(0 0 0 / 0.06);
+  --rule: #e7e7e4;
+  --rule-strong: #d6d6d1;
+  --well: #f7f7f6;
+  --chip: #efefec;
+  --panel: #ffffff;
+  --control: #ffffff;
+  --control-hover: #f7f7f5;
+  --primary-hover: #2e2e2e;
+  --raised-ring: #d6d6d1;
+  --raised-drop: rgb(21 21 21 / 0.12);
+  --primary-ring: #151515;
+  --menu-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.08), 0 12px 32px -8px rgb(0 0 0 / 0.14);
+  --ok: #15803d;
+  --ok-bg: #e9f8ee;
+  --ok-ring: #a9ddbb;
+  --warn: #b45309;
+  --warn-bg: #fef6e0;
+  --warn-ring: #f3d58f;
+  --bad: #b42318;
+  --bad-bg: #feeceb;
+  --bad-ring: #f5c2bd;
+  --info: #1f5fe0;
+  --info-bg: #eef4ff;
+  --info-ring: #c3d5fb;
+  --keyword: #6d28d9;
+
+  --background: #ffffff;
+  --foreground: #151515;
+  --card: #f7f7f5;
+  --card-foreground: #151515;
+  --popover: #ffffff;
+  --popover-foreground: #151515;
+  --primary: #151515;
+  --primary-foreground: #ffffff;
+  --secondary: #efefec;
+  --secondary-foreground: #151515;
+  --muted: #f3f3f1;
+  --muted-foreground: #62625d;
+  --accent: #efefec;
+  --accent-foreground: #151515;
+  --destructive: #b42318;
+  --border: #e7e7e4;
+  --input: #d6d6d1;
+  --ring: #3b7bff;
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+  --page: #161616;
+  --ink-12: #ededed;
+  --ink-11: #aaaaa7;
+  --ink-10: #8d8d8a;
+  --ink-9: #777774;
+  --ink-6: #454545;
+  --ink-4: #323232;
+  --ink-3: #2b2b2b;
+  --tile: #1d1d1d;
+  --surface: #1f1f1f;
+  --surface-top: #242424;
+  --frame: #181818;
+  --line: #3b3b3b;
+  --hair: rgb(255 255 255 / 0.08);
+  --rule: #2a2a2a;
+  --rule-strong: #3a3a3a;
+  --well: #141414;
+  --chip: #242424;
+  --panel: #232323;
+  --control: #2b2b2b;
+  --control-hover: #323232;
+  --primary-hover: #ffffff;
+  --raised-ring: #454545;
+  --raised-drop: rgb(0 0 0 / 0.5);
+  --primary-ring: #ededed;
+  --menu-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px #2e2e2e, 0 12px 32px -8px rgb(0 0 0 / 0.6);
+  --ok: #4ade80;
+  --ok-bg: #12291c;
+  --ok-ring: #1f5136;
+  --warn: #fbbf24;
+  --warn-bg: #3a2a0c;
+  --warn-ring: #6b4e16;
+  --bad: #f87171;
+  --bad-bg: #3a1f1f;
+  --bad-ring: #5c2b2b;
+  --info: #60a5fa;
+  --info-bg: #1b2a45;
+  --info-ring: #2b4a7a;
+  --keyword: #c4b5fd;
+
+  --background: #161616;
+  --foreground: #ededed;
+  --card: #1d1d1d;
+  --card-foreground: #ededed;
+  --popover: #1c1c1c;
+  --popover-foreground: #ededed;
+  --primary: #ededed;
+  --primary-foreground: #161616;
+  --secondary: #2b2b2b;
+  --secondary-foreground: #ededed;
+  --muted: #262626;
+  --muted-foreground: #aaaaa7;
+  --accent: #2b2b2b;
+  --accent-foreground: #ededed;
+  --destructive: #f87171;
+  --border: #2a2a2a;
+  --input: #333333;
+  --ring: #60a5fa;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-padding-top: 72px;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-page text-ink-12;
   }
 }
+
+/* Raised control: the hairline ring and the 1px drop every button carries. */
+@utility ring-raised {
+  box-shadow:
+    0 0 0 0.5px var(--raised-ring),
+    0 1px 2px 0 var(--raised-drop);
+}
+@utility ring-raised-light {
+  box-shadow:
+    0 0 0 0.5px var(--primary-ring),
+    0 1px 2px 0 var(--raised-drop);
+}
+@utility shadow-card {
+  box-shadow:
+    0 0 0 0.5px var(--line),
+    0 1px 2px 0 var(--raised-drop),
+    0 3px 4px -2px var(--raised-drop);
+}
+@utility shadow-rule {
+  box-shadow: 0 0 0 0.5px var(--rule);
+}
+@utility shadow-rule-strong {
+  box-shadow: 0 0 0 0.5px var(--rule-strong);
+}
+@utility shadow-menu {
+  box-shadow: var(--menu-shadow);
+}
+
+/*
+ * Skies: painted ridgelines (scripts/paint-skies.py, our own, nothing licensed),
+ * over the gradient they were painted from so the block reads the same while
+ * the image loads. A touch of grain on top keeps flat UI from looking pasted.
+ */
+.sky {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+.sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+}
+.sky-dawn {
+  background-image: url("/skies/dawn.webp"), linear-gradient(180deg, #36557a 0%, #7d93ac 55%, #e0a77c 100%);
+}
+.sky-clear {
+  background-image: url("/skies/clear.webp"), linear-gradient(180deg, #3d6a99 0%, #78a1c6 55%, #c4d6e2 100%);
+}
+.sky-haze {
+  background-image: url("/skies/haze.webp"), linear-gradient(180deg, #3f4b58 0%, #76818b 55%, #c3bcae 100%);
+}
+.sky-dusk {
+  background-image: url("/skies/dusk.webp"), linear-gradient(180deg, #1d2c48 0%, #4c5f84 55%, #d4917a 100%);
+}
+.sky-ocean {
+  background-image: url("/skies/ocean.webp"), linear-gradient(180deg, #2c5a86 0%, #5f8db3 55%, #a9c6d8 100%);
+}
+
+/*
+ * A shot that runs off the bottom of its sky: the window fills down to the
+ * edge and loses its bottom corners and rim, so it reads as cropped by the
+ * frame rather than floating short of it.
+ */
+.shot-cut > * {
+  height: 100%;
+  padding-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.shot-cut > * > * {
+  height: 100%;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/*
+ * Motion, in serveros.com's timing: a quick ease-out (150ms for hovers and
+ * menus, 120ms to leave), controls that give a little under the finger, and
+ * a mark that moves when you point at it.
+ */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+/* Kept mounted so it can animate out; hidden stops it taking focus or clicks. */
+.menu-pop {
+  transform-origin: top left;
+  opacity: 0;
+  scale: 0.97;
+  visibility: hidden;
+  transition:
+    opacity 120ms var(--ease-out),
+    scale 120ms var(--ease-out),
+    visibility 0s 120ms;
+}
+.menu-pop[data-state="open"] {
+  opacity: 1;
+  scale: 1;
+  visibility: visible;
+  transition:
+    opacity 150ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    visibility 0s;
+}
+.press {
+  transition:
+    scale 300ms var(--ease-out),
+    background-color 150ms var(--ease-out),
+    color 150ms var(--ease-out);
+}
+.press:active {
+  scale: 0.97;
+  transition-duration: 90ms, 150ms, 150ms;
+}
+/*
+ * The mark on hover: a wave dims each piece in turn and lets it back, round
+ * the whole mark (the order is --o, set in components/site/mark.tsx).
+ * `.mark-play` comes from MarkPlay, so a wave always runs to its end.
+ */
+@keyframes mark-wave {
+  40% { opacity: 0.2; }
+}
+.mark-play .mark-piece {
+  animation: mark-wave 500ms ease-in-out calc(var(--o) * 45ms) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop,
+  .menu-pop[data-state="open"],
+  .press {
+    transition-duration: 0s;
+  }
+  .press:active {
+    scale: none;
+  }
+  .mark-play .mark-piece {
+    animation: none;
+  }
+}
+
+/*
+ * Scrollbars: thin and quiet, coloured from the theme. The same rules as the
+ * docs (apps/docs/src/styles/globals.css), so the page doesn't shift width
+ * when you move between the site and /docs. Chrome and Firefox use the
+ * standard properties; Safari the WebKit pseudo-elements.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--foreground) 20%, transparent);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+

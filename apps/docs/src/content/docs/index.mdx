@@ -1,0 +1,60 @@
+---
+title: "Openinary"
+description: "Open-source alternative to Cloudinary. Resize, crop, convert and deliver images and video on the fly, from a URL. Hosted or self-hosted."
+---
+
+Upload a file once, then change the URL to change the file.
+
+```http
+GET /t/photos/portrait.jpg                              the original
+GET /t/w_400,h_400,c_fill/photos/portrait.jpg           a 400x400 crop
+GET /t/w_400,h_400,c_fill,f_avif/photos/portrait.jpg    the same, as AVIF
+```
+
+Each variant renders on first request and is cached from then on. Nothing is pre-processed, and you never write a resizing pipeline.
+
+Two ways to run it, one API. [Openinary Cloud](/cloud/overview) is the hosted version: create an account and start uploading, nothing to operate. Sign-up is open at [app.openinary.dev](https://app.openinary.dev). Or [self-host](/quickstart) it with Docker and keep your infrastructure and data entirely yours.
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Start on Cloud" icon="cloud" href="/cloud/quickstart">
+    Create an account, mint a key, upload. Nothing to operate.
+  </Card>
+  <Card title="Self-host it" icon="bolt" href="/quickstart">
+    One command scaffolds and starts a Docker deployment.
+  </Card>
+  <Card
+    title="Media Transformations"
+    icon="wand-magic-sparkles"
+    href="/media-transformations/overview"
+  >
+    Learn the URL-based transformation API for images and videos.
+  </Card>
+  <Card
+    title="Deploy on Coolify"
+    icon="local:coolify"
+    href="/guides/coolify-deployment"
+  >
+    Step-by-step deployment on Coolify.
+  </Card>
+  <Card
+    title="Deploy on Dokploy"
+    icon="local:dokploy"
+    href="/guides/dokploy-deployment"
+  >
+    Step-by-step deployment on Dokploy.
+  </Card>
+</CardGroup>
+
+## Features
+
+| | |
+| --- | --- |
+| **URL transformations** | Resize, crop, rotate, round, convert and trim, for images and video |
+| **Automatic formats** | AVIF or WebP when the browser takes it, JPEG or PNG otherwise |
+| **Caching** | Every variant renders once, then comes from cache |
+| **S3-compatible storage** | AWS S3, Cloudflare R2, MinIO, DigitalOcean Spaces, or local disk |
+| **Signed URLs** | Restrict delivery to the transformations your backend authorized |
+| **Two modes** | Full stack with a dashboard, or headless API-only |
+

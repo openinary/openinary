@@ -1,0 +1,11 @@
+node_modules/
+out/
+public/media/
+public/grain.png
+public/cues.json
+public/score.wav
+audio/score.wav
+audio/stems/
+audio/__pycache__/
+public/grain-dark.png
+audio/report/

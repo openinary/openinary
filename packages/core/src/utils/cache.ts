@@ -1,93 +1,48 @@
-import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
-import { existsSync } from 'fs';
-import { CacheStats } from '../types';
-import logger, { serializeError } from './logger';
+import { promises as fs } from "fs";
+import { basename, dirname, join } from "path";
+import { sortedKey } from "../url/cache-key";
+import logger, { serializeError } from "./logger";
 
-// Cache directory
-const CACHE_DIR = './cache';
+// Per process: which originals were requested more than once lately, the
+// ones whose derivatives are worth a copy on local disk.
+const requests = new Map<string, { count: number; lastAccess: number }>();
+// ponytail: insertion-order eviction, not LRU; fine as a popularity hint.
+const MAX_TRACKED = 10_000;
 
-export class SmartCache {
-  private static stats: CacheStats = {
-    requests: new Map(),
-    totalCacheSize: 0,
-    maxCacheSize: 1024 * 1024 * 1024 // 1GB default
-  };
-
-  static async trackRequest(filePath: string, fileSize: number): Promise<void> {
-    const existing = this.stats.requests.get(filePath);
+export const SmartCache = {
+  trackRequest(filePath: string): void {
+    const existing = requests.get(filePath);
     if (existing) {
       existing.count++;
       existing.lastAccess = Date.now();
-      existing.totalSize = fileSize;
-    } else {
-      this.stats.requests.set(filePath, {
-        count: 1,
-        lastAccess: Date.now(),
-        totalSize: fileSize
-      });
+      return;
     }
-  }
+    if (requests.size >= MAX_TRACKED) requests.delete(requests.keys().next().value!);
+    requests.set(filePath, { count: 1, lastAccess: Date.now() });
+  },
 
-  static async shouldKeepLocal(filePath: string, _fileSize: number): Promise<boolean> {
-    const stats = this.stats.requests.get(filePath);
-    if (!stats) return false;
+  /** Kept when requested more than once in the last hour. */
+  shouldKeepLocal(filePath: string): boolean {
+    const stats = requests.get(filePath);
+    return !!stats && stats.count > 1 && stats.lastAccess > Date.now() - 60 * 60 * 1000;
+  },
+};
 
-    // Keep if accessed more than once in the last hour
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    return stats.count > 1 && stats.lastAccess > oneHourAgo;
-  }
-
-  static async shouldCleanupCache(): Promise<boolean> {
-    return this.stats.totalCacheSize > this.stats.maxCacheSize * 0.8;
-  }
-
-  static async performCleanup(): Promise<void> {
-    logger.info('Performing cache cleanup...');
-    
-    // Get all cache entries sorted by last access time
-    const entries = Array.from(this.stats.requests.entries())
-      .sort((a, b) => a[1].lastAccess - b[1].lastAccess);
-
-    // Remove oldest 20% of entries
-    const toRemove = entries.slice(0, Math.floor(entries.length * 0.2));
-    
-    for (const [filePath] of toRemove) {
-      const cachePath = getCachePath(filePath);
-      try {
-        if (existsSync(cachePath)) {
-          await fs.unlink(cachePath);
-          const stats = this.stats.requests.get(filePath);
-          if (stats) {
-            this.stats.totalCacheSize -= stats.totalSize;
-          }
-        }
-        this.stats.requests.delete(filePath);
-      } catch (error) {
-        logger.warn({ error: serializeError(error), cachePath }, 'Failed to cleanup cache file');
-      }
-    }
-    
-    logger.info({ removedCount: toRemove.length }, 'Cache cleanup completed');
-  }
-}
+const safeName = (path: string) =>
+  path
+    .replace(/[^a-zA-Z0-9.-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 
 /**
- * Generate cache path for a given request path
+ * Local cache file of the derivative of `filePath` under `params`. Keyed like
+ * the bucket (param order does not matter) and ending with the flattened
+ * original path, which is how deleteCachedFiles finds it.
  */
-export function getCachePath(requestPath: string): string {
-  // Create a safe filename from the request path
-  const safePath = requestPath
-    .replace(/[^a-zA-Z0-9.-]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  
-  return join(CACHE_DIR, safePath);
+export function derivativeCachePath(cacheDir: string, filePath: string, params: object): string {
+  return join(cacheDir, safeName(`${basename(sortedKey(filePath, params))}/${filePath}`));
 }
 
-/**
- * Check if a file exists in cache
- */
 export async function existsInCache(cachePath: string): Promise<boolean> {
   try {
     await fs.access(cachePath);
@@ -97,183 +52,86 @@ export async function existsInCache(cachePath: string): Promise<boolean> {
   }
 }
 
-/**
- * Save buffer to cache
- */
 export async function saveToCache(cachePath: string, buffer: Buffer): Promise<void> {
   try {
-    // Ensure cache directory exists
-    const cacheDir = dirname(cachePath);
-    if (!existsSync(cacheDir)) {
-      await fs.mkdir(cacheDir, { recursive: true });
-    }
-    
+    await fs.mkdir(dirname(cachePath), { recursive: true });
     // Written to a temp file and renamed rather than written in place: rename
     // is atomic, so a concurrent existsInCache/readFromCache never observes a
     // half-written entry and hands back a truncated image.
     const tmpPath = `${cachePath}.tmp-${process.pid}-${Date.now()}`;
     await fs.writeFile(tmpPath, buffer);
     await fs.rename(tmpPath, cachePath);
-
-    // Update cache size tracking
-    SmartCache['stats'].totalCacheSize += buffer.length;
-
-    logger.debug({ cachePath, size: buffer.length }, 'Saved to cache');
+    logger.debug({ cachePath, size: buffer.length }, "Saved to cache");
   } catch (error) {
-    logger.warn({ error: serializeError(error), cachePath }, 'Failed to save to cache');
+    logger.warn({ error: serializeError(error), cachePath }, "Failed to save to cache");
   }
 }
 
-/**
- * Read buffer from cache
- */
 export async function readFromCache(cachePath: string): Promise<Buffer> {
+  return fs.readFile(cachePath);
+}
+
+async function cacheFiles(cacheDir: string): Promise<{ name: string; size: number }[]> {
+  let names: string[];
   try {
-    return await fs.readFile(cachePath);
-  } catch (error) {
-    logger.warn({ error: serializeError(error), cachePath }, 'Failed to read from cache');
-    throw error;
+    names = await fs.readdir(cacheDir);
+  } catch {
+    return [];
   }
+  const files: { name: string; size: number }[] = [];
+  for (const name of names) {
+    try {
+      const stats = await fs.stat(join(cacheDir, name));
+      if (stats.isFile()) files.push({ name, size: stats.size });
+    } catch (error) {
+      logger.warn({ error: serializeError(error), file: name }, "Failed to stat cache file");
+    }
+  }
+  return files;
+}
+
+async function deleteFiles(cacheDir: string, names: string[]): Promise<number> {
+  let deleted = 0;
+  for (const name of names) {
+    try {
+      await fs.unlink(join(cacheDir, name));
+      deleted++;
+    } catch (error) {
+      logger.warn({ error: serializeError(error), file: name }, "Failed to delete cache file");
+    }
+  }
+  return deleted;
 }
 
 /**
- * Initialize cache directory
+ * Deletes the local derivatives of one original: the cache files ending with
+ * its flattened path (see derivativeCachePath).
  */
-export async function initializeCache(): Promise<void> {
-  try {
-    if (!existsSync(CACHE_DIR)) {
-      await fs.mkdir(CACHE_DIR, { recursive: true });
-      logger.info({ cacheDir: CACHE_DIR }, 'Created cache directory');
-    }
-  } catch (error) {
-    logger.warn({ error: serializeError(error), cacheDir: CACHE_DIR }, 'Failed to initialize cache directory');
-  }
+// ponytail: the flattening is lossy, so "q/photos/cat.jpg"'s derivatives go
+// too. Harmless (they regenerate); key files by original if it ever matters.
+export async function deleteCachedFiles(
+  cacheDir: string,
+  originalPath: string,
+): Promise<number> {
+  const suffix = `_${safeName(originalPath)}`;
+  const matching = (await cacheFiles(cacheDir)).filter((f) => f.name.endsWith(suffix));
+  const deleted = await deleteFiles(cacheDir, matching.map((f) => f.name));
+  requests.delete(originalPath);
+  logger.info({ originalPath, deletedCount: deleted }, "Deleted local cache files");
+  return deleted;
 }
 
-/**
- * Delete all cached files related to an original file path
- * This scans the cache directory and removes files that contain the original path in their name
- */
-export async function deleteCachedFiles(originalPath: string): Promise<number> {
-  try {
-    if (!existsSync(CACHE_DIR)) {
-      logger.debug({ originalPath }, 'Cache directory does not exist');
-      return 0;
-    }
-
-    const files = await fs.readdir(CACHE_DIR);
-    let deletedCount = 0;
-
-    // Create a safe pattern to match files related to this original path
-    // The cache path is generated from the request path which includes the original file
-    const pathSegments = originalPath.split('/');
-    const fileName = pathSegments[pathSegments.length - 1];
-    const fileNameWithoutExt = fileName.split('.')[0];
-
-    for (const file of files) {
-      const filePath = join(CACHE_DIR, file);
-      
-      try {
-        const stats = await fs.stat(filePath);
-        
-        if (stats.isFile()) {
-          // Check if this file is related to our original path
-          // Cache files contain the original filename in their name
-          if (file.includes(fileNameWithoutExt) || file.includes(originalPath.replace(/[^a-zA-Z0-9.-]/g, '_'))) {
-            await fs.unlink(filePath);
-            
-            // Update cache stats
-            const cachedStats = SmartCache['stats'].requests.get(originalPath);
-            if (cachedStats) {
-              SmartCache['stats'].totalCacheSize -= cachedStats.totalSize;
-              SmartCache['stats'].requests.delete(originalPath);
-            }
-            
-            deletedCount++;
-            logger.debug({ file, originalPath }, 'Deleted cache file');
-          }
-        }
-      } catch (error) {
-        logger.warn({ error: serializeError(error), file }, 'Failed to delete cache file');
-      }
-    }
-
-    logger.info({ originalPath, deletedCount }, 'Deleted local cache files');
-    return deletedCount;
-  } catch (error) {
-    logger.error({ error: serializeError(error), originalPath }, 'Failed to delete cached files');
-    return 0;
-  }
+export async function getCacheSize(
+  cacheDir: string,
+): Promise<{ size: number; fileCount: number }> {
+  const files = await cacheFiles(cacheDir);
+  return { size: files.reduce((sum, f) => sum + f.size, 0), fileCount: files.length };
 }
 
-/**
- * Gets aggregate stats for the local cache directory
- */
-export async function getCacheSize(): Promise<{ size: number; fileCount: number }> {
-  try {
-    if (!existsSync(CACHE_DIR)) {
-      return { size: 0, fileCount: 0 };
-    }
-
-    const files = await fs.readdir(CACHE_DIR);
-    let size = 0;
-    let fileCount = 0;
-
-    for (const file of files) {
-      const filePath = join(CACHE_DIR, file);
-      try {
-        const stats = await fs.stat(filePath);
-        if (stats.isFile()) {
-          size += stats.size;
-          fileCount++;
-        }
-      } catch (error) {
-        logger.warn({ error: serializeError(error), file }, 'Failed to stat cache file');
-      }
-    }
-
-    return { size, fileCount };
-  } catch (error) {
-    logger.error({ error: serializeError(error) }, 'Failed to compute cache size');
-    return { size: 0, fileCount: 0 };
-  }
+export async function clearAllCache(cacheDir: string): Promise<number> {
+  const files = await cacheFiles(cacheDir);
+  const deleted = await deleteFiles(cacheDir, files.map((f) => f.name));
+  requests.clear();
+  logger.info({ deletedCount: deleted }, "Cleared all local cache files");
+  return deleted;
 }
-
-/**
- * Deletes all files in the local cache directory
- */
-export async function clearAllCache(): Promise<number> {
-  try {
-    if (!existsSync(CACHE_DIR)) {
-      return 0;
-    }
-
-    const files = await fs.readdir(CACHE_DIR);
-    let deletedCount = 0;
-
-    for (const file of files) {
-      const filePath = join(CACHE_DIR, file);
-      try {
-        const stats = await fs.stat(filePath);
-        if (stats.isFile()) {
-          await fs.unlink(filePath);
-          deletedCount++;
-        }
-      } catch (error) {
-        logger.warn({ error: serializeError(error), file }, 'Failed to delete cache file');
-      }
-    }
-
-    SmartCache['stats'].requests.clear();
-    SmartCache['stats'].totalCacheSize = 0;
-
-    logger.info({ deletedCount }, 'Cleared all local cache files');
-    return deletedCount;
-  } catch (error) {
-    logger.error({ error: serializeError(error) }, 'Failed to clear cache');
-    return 0;
-  }
-}
-
-// Initialize cache on module load
-initializeCache();

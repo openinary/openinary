@@ -91,15 +91,8 @@ export async function waitForHealthy(
   timeoutMs: number = HEALTH_TIMEOUT_MS
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  const url = `http://localhost:${port}/health`;
-
   while (Date.now() < deadline) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) return;
-    } catch {
-      // not up yet, keep polling
-    }
+    if (await isHealthy(port)) return;
     await new Promise((resolve) => setTimeout(resolve, HEALTH_POLL_INTERVAL_MS));
   }
 
@@ -108,7 +101,10 @@ export async function waitForHealthy(
   });
 }
 
-/** Extracts the once-printed initial API key from container logs, if present. */
+/**
+ * Extracts the initial API key the API prints once on first boot (the
+ * "API Key: " line in apps/api/src/server.ts), if present.
+ */
 export function findApiKeyInLogs(logs: string): string | null {
   const match = logs.match(/API Key:\s*(\S+)/);
   return match ? match[1] : null;

@@ -78,7 +78,10 @@ function FilterSelect({
       onValueChange={(next) => next !== null && onChange(next)}
       value={value}
     >
-      <SelectTrigger aria-label={label} className="font-medium">
+      <SelectTrigger
+        aria-label={label}
+        className="ds-raised-button h-8! w-auto! gap-1.5 border-0! px-2.5! text-[13px]!"
+      >
         {icon}
         <SelectValue />
       </SelectTrigger>
@@ -159,7 +162,7 @@ function Stat({
   value,
   unit,
   series,
-  tone = "text-sky-500",
+  tone = "text-ds-blue",
 }: {
   label: string;
   value: string;
@@ -168,7 +171,7 @@ function Stat({
   tone?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-background">
+    <div className="ds-tile">
       <div className="px-3 pt-2.5">
         <p className="text-[13px] font-medium">{label}</p>
         <p className="mt-0.5 text-2xl tabular-nums">
@@ -257,7 +260,7 @@ export function UsageTable<Row>({
   }
 
   const emptyState = (
-    <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+    <p className="ds-tile px-4 py-10 text-center text-[13px]/5 text-ds-muted">
       {empty}
     </p>
   );
@@ -315,7 +318,7 @@ function UsageTableBody<Row, Item>({
   cell: (column: UsageColumn<Row>, row: Item) => React.ReactNode;
 }) {
   return (
-    <div className="max-h-[32rem] overflow-auto rounded-lg border bg-background">
+    <div className="ds-tile max-h-[32rem] overflow-auto">
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-muted text-left">
           <tr>
@@ -597,21 +600,21 @@ export function UsageDashboard({
           change, so they are drawn as skeleton over zeros. */}
       <Skeleton loading={!!isLoading} label="Loading activity">
         <div className="space-y-4">
-          <div className="rounded-lg border bg-muted/40">
+          <div className="ds-tile">
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
               <p className="text-sm font-medium">Deliveries over time</p>
               <p className="flex items-center gap-4 text-[13px] text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <span className="size-2.5 rounded-full bg-sky-500" />
+                  <span className="size-2.5 rounded-full bg-ds-blue" />
                   {view.ok} delivered
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="size-2.5 rounded-full bg-red-500" />
+                  <span className="size-2.5 rounded-full bg-ds-red" />
                   {view.failed} failed
                 </span>
               </p>
             </div>
-            <div className="rounded-lg border-t bg-background px-4 pt-4 pb-2 shadow-[0_-1px_0_var(--border)]">
+            <div className="rounded-lg border-t bg-background px-4 pt-4 pb-2">
               <div className="flex h-28 items-end gap-1 border-b">
                 {view.buckets.map((bucket) => (
                   <div
@@ -620,14 +623,14 @@ export function UsageDashboard({
                     title={`${formatTick(bucket.start, true)}: ${bucket.ok} delivered, ${bucket.failed} failed`}
                   >
                     <div
-                      className="rounded-t-sm bg-red-500"
+                      className="rounded-t-sm bg-ds-red"
                       style={{
                         height: `${(bucket.failed / view.peak) * 100}%`,
                       }}
                     />
                     <div
                       className={cn(
-                        "bg-sky-500",
+                        "bg-ds-blue",
                         bucket.failed === 0 && "rounded-t-sm",
                       )}
                       style={{ height: `${(bucket.ok / view.peak) * 100}%` }}
@@ -663,7 +666,7 @@ export function UsageDashboard({
             <Stat
               label="Failure rate"
               series={view.buckets.map((b) => b.failed)}
-              tone="text-red-500"
+              tone="text-ds-red"
               unit="%"
               value={
                 total === 0

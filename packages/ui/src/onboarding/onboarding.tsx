@@ -1,23 +1,16 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { ChevronLeft, ImageIcon, Upload } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { Check, ImageIcon, Upload } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { celebrate } from "../lib/celebrate";
 import { cn } from "../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import { Spinner } from "../ui/spinner";
-import { OnboardingPreview } from "./onboarding-preview";
 
 export type OnboardingVariant = "cloud" | "self-hosted";
 
@@ -41,8 +34,8 @@ export interface OnboardingProps {
   user: { name?: string | null; image?: string | null };
   /** Current workspace (cloud: the active bucket). No name derives one from the user's. */
   workspace: { name?: string; logo?: string | null };
-  /** Stands in for the workspace logo when none is uploaded (cloud: the bucket's avatar). */
-  workspaceMark?: ReactNode;
+  /** The product mark shown above the card, next to its name. */
+  brand?: ReactNode;
   /** Shown under the last step's buttons, e.g. where the answers go. */
   note?: ReactNode;
   /** Persists the answers. A throw keeps the user on the last step with a toast. */
@@ -58,12 +51,12 @@ export interface OnboardingProps {
 // Values are what gets stored and tracked, so they stay stable slugs even when
 // a label is reworded.
 export const ONBOARDING_ROLES = [
-  { value: "student", label: "Student / Learning" },
-  { value: "solo", label: "Solo developer / Hobbyist" },
-  { value: "agency", label: "Agency / Freelancer" },
-  { value: "startup", label: "Small team / Startup (2-10)" },
-  { value: "growing", label: "Growing company (11-50)" },
-  { value: "enterprise", label: "Established organization (51+)" },
+  { value: "student", label: "Student" },
+  { value: "solo", label: "Solo developer" },
+  { value: "agency", label: "Agency or freelancer" },
+  { value: "startup", label: "Small team (2-10)" },
+  { value: "growing", label: "Company (11-50)" },
+  { value: "enterprise", label: "Organization (51+)" },
 ];
 
 export const ONBOARDING_USE_CASES = [
@@ -115,7 +108,7 @@ const COPY = {
 } satisfies Record<OnboardingVariant, unknown>;
 
 const STEPS = 4;
-const EASE = [0.32, 0.72, 0, 1] as const;
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
  * Crops a picked image to a centred square and shrinks it to a data URL small
@@ -145,6 +138,54 @@ async function toSquareDataUrl(file: File, size = 128): Promise<string> {
   return canvas.toDataURL("image/webp", 0.85);
 }
 
+/** Replays the shake on an element, then gives it (or its first control) focus. */
+function shake(element: HTMLElement | null | undefined) {
+  if (!element) return;
+  element.classList.remove("ds-shake");
+  // Reading a layout property restarts the animation on the next add.
+  void element.offsetWidth;
+  element.classList.add("ds-shake");
+  (element.matches("input, textarea, button")
+    ? element
+    : element.querySelector<HTMLElement>("button, input")
+  )?.focus();
+}
+
+const labelClass = "font-medium text-[13px]/5 text-ds-secondary";
+
+function Field({
+  label,
+  htmlFor,
+  error,
+  children,
+}: {
+  /** Left out when the step's title already asks the question. */
+  label?: string;
+  htmlFor?: string;
+  /** Shown under the control once the step was tried without it. */
+  error?: string | false;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label &&
+        (htmlFor ? (
+          <Label htmlFor={htmlFor} className={labelClass}>
+            {label}
+          </Label>
+        ) : (
+          <span className={labelClass}>{label}</span>
+        ))}
+      {children}
+      {error && (
+        <p role="alert" className="ds-field-error mt-0!">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ImageField({
   id,
   label,
@@ -158,31 +199,29 @@ function ImageField({
 }) {
   const input = useRef<HTMLInputElement>(null);
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+    <Field label={label} htmlFor={id}>
       <div className="flex items-center gap-2">
-        <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
+        <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ds-hover inset-ring inset-ring-ds-border">
           {value ? (
             <img src={value} alt="" className="size-full object-cover" />
           ) : (
-            <ImageIcon className="size-4 text-muted-foreground" />
+            <ImageIcon className="size-4 text-ds-faint" />
           )}
         </div>
         <Button
           type="button"
-          variant="secondary"
+          variant="outline"
           size="sm"
           onClick={() => input.current?.click()}
         >
           <Upload />
-          {value ? "Reupload" : "Upload image"}
+          {value ? "Replace" : "Upload image"}
         </Button>
         {value && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="text-muted-foreground"
             onClick={() => onChange(null)}
           >
             Remove
@@ -207,63 +246,115 @@ function ImageField({
           }}
         />
       </div>
+    </Field>
+  );
+}
+
+const choiceClass =
+  "flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-[9px] bg-(--ds-raised) px-3 py-2 text-left text-[13px]/4 text-ds-secondary shadow-(--ds-raised-shadow) outline-none transition-[color,background-color,box-shadow,scale] duration-150 hover:text-ds-text focus-visible:outline-2 focus-visible:outline-ds-ring focus-visible:outline-offset-2 active:scale-[0.985] motion-reduce:active:scale-100";
+const choiceOnClass =
+  "bg-ds-subtle text-ds-text shadow-[inset_0_1px_2px_rgb(0_0_0/0.08),0_0_0_1px_var(--ds-ring)]";
+
+/** One answer out of a few: a grid of raised rows, the picked one ringed. */
+function Choices({
+  label,
+  value,
+  options,
+  onChange,
+  invalid,
+}: {
+  label: string;
+  value: string | null;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  invalid?: boolean;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      aria-invalid={invalid || undefined}
+      data-missing={invalid || undefined}
+      className="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+    >
+      {options.map((option) => {
+        const on = option.value === value;
+        return (
+          // biome-ignore lint/a11y/useSemanticElements: a styled radio row
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(option.value)}
+            className={cn(choiceClass, on && choiceOnClass)}
+          >
+            {option.label}
+            {on && (
+              <Check
+                className="mi-pop size-3.5 shrink-0 text-ds-blue"
+                strokeWidth={2.4}
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function ChoiceSelect({
-  id,
-  value,
-  options,
-  onChange,
-}: {
-  id: string;
-  value: string | null;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
+/**
+ * Holds a step and animates to its height, so the card grows and shrinks
+ * between steps instead of jumping.
+ */
+function StepFrame({ children }: { children: ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number>();
+
+  useEffect(() => {
+    const el = inner.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <Select
-      value={value}
-      onValueChange={(next) => next !== null && onChange(next)}
-      items={options}
+    // The negative margin gives focus rings and choice shadows room inside
+    // the clipped frame.
+    <div
+      className="-mx-1 overflow-hidden transition-[height] duration-[340ms] ease-swap motion-reduce:transition-none"
+      style={{ height }}
     >
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue>
-          {(current: string | null) =>
-            options.find((option) => option.value === current)?.label ??
-            "Select an option"
-          }
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false}>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <div ref={inner} className="px-1 pt-1 pb-1">
+        {children}
+      </div>
+    </div>
   );
 }
 
 /**
- * First-run questionnaire, shared by cloud and self-hosted: a four-step form
- * on the left, and on the right a preview of the dashboard that picks up each
- * answer as it is typed. Persisting and tracking the answers is the caller's
- * job (onComplete), since the two products store them in different places.
+ * First-run questionnaire, shared by cloud and self-hosted: one card, four
+ * short steps, a segmented progress bar. Continue stays clickable when an
+ * answer is missing, so the click can point at it. Persisting and tracking
+ * the answers is the caller's job (onComplete), since the two products store
+ * them in different places.
  */
 export function Onboarding({
   variant,
   user,
   workspace,
-  workspaceMark,
+  brand,
   note,
   onComplete,
   onStepComplete,
 }: OnboardingProps) {
   const copy = COPY[variant];
+  const form = useRef<HTMLFormElement>(null);
   const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState(1);
+  // The step Continue was last pressed on with something missing.
+  const [tried, setTried] = useState(-1);
   const [saving, setSaving] = useState(false);
   const [answers, setAnswers] = useState<OnboardingAnswers>(() => ({
     image: user.image ?? null,
@@ -278,12 +369,21 @@ export function Onboarding({
   const set = (patch: Partial<OnboardingAnswers>) =>
     setAnswers((current) => ({ ...current, ...patch }));
 
-  const canContinue = [
-    !!answers.name.trim() && !!answers.role,
-    !!answers.workspaceName.trim(),
-    answers.useCases.length > 0,
-    !!answers.source,
-  ][step];
+  const missing = {
+    name: step === 0 && !answers.name.trim(),
+    role: step === 0 && !answers.role,
+    workspaceName: step === 1 && !answers.workspaceName.trim(),
+    useCases: step === 2 && answers.useCases.length === 0,
+    source: step === 3 && !answers.source,
+  };
+  const canContinue = !Object.values(missing).some(Boolean);
+  const flagged = (field: keyof typeof missing) =>
+    tried === step && missing[field];
+
+  const go = (next: number) => {
+    setDirection(next > step ? 1 : -1);
+    setStep(next);
+  };
 
   const advance = async (final: OnboardingAnswers, skipped = false) => {
     onStepComplete?.(step, final, skipped);
@@ -293,7 +393,7 @@ export function Onboarding({
       });
     }
     if (step < STEPS - 1) {
-      setStep(step + 1);
+      go(step + 1);
       return;
     }
     setSaving(true);
@@ -304,12 +404,27 @@ export function Onboarding({
         workspaceName: final.workspaceName.trim(),
         workspaceDescription: final.workspaceDescription.trim(),
       });
+      // The dashboard is opening behind the card: mark the moment once.
+      setTimeout(() => {
+        celebrate();
+        toast.success("You're set up. Welcome to Openinary.");
+      }, 450);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Could not save your answers",
       );
       setSaving(false);
     }
+  };
+
+  const submit = () => {
+    if (saving) return;
+    if (canContinue) return void advance(answers);
+    setTried(step);
+    // After the render that marks what is missing.
+    requestAnimationFrame(() =>
+      shake(form.current?.querySelector<HTMLElement>("[data-missing]")),
+    );
   };
 
   const skip = () => {
@@ -326,243 +441,291 @@ export function Onboarding({
         : [...answers.useCases, value],
     });
 
-  const titles = [
-    ["Introduce yourself", "Tell us a few things about yourself."],
+  const [title, subtitle] = [
+    ["Introduce yourself", "So the dashboard knows what to call you."],
     [copy.workspaceTitle, copy.workspaceSubtitle],
     [
-      "What are you planning to build?",
-      "Select everything you'd like to use Openinary for.",
+      "What are you building?",
+      "Pick everything you'd use Openinary for. You can change this later.",
     ],
-    ["One last thing...", "Where did you hear about us?"],
+    ["One last thing", "Where did you hear about us?"],
   ][step];
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="fixed inset-0 z-50 flex bg-background text-foreground">
-        <div className="relative flex min-w-0 flex-1 items-center justify-center px-4">
-          {step > 0 && (
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => setStep(step - 1)}
-              className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-md px-1 text-muted-foreground text-sm outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              <ChevronLeft className="size-4" />
-              Back
-            </button>
-          )}
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-ds-panel text-ds-text">
+        <div className="ds-rise mx-auto flex min-h-full w-full max-w-[460px] flex-col justify-center px-4 py-10">
+          <div className="mb-6 flex items-center justify-center gap-2">
+            {brand}
+            <span className="font-semibold text-[17px]/6 tracking-[-0.02em]">
+              Openinary
+            </span>
+          </div>
 
           <form
-            className="w-full max-w-84"
+            ref={form}
+            noValidate
+            className="ds-modal p-6 sm:p-8"
             onSubmit={(e) => {
               e.preventDefault();
-              if (canContinue && !saving) void advance(answers);
+              submit();
             }}
           >
-            <div
-              role="progressbar"
-              aria-label="Onboarding progress"
-              aria-valuemin={1}
-              aria-valuemax={STEPS}
-              aria-valuenow={step + 1}
-              className="flex gap-1.5"
-            >
-              {Array.from({ length: STEPS }, (_, i) => (
-                <div
-                  // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length list
-                  key={i}
-                  className="h-0.5 flex-1 overflow-hidden rounded-full bg-foreground/15"
-                >
-                  <motion.div
-                    className="h-full origin-left bg-foreground"
-                    initial={false}
-                    animate={{ scaleX: i <= step ? 1 : 0 }}
-                    transition={{ duration: 0.4, ease: EASE }}
+            <div className="flex items-center gap-3">
+              <div
+                role="progressbar"
+                aria-label="Setup progress"
+                aria-valuemin={1}
+                aria-valuemax={STEPS}
+                aria-valuenow={step + 1}
+                className="flex flex-1 gap-1.5"
+              >
+                {Array.from({ length: STEPS }, (_, i) => (
+                  <div
+                    // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length list
+                    key={i}
+                    className={cn(
+                      "h-[3px] flex-1 rounded-full transition-colors duration-300",
+                      i <= step ? "bg-ds-blue" : "bg-ds-border-strong",
+                    )}
                   />
-                </div>
-              ))}
+                ))}
+              </div>
+              <span className="shrink-0 text-[12.5px]/4 text-ds-muted tabular-nums">
+                Step {step + 1} of {STEPS}
+              </span>
             </div>
 
-            <div className="mt-5 h-80">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={step}
-                  initial={{ opacity: 0, filter: "blur(6px)" }}
-                  animate={{ opacity: 1, filter: "blur(0px)" }}
-                  exit={{ opacity: 0, filter: "blur(6px)" }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                >
-                  <h1 className="font-medium text-lg tracking-tight">
-                    {titles[0]}
-                  </h1>
-                  <p className="mt-1 text-muted-foreground text-sm">
-                    {titles[1]}
-                  </p>
+            <div className="mt-6">
+              <StepFrame>
+                <AnimatePresence mode="wait" initial={false} custom={direction}>
+                  <motion.div
+                    key={step}
+                    custom={direction}
+                    variants={{
+                      enter: (dir: number) => ({
+                        opacity: 0,
+                        x: 12 * dir,
+                        filter: "blur(4px)",
+                      }),
+                      show: { opacity: 1, x: 0, filter: "blur(0px)" },
+                      exit: (dir: number) => ({
+                        opacity: 0,
+                        x: -12 * dir,
+                        filter: "blur(4px)",
+                        transition: { duration: 0.18, ease: EASE },
+                      }),
+                    }}
+                    initial="enter"
+                    animate="show"
+                    exit="exit"
+                    transition={{ duration: 0.26, ease: EASE }}
+                  >
+                    <h1 className="font-semibold text-[18px]/6 tracking-[-0.01em]">
+                      {title}
+                    </h1>
+                    <p className="mt-1.5 text-[13.5px]/5 text-ds-muted text-pretty">
+                      {subtitle}
+                    </p>
 
-                  <div className="mt-5 flex flex-col gap-4">
-                    {step === 0 && (
-                      <>
-                        <ImageField
-                          id="onboarding-avatar"
-                          label="Profile picture"
-                          value={answers.image}
-                          onChange={(image) => set({ image })}
-                        />
-                        <div className="grid gap-2">
-                          <Label htmlFor="onboarding-name">
-                            What's your name?
-                          </Label>
-                          <Input
-                            id="onboarding-name"
-                            autoFocus
-                            autoComplete="name"
-                            maxLength={60}
-                            placeholder="Enter your name..."
-                            value={answers.name}
-                            onChange={(e) => set({ name: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="onboarding-role">
-                            What best describes you?
-                          </Label>
-                          <ChoiceSelect
-                            id="onboarding-role"
-                            value={answers.role || null}
-                            options={ONBOARDING_ROLES}
-                            onChange={(role) => set({ role })}
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {step === 1 && (
-                      <>
-                        {copy.logoLabel && (
+                    <div className="mt-6 flex flex-col gap-4">
+                      {step === 0 && (
+                        <>
                           <ImageField
-                            id="onboarding-logo"
-                            label={copy.logoLabel}
-                            value={answers.workspaceLogo}
-                            onChange={(workspaceLogo) => set({ workspaceLogo })}
+                            id="onboarding-avatar"
+                            label="Profile picture"
+                            value={answers.image}
+                            onChange={(image) => set({ image })}
                           />
-                        )}
-                        <div className="grid gap-2">
-                          <Label htmlFor="onboarding-workspace">
-                            {copy.nameLabel}
-                          </Label>
-                          <Input
-                            id="onboarding-workspace"
-                            maxLength={60}
-                            value={answers.workspaceName}
-                            onChange={(e) =>
-                              set({ workspaceName: e.target.value })
-                            }
-                          />
-                        </div>
-                        {copy.descriptionLabel && (
-                          <div className="grid gap-2">
-                            <Label htmlFor="onboarding-description">
-                              {copy.descriptionLabel}
-                            </Label>
-                            <textarea
-                              id="onboarding-description"
-                              rows={3}
-                              maxLength={280}
-                              placeholder="Product photos, user avatars, course videos..."
-                              value={answers.workspaceDescription}
-                              onChange={(e) =>
-                                set({ workspaceDescription: e.target.value })
-                              }
-                              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                          <Field
+                            label="Your name"
+                            htmlFor="onboarding-name"
+                            error={flagged("name") && "Tell us your name."}
+                          >
+                            <Input
+                              id="onboarding-name"
+                              autoFocus
+                              autoComplete="name"
+                              maxLength={60}
+                              placeholder="Ada Lovelace"
+                              value={answers.name}
+                              data-missing={flagged("name") || undefined}
+                              data-invalid={flagged("name") || undefined}
+                              onChange={(e) => set({ name: e.target.value })}
                             />
-                          </div>
-                        )}
-                      </>
-                    )}
+                          </Field>
+                          <Field
+                            label="What best describes you?"
+                            error={flagged("role") && "Choose one."}
+                          >
+                            <Choices
+                              label="What best describes you?"
+                              value={answers.role || null}
+                              options={ONBOARDING_ROLES}
+                              onChange={(role) => set({ role })}
+                              invalid={flagged("role")}
+                            />
+                          </Field>
+                        </>
+                      )}
 
-                    {step === 2 && (
-                      <div className="-mt-1 flex flex-wrap gap-2">
-                        {ONBOARDING_USE_CASES.map((option) => {
-                          const on = answers.useCases.includes(option.value);
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              aria-pressed={on}
-                              onClick={() => toggleUseCase(option.value)}
-                              className={cn(
-                                "h-7 rounded-full px-2.5 text-sm outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                                on
-                                  ? "bg-amber-400/15 text-amber-700 dark:text-amber-300"
-                                  : "bg-muted text-muted-foreground hover:text-foreground",
-                              )}
+                      {step === 1 && (
+                        <>
+                          {copy.logoLabel && (
+                            <ImageField
+                              id="onboarding-logo"
+                              label={copy.logoLabel}
+                              value={answers.workspaceLogo}
+                              onChange={(workspaceLogo) =>
+                                set({ workspaceLogo })
+                              }
+                            />
+                          )}
+                          <Field
+                            label={copy.nameLabel}
+                            htmlFor="onboarding-workspace"
+                            error={
+                              flagged("workspaceName") && "Give it a name."
+                            }
+                          >
+                            <Input
+                              id="onboarding-workspace"
+                              autoFocus
+                              maxLength={60}
+                              value={answers.workspaceName}
+                              data-missing={
+                                flagged("workspaceName") || undefined
+                              }
+                              data-invalid={
+                                flagged("workspaceName") || undefined
+                              }
+                              onChange={(e) =>
+                                set({ workspaceName: e.target.value })
+                              }
+                            />
+                          </Field>
+                          {copy.descriptionLabel && (
+                            <Field
+                              label={copy.descriptionLabel}
+                              htmlFor="onboarding-description"
                             >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                              <textarea
+                                id="onboarding-description"
+                                rows={3}
+                                maxLength={280}
+                                placeholder="Product photos, user avatars, course videos..."
+                                value={answers.workspaceDescription}
+                                onChange={(e) =>
+                                  set({ workspaceDescription: e.target.value })
+                                }
+                                className="w-full resize-none rounded-[8px] border border-ds-border-strong bg-ds-field px-2.5 py-2 text-base text-ds-text outline-none transition-[border-color,box-shadow] placeholder:text-ds-faint hover:border-ds-border-hover focus-visible:border-ds-ring focus-visible:ring-[3px] focus-visible:ring-ds-ring/20 md:text-[13px]/5"
+                              />
+                            </Field>
+                          )}
+                        </>
+                      )}
 
-                    {step === 3 && (
-                      <ChoiceSelect
-                        id="onboarding-source"
-                        value={answers.source}
-                        options={ONBOARDING_SOURCES}
-                        onChange={(source) => set({ source })}
-                      />
-                    )}
-                  </div>
-                </motion.div>
-              </AnimatePresence>
+                      {step === 2 && (
+                        <Field
+                          error={
+                            flagged("useCases") &&
+                            "Pick at least one, or skip this step."
+                          }
+                        >
+                          {/* biome-ignore lint/a11y/useSemanticElements: a group of toggles */}
+                          <div
+                            role="group"
+                            aria-label="Use cases"
+                            data-missing={flagged("useCases") || undefined}
+                            className="flex flex-wrap gap-1.5"
+                          >
+                            {ONBOARDING_USE_CASES.map((option) => {
+                              const on = answers.useCases.includes(
+                                option.value,
+                              );
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() => toggleUseCase(option.value)}
+                                  className={cn(
+                                    "h-7 cursor-pointer rounded-full border px-2.5 text-[13px]/4 outline-none transition-[color,background-color,border-color,scale] duration-150 focus-visible:outline-2 focus-visible:outline-ds-ring focus-visible:outline-offset-2 active:scale-[0.97] motion-reduce:active:scale-100",
+                                    on
+                                      ? "border-transparent bg-ds-inverse text-ds-inverse-text"
+                                      : "border-ds-border-strong text-ds-secondary hover:border-ds-border-hover hover:text-ds-text",
+                                  )}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </Field>
+                      )}
+
+                      {step === 3 && (
+                        <Field
+                          error={flagged("source") && "Choose one, or skip."}
+                        >
+                          <Choices
+                            label="Where did you hear about us?"
+                            value={answers.source}
+                            options={ONBOARDING_SOURCES}
+                            onChange={(source) => set({ source })}
+                            invalid={flagged("source")}
+                          />
+                        </Field>
+                      )}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </StepFrame>
             </div>
 
-            <div className="relative flex gap-2">
+            <div className="mt-6 flex gap-2">
+              {step > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => go(step - 1)}
+                >
+                  Back
+                </Button>
+              )}
               {step >= 2 && (
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="ghost"
                   disabled={saving}
                   onClick={skip}
                 >
                   Skip
                 </Button>
               )}
+              {/* aria-disabled, not disabled: a click on an incomplete step
+                  points at what is missing instead of doing nothing. */}
               <Button
                 type="submit"
-                className="flex-1"
-                disabled={!canContinue || saving}
+                className="pointer-events-auto! flex-1"
+                aria-disabled={!canContinue || saving}
               >
-                {saving ? (
-                  <Spinner className="size-4" />
-                ) : step === STEPS - 1 ? (
-                  "Continue to Openinary"
-                ) : (
-                  "Continue"
-                )}
+                {saving && <Spinner className="size-3.5" />}
+                {step === STEPS - 1 ? "Open the dashboard" : "Continue"}
               </Button>
-              {/* Out of flow, so the buttons sit where they did on every
-                  other step. */}
-              {step === STEPS - 1 && note && (
-                <p className="absolute top-full mt-3 text-muted-foreground text-xs leading-relaxed">
-                  {note}
-                </p>
-              )}
             </div>
+
+            {step === STEPS - 1 && note && (
+              <p className="mt-4 text-[12.5px]/[18px] text-ds-faint text-pretty">
+                {note}
+              </p>
+            )}
           </form>
 
-          <p className="absolute bottom-4 left-4 text-muted-foreground text-xs">
+          <p className="mt-6 text-center text-[12px]/4 text-ds-faint">
             © Openinary {new Date().getFullYear()}
           </p>
-        </div>
-
-        <div className="relative hidden flex-1 overflow-hidden border-l bg-muted/50 md:block dark:bg-black/25">
-          <OnboardingPreview
-            step={step}
-            answers={answers}
-            useCases={ONBOARDING_USE_CASES.map((option) => option.value)}
-            workspaceMark={workspaceMark}
-          />
         </div>
       </div>
     </MotionConfig>

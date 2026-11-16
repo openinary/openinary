@@ -57,3 +57,6 @@ dev-dist
 .dev.vars*
 
 .open-next
+
+# Copied from packages/dashboard/demo before dev and build
+/public/demo/

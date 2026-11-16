@@ -9,5 +9,10 @@
     "types": ["@cloudflare/workers-types", "node"],
     "noEmit": true
   },
-  "include": ["./**/*.ts", "../api/**/*.ts", "../worker-configuration.d.ts"]
+  "include": [
+    "./**/*.ts",
+    "../shared/**/*.ts",
+    "../scripts/**/*.ts",
+    "../worker-configuration.d.ts"
+  ]
 }

@@ -1,25 +1,37 @@
 import { Check, Minus } from "lucide-react";
 
-import { panelSurface } from "@/components/home/cta-button";
+import { Mark } from "@/components/site/mark";
 import { cn } from "@/lib/utils";
 
 type FeatureItem = {
   name: string;
-  description?: string;
   openinary: boolean | string;
   competitors: Record<string, boolean | string>;
 };
 
-type FeatureCategory = {
-  category: string;
-  items: FeatureItem[];
-};
+export type FeatureCategory = { category: string; items: FeatureItem[] };
+
+const cols = "grid grid-cols-[1.2fr_1fr_1fr]";
+
+/** The two names, each with its badge: our mark, or the other's initial. */
+export function Who({ name, us, className }: { name: string; us?: boolean; className?: string }) {
+  return (
+    <span className={cn("flex items-center gap-2 text-ink-12", className)}>
+      {us ? (
+        <Mark className="size-3.5 text-brand" />
+      ) : (
+        <span className="grid size-4 place-items-center rounded-[4px] bg-ink-3 text-[10px] font-medium text-ink-11">
+          {name[0]}
+        </span>
+      )}
+      {name}
+    </span>
+  );
+}
 
 /**
- * Full-bleed rows in the page's box structure, like the calculator's
- * comparison block: hairline rules edge to edge, the Openinary column set off
- * on the shared panel surface rather than floated as a card. No client code,
- * it is all static rows.
+ * Feature by feature: each category is its own row, its name on the left and
+ * its lines on the right, so the eye reads down one subject at a time.
  */
 export function ComparisonTable({
   features,
@@ -30,84 +42,53 @@ export function ComparisonTable({
   competitorSlug: string;
   competitorName: string;
 }) {
-  const row = "grid grid-cols-[1fr_9rem_9rem]";
-  const value = "flex items-center justify-center border-l border-border px-3 py-3";
-
   return (
-    // The frame is the caller's: the well above draws the top rule and the
-    // side rules, the next section's border closes the bottom. In here rows
-    // only ever add a border-t below the head and cells a border-l, so no
-    // rule is ever drawn twice. On a phone the table scrolls inside its own
-    // container rather than squeezing.
-    <div className="overflow-x-auto">
-      <div className="min-w-[560px]">
-        {/* Column heads */}
-        <div className={row}>
-          <div className="px-4 py-3 md:px-6" />
-          <div className={cn(value, panelSurface, "text-sm font-medium text-foreground")}>
-            Openinary
-          </div>
-          <div className={cn(value, "text-sm font-medium text-foreground")}>
-            {competitorName}
+    <div role="table" aria-label={`Openinary and ${competitorName}`} className="text-[13px] leading-5">
+      <div role="row" className="hidden md:grid md:grid-cols-[220px_1fr]">
+        <span role="columnheader" />
+        <div className={cn(cols, "px-4 pb-3 text-ink-10")}>
+          <span role="columnheader">Feature</span>
+          <span role="columnheader"><Who name="Openinary" us /></span>
+          <span role="columnheader"><Who name={competitorName} /></span>
+        </div>
+      </div>
+      {features.map((cat) => (
+        <div key={cat.category} role="rowgroup" className="grid gap-3 border-t-[0.5px] border-rule py-6 md:grid-cols-[220px_1fr] md:gap-0">
+          <h3 className="text-[15px] font-medium tracking-[-0.01em] text-ink-12">{cat.category}</h3>
+          <div className="overflow-x-auto rounded-lg shadow-[inset_0_0_0_0.5px_var(--ink-6)]">
+            <div className="min-w-[480px]">
+              <div role="row" className={cn(cols, "border-b-[0.5px] border-rule px-4 py-2 text-[12px] text-ink-10 md:hidden")}>
+                <span role="columnheader">Feature</span>
+                <span role="columnheader">Openinary</span>
+                <span role="columnheader">{competitorName}</span>
+              </div>
+              {cat.items.map((item, i) => (
+                <div key={item.name} role="row" className={cn(cols, "gap-3 px-4 py-3", i > 0 && "border-t-[0.5px] border-rule")}>
+                  <span role="rowheader" className="text-ink-11">{item.name}</span>
+                  <span role="cell" className="text-ink-12"><Value value={item.openinary} /></span>
+                  <span role="cell" className="text-ink-11"><Value value={item.competitors[competitorSlug] ?? false} /></span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-
-        {features.map((cat) => (
-          <div key={cat.category}>
-            <div className={cn(row, "border-t border-border")}>
-              <div className="px-4 py-3 text-[11px] uppercase leading-[1.5] tracking-[0.14em] text-muted-foreground/80 md:px-6">
-                {cat.category}
-              </div>
-              <div className={cn("border-l border-border", panelSurface)} />
-              <div className="border-l border-border" />
-            </div>
-
-            {cat.items.map((item) => (
-              <div key={item.name} className={cn(row, "border-t border-border")}>
-                <div className="flex items-center px-4 py-3 text-sm leading-[1.5] text-muted-foreground md:px-6">
-                  {item.name}
-                </div>
-                <div className={cn(value, panelSurface)}>
-                  <Value value={item.openinary} />
-                </div>
-                <div className={value}>
-                  <Value
-                    value={
-                      item.competitors[
-                        competitorSlug as keyof typeof item.competitors
-                      ] ?? false
-                    }
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+      ))}
     </div>
   );
 }
 
-function Value({ value }: { value: boolean | string }) {
-  if (value === true) {
+export function Value({ value }: { value: boolean | string }) {
+  if (value === true)
     return (
-      <>
-        <Check className="size-4 text-foreground" aria-hidden />
-        <span className="sr-only">Yes</span>
-      </>
+      <span className="flex items-center gap-2">
+        <Check aria-hidden className="size-3.5 shrink-0" /> Yes
+      </span>
     );
-  }
-  if (value === false) {
+  if (value === false)
     return (
-      <>
-        <Minus className="size-4 text-muted-foreground/40" aria-hidden />
-        <span className="sr-only">No</span>
-      </>
+      <span className="flex items-center gap-2 text-ink-9">
+        <Minus aria-hidden className="size-3.5 shrink-0" /> No
+      </span>
     );
-  }
-  return (
-    <span className="text-center text-xs leading-tight text-muted-foreground">
-      {value}
-    </span>
-  );
+  return <span>{value}</span>;
 }

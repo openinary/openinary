@@ -8,8 +8,10 @@
  * properties into PostHog), and rate-limits per instance and per IP so a
  * single bad actor can't flood the dataset.
  *
- * Keep EVENT_SCHEMAS in sync with apps/api/src/utils/telemetry.ts.
+ * The event schema is shared with the instances that send it (@openinary/telemetry-schema).
  */
+
+import { isTelemetryEvent } from "@openinary/telemetry-schema";
 
 export interface Env {
   POSTHOG_HOST: string;
@@ -19,69 +21,6 @@ export interface Env {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const COUNT_BUCKETS = new Set(["0", "1-10", "11-100", "101-1000", "1000+"]);
-const MAX_STRING_LEN = 64;
-// Onboarding answers are option ids, never free text.
-const SLUG_RE = /^[a-z0-9-]{1,40}$/;
-
-type Validator = (properties: Record<string, unknown>) => boolean;
-
-function isShortString(v: unknown): v is string {
-  return typeof v === "string" && v.length > 0 && v.length <= MAX_STRING_LEN;
-}
-
-// One entry per allowed event. `keys` is the exact, closed set of properties
-// accepted for that event — anything else in the payload is rejected outright.
-const EVENT_SCHEMAS: Record<string, Validator> = {
-  instance_started: (p) => {
-    const keys = [
-      "version",
-      "deployment_mode",
-      "storage_backend",
-      "os_platform",
-      "os_arch",
-      "node_version",
-    ];
-    if (!sameKeys(p, keys)) return false;
-    return (
-      isShortString(p.version) &&
-      isShortString(p.deployment_mode) &&
-      (p.storage_backend === "s3" || p.storage_backend === "local") &&
-      isShortString(p.os_platform) &&
-      isShortString(p.os_arch) &&
-      isShortString(p.node_version)
-    );
-  },
-  daily_heartbeat: (p) => {
-    const keys = ["version", "deployment_mode", "storage_backend", "video_jobs_bucket"];
-    if (!sameKeys(p, keys)) return false;
-    return (
-      isShortString(p.version) &&
-      isShortString(p.deployment_mode) &&
-      (p.storage_backend === "s3" || p.storage_backend === "local") &&
-      typeof p.video_jobs_bucket === "string" &&
-      COUNT_BUCKETS.has(p.video_jobs_bucket)
-    );
-  },
-  onboarding_completed: (p) => {
-    if (!sameKeys(p, ["role", "use_cases", "source"])) return false;
-    return (
-      typeof p.role === "string" &&
-      SLUG_RE.test(p.role) &&
-      Array.isArray(p.use_cases) &&
-      p.use_cases.length <= 20 &&
-      p.use_cases.every((v) => typeof v === "string" && SLUG_RE.test(v)) &&
-      typeof p.source === "string" &&
-      SLUG_RE.test(p.source)
-    );
-  },
-};
-
-function sameKeys(obj: Record<string, unknown>, allowed: string[]): boolean {
-  const objKeys = Object.keys(obj);
-  if (objKeys.length !== allowed.length) return false;
-  return allowed.every((k) => k in obj);
-}
 
 interface TelemetryPayload {
   instance_id: string;
@@ -95,12 +34,9 @@ function isValidPayload(body: unknown): body is TelemetryPayload {
   const b = body as Record<string, unknown>;
 
   if (typeof b.instance_id !== "string" || !UUID_RE.test(b.instance_id)) return false;
-  if (typeof b.event !== "string" || !(b.event in EVENT_SCHEMAS)) return false;
   if (typeof b.timestamp !== "string" || Number.isNaN(Date.parse(b.timestamp))) return false;
   if (typeof b.properties !== "object" || b.properties === null) return false;
-
-  const validate = EVENT_SCHEMAS[b.event];
-  return validate(b.properties as Record<string, unknown>);
+  return isTelemetryEvent(b.event, b.properties as Record<string, unknown>);
 }
 
 export default {
@@ -139,7 +75,7 @@ export default {
     }
 
     // Forward as an accepted, minimal PostHog capture event. distinct_id is
-    // the anonymous instance UUID — never anything tied to a real person.
+    // the anonymous instance UUID, never anything tied to a real person.
     const posthogPayload = {
       api_key: env.POSTHOG_API_KEY,
       event: body.event,
@@ -149,7 +85,7 @@ export default {
         ...body.properties,
         $process_person_profile: false, // aggregate only, no per-user profile
         // Without this, PostHog's GeoIP transformation geolocates the request's
-        // source IP — which is this Worker's own egress IP, not the reporting
+        // source IP, which is this Worker's own egress IP, not the reporting
         // instance's. Passing $ip makes it geolocate the real client instead.
         $ip: ip,
       },
@@ -167,7 +103,7 @@ export default {
       }
     } catch (error) {
       console.error("Failed to forward event to PostHog", error);
-      // Still return 204 — the caller doesn't need to know or retry.
+      // Still return 204: the caller doesn't need to know or retry.
     }
 
     return new Response(null, { status: 204 });

@@ -3,18 +3,18 @@ import path from "path";
 import { config } from "dotenv";
 import { existsSync } from "fs";
 
-// Load .env from monorepo root (../../.env from apps/web/)
+// The monorepo shares one .env at its root.
 const rootEnvPath = path.resolve(__dirname, "../../.env");
 if (existsSync(rootEnvPath)) {
   config({ path: rootEnvPath });
 }
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for Docker deployments
   output: "standalone",
-  // Workspace-linked package: Next must run its own transform pipeline over
-  // it (not treat it as opaque node_modules code) to respect "use client".
-  transpilePackages: ["@openinary/ui"],
+  // Workspace-linked packages: Next must run its own transform pipeline over
+  // them (not treat them as opaque node_modules code) to respect "use client",
+  // and @openinary/dashboard ships TypeScript source only.
+  transpilePackages: ["@openinary/ui", "@openinary/dashboard"],
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
     NEXT_PUBLIC_IMAGE_TAG: process.env.IMAGE_TAG || "latest",
@@ -33,12 +33,7 @@ const nextConfig: NextConfig = {
     ];
   },
   eslint: {
-    // Disable ESLint during build for Docker
     ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // Disable TypeScript errors during build for Docker
-    ignoreBuildErrors: true,
   },
 };
 

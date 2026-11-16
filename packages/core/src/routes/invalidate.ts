@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import type { RouteDeps } from "../config/deps";
 import { deleteCachedFiles } from "../utils/cache";
 import logger, { serializeError } from "../utils/logger";
+import { pathBelowMount } from "./delivery";
 
 export function createInvalidateRoute(deps: RouteDeps) {
-  const { storage } = deps;
+  const { storage, paths } = deps;
   const invalidateRoute = new Hono();
 
   /**
@@ -21,32 +22,15 @@ export function createInvalidateRoute(deps: RouteDeps) {
    * Authorization: Bearer <API_KEY>
    */
   invalidateRoute.delete("/*", async (c) => {
-    const requestPath = c.req.path;
+    const filePath = pathBelowMount(c).replace(/^\/+/, "").replace(/\/+$/, "");
 
-    // Remove '/invalidate' prefix from the path
-    // requestPath will be something like '/invalidate/folder/image.png'
-    // We need to extract 'folder/image.png'
-    const pathWithoutPrefix = requestPath.replace(/^\/invalidate\/?/, "");
-
-    if (!pathWithoutPrefix) {
+    if (!filePath) {
       return c.json(
         {
           error: "Bad request",
           message: "File path is required",
         },
         400,
-      );
-    }
-
-    let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
-
-    try {
-      filePath = decodeURIComponent(filePath);
-    } catch (error) {
-      // If decoding fails, use the original path
-      logger.warn(
-        { error: serializeError(error), filePath },
-        "Failed to decode file path",
       );
     }
 
@@ -61,7 +45,7 @@ export function createInvalidateRoute(deps: RouteDeps) {
     try {
       // Step 1: Delete local cache files
       try {
-        result.localCacheFilesDeleted = await deleteCachedFiles(filePath);
+        result.localCacheFilesDeleted = await deleteCachedFiles(paths.cache, filePath);
         logger.debug(
           { filePath, count: result.localCacheFilesDeleted },
           "Deleted local cache files",

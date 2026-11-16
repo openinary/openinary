@@ -27,7 +27,7 @@ function BulkActionIconButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-muted text-foreground transition-colors hover:bg-foreground/10",
+        "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[9px] text-ds-secondary transition-colors hover:bg-ds-hover hover:text-ds-text",
         destructive && "hover:bg-destructive/10 hover:text-destructive",
       )}
     >
@@ -43,7 +43,10 @@ export function BulkActionBarContent({
   onDelete,
   onMove,
   currentDir,
+  inline,
 }: {
+  /** Sits in a toolbar: no surface of its own, menus open downwards. */
+  inline?: boolean;
   count: number;
   onClear: () => void;
   onDownload: () => void;
@@ -52,18 +55,25 @@ export function BulkActionBarContent({
   currentDir: string;
 }) {
   return (
-    <div className="flex w-fit items-center gap-3 whitespace-nowrap rounded-full border border-border bg-popover px-4 py-2.5 text-popover-foreground shadow-lg">
-      <span className="text-sm font-medium">
+    <div
+      className={cn(
+        "flex w-fit items-center gap-2.5 whitespace-nowrap text-ds-text",
+        inline
+          ? "ds-rise"
+          : "ds-modal rounded-[14px]! py-1.5 pr-1.5 pl-4",
+      )}
+    >
+      <span className="font-medium text-[13px]/5 tabular-nums">
         {count} selected
       </span>
       <button
         type="button"
         onClick={onClear}
-        className="cursor-pointer rounded-full bg-muted px-3 py-1 text-xs font-semibold transition-colors hover:bg-foreground/10"
+        className="cursor-pointer rounded-[8px] px-2 py-1 font-medium text-[13px]/5 text-ds-muted transition-colors hover:bg-ds-hover hover:text-ds-text"
       >
         Clear
       </button>
-      <div className="h-5 w-px bg-border" />
+      <div className="h-5 w-px bg-ds-border-strong" />
       <BulkActionIconButton onClick={onDownload} label="Download">
         <Download className="h-4 w-4" />
       </BulkActionIconButton>
@@ -72,15 +82,15 @@ export function BulkActionBarContent({
           <button
             type="button"
             aria-label="Move"
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-muted text-foreground transition-colors hover:bg-foreground/10"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[9px] text-ds-secondary transition-colors hover:bg-ds-hover hover:text-ds-text"
           >
             <Move className="h-4 w-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          align="center"
-          side="top"
-          sideOffset={19}
+          align={inline ? "end" : "center"}
+          side={inline ? "bottom" : "top"}
+          sideOffset={inline ? 6 : 19}
           className="max-h-[400px] w-48 overflow-y-auto"
         >
           <MoveToNavigator

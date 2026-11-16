@@ -1,10 +1,17 @@
 import type { MediaFile } from "../types";
 
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
+
+/** 1536 -> "1.50 KB". Null (size not known) -> "Unknown". */
 export function formatFileSize(bytes: number | null): string {
-  if (!bytes) return "Unknown";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  if (bytes === null) return "Unknown";
+  if (bytes === 0) return "0 B";
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    BYTE_UNITS.length - 1,
+  );
+  const value = bytes / 1024 ** exponent;
+  return `${exponent === 0 ? value : value.toFixed(2)} ${BYTE_UNITS[exponent]}`;
 }
 
 export function formatDate(date: Date | null): string {

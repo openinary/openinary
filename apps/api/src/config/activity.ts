@@ -1,6 +1,5 @@
-import { db } from "shared/auth";
+import { getDb } from "shared";
 import { ActivityLog } from "../utils/activity-log";
 
-// Same database file as the accounts and the video queue: one thing to back
-// up, and the log survives a restart.
-export const activityLog = new ActivityLog(db);
+// In the instance database: one file to back up, and it survives a restart.
+export const activityLog = new ActivityLog(getDb());

@@ -1,16 +1,27 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readFile, rm } from "fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "fs/promises";
 import { execFileSync } from "child_process";
 import { tmpdir } from "os";
 import { join } from "path";
 import sharp from "sharp";
-import { parseParams, isTransformSegment } from "./parser";
+import { parseParams, isTransformSegment } from "../url/grammar";
 import { ValidationError } from "./errors";
 import { transformImage } from "./image";
 import { overlaySize } from "./image/overlay";
 import { transformVideo } from "./video";
 import { TransformService } from "../services/transform.service";
+import { detectVideoSettings } from "./video/config";
+import { enginePathsIn } from "../config/paths";
+
+const settings = detectVideoSettings().settings;
+const runIn = (dir: string) => ({ storage: null, paths: enginePathsIn(dir), settings });
+const serviceIn = (dir: string) =>
+  new TransformService(
+    null,
+    { getJobByPath: () => undefined, videoSettings: settings } as any,
+    enginePathsIn(dir),
+  );
 
 // --- parser -----------------------------------------------------------------
 
@@ -58,11 +69,10 @@ test("folder names with dots are still not mistaken for transforms", () => {
 // --- service ----------------------------------------------------------------
 
 test("an invalid overlay offset answers 400, not 500", async () => {
-  const service = new TransformService(null, { getJobByPath: () => undefined } as any);
+  const service = serviceIn(tmpdir());
   const result = await service.transform({
     path: "/t/l_wm.png,lx_10/a.jpg",
     userAgent: "",
-    context: {} as any,
   });
   assert.equal(result.status, 400);
   assert.match(result.buffer!.toString(), /lx_ and ly_/);
@@ -172,17 +182,14 @@ const hasFfmpeg = (() => {
 
 test("video overlay is burned into the encoded frames", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
   const { dir, wm } = await fixtures();
-  const cwd = process.cwd();
   try {
-    // transformVideo resolves overlay paths against ./public, like the service
-    process.chdir(dir);
-    execFileSync("mkdir", ["-p", "public"]);
+    await mkdir(join(dir, "public"));
     await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
     const src = join(dir, "base.mp4");
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
       "color=c=blue:size=320x240:rate=25", "-t", "1", "-pix_fmt", "yuv420p", src]);
     const params = parseParams("/t/l_wm.png,lo_100,lg_northwest/base.mp4");
-    const out = await transformVideo(src, params, null);
+    const out = await transformVideo(src, params, runIn(dir));
     const outPath = join(dir, "out.mp4");
     const frame = join(dir, "frame.png");
     await writeFile(outPath, out);
@@ -192,74 +199,63 @@ test("video overlay is burned into the encoded frames", { skip: !hasFfmpeg && "f
     const [r2, , b2] = await pixel(frame, 300, 220);
     assert.ok(b2 > 180 && r2 < 60, `rest should stay blue, got ${r2},${b2}`);
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("a video thumbnail with an overlay stages the overlay once", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
   const { dir, wm } = await fixtures();
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
-    execFileSync("mkdir", ["-p", "public"]);
+    await mkdir(join(dir, "public"));
     await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
       "color=c=blue:size=320x240:rate=25", "-t", "1", "-pix_fmt", "yuv420p", join(dir, "public", "clip.mp4")]);
-    const service = new TransformService(null, { getJobByPath: () => undefined } as any);
+    const service = serviceIn(dir);
     const result = await service.transform({
       path: "/t/t_1,f_jpg,l_wm.png,lo_100,lg_northwest/clip.mp4",
       userAgent: "",
-      context: {} as any,
     });
     assert.equal(result.status, undefined, result.buffer?.toString());
     const [r, , b] = await pixel(result.buffer!, 20, 20);
     assert.ok(r > 180 && b < 60, `thumbnail should carry the overlay, got ${r},${b}`);
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("a local overlay original survives a request served from a remote source", async () => {
   const { dir, base, wm } = await fixtures();
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
-    execFileSync("mkdir", ["-p", "public", "temp"]);
+    await mkdir(join(dir, "public"));
     await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
     const bytes = await readFile(base);
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async () => new Response(bytes)) as any;
     try {
-      const service = new TransformService(null, { getJobByPath: () => undefined } as any);
+      const service = serviceIn(dir);
       await service.transform({
         path: "/t/l_wm.png/remote.png",
         sourceUrl: "https://example.test/remote.png",
         userAgent: "",
-        context: {} as any,
       } as any);
     } finally {
       globalThis.fetch = realFetch;
     }
     await readFile(join(dir, "public", "wm.png")); // throws if it was deleted
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("video overlay honours lg_southeast", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
   const { dir, wm } = await fixtures();
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
-    execFileSync("mkdir", ["-p", "public"]);
+    await mkdir(join(dir, "public"));
     await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
     const src = join(dir, "base.mp4");
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
       "color=c=blue:size=320x240:rate=25", "-t", "1", "-pix_fmt", "yuv420p", src]);
-    const out = await transformVideo(src, parseParams("/t/l_wm.png,lo_100,lg_southeast/base.mp4"), null);
+    const out = await transformVideo(src, parseParams("/t/l_wm.png,lo_100,lg_southeast/base.mp4"), runIn(dir));
     const outPath = join(dir, "out.mp4");
     const frame = join(dir, "frame.png");
     await writeFile(outPath, out);
@@ -269,7 +265,6 @@ test("video overlay honours lg_southeast", { skip: !hasFfmpeg && "ffmpeg not ins
     const [r2, , b2] = await pixel(frame, 160, 120);
     assert.ok(b2 > 180 && r2 < 60, `center should stay blue, got ${r2},${b2}`);
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });
@@ -282,31 +277,26 @@ test("overlay sizes are bounded in the URL", () => {
 
 test("a tiled video overlay with tiny tiles is refused before compositing", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
   const { dir, wm } = await fixtures();
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
-    execFileSync("mkdir", ["-p", "public"]);
+    await mkdir(join(dir, "public"));
     await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
     const src = join(dir, "base.mp4");
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
       "color=c=blue:size=1280x720:rate=25", "-t", "1", "-pix_fmt", "yuv420p", src]);
     const started = Date.now();
     await assert.rejects(
-      transformVideo(src, parseParams("/t/l_wm.png,lt_1,lw_1,lh_1/base.mp4"), null),
+      transformVideo(src, parseParams("/t/l_wm.png,lt_1,lw_1,lh_1/base.mp4"), runIn(dir)),
     );
     assert.ok(Date.now() - started < 5000, "should fail fast");
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("transformVideo leaves the caller's params untouched", { skip: !hasFfmpeg && "ffmpeg not installed" }, async () => {
   const { dir, wm } = await fixtures();
-  const cwd = process.cwd();
   try {
-    process.chdir(dir);
-    execFileSync("mkdir", ["-p", "public"]);
+    await mkdir(join(dir, "public"));
     await writeFile(join(dir, "public", "wm.png"), await readFile(wm));
     const src = join(dir, "base.mp4");
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i",
@@ -315,11 +305,10 @@ test("transformVideo leaves the caller's params untouched", { skip: !hasFfmpeg &
     const before = JSON.stringify(params);
     // The worker uploads the result under these params: they must still be
     // the request's, not the staged temp path of the overlay.
-    await transformVideo(src, params, null);
+    await transformVideo(src, params, runIn(dir));
     assert.equal(JSON.stringify(params), before);
     assert.equal(params.overlayPath, "wm.png");
   } finally {
-    process.chdir(cwd);
     await rm(dir, { recursive: true, force: true });
   }
 });

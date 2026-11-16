@@ -1,12 +1,12 @@
 "use client";
 
+import * as SliderPrimitive from "@radix-ui/react-slider";
 import { LayoutGrid, Square } from "lucide-react";
 import { useState } from "react";
-import { Slider } from "../ui/slider";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 export const MIN_COLUMNS = 4;
 export const MAX_COLUMNS = 10;
+const THUMB_WIDTH = 24;
 
 export function ColumnCountSlider({
   value,
@@ -16,28 +16,41 @@ export function ColumnCountSlider({
   onChange: (value: number) => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const percent = ((value - MIN_COLUMNS) / (MAX_COLUMNS - MIN_COLUMNS)) * 100;
 
   return (
-    <TooltipProvider>
-      <div className="flex items-center gap-2 w-36">
-        <Square className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <Tooltip open={dragging}>
-          <TooltipTrigger asChild>
-            <Slider
-              value={[value]}
-              min={MIN_COLUMNS}
-              max={MAX_COLUMNS}
-              step={1}
-              onValueChange={([v]) => onChange(v)}
-              onPointerDown={() => setDragging(true)}
-              onPointerUp={() => setDragging(false)}
-              thumbClassName="h-3.5 w-6 rounded-full"
-            />
-          </TooltipTrigger>
-          <TooltipContent sideOffset={14}>{value} columns</TooltipContent>
-        </Tooltip>
-        <LayoutGrid className="h-4 w-4 text-muted-foreground shrink-0" />
+    <div className="flex w-36 items-center gap-2">
+      <Square className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <div className="relative flex-1">
+        <SliderPrimitive.Root
+          className="relative flex w-full touch-none select-none items-center"
+          value={[value]}
+          min={MIN_COLUMNS}
+          max={MAX_COLUMNS}
+          step={1}
+          onValueChange={([v]) => onChange(v)}
+          onPointerDown={() => setDragging(true)}
+          onPointerUp={() => setDragging(false)}
+        >
+          <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-muted">
+            <SliderPrimitive.Range className="absolute h-full bg-primary" />
+          </SliderPrimitive.Track>
+          <SliderPrimitive.Thumb className="block h-3.5 w-6 shrink-0 rounded-full border border-black/10 bg-white shadow-md ring-ring/50 transition-[box-shadow] hover:ring-4 focus-visible:outline-hidden focus-visible:ring-4" />
+        </SliderPrimitive.Root>
+        {dragging && (
+          // Thumb centre travels between half a thumb from each end, so the
+          // label tracks the percentage minus that inset.
+          <div
+            className="-translate-x-1/2 pointer-events-none absolute top-full mt-2.5 w-fit whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-primary-foreground text-xs"
+            style={{
+              left: `calc(${percent}% + ${(THUMB_WIDTH / 2) * (1 - percent / 50)}px)`,
+            }}
+          >
+            {value} columns
+          </div>
+        )}
       </div>
-    </TooltipProvider>
+      <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </div>
   );
 }

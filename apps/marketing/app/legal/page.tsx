@@ -1,5 +1,5 @@
-import { PageIntro, PageShell } from "@/components/page-shell";
-import { gutter } from "@/components/home/section";
+import { PageIntro, PageShell } from "@/components/site/page-shell";
+import { gutter } from "@/components/site/section";
 import { Section, H2, P, Ul, A } from "@/components/legal";
 import type { Metadata } from "next";
 
@@ -72,6 +72,12 @@ export default function LegalNoticePage() {
               . The content of this website, including its texts, illustrations and layout, and the
               Openinary name and logo, remain the property of their respective owners and are not
               covered by that license.
+            </P>
+            <P>
+              The icons on this website and in the Openinary dashboard come from the{" "}
+              <A href="https://www.figma.com/community/file/1166831539721848736">Solar icon set</A> by
+              480 Design, used under the{" "}
+              <A href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0 license</A>.
             </P>
           </Section>
 

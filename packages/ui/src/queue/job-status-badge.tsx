@@ -23,8 +23,8 @@ export function JobStatusBadge({ status, className }: JobStatusBadgeProps) {
     <Badge
       variant={config.variant}
       className={cn(
-        status === "completed" && "bg-green-500 hover:bg-green-600",
-        status === "processing" && "bg-blue-500 hover:bg-blue-600",
+        status === "completed" && "bg-ds-green hover:bg-ds-green",
+        status === "processing" && "bg-ds-blue hover:bg-ds-blue",
         className,
       )}
     >

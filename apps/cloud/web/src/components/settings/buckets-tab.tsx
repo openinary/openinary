@@ -17,20 +17,19 @@ import { toast } from "sonner";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@openinary/dashboard/ui/button";
+import { Input } from "@openinary/dashboard/ui/input";
 import { Skeleton } from "skullet/react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@openinary/dashboard/ui/tooltip";
 import { orpc } from "@/utils/orpc";
 
 // Not an oRPC procedure: the sweep needs the Worker's R2/KV bindings, which
 // the oRPC context has no access to (see the route's comment in
-// apps/server/worker/app.ts).
+// apps/cloud/server/worker/app.ts).
 async function deleteBucketRequest(bucketId: string) {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/buckets/${bucketId}`,
@@ -47,8 +46,7 @@ async function deleteBucketRequest(bucketId: string) {
 /**
  * The footprint is a cached snapshot, only ever written by POST
  * /storage/stats/recalculate (see the Storage tab), so a bucket reads empty
- * until it has been measured once. formatFileSize isn't used for that case:
- * its own falsy check answers "Unknown" for zero bytes.
+ * until it has been measured once, hence "Empty" rather than a bare size.
  */
 function describeFootprint(bucket: {
   storageBytes: number;
@@ -207,7 +205,6 @@ export function BucketsTab() {
         </SettingsSection>
       </form>
 
-      <Separator />
 
       <SettingsSection
         title="Your buckets"

@@ -6,14 +6,12 @@
     "verbatimModuleSyntax": true,
     "strict": true,
     "skipLibCheck": true,
-    "baseUrl": "./",
-    "composite": true,
-    "paths": {
-      "@/*": ["./api/*"]
-    },
     "outDir": "./dist",
     "rootDir": "./",
     "types": ["node"]
   },
-  "include": ["./api/**/*.ts"]
+  // The container image: only what runs there. The Worker (worker/, scripts/)
+  // is its own program, worker/tsconfig.json.
+  "include": ["./container/**/*.ts", "./shared/**/*.ts"],
+  "exclude": ["./**/*.test.ts"]
 }

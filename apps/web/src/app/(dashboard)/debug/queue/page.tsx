@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { QueueStatsCards } from "@openinary/ui";
-import { QueueTable, type QueueTableJob as QueueJob } from "@openinary/ui";
+import {
+  QueueStatsCards,
+  QueueTable,
+  type QueueTableJob as QueueJob,
+  useQueueEvents,
+} from "@openinary/ui";
 import { Skeleton } from "skullet/react";
 
 // The real table over stand-in jobs, measured into the skeleton.
@@ -17,10 +21,9 @@ const SAMPLE_JOBS: QueueJob[] = [0, 1, 2].map((i) => ({
   started_at: 0,
   completed_at: 0,
 }));
-import { Button } from "@/components/ui/button";
+import { Button } from "@openinary/dashboard/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
-import { useQueueEvents } from "@openinary/ui";
 
 export default function QueuePage() {
   const [jobs, setJobs] = useState<QueueJob[]>([]);

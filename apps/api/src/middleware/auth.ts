@@ -1,8 +1,9 @@
 import { Context, Next } from "hono";
-import { auth } from "shared/auth";
+import { getDb } from "shared";
+import { getAuth } from "shared/auth";
 import { logger, serializeError } from "@openinary/core";
+import { clientIp } from "../utils/client-ip";
 
-// Define the variables that will be available in the context
 export type AuthVariables = {
   Variables: {
     user: {
@@ -18,154 +19,82 @@ export type AuthVariables = {
   };
 };
 
-/**
- * Structured audit logger for security events
- */
-function auditLog(event: string, data: Record<string, any>) {
-  logger.info({ event, ...data }, "[Audit]");
+function auditLog(c: Context, event: string, data: Record<string, unknown> = {}) {
+  logger.info(
+    { event, ...data, path: c.req.path, method: c.req.method, ip: clientIp(c) },
+    "[Audit]",
+  );
 }
 
 /**
- * Verifies API key OR session cookie and attaches user/apiKey info to context.
- * Does not write a response on failure, callers decide how to handle that
- * (reject outright, or fall back to another auth mechanism).
- * @returns true if the request is authenticated
+ * Verifies an API key (Authorization: Bearer) or a session cookie and puts
+ * the user on the context. Writes no response: callers decide whether to
+ * reject or try another mechanism.
  */
 export async function authenticateRequest(
   c: Context<AuthVariables>,
 ): Promise<boolean> {
   const authHeader = c.req.header("Authorization");
   const cookieHeader = c.req.header("Cookie");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.substring(7)
+    : authHeader;
 
-  // Try API key authentication first
-  if (authHeader) {
-    // Extract token from "Bearer <token>" format
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.substring(7)
-      : authHeader;
+  if (token) {
+    try {
+      const result = await getAuth().api.verifyApiKey({ body: { key: token } });
 
-    if (token) {
-      try {
-        // Verify the API key using Better Auth
-        const result = await auth.api.verifyApiKey({
-          body: {
-            key: token,
-          },
+      if (result.valid && result.key) {
+        const userId = result.key.referenceId;
+        c.set("apiKey", { id: result.key.id, name: result.key.name, userId });
+        c.set("user", { id: userId, email: "", name: "" });
+        auditLog(c, "auth.api_key.success", {
+          userId,
+          apiKeyId: result.key.id,
+          apiKeyName: result.key.name,
         });
-
-        if (result.valid && result.key) {
-          // API key is valid
-          c.set("apiKey", {
-            id: result.key.id,
-            name: result.key.name,
-            userId: result.key.referenceId, // referenceId is the userId associated with the API key
-          });
-
-          c.set("user", {
-            id: result.key.referenceId, // userId associated with the API key
-            email: "",
-            name: "",
-          });
-
-          // Audit log: successful API key authentication
-          auditLog("auth.api_key.success", {
-            userId: result.key.referenceId, // userId associated with the API key
-            apiKeyId: result.key.id,
-            apiKeyName: result.key.name,
-            path: c.req.path,
-            method: c.req.method,
-            ip:
-              c.req.header("x-forwarded-for") ||
-              c.req.header("x-real-ip") ||
-              "unknown",
-          });
-
-          return true;
-        } else {
-          // Audit log: invalid API key
-          auditLog("auth.api_key.failed", {
-            reason: "invalid_key",
-            tokenPrefix: token.substring(0, 8) + "...",
-            path: c.req.path,
-            method: c.req.method,
-            ip:
-              c.req.header("x-forwarded-for") ||
-              c.req.header("x-real-ip") ||
-              "unknown",
-          });
-        }
-      } catch (error) {
-        // Audit log: API key verification error
-        auditLog("auth.api_key.error", {
-          error: error instanceof Error ? error.message : "unknown",
-          path: c.req.path,
-          method: c.req.method,
-          ip:
-            c.req.header("x-forwarded-for") ||
-            c.req.header("x-real-ip") ||
-            "unknown",
-        });
+        return true;
       }
+      auditLog(c, "auth.api_key.failed", {
+        reason: "invalid_key",
+        tokenPrefix: token.substring(0, 8) + "...",
+      });
+    } catch (error) {
+      auditLog(c, "auth.api_key.error", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
     }
   }
 
-  // If no valid API key, try session cookie authentication
   try {
     if (cookieHeader) {
-      // Better Auth stores session in cookies
-      // Try to get session using Better Auth
-      const sessionResult = await auth.api.getSession({
-        headers: new Headers({
-          cookie: cookieHeader,
-        }),
+      const sessionResult = await getAuth().api.getSession({
+        headers: new Headers({ cookie: cookieHeader }),
       });
 
-      if (sessionResult && sessionResult.session && sessionResult.user) {
-        // SECURITY FIX: Verify that the user actually exists in the database
-        // Better Auth may return session data from signed cookies without DB validation
-        const { db } = await import("shared/auth");
-        const userExists = db
-          .prepare("SELECT id FROM user WHERE id = ?")
+      if (sessionResult?.session && sessionResult.user) {
+        // Belt and braces against a session outliving its user.
+        const userExists = getDb()
+          .prepare("SELECT 1 FROM user WHERE id = ?")
           .get(sessionResult.user.id);
 
-        if (!userExists) {
-          // User was deleted from database - reject the session
-          auditLog("auth.session.rejected", {
-            reason: "user_not_found_in_db",
-            userId: sessionResult.user.id,
-            path: c.req.path,
-            method: c.req.method,
-            ip:
-              c.req.header("x-forwarded-for") ||
-              c.req.header("x-real-ip") ||
-              "unknown",
-          });
-
-          // Continue to authentication failure below
-        } else {
-          // Valid session found AND user exists in DB
+        if (userExists) {
           c.set("user", {
             id: sessionResult.user.id,
             email: sessionResult.user.email,
             name: sessionResult.user.name,
           });
-
-          c.set("apiKey", null); // No API key, using session
-
-          // Audit log: successful session authentication
-          auditLog("auth.session.success", {
+          c.set("apiKey", null);
+          auditLog(c, "auth.session.success", {
             userId: sessionResult.user.id,
             userEmail: sessionResult.user.email,
-            path: c.req.path,
-            method: c.req.method,
-            ip:
-              c.req.header("x-forwarded-for") ||
-              c.req.header("x-real-ip") ||
-              "unknown",
           });
-
           return true;
         }
+        auditLog(c, "auth.session.rejected", {
+          reason: "user_not_found_in_db",
+          userId: sessionResult.user.id,
+        });
       }
     }
   } catch (error) {
@@ -175,30 +104,17 @@ export async function authenticateRequest(
     );
   }
 
-  // Neither API key nor session is valid
-  // Audit log: authentication failed
-  auditLog("auth.failed", {
+  auditLog(c, "auth.failed", {
     reason: "no_valid_credentials",
-    path: c.req.path,
-    method: c.req.method,
-    ip:
-      c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
     hasAuthHeader: !!authHeader,
     hasCookie: !!cookieHeader,
   });
-
   return false;
 }
 
-/**
- * Middleware to verify API key OR session cookie
- * Supports both API key authentication and web app session authentication
- * Attaches user and apiKey info to context if valid
- */
+/** Rejects with 401 unless authenticateRequest succeeds. */
 export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
-  const authed = await authenticateRequest(c);
-
-  if (authed) {
+  if (await authenticateRequest(c)) {
     await next();
     return;
   }

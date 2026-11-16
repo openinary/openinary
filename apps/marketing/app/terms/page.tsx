@@ -1,5 +1,5 @@
-import { PageIntro, PageShell } from "@/components/page-shell";
-import { gutter } from "@/components/home/section";
+import { PageIntro, PageShell } from "@/components/site/page-shell";
+import { gutter } from "@/components/site/section";
 import { Section, H2, P, Ul, A } from "@/components/legal";
 import type { Metadata } from "next";
 

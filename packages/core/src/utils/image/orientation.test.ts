@@ -5,8 +5,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import sharp from "sharp";
 import { transformImage } from "./index";
-import { parseParams } from "../parser";
-import { KeyGenerator } from "../storage/key-generator";
+import { parseParams } from "../../url/grammar";
+import { sortedKey } from "../../url/cache-key";
 
 // A phone-style photo: stored as 400x200 landscape pixels (left half red,
 // right half blue) with EXIF orientation 6, i.e. "rotate 90° clockwise to
@@ -91,8 +91,8 @@ test("parsed params (and so cache keys) are unchanged for existing URLs", () => 
     width: 100,
   });
   assert.equal(
-    KeyGenerator.generateKey("a.jpg", parseParams("/t/a_90/a.jpg")),
-    KeyGenerator.generateKey("a.jpg", { rotate: 90 }),
+    sortedKey("a.jpg", parseParams("/t/a_90/a.jpg")),
+    sortedKey("a.jpg", { rotate: 90 }),
   );
   assert.deepEqual(parseParams("/t/a_ignore/a.jpg"), { ignoreOrientation: true });
 });

@@ -10,7 +10,7 @@ import {
 } from "../lib/docker.js";
 import type { ProjectMode } from "../lib/project.js";
 import { writeProjectConfig } from "../lib/project.js";
-import { generateApiSecret, generateAuthSecret } from "../lib/env.js";
+import { generateSecret } from "../lib/env.js";
 import {
   scaffoldFromEmbeddedTemplate,
   scaffoldFromRemoteTemplate,
@@ -139,9 +139,9 @@ export async function runCreate(
         projectName: path.basename(targetDir),
         mode,
         port,
-        authSecret: generateAuthSecret(),
+        authSecret: generateSecret(),
         authUrl: `http://localhost:${port}`,
-        apiSecret: generateApiSecret(),
+        apiSecret: generateSecret(),
         imageTag: release.version,
         storage,
       });
@@ -235,8 +235,9 @@ export async function runCreate(
   );
 }
 
-export function buildCreateCommand(): Command {
-  return new Command("create")
+/** Shared by `openinary create` and the `create-openinary` entry point. */
+export function addCreateOptions(command: Command): Command {
+  return command
     .description("Scaffold a new Openinary project")
     .argument("[dir]", "Project directory")
     .option("--api-only", "Scaffold API-only mode (no web dashboard)")
@@ -245,15 +246,13 @@ export function buildCreateCommand(): Command {
     .option(
       "--template <source>",
       "Fetch a template via giget instead of the built-in one",
-    )
+    );
+}
+
+export function buildCreateCommand(): Command {
+  return addCreateOptions(new Command("create"))
     .action(async (dir: string | undefined, opts, command) => {
       const globals = command.optsWithGlobals();
-      try {
-        await runCreate(dir, { ...opts, cwd: globals.cwd, yes: globals.yes });
-      } catch (err) {
-        fail(err instanceof Error ? err.message : String(err));
-        if (err instanceof CLIError && err.hint) hint(err.hint);
-        process.exitCode = err instanceof CLIError ? err.exitCode : 1;
-      }
+      await runCreate(dir, { ...opts, cwd: globals.cwd, yes: globals.yes });
     });
 }

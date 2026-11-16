@@ -7,7 +7,7 @@ import { ConfirmAction } from "@/components/confirm-action";
 import {
   Empty,
   Freshness,
-  LoadingRows,
+  NoData,
   StatusBadge,
 } from "@/components/fields";
 import { Card } from "@/components/ui/card";
@@ -42,13 +42,9 @@ export default function WaitlistPage() {
       }
       queryClient.invalidateQueries({ queryKey: query.queryKey });
     },
-    onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
-  // Same rule as the fiche: a refetch behind a list already on screen is not a
-  // reason to take it off.
-  if (error && !data) return <Empty>{error.message}</Empty>;
-  if (!data) return <LoadingRows />;
+  if (!data) return <NoData error={error} />;
 
   return (
     <div className="flex flex-col gap-4">

@@ -5,7 +5,7 @@ import { drawCover } from "./shapes";
 // /download/* route and encodes the one webp every dashboard slot renders.
 // THUMB_SIZE doesn't need to match the "500x500" in the dashboard's request
 // URL - see DASHBOARD_IMAGE_THUMB_SEGMENTS' comment in
-// worker/transform-cache.ts.
+// worker/cdn/dashboard-thumbs.ts.
 export async function generateImageThumbnail(
   fetchImpl: OpeninaryFetch,
   apiBaseUrl: string,

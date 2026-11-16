@@ -1,10 +1,10 @@
 {
   "features": [
     {
-      "category": "Pricing & Licensing",
+      "category": "Pricing and licence",
       "items": [
         {
-          "name": "Open Source",
+          "name": "Open source",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -17,7 +17,7 @@
           }
         },
         {
-          "name": "Self-Hostable",
+          "name": "Self-hostable",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -30,8 +30,8 @@
           }
         },
         {
-          "name": "Free Tier",
-          "openinary": "Unlimited (self-hosted)",
+          "name": "Free tier",
+          "openinary": "Cloud free plan, unlimited self-hosted",
           "competitors": {
             "cloudinary": "25 credits/month",
             "imagekit": "20 GB bandwidth",
@@ -43,7 +43,7 @@
           }
         },
         {
-          "name": "No Vendor Lock-in",
+          "name": "No vendor lock-in",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -56,8 +56,8 @@
           }
         },
         {
-          "name": "Starting Price (Paid)",
-          "openinary": "Pay as you go (Cloud)",
+          "name": "Paid plans from",
+          "openinary": "No monthly fee, usage (Cloud)",
           "competitors": {
             "cloudinary": "$89/month",
             "imagekit": "$49/month",
@@ -71,10 +71,10 @@
       ]
     },
     {
-      "category": "Storage & Delivery",
+      "category": "Storage and delivery",
       "items": [
         {
-          "name": "S3-Compatible Storage",
+          "name": "S3-compatible storage",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -87,7 +87,7 @@
           }
         },
         {
-          "name": "Works with R2 / MinIO",
+          "name": "Works with R2 and MinIO",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -113,7 +113,7 @@
           }
         },
         {
-          "name": "Edge Delivery",
+          "name": "Edge delivery",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -126,7 +126,7 @@
           }
         },
         {
-          "name": "Bring Your Own Storage",
+          "name": "Bring your own storage",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -141,10 +141,10 @@
       ]
     },
     {
-      "category": "Image Processing",
+      "category": "Images",
       "items": [
         {
-          "name": "Image Transformations",
+          "name": "Image transformations",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -157,7 +157,7 @@
           }
         },
         {
-          "name": "Auto Format (WebP, AVIF)",
+          "name": "Auto format (WebP, AVIF)",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -170,7 +170,7 @@
           }
         },
         {
-          "name": "Resize & Crop",
+          "name": "Resize and crop",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -183,7 +183,7 @@
           }
         },
         {
-          "name": "URL-based Transformations",
+          "name": "Transformations from the URL",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -196,7 +196,7 @@
           }
         },
         {
-          "name": "AI-Based Transformations",
+          "name": "AI transformations",
           "openinary": "Coming soon",
           "competitors": {
             "cloudinary": true,
@@ -211,10 +211,10 @@
       ]
     },
     {
-      "category": "Video Processing",
+      "category": "Video",
       "items": [
         {
-          "name": "Video Transformations",
+          "name": "Video transformations",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -227,7 +227,7 @@
           }
         },
         {
-          "name": "Adaptive Streaming",
+          "name": "Adaptive streaming",
           "openinary": "Coming soon",
           "competitors": {
             "cloudinary": true,
@@ -242,7 +242,7 @@
       ]
     },
     {
-      "category": "Developer Experience",
+      "category": "Developer experience",
       "items": [
         {
           "name": "REST API",
@@ -258,7 +258,7 @@
           }
         },
         {
-          "name": "SDK Support",
+          "name": "SDKs",
           "openinary": "Coming soon",
           "competitors": {
             "cloudinary": "15+ SDKs",
@@ -271,7 +271,7 @@
           }
         },
         {
-          "name": "Docker Deployment",
+          "name": "Docker deployment",
           "openinary": true,
           "competitors": {
             "cloudinary": false,
@@ -284,7 +284,7 @@
           }
         },
         {
-          "name": "Setup in Under 5 Minutes",
+          "name": "Set up in under 5 minutes",
           "openinary": true,
           "competitors": {
             "cloudinary": true,
@@ -297,7 +297,7 @@
           }
         },
         {
-          "name": "Community-Driven",
+          "name": "Community-driven",
           "openinary": true,
           "competitors": {
             "cloudinary": false,

@@ -7,7 +7,7 @@ import fs from "fs/promises";
 import logger from "../logger";
 import type { TransformFunction } from "./types";
 import path from "path";
-import { cleanupTempFile } from "../../routes/transform-helpers";
+import { removeTempFile } from "../stage-source";
 
 /**
  * Apply overlay transformation to a video.
@@ -95,7 +95,7 @@ export const applyOverlay: TransformFunction = async (
         ],
         outputVideoStream: "wm_marked",
         cleanupFunc: async () => {
-          await cleanupTempFile(tempTiledWatermarkPath);
+          await removeTempFile(tempTiledWatermarkPath);
         },
       };
     }

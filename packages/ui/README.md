@@ -52,6 +52,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
+`transformBaseUrl` (where thumbnails and copied asset URLs point) defaults to
+`apiBaseUrl` without a trailing `/api`. Pass `null` while your app cannot know
+it yet, say it depends on a request in flight: thumbnails hold their skeleton
+and nothing is built on a wrong base until you pass the real one.
+
 `OpeninaryProvider` is a client component. If you render it from a Next.js
 Server Component (e.g. a root `layout.tsx`), only pass serializable props,
 strings are fine, but a custom `fetch` override is a function and can't cross

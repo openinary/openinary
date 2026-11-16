@@ -13,6 +13,9 @@ services:
       - public-files:/app/apps/api/public
       # Mount data folder for shared auth database
       - db-data:/app/data
+    # Every variable in .env reaches the container (STORAGE_*, CORS_ORIGIN, ...);
+    # the list below only adds defaults.
+    env_file: .env
     environment:
       - NODE_ENV=production
       - MODE=api
@@ -50,8 +53,9 @@ services:
       - public-files:/app/apps/api/public
       # Mount shared data folder for auth database persistence
       - db-data:/app/data
-      # Also mount for web standalone path (for backwards compatibility)
+      # Where images built before DB_PATH was set may look for the database.
       - db-data:/app/web-standalone/data
+    env_file: .env
     environment:
       - NODE_ENV=production
       - MODE=fullstack

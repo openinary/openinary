@@ -1,11 +1,27 @@
-import { db } from "shared";
-import { VideoJobQueue, SqliteVideoJobStore } from "@openinary/core";
+import { getDb } from "shared";
+import { VideoJobQueue, enginePathsIn } from "@openinary/core";
+import { getSharedStorage } from "./storage";
+import { SqliteVideoJobStore } from "./video-job-store";
 
-/**
- * Single shared queue instance for this process. Consumers (routes,
- * services) receive it via this module rather than importing
- * utils/video-job-queue's class directly, so swapping to a differently
- * scoped instance (e.g. per tenant, or a different VideoJobStore backend
- * such as Cloudflare D1) only touches this file.
- */
-export const videoJobQueue = new VideoJobQueue(new SqliteVideoJobStore(db));
+const intEnv = (name: string): number | undefined => {
+  const value = parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) ? value : undefined;
+};
+
+/** public/, cache/ and temp/ in the working directory (apps/api in the images). */
+export const enginePaths = enginePathsIn(process.cwd());
+
+export const videoJobQueue = new VideoJobQueue(
+  new SqliteVideoJobStore(getDb(), intEnv("VIDEO_JOB_RETRY_MAX")),
+  getSharedStorage(),
+  {
+    paths: enginePaths,
+    video: {
+      maxConcurrent: intEnv("VIDEO_MAX_CONCURRENT"),
+      ffmpegThreads: intEnv("VIDEO_FFMPEG_THREADS"),
+      ffmpegNiceness: intEnv("VIDEO_FFMPEG_NICENESS"),
+      cleanupHours: intEnv("VIDEO_JOB_CLEANUP_HOURS"),
+      pollIntervalMs: intEnv("VIDEO_WORKER_POLL_INTERVAL_MS"),
+    },
+  },
+);

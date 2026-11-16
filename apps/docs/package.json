@@ -1,0 +1,43 @@
+{
+  "name": "docs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --port 3333",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint:docs": "nimbus-docs lint",
+    "lint:docs:fix": "nimbus-docs lint --fix",
+    "preview:cf": "astro build && wrangler dev",
+    "deploy": "astro check && astro build && wrangler deploy",
+    "test": "node --test scripts/*.test.mjs",
+    "type-check": "astro check",
+    "serve": "astro build && wrangler dev --port 3335"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "~14.3.4",
+    "@cloudflare/nimbus-docs": "0.19.4",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource-variable/mona-sans": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.154",
+    "@iconify-json/solar": "1.2.4",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "astro": "7.3.3",
+    "clsx": "^2.1.1",
+    "posthog-js": "^1.415.1",
+    "satori": "^0.26.0",
+    "sharp": "^0.35.4",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@astrojs/language-server": "2.16.13",
+    "@tailwindcss/vite": "^4.1.4",
+    "pagefind": "^1.5.2",
+    "tailwindcss": "^4.1.4",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.161.0"
+  }
+}

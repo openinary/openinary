@@ -1,0 +1,859 @@
+/* The dashboard's design system: tokens, the shadcn variables derived from
+   them, and the few surface classes every screen is built from. Imported by
+   both apps (apps/web, apps/cloud/web) after "tailwindcss", so there is one
+   copy. Each app keeps its own @source and dark @custom-variant lines.
+
+   Fonts: the app's root layout sets --font-mona-sans and --font-geist-mono
+   (next/font). */
+
+@theme inline {
+  --font-sans:
+    var(--font-mona-sans), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* The scale is one notch tighter than Tailwind's: 13px is the body size, so
+     text-sm follows it and every screen written with it lines up. */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* The ds scale as Tailwind colours: bg-ds-hover, text-ds-muted, ... */
+  --color-ds-panel: var(--ds-panel);
+  --color-ds-frame: var(--ds-frame);
+  --color-ds-card: var(--ds-card);
+  --color-ds-field: var(--ds-field);
+  --color-ds-subtle: var(--ds-subtle);
+  --color-ds-hover: var(--ds-hover);
+  --color-ds-row-hover: var(--ds-row-hover);
+  --color-ds-active: var(--ds-active);
+  --color-ds-divider: var(--ds-divider);
+  --color-ds-border: var(--ds-border);
+  --color-ds-border-strong: var(--ds-border-strong);
+  --color-ds-border-hover: var(--ds-border-hover);
+  --color-ds-text: var(--ds-text);
+  --color-ds-secondary: var(--ds-text-secondary);
+  --color-ds-muted: var(--ds-text-muted);
+  --color-ds-faint: var(--ds-text-faint);
+  --color-ds-inverse: var(--ds-inverse);
+  --color-ds-inverse-text: var(--ds-inverse-text);
+  --color-ds-ring: var(--ds-ring);
+  --color-ds-accent: var(--ds-accent);
+  --color-ds-accent-strong: var(--ds-accent-strong);
+  --color-ds-blue: var(--ds-blue);
+  --color-ds-green: var(--ds-green);
+  --color-ds-amber: var(--ds-amber);
+  --color-ds-red: var(--ds-red);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-move: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-swap: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Warm greys. "panel" is the backdrop the sidebar sits on, "frame" the sheet
+   pages draw on, "card" a tile on that sheet. */
+:root {
+  --ds-panel: #f3f3f1;
+  --ds-frame: #ffffff;
+  --ds-card: #ffffff;
+  --ds-field: #ffffff;
+  --ds-subtle: #f4f4f2;
+  --ds-hover: #f1f1ef;
+  --ds-row-hover: #fafaf9;
+  --ds-active: #eaeae7;
+  --ds-avatar: #e4e4e0;
+  --ds-divider: #efefec;
+  --ds-border: #e7e7e4;
+  --ds-border-strong: #dededa;
+  --ds-border-hover: #c9c9c4;
+  --ds-border-focus: #b5b5af;
+  --ds-text: #151515;
+  --ds-text-secondary: #3f3f3c;
+  --ds-text-muted: #6b6b66;
+  --ds-text-faint: #8e8e88;
+  --ds-inverse: #151515;
+  --ds-inverse-text: #ffffff;
+  --ds-code: #f7f7f6;
+  --ds-ring: #3b7bff;
+  /* The one brand hue: primary buttons, links, focus. Change it here. */
+  --ds-accent: #1c4bb0;
+  --ds-accent-strong: #2257c7;
+  --ds-accent-edge: rgb(59 123 255 / 0.6);
+  --ds-blue: #1f5fe0;
+  --ds-amber: #b45309;
+  --ds-green: #15803d;
+  --ds-red: #b42318;
+  --ds-overlay: rgb(21 21 21 / 0.28);
+  --ds-shimmer-base: #efefec;
+  --ds-shimmer-sheen: rgb(255 255 255 / 0.7);
+
+  --ds-edge: rgb(0 0 0 / 0.08);
+  --ds-rule: rgb(0 0 0 / 0.06);
+  --ds-tile-inner: #f7f7f5;
+  --ds-raised: #ffffff;
+  --ds-raised-shadow: rgb(0 0 0 / 0.06) 0 1px 2px, rgb(0 0 0 / 0.08) 0 0 0 1px;
+  --ds-thumb-shadow:
+    rgb(0 0 0 / 0.08) 0 1px 2px, rgb(0 0 0 / 0.06) 0 0 0 0.5px;
+  --ds-pop-shadow:
+    rgb(0 0 0 / 0.06) 0 0 0 1px, rgb(0 0 0 / 0.08) 0 1px 2px,
+    rgb(0 0 0 / 0.14) 0 12px 32px -8px;
+  --ds-modal-bg: #ffffff;
+  --ds-modal-shadow:
+    rgb(0 0 0 / 0.08) 0 0 0 1px, rgb(0 0 0 / 0.06) 0 2px 4px -1px,
+    rgb(0 0 0 / 0.12) 0 24px 64px -12px;
+  --ds-menu: #ffffff;
+  --ds-menu-hover: #f2f2f0;
+
+  --radius: 0.625rem;
+  --background: var(--ds-frame);
+  --foreground: var(--ds-text);
+  --card: var(--ds-card);
+  --card-foreground: var(--ds-text);
+  --popover: var(--ds-menu);
+  --popover-foreground: var(--ds-text);
+  --primary: var(--ds-inverse);
+  --primary-foreground: var(--ds-inverse-text);
+  --secondary: var(--ds-hover);
+  --secondary-foreground: var(--ds-text);
+  --muted: var(--ds-hover);
+  --muted-foreground: var(--ds-text-muted);
+  --accent: var(--ds-hover);
+  --accent-foreground: var(--ds-text);
+  --destructive: var(--ds-red);
+  --border: var(--ds-border);
+  --input: var(--ds-border-strong);
+  --ring: var(--ds-ring);
+  --chart-1: #3b7bff;
+  --chart-2: #15803d;
+  --chart-3: #b45309;
+  --chart-4: #8b5cf6;
+  --chart-5: #db2777;
+  --sidebar: var(--ds-panel);
+  --sidebar-foreground: var(--ds-text-secondary);
+  --sidebar-primary: var(--ds-inverse);
+  --sidebar-primary-foreground: var(--ds-inverse-text);
+  --sidebar-accent: var(--ds-active);
+  --sidebar-accent-foreground: var(--ds-text);
+  --sidebar-border: var(--ds-border);
+  --sidebar-ring: var(--ds-ring);
+
+  --skullet-base: var(--ds-shimmer-base);
+  --skullet-highlight: var(--ds-shimmer-sheen);
+  --skullet-radius: calc(var(--radius) - 4px);
+}
+
+.dark {
+  --ds-panel: #0f0f0f;
+  --ds-frame: #181818;
+  --ds-card: #131313;
+  --ds-field: #0f0f0f;
+  --ds-subtle: #141414;
+  --ds-hover: #222222;
+  --ds-row-hover: #1d1d1d;
+  --ds-active: #242424;
+  --ds-avatar: #2a2a2a;
+  --ds-divider: rgb(238 238 238 / 0.07);
+  --ds-border: #1e1e1e;
+  --ds-border-strong: #2a2a2a;
+  --ds-border-hover: #3a3a3a;
+  --ds-border-focus: #4a4a4a;
+  --ds-text: #eeeeee;
+  --ds-text-secondary: #c4c4c4;
+  --ds-text-muted: #a4a4a4;
+  --ds-text-faint: #8a8a8a;
+  --ds-inverse: #eeeeec;
+  --ds-inverse-text: #0a0a0a;
+  --ds-code: #0d0d0d;
+  --ds-ring: #60a5fa;
+  --ds-accent: #3b7bff;
+  --ds-accent-strong: #6a9bff;
+  --ds-accent-edge: rgb(143 179 255 / 0.5);
+  --ds-blue: #60a5fa;
+  --ds-amber: #fbbf24;
+  --ds-green: #4ade80;
+  --ds-red: #f87171;
+  --ds-overlay: rgb(0 0 0 / 0.6);
+  --ds-shimmer-base: #1c1c1c;
+  --ds-shimmer-sheen: rgb(255 255 255 / 0.06);
+
+  --ds-edge: #262626;
+  --ds-rule: rgb(238 238 238 / 0.06);
+  --ds-tile-inner: #0f0f0f;
+  --ds-raised: #151515;
+  --ds-raised-shadow:
+    rgb(255 255 255 / 0.05) 0 1px 0 inset, rgb(255 255 255 / 0.08) 0 0 0 1px;
+  --ds-thumb-shadow:
+    rgb(255 255 255 / 0.06) 0 1px 0 inset, rgb(255 255 255 / 0.06) 0 0 0 1px;
+  --ds-pop-shadow:
+    rgb(255 255 255 / 0.06) 0 1px 0 inset, rgb(0 0 0 / 0.5) 0 1px 2px,
+    rgb(0 0 0 / 0.6) 0 12px 32px -8px;
+  --ds-modal-bg: #171717;
+  --ds-modal-shadow:
+    rgb(255 255 255 / 0.07) 0 1px 0 inset, rgb(0 0 0 / 0.5) 0 0 0 1px,
+    rgb(0 0 0 / 0.55) 0 24px 64px -12px;
+  --ds-menu: #1c1c1c;
+  --ds-menu-hover: #272727;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body {
+    @apply overscroll-none;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 13px;
+    line-height: 20px;
+    scrollbar-color: var(--ds-border-hover) transparent;
+  }
+  [data-slot="label"],
+  [data-slot="form-label"] {
+    color: var(--ds-text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+  /* Tailwind v4 dropped the UA pointer cursor on buttons */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+/* ---------------------------------------------------------------- surfaces */
+
+/* The one surface. Tables, lists, forms, stats and empty states are all
+   tiles: an edge drawn as a ring, hairline rules between rows, no nesting. */
+.ds-tile {
+  position: relative;
+  overflow: clip;
+  border-radius: 14px;
+  background-color: var(--ds-card);
+  box-shadow: var(--ds-edge) 0 0 0 1px;
+}
+
+.dark .ds-tile {
+  box-shadow:
+    var(--ds-edge) 0 0 0 1px,
+    rgb(0 0 0 / 0.45) 0 0 0 1px inset,
+    rgb(255 255 255 / 0.025) 0 2px 0 -1px inset;
+}
+
+.ds-tile-danger {
+  --ds-edge: color-mix(in srgb, var(--ds-red) 35%, transparent);
+}
+
+.ds-tile-row {
+  box-shadow: var(--ds-rule) 0 1px 0 inset;
+}
+
+.ds-tile-rows > .ds-tile-row:first-child {
+  box-shadow: none;
+}
+
+.ds-tile-divider {
+  height: 1px;
+  flex-shrink: 0;
+  background-color: var(--ds-rule);
+}
+
+.ds-tile-inner {
+  overflow: clip;
+  border-radius: 12px;
+  background-color: var(--ds-tile-inner);
+  box-shadow: var(--ds-rule) 0 0 0 1px;
+}
+
+.ds-icon-chip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--ds-text-muted);
+
+  & > svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.ds-modal {
+  border: 0;
+  border-radius: 18px;
+  background: var(--ds-modal-bg);
+  box-shadow: var(--ds-modal-shadow);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+/* The toolbar control: search fields, "Label Value" menus, icon buttons. */
+.ds-raised-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background-color: var(--ds-raised);
+  color: var(--ds-text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--ds-raised-shadow);
+  transition-property: color, background-color, box-shadow, scale;
+  transition-duration: 150ms;
+
+  &:hover {
+    color: var(--ds-text);
+  }
+
+  &:active {
+    scale: 0.97;
+  }
+
+  &:focus-visible,
+  &:focus-within {
+    outline: 2px solid var(--ds-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* A segmented control. The selected child is whichever carries the state:
+   aria-pressed (filters), aria-current (links), aria-selected or
+   data-state="active" (tabs). */
+.ds-segments {
+  display: flex;
+  gap: 2px;
+  width: fit-content;
+  padding: 3px;
+  overflow: clip;
+  border-radius: 12px;
+  background-color: var(--ds-active);
+  box-shadow: var(--ds-border) 0 0 0 1px inset;
+
+  & > a,
+  & > button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 9px;
+    color: var(--ds-text-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 20px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    transition-property: color, background-color, box-shadow, scale;
+    transition-duration: 150ms;
+
+    &:hover {
+      color: var(--ds-text);
+    }
+
+    &:active {
+      scale: 0.97;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ds-ring);
+      outline-offset: 1px;
+    }
+
+    &[aria-current="page"],
+    &[aria-pressed="true"],
+    &[aria-selected="true"],
+    &[data-state="active"],
+    &[data-active] {
+      background-color: var(--ds-raised);
+      color: var(--ds-text);
+      box-shadow: var(--ds-thumb-shadow);
+    }
+  }
+}
+
+.dark .ds-segments {
+  background-color: var(--ds-panel);
+
+  & > :is(a, button):is(
+      [aria-current="page"],
+      [aria-pressed="true"],
+      [aria-selected="true"],
+      [data-state="active"],
+      [data-active]
+    ) {
+    background-color: var(--ds-active);
+  }
+}
+
+.ds-segments--sm > a,
+.ds-segments--sm > button {
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* Status pill: solid text on a 12% tint of the same hue. */
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--pill-edge, var(--ds-border-strong));
+  border-radius: 999px;
+  background-color: var(--pill-bg, transparent);
+  color: var(--pill-text, var(--ds-text-secondary));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-pill-green {
+  --pill-tone: var(--ds-green);
+}
+
+.ds-pill-amber {
+  --pill-tone: var(--ds-amber);
+}
+
+.ds-pill-red {
+  --pill-tone: var(--ds-red);
+}
+
+.ds-pill-blue {
+  --pill-tone: var(--ds-blue);
+}
+
+:is(.ds-pill-green, .ds-pill-amber, .ds-pill-red, .ds-pill-blue) {
+  --pill-edge: color-mix(in srgb, var(--pill-tone) 45%, transparent);
+  --pill-bg: color-mix(in srgb, var(--pill-tone) 12%, transparent);
+  --pill-text: var(--pill-tone);
+}
+
+/* Menus and selects, whichever primitive draws them. */
+:is(
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="context-menu-content"],
+  [data-slot="context-menu-sub-content"],
+  [data-slot="select-content"]
+) {
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ds-menu);
+  box-shadow: var(--ds-pop-shadow);
+  color: var(--ds-text);
+}
+
+:is(
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="dropdown-menu-checkbox-item"],
+  [data-slot="dropdown-menu-radio-item"],
+  [data-slot="context-menu-item"],
+  [data-slot="context-menu-sub-trigger"],
+  [data-slot="select-item"]
+) {
+  min-height: 32px;
+  gap: 8px;
+  padding-block: 4px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 18px;
+
+  &[data-highlighted],
+  &:focus-visible {
+    background-color: var(--ds-menu-hover);
+  }
+
+  &:not([data-variant="destructive"]) > svg:first-child {
+    color: var(--ds-text-faint);
+  }
+}
+
+:is(
+  [data-slot="dropdown-menu-separator"],
+  [data-slot="context-menu-separator"],
+  [data-slot="select-separator"]
+) {
+  height: 1px;
+  margin: 4px -4px;
+  background-color: var(--ds-divider);
+}
+
+:is(
+  [data-slot="dropdown-menu-label"],
+  [data-slot="context-menu-label"],
+  [data-slot="select-label"]
+) {
+  padding: 6px 8px 4px;
+  color: var(--ds-text-faint);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------ sidebar */
+
+/* The active and hover backgrounds are two pills that slide between rows
+   (see SidebarPills), not a background on each row. */
+.sidebar-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 10px;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+/* Rows in the content sit above the pills and paint no background of their
+   own. Rows in the header and footer keep theirs. */
+[data-sidebar="content"] [data-sidebar="menu-button"] {
+  position: relative;
+  z-index: 1;
+  background-color: transparent !important;
+}
+
+.sidebar-pill--active {
+  background-color: var(--ds-frame);
+  box-shadow:
+    rgb(0 0 0 / 0.06) 0 0 0 1px,
+    rgb(0 0 0 / 0.06) 0 1px 2px;
+}
+
+.dark .sidebar-pill--active {
+  background-color: var(--ds-active);
+  box-shadow:
+    rgb(0 0 0 / 0.5) 0 1px 2px,
+    rgb(0 0 0 / 0.35) 0 4px 8px -2px;
+}
+
+.sidebar-pill--hover {
+  background-color: color-mix(in srgb, var(--ds-active) 55%, transparent);
+}
+
+.sidebar-pill--spring {
+  transition:
+    transform 420ms cubic-bezier(0.32, 1.32, 0.5, 1),
+    width 300ms cubic-bezier(0.32, 1.32, 0.5, 1),
+    height 300ms ease,
+    opacity 160ms ease;
+}
+
+.sidebar-pill--glide {
+  transition:
+    transform 260ms cubic-bezier(0.25, 1, 0.5, 1),
+    width 260ms cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 160ms ease;
+}
+
+/* ------------------------------------------------------------------- motion */
+
+/* Icon micro-interactions: put the class on the icon, hover its parent. */
+.mi-plus,
+.mi-close {
+  transition:
+    rotate 260ms var(--ease-spring),
+    scale 120ms ease-out;
+}
+
+:hover > :is(.mi-plus, .mi-close) {
+  rotate: 90deg;
+}
+
+:active > .mi-close {
+  scale: 0.82;
+}
+
+.mi-arrow {
+  transition: translate 240ms var(--ease-spring);
+}
+
+:hover > .mi-arrow {
+  translate: 2px 0;
+}
+
+.mi-grow {
+  transition: scale 240ms var(--ease-spring);
+}
+
+:hover > .mi-grow {
+  scale: 1.18;
+}
+
+.mi-tilt {
+  transition:
+    rotate 240ms var(--ease-spring),
+    scale 240ms var(--ease-spring);
+}
+
+:hover > .mi-tilt {
+  rotate: -14deg;
+  scale: 1.12;
+}
+
+.mi-pop {
+  animation: mi-pop 320ms var(--ease-spring) both;
+}
+
+@keyframes mi-pop {
+  from {
+    opacity: 0;
+    scale: 0.5;
+  }
+}
+
+.mi-spin {
+  animation: mi-spin 900ms linear infinite;
+}
+
+@keyframes mi-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* A step or panel arriving: rises 10px out of a blur. */
+.ds-rise {
+  animation: ds-rise 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes ds-rise {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    filter: blur(4px);
+  }
+}
+
+/* Wrong or missing answer: the field shakes, then takes focus. */
+.ds-shake {
+  animation: ds-shake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes ds-shake {
+  15% {
+    translate: -6px 0;
+  }
+  35% {
+    translate: 5px 0;
+  }
+  55% {
+    translate: -3px 0;
+  }
+  75% {
+    translate: 2px 0;
+  }
+}
+
+.ds-field-error {
+  margin-top: 6px;
+  color: var(--ds-red);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+[data-invalid="true"] {
+  border-color: var(--ds-red) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-red) 15%, transparent);
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--ds-shimmer-base);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    translate: -100% 0;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--ds-shimmer-sheen),
+      transparent
+    );
+    animation: shimmer 1.8s infinite;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    translate: 100% 0;
+  }
+}
+
+@utility text-shimmer {
+  background:
+    linear-gradient(
+      90deg,
+      var(--muted-foreground) 40%,
+      var(--foreground) 50%,
+      var(--muted-foreground) 60%
+    )
+    0 0 / 250% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: text-shimmer 2s linear infinite;
+}
+
+@keyframes text-shimmer {
+  to {
+    background-position: -250% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-pill--spring,
+  .sidebar-pill--glide {
+    transition: opacity 160ms ease;
+  }
+
+  .mi-plus,
+  .mi-close,
+  .mi-arrow,
+  .mi-grow,
+  .mi-tilt {
+    transition: none;
+  }
+
+  .mi-pop,
+  .mi-spin,
+  .ds-rise,
+  .ds-shake,
+  .text-shimmer,
+  .shimmer::after {
+    animation: none;
+  }
+
+  .ds-raised-button:active,
+  .ds-segments > :is(a, button):active {
+    scale: none;
+  }
+}
+
+/* -------------------------------------------------------------- scroll fade */
+
+/* Fades the top and bottom edges of a scrollable area as it scrolls. */
+@property --scroll-fade-t {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-b {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes scroll-fade-t {
+  from {
+    --scroll-fade-t: 0px;
+  }
+  to {
+    --scroll-fade-t: var(--scroll-fade-size);
+  }
+}
+
+@keyframes scroll-fade-b {
+  from {
+    --scroll-fade-b: var(--scroll-fade-size);
+  }
+  to {
+    --scroll-fade-b: 0px;
+  }
+}
+
+@utility scroll-fade {
+  --scroll-fade-size: 2rem;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--scroll-fade-t),
+    #000 calc(100% - var(--scroll-fade-b)),
+    transparent
+  );
+
+  /* Both sizes stay 0 while the timeline is inactive, which is what makes
+     content that doesn't overflow come out unfaded. */
+  @supports (animation-timeline: scroll(self block)) {
+    animation:
+      scroll-fade-t linear both,
+      scroll-fade-b linear both;
+    animation-timeline: scroll(self block);
+    animation-range:
+      0 var(--scroll-fade-size),
+      calc(100% - var(--scroll-fade-size)) 100%;
+  }
+
+  /* No timelines: the animations would settle on their end state (a permanent
+     top fade, no bottom one), so drop them and keep a static bottom fade. */
+  @supports not (animation-timeline: scroll(self block)) {
+    --scroll-fade-b: var(--scroll-fade-size);
+  }
+}
+
+/* The toast centres itself in its container (inset-x-0 + mx-auto in
+   ui/sonner.tsx). Sonner's container is a fixed 356px column, so a wider
+   pill overflowed it to the right; span the viewport instead, at every size. */
+[data-sonner-toaster][data-x-position="center"] {
+  right: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  transform: none !important;
+}
+
+/* Radix Slider positions the thumb with inline styles on a wrapper span. */
+span:has(> [data-slot="slider-thumb"]) {
+  transition:
+    left 150ms ease-out,
+    right 150ms ease-out;
+}

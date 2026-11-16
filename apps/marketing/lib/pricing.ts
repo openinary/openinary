@@ -1,3 +1,5 @@
+import { FEATURES, rateOf, type FeatureId, type PlanId } from "@openinary/plans";
+
 import pricing from "@/data/pricing.json";
 
 /**
@@ -23,7 +25,20 @@ export interface Cost {
   planName?: string;
 }
 
-const { cloudinary, openinaryCloud, selfHosted, assumptions } = pricing;
+const { cloudinary, selfHosted, assumptions } = pricing;
+
+// The site's "free plan" is Alpha: $0 base, pay as you go past its grants.
+const CLOUD_PLAN: PlanId = "early_access";
+
+// Each calculator dimension in the unit Autumn meters that feature in.
+const METERED: Record<FeatureId, (usage: Usage) => number> = {
+  storage_mb: (usage) => usage.storageGb * 1024,
+  image_transformations: (usage) => usage.transformations,
+  video_processing_seconds: (usage) => usage.videoMinutes * 60,
+  cdn_requests: (usage) => usage.cdnRequests,
+};
+const grant = (id: FeatureId) =>
+  FEATURES.find((feature) => feature.id === id)!.grants[CLOUD_PLAN];
 
 /** Delivery converted to GB, since Cloudinary meters bandwidth and we meter requests. */
 export function bandwidthGb(cdnRequests: number): number {
@@ -65,33 +80,12 @@ export function cloudinaryCost(usage: Usage): Cost {
 }
 
 export function openinaryCloudCost(usage: Usage): Cost {
-  const { included, rates } = openinaryCloud;
-  const over = (used: number, free: number) => Math.max(0, used - free);
-
-  const lines = [
-    {
-      label: "Storage",
-      usd: over(usage.storageGb, included.storageGb) * rates.storageGbMonthUsd,
-    },
-    {
-      label: "Transformations",
-      usd:
-        (over(usage.transformations, included.transformations) / 1000) *
-        rates.per1kTransformationsUsd,
-    },
-    {
-      label: "Video processing",
-      usd:
-        over(usage.videoMinutes, included.videoMinutes) *
-        rates.perVideoMinuteUsd,
-    },
-    {
-      label: "CDN requests",
-      usd:
-        (over(usage.cdnRequests, included.cdnRequests) / 10000) *
-        rates.per10kRequestsUsd,
-    },
-  ];
+  const lines = FEATURES.map((feature) => ({
+    label: feature.label,
+    usd:
+      Math.max(0, METERED[feature.id](usage) - feature.grants[CLOUD_PLAN]) *
+      rateOf(feature),
+  }));
 
   return {
     monthlyUsd: lines.reduce((total, line) => total + line.usd, 0),
@@ -186,4 +180,9 @@ export function usageForPlan(planId: string): Usage {
 
 export const plans = cloudinary.plans;
 export const lastCheckedOn = pricing.lastCheckedOn;
-export const freeQuotas = openinaryCloud.included;
+export const freeQuotas = {
+  storageGb: grant("storage_mb") / 1024,
+  transformations: grant("image_transformations"),
+  videoMinutes: grant("video_processing_seconds") / 60,
+  cdnRequests: grant("cdn_requests"),
+};

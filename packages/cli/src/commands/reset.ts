@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { compose, preflight, waitForHealthy } from "../lib/docker.js";
 import { getProjectPort, requireProject } from "../lib/project.js";
 import { CLIError } from "../utils/errors.js";
-import { fail, hint, pc, success, warn, withSpinner } from "../utils/logger.js";
+import { hint, pc, success, warn, withSpinner } from "../utils/logger.js";
 import {
   cancelAndExit,
   isNonInteractive,
@@ -71,13 +71,6 @@ export function buildResetCommand(): Command {
       "Skip the confirmation prompt (dangerous, use in CI only)",
     )
     .action(async (opts, command) => {
-      const globals = command.optsWithGlobals();
-      try {
-        await runReset({ ...opts, cwd: globals.cwd });
-      } catch (err) {
-        fail(err instanceof Error ? err.message : String(err));
-        if (err instanceof CLIError && err.hint) hint(err.hint);
-        process.exitCode = err instanceof CLIError ? err.exitCode : 1;
-      }
+      await runReset({ ...opts, cwd: command.optsWithGlobals().cwd });
     });
 }

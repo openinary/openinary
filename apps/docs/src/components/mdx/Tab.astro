@@ -1,0 +1,10 @@
+---
+/** Mintlify's `<Tab title>`. */
+import { TabItem } from "@/components/ui/tabs";
+
+interface Props {
+  title: string;
+}
+---
+
+<TabItem label={Astro.props.title}><slot /></TabItem>

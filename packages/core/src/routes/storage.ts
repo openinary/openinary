@@ -1,11 +1,12 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { RouteDeps } from "../config/deps";
 import fs from "fs";
 import path from "path";
 import logger, { serializeError } from "../utils/logger";
 import { deleteAssetCompletely } from "../utils/asset-deletion";
-import { getUniqueFilePath } from "../utils/get-unique-file-path";
-import { stripUrlHostile } from "../utils/upload-validation";
+import { pathBelowMount } from "./delivery";
+import { cleanStorageKey, getUniqueFilePath } from "../url/storage-layout";
+import { stripUrlHostile } from "../url/media-types";
 import { deleteCachedFiles, getCacheSize, clearAllCache } from "../utils/cache";
 import { sumTreeSize, type StorageNode } from "../utils/storage-tree";
 import {
@@ -23,7 +24,7 @@ import {
   type FolderSummary,
   type LevelFile,
   type LevelFolder,
-} from "../utils/storage-level";
+} from "../url/storage-layout";
 import {
   getCachedFullListing,
   invalidateListingCache,
@@ -32,7 +33,7 @@ import {
 type StorageClient = NonNullable<RouteDeps["storage"]>;
 
 export function createStorageRoute(deps: RouteDeps) {
-  const { storage: storageClient, queue } = deps;
+  const { storage: storageClient, queue, paths } = deps;
   const storageRoute = new Hono();
   /**
    * Full recursive listing of media objects (keys relative, prefix stripped),
@@ -130,7 +131,7 @@ export function createStorageRoute(deps: RouteDeps) {
     folders: LevelFolder[];
     files: LevelFile[];
   } {
-    const dirAbs = path.join(".", "public", folderPath);
+    const dirAbs = path.join(paths.public, folderPath);
 
     if (!fs.existsSync(dirAbs) || !fs.statSync(dirAbs).isDirectory()) {
       return { folders: [], files: [] };
@@ -234,20 +235,20 @@ export function createStorageRoute(deps: RouteDeps) {
       );
     }
 
-    const paths: string[] = [];
+    const folderPaths: string[] = [];
     for (const p of requested) {
       const normalized = normalizeLevelPath(p);
       if (normalized === null) {
         return c.json({ error: "Bad request", message: "Invalid path" }, 400);
       }
-      paths.push(normalized);
+      folderPaths.push(normalized);
     }
 
     try {
       const summaries: Record<string, FolderSummary> = {};
       const batchSize = 16;
-      for (let i = 0; i < paths.length; i += batchSize) {
-        const batch = paths.slice(i, i + batchSize);
+      for (let i = 0; i < folderPaths.length; i += batchSize) {
+        const batch = folderPaths.slice(i, i + batchSize);
         const results = await Promise.all(
           batch.map(async (folderPath) => {
             if (storageClient) {
@@ -256,7 +257,7 @@ export function createStorageRoute(deps: RouteDeps) {
                 await storageClient.getFolderSummary(folderPath),
               ] as const;
             }
-            const dirAbs = path.join(".", "public", folderPath);
+            const dirAbs = path.join(paths.public, folderPath);
             return [
               folderPath,
               localFolderSummary(dirAbs, folderPath),
@@ -271,7 +272,7 @@ export function createStorageRoute(deps: RouteDeps) {
       return c.json({ summaries });
     } catch (error) {
       logger.error(
-        { error: serializeError(error), paths },
+        { error: serializeError(error), paths: folderPaths },
         "Failed to get folder summaries",
       );
       return c.json({ error: "Failed to get folder summaries" }, 500);
@@ -284,7 +285,7 @@ export function createStorageRoute(deps: RouteDeps) {
    * storage. Local disk cache is always live-computed (cheap readdir).
    */
   async function buildStatsResponse(cloudStats: BucketStats | null) {
-    const localCache = await getCacheSize();
+    const localCache = await getCacheSize(paths.cache);
 
     if (cloudStats) {
       return {
@@ -297,7 +298,7 @@ export function createStorageRoute(deps: RouteDeps) {
       };
     }
 
-    const root = buildLocalTree(path.join(".", "public"));
+    const root = buildLocalTree(paths.public);
     const { size, fileCount } = sumTreeSize(root);
     return {
       storage: { size, fileCount },
@@ -388,7 +389,7 @@ export function createStorageRoute(deps: RouteDeps) {
           walk(path.join(absoluteDir, entry.name), relPath);
         }
       };
-      walk(path.join(".", "public"), "");
+      walk(paths.public, "");
 
       return c.json({ folders: folders.sort((a, b) => a.localeCompare(b)) });
     } catch (error) {
@@ -412,7 +413,7 @@ export function createStorageRoute(deps: RouteDeps) {
    */
   storageRoute.post("/cache/clear", async (c) => {
     try {
-      const localDeleted = await clearAllCache();
+      const localDeleted = await clearAllCache(paths.cache);
       const cloudDeleted = storageClient
         ? await storageClient.clearAllCache()
         : 0;
@@ -443,22 +444,13 @@ export function createStorageRoute(deps: RouteDeps) {
    * Note: This route must be placed after GET "/" but before DELETE "/*"
    */
   storageRoute.get("/*", async (c) => {
-    const requestPath = c.req.path;
-
-    // Only handle requests that end with /metadata
-    if (!requestPath.endsWith("/metadata")) {
-      // Let other routes handle this request
+    if (!c.req.path.endsWith("/metadata")) {
       return c.notFound();
     }
 
-    // Remove '/storage' prefix and '/metadata' suffix
-    // requestPath will be something like '/storage/cows/black.png/metadata'
-    // We need to extract 'cows/black.png'
-    const pathWithoutPrefix = requestPath
-      .replace(/^\/storage\/?/, "")
-      .replace(/\/metadata$/, "");
+    const filePath = extractFilePath(c, /\/metadata$/);
 
-    if (!pathWithoutPrefix) {
+    if (!filePath) {
       return c.json(
         {
           error: "Bad request",
@@ -466,14 +458,6 @@ export function createStorageRoute(deps: RouteDeps) {
         },
         400,
       );
-    }
-
-    let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
-
-    try {
-      filePath = decodeURIComponent(filePath);
-    } catch {
-      // If decoding fails, use the original path
     }
 
     try {
@@ -495,7 +479,7 @@ export function createStorageRoute(deps: RouteDeps) {
           updatedAt: metadata.updatedAt.toISOString(),
         });
       } else {
-        const localPath = path.join(".", "public", filePath);
+        const localPath = path.join(paths.public, filePath);
 
         if (!fs.existsSync(localPath)) {
           return c.json(
@@ -545,14 +529,9 @@ export function createStorageRoute(deps: RouteDeps) {
    * This now performs a complete deletion including cache and jobs
    */
   storageRoute.delete("/*", async (c) => {
-    const requestPath = c.req.path;
+    const filePath = extractFilePath(c);
 
-    // Remove '/storage' prefix from the path
-    // requestPath will be something like '/storage/cows/black.png'
-    // We need to extract 'cows/black.png'
-    const pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "");
-
-    if (!pathWithoutPrefix) {
+    if (!filePath) {
       return c.json(
         {
           error: "Bad request",
@@ -562,20 +541,12 @@ export function createStorageRoute(deps: RouteDeps) {
       );
     }
 
-    let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
-
     try {
-      filePath = decodeURIComponent(filePath);
-    } catch {
-      // If decoding fails, use the original path
-    }
-
-    try {
-      // Use the complete asset deletion function
       const result = await deleteAssetCompletely(
         filePath,
         storageClient,
-        queue.getStore(),
+        queue.store,
+        paths,
       );
 
       if (result.success || result.originalFileDeleted) {
@@ -583,7 +554,6 @@ export function createStorageRoute(deps: RouteDeps) {
       }
 
       if (!result.success) {
-        // Check if the file was not found
         if (result.errors.some((err) => err.includes("not found"))) {
           return c.json(
             {
@@ -594,7 +564,6 @@ export function createStorageRoute(deps: RouteDeps) {
           );
         }
 
-        // Other errors
         return c.json(
           {
             error: "Partial deletion",
@@ -637,31 +606,24 @@ export function createStorageRoute(deps: RouteDeps) {
 
   async function pathExists(filePath: string): Promise<boolean> {
     if (storageClient) {
-      return storageClient.existsOriginalPath(filePath);
+      return storageClient.existsOriginal(filePath);
     }
-    return fs.existsSync(path.join(".", "public", filePath));
+    return fs.existsSync(path.join(paths.public, filePath));
   }
 
   async function isDirectoryPath(filePath: string): Promise<boolean> {
     if (storageClient) {
       return storageClient.folderExists(filePath);
     }
-    const localPath = path.join(".", "public", filePath);
+    const localPath = path.join(paths.public, filePath);
     return fs.existsSync(localPath) && fs.statSync(localPath).isDirectory();
   }
 
-  function extractFilePath(requestPath: string, suffix?: RegExp): string {
-    let pathWithoutPrefix = requestPath.replace(/^\/storage\/?/, "");
-    if (suffix) {
-      pathWithoutPrefix = pathWithoutPrefix.replace(suffix, "");
-    }
-    let filePath = pathWithoutPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
-    try {
-      filePath = decodeURIComponent(filePath);
-    } catch {
-      // If decoding fails, use the original path
-    }
-    return filePath;
+  /** The file path below the mount, without `suffix` (an action like /move). */
+  function extractFilePath(c: Context, suffix?: RegExp): string {
+    let filePath = pathBelowMount(c);
+    if (suffix) filePath = filePath.replace(suffix, "");
+    return filePath.replace(/^\/+/, "").replace(/\/+$/, "");
   }
 
   /**
@@ -669,7 +631,7 @@ export function createStorageRoute(deps: RouteDeps) {
    * PATCH /storage/* with body { name: string }
    */
   storageRoute.patch("/*", async (c) => {
-    const filePath = extractFilePath(c.req.path);
+    const filePath = extractFilePath(c);
 
     if (!filePath) {
       return c.json(
@@ -690,7 +652,7 @@ export function createStorageRoute(deps: RouteDeps) {
 
     const newName =
       typeof body.name === "string" ? stripUrlHostile(body.name.trim()) : "";
-    if (!newName || newName.includes("/") || newName.includes("\\")) {
+    if (!newName || cleanStorageKey(newName) !== newName || newName.includes("/")) {
       return c.json(
         { error: "Bad request", message: "A valid name is required" },
         400,
@@ -733,12 +695,12 @@ export function createStorageRoute(deps: RouteDeps) {
         await storageClient.renameOriginal(filePath, newPath);
         storageClient.invalidateAllCacheEntries(filePath);
       } else {
-        const sourceAbs = path.join(".", "public", filePath);
-        const destAbs = path.join(".", "public", newPath);
+        const sourceAbs = path.join(paths.public, filePath);
+        const destAbs = path.join(paths.public, newPath);
         fs.renameSync(sourceAbs, destAbs);
       }
 
-      await deleteCachedFiles(filePath);
+      await deleteCachedFiles(paths.cache, filePath);
       invalidateListingCache();
 
       return c.json({ success: true, path: newPath });
@@ -771,7 +733,7 @@ export function createStorageRoute(deps: RouteDeps) {
       return c.notFound();
     }
 
-    const filePath = extractFilePath(requestPath, /\/(copy|move)$/);
+    const filePath = extractFilePath(c, /\/(copy|move)$/);
 
     if (!filePath) {
       return c.json(
@@ -800,10 +762,13 @@ export function createStorageRoute(deps: RouteDeps) {
         } catch {
           // No body means move to root
         }
-        targetDir =
-          typeof body.destination === "string"
-            ? stripUrlHostile(body.destination.trim()).replace(/^\/+|\/+$/g, "")
-            : "";
+        const destination = cleanStorageKey(
+          typeof body.destination === "string" ? stripUrlHostile(body.destination.trim()) : "",
+        );
+        if (destination === null) {
+          return c.json({ error: "Bad request", message: "Invalid destination" }, 400);
+        }
+        targetDir = destination;
 
         if (targetDir === normalizedDir) {
           return c.json(
@@ -820,13 +785,13 @@ export function createStorageRoute(deps: RouteDeps) {
           await storageClient.renameFolder(filePath, newPath);
           storageClient.invalidateAllCacheEntries(filePath);
         } else {
-          const sourceAbs = path.join(".", "public", filePath);
-          const destAbs = path.join(".", "public", newPath);
+          const sourceAbs = path.join(paths.public, filePath);
+          const destAbs = path.join(paths.public, newPath);
           fs.mkdirSync(path.dirname(destAbs), { recursive: true });
           fs.renameSync(sourceAbs, destAbs);
         }
 
-        await deleteCachedFiles(filePath);
+        await deleteCachedFiles(paths.cache, filePath);
         invalidateListingCache();
 
         return c.json({ success: true, path: newPath });
@@ -852,8 +817,8 @@ export function createStorageRoute(deps: RouteDeps) {
           storageClient.invalidateAllCacheEntries(filePath);
         }
       } else {
-        const sourceAbs = path.join(".", "public", filePath);
-        const destAbs = path.join(".", "public", newPath);
+        const sourceAbs = path.join(paths.public, filePath);
+        const destAbs = path.join(paths.public, newPath);
         fs.mkdirSync(path.dirname(destAbs), { recursive: true });
         if (isCopy) {
           fs.copyFileSync(sourceAbs, destAbs);
@@ -863,7 +828,7 @@ export function createStorageRoute(deps: RouteDeps) {
       }
 
       if (isMove) {
-        await deleteCachedFiles(filePath);
+        await deleteCachedFiles(paths.cache, filePath);
       }
       invalidateListingCache();
 

@@ -61,6 +61,16 @@ try {
     console.log('Database file not yet created (will be created on first run)');
   }
 
+  // The secret init-env.js persists beside the database.
+  const secretPath = join(dirname(DB_PATH), '.secret');
+  if (!isWindows && existsSync(secretPath)) {
+    try {
+      await chmod(secretPath, 0o600);
+    } catch (error) {
+      console.warn(`Could not set secret file permissions: ${error.message}`);
+    }
+  }
+
   // Ensure data directory has proper permissions (Unix only)
   if (!isWindows) {
     try {

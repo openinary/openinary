@@ -1,14 +1,8 @@
 "use client";
 
+import { SettingsPage, type SettingsPageEntry } from "@openinary/dashboard";
 import { AppearanceTab, StorageTab } from "@openinary/ui";
-import {
-  HardDrive,
-  KeyRound,
-  type LucideIcon,
-  Palette,
-  ScrollText,
-  User,
-} from "lucide-react";
+import { HardDrive, KeyRound, Palette, ScrollText, User } from "lucide-react";
 
 import { ApiKeyManager } from "@/components/api-key-manager";
 import { AccountTab } from "@/components/settings/account-tab";
@@ -35,15 +29,7 @@ function AccountPage() {
   );
 }
 
-export const SETTINGS_PAGES: {
-  value: string;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  content: React.ComponentType;
-  /** Takes the whole width, for pages that are tables and charts. */
-  wide?: boolean;
-}[] = [
+export const SETTINGS_PAGES: SettingsPageEntry[] = [
   {
     value: "account",
     label: "Account",
@@ -81,3 +67,7 @@ export const SETTINGS_PAGES: {
     wide: true,
   },
 ];
+
+export function Settings({ tab }: { tab: string }) {
+  return <SettingsPage tab={tab} pages={SETTINGS_PAGES} />;
+}

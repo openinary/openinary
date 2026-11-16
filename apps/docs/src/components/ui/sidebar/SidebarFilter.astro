@@ -1,0 +1,32 @@
+---
+/** SidebarFilter — text input that filters the adjacent Sidebar. Press "/" to focus. Styled as the dashboard's Input. */
+import { cn } from "@/lib/cn";
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"div"> {
+  placeholder?: string;
+}
+
+const { class: className, placeholder = "Filter…", ...attrs } = Astro.props;
+---
+
+<div data-slot="sidebar-filter" class={cn("relative mb-3", className)} {...attrs}>
+  <input
+    data-nb-sidebar-filter-input
+    type="search"
+    placeholder={placeholder}
+    class="peer h-8 w-full rounded-[8px] border border-field-border bg-field ps-2.5 pe-9 text-[13px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-field-placeholder hover:border-field-border-hover focus:border-field-focus focus:ring-[3px] focus:ring-field-focus/20 focus-visible:outline-none [&:not(:placeholder-shown)]:pe-2"
+    aria-label="Filter navigation"
+    autocomplete="off"
+  />
+  {/* Shortcut hint — press "/" to focus. Hidden once the input is focused or has a value. */}
+  <kbd
+    aria-hidden="true"
+    class="pointer-events-none absolute end-2 top-1/2 flex h-5 min-w-5 -translate-y-1/2 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-[0.6875rem] font-medium leading-none text-muted-foreground transition-opacity duration-150 peer-focus:opacity-0 peer-[:not(:placeholder-shown)]:opacity-0 motion-reduce:transition-none"
+    >/</kbd
+  >
+</div>
+
+<style is:global>
+  [data-nb-sidebar-hidden] { display: none; }
+</style>

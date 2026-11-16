@@ -9,9 +9,9 @@ import {
   X,
   Loader2
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@openinary/dashboard/ui/button";
+import { Input } from "@openinary/dashboard/ui/input";
+import { Separator } from "@openinary/dashboard/ui/separator";
 import {
   Popover,
   PopoverContent,
@@ -48,9 +48,11 @@ interface DocsPage {
 
 interface DocsJson {
   navigation: {
-    groups: Array<{
-      group: string;
-      pages: string[];
+    tabs: Array<{
+      groups?: Array<{
+        group: string;
+        pages: string[];
+      }>;
     }>;
   };
 }
@@ -66,12 +68,12 @@ export function ChatbotButton() {
     const loadDocs = async () => {
       setIsLoadingDocs(true);
       try {
-        const response = await fetch('https://raw.githubusercontent.com/openinary/documentation/main/docs.json');
+        const response = await fetch('https://raw.githubusercontent.com/openinary/openinary/main/apps/docs/docs.json');
         const docs: DocsJson = await response.json();
-        
+
         // Extract all page paths with their groups
         const pages: DocsPage[] = [];
-        docs.navigation.groups.forEach((group) => {
+        docs.navigation.tabs.flatMap((tab) => tab.groups ?? []).forEach((group) => {
           group.pages.forEach((page) => {
             // Convert path to readable title
             const title = page

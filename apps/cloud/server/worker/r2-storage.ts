@@ -1,139 +1,52 @@
-// Worker-native port of @openinary/core's CloudStorage (dist/utils/storage/cloud-storage.js)
-// onto the Worker's own R2 binding, so /storage, /upload, /download etc. no
-// longer need the container's S3-over-HTTPS client. Every function takes the
-// binding + tenantRoot explicitly instead of the container's per-request
-// AsyncLocalStorage context (scoped-storage.ts) - there's no request-scoped
-// storage instance here, just plain calls.
+// Cloud's storage on the Worker's own R2 binding, in the bucket layout core
+// defines (@openinary/core/url storage-layout): originals under
+// public/{tenantRoot}/, derivatives under cache/ with an x-original-path
+// entry. The container's transform route and VideoWorker write to the same
+// bucket over S3, so the two must agree. Every function takes the binding and
+// tenantRoot explicitly; there is no request-scoped storage instance here.
 //
-// The "public/" prefix below is intentionally fixed here. core's equivalent is
-// configurable via STORAGE_PREFIX, for self-hosters pointing Openinary at a
-// bucket whose layout they do not own; Cloud pins its own layout on purpose, so
-// there is nothing to configure and the two are meant to differ.
-//
-// Key conventions mirrored exactly from core (must match, since the
-// container's transform route and VideoWorker still write through the S3
-// API to the same bucket):
-//   - originals:        public/{tenantRoot}/{path}
-//   - folder markers:   public/{tenantRoot}/{folder}/  (empty object,
-//                        Content-Type application/x-directory)
-//   - transform cache:  cache/{md5(fullPath+JSON(params))}.{ext}, with
-//                        customMetadata["x-original-path"] = encodeURIComponent(fullPath)
-//                        (see transform-cache.ts's generateCacheKey - fullPath
-//                        there is "{tenantRoot}/{relativePath}", same as here)
+// Cloud pins the default "public" prefix: core's is configurable for
+// self-hosters serving a bucket whose layout they do not own.
 
-import { posix as path } from "node:path";
+import {
+  DEFAULT_MEDIA_PREFIX,
+  deriveFolderPaths as deriveRelativeFolderPaths,
+  FOLDER_SUMMARY_MAX_KEYS,
+  shapeFolderSummary,
+  shapeLevel,
+  type FolderSummary,
+  type LevelFile,
+} from "@openinary/core/url";
 
-const IMAGE_EXTENSIONS = [
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".gif",
-  ".avif",
-  ".psd",
-];
-const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm"];
-const FOLDER_SUMMARY_MAX_KEYS = 100;
-const FOLDER_PREVIEW_LIMIT = 4;
-
-export type FileEntry = {
-  name: string;
-  path: string;
-  size: number;
-  mtime?: string;
-};
-export type Level = { folderNames: string[]; files: FileEntry[] };
-export type FolderSummaryItem = { path: string; type: "image" | "video" };
-export type FolderSummary = {
-  itemCount: number;
-  truncated: boolean;
-  previewItems: FolderSummaryItem[];
-};
-export type OriginalMetadata = {
+type OriginalMetadata = {
   size: number;
   createdAt: string;
   updatedAt: string;
 };
 
-function getMediaType(name: string): "image" | "video" | null {
-  const lower = name.toLowerCase();
-  if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return "image";
-  if (VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext))) return "video";
-  return null;
-}
-
-// Mirrors utils/storage-level.js's normalizeLevelPath: "" for root, null for
-// an invalid path (empty segments, "." or "..").
-export function normalizeLevelPath(raw: string): string | null {
-  const trimmed = raw.replace(/^\/+|\/+$/g, "");
-  if (!trimmed) return "";
-  for (const segment of trimmed.split("/")) {
-    if (!segment || segment === "." || segment === "..") return null;
-  }
-  return trimmed;
-}
-
-// Every reader addresses an R2 key through a URL, and these characters make
-// that impossible no matter how the reader is written:
-//   "#" ends the path there - the rest is a fragment the browser never sends,
-//       so "The #1.mp4" is fetched as "The " and 404s;
-//   "?" does the same as a query string;
-//   "%" survives the round trip as a *different* key, because every read path
-//       decodes ("50%20off.mp4" is looked up as "50 off.mp4");
-//   control characters would land in the x-original-path and
-//       Content-Disposition headers we write from the key.
-// Stripped at every write instead of encoded at every read: the readers are
-// @openinary/ui, the playground, and whatever the customer hand-writes into
-// their own <video src> - only the write side is ours to fix. Spaces and
-// accents are deliberately kept; those survive a URL fine.
-export function stripUrlHostile(value: string): string {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: that is the point
-  return value.replace(/[#?%\u0000-\u001f]/g, "");
-}
-
 function publicPrefix(tenantRoot: string, folderPath: string): string {
   return folderPath
-    ? `public/${tenantRoot}/${folderPath}/`
-    : `public/${tenantRoot}/`;
+    ? `${DEFAULT_MEDIA_PREFIX}/${tenantRoot}/${folderPath}/`
+    : `${DEFAULT_MEDIA_PREFIX}/${tenantRoot}/`;
 }
 
 function publicKey(tenantRoot: string, filePath: string): string {
-  return `public/${tenantRoot}/${filePath}`;
+  return `${DEFAULT_MEDIA_PREFIX}/${tenantRoot}/${filePath}`;
 }
 
-// Mirrors utils/storage-level.js's shapeLevel.
-function shapeLevel(
-  storagePrefix: string,
-  folderPath: string,
-  prefixes: string[],
-  objects: R2Object[],
-): Level {
-  const folderNames = prefixes
-    .map((prefix) => prefix.slice(storagePrefix.length).replace(/\/+$/, ""))
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
-  const files = objects
-    .filter((obj) => obj.key !== storagePrefix)
-    .map((obj) => {
-      const name = obj.key.slice(storagePrefix.length);
-      return {
-        name,
-        path: folderPath ? `${folderPath}/${name}` : name,
-        size: obj.size,
-        mtime: obj.uploaded.toISOString(),
-      };
-    })
-    .filter((file) => file.name)
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return { folderNames, files };
-}
+const listed = (obj: R2Object) => ({ key: obj.key, size: obj.size, lastModified: obj.uploaded });
 
-// One directory level (delimiter "/"), all pages merged.
+// One directory level (delimiter "/"), all pages merged, in the shape
+// GET /storage answers with.
 export async function listLevel(
   bucket: R2Bucket,
   tenantRoot: string,
   folderPath: string,
-): Promise<Level> {
+): Promise<{
+  path: string;
+  folders: { name: string; path: string }[];
+  files: LevelFile[];
+}> {
   const storagePrefix = publicPrefix(tenantRoot, folderPath);
   const prefixes = new Set<string>();
   const objects: R2Object[] = [];
@@ -149,10 +62,17 @@ export async function listLevel(
     objects.push(...page.objects);
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
-  return shapeLevel(storagePrefix, folderPath, [...prefixes], objects);
+  const { folderNames, files } = shapeLevel(storagePrefix, folderPath, {
+    prefixes: [...prefixes],
+    objects: objects.map(listed),
+  });
+  const folders = folderNames.map((name) => ({
+    name,
+    path: folderPath ? `${folderPath}/${name}` : name,
+  }));
+  return { path: folderPath, folders, files };
 }
 
-// Bounded single-page summary (mirrors getFolderSummary/shapeFolderSummary).
 export async function folderSummary(
   bucket: R2Bucket,
   tenantRoot: string,
@@ -164,28 +84,15 @@ export async function folderSummary(
     delimiter: "/",
     limit: FOLDER_SUMMARY_MAX_KEYS,
   });
-  const children = page.objects.filter((obj) => obj.key !== storagePrefix);
-  const previewItems: FolderSummaryItem[] = [];
-  for (const obj of children) {
-    if (previewItems.length >= FOLDER_PREVIEW_LIMIT) break;
-    const name = obj.key.slice(storagePrefix.length);
-    const type = getMediaType(name);
-    if (type)
-      previewItems.push({
-        path: folderPath ? `${folderPath}/${name}` : name,
-        type,
-      });
-  }
-  return {
-    itemCount: page.delimitedPrefixes.length + children.length,
-    truncated: page.truncated,
-    previewItems,
-  };
+  return shapeFolderSummary(storagePrefix, folderPath, {
+    prefixes: page.delimitedPrefixes,
+    objects: page.objects.map(listed),
+    isTruncated: page.truncated,
+  });
 }
 
 // Full (non-delimited) listing under a raw prefix, all cursor pages merged.
-// Used for /storage/folders, folder rename/delete, and cache invalidation.
-export async function listAll(
+async function listAll(
   bucket: R2Bucket,
   prefix: string,
 ): Promise<R2Object[]> {
@@ -199,23 +106,25 @@ export async function listAll(
   return objects;
 }
 
-// Mirrors utils/storage-level.js's deriveFolderPaths, scoped to one tenant's
-// public/ objects (marker keys count as folders themselves).
-export function deriveFolderPaths(
-  objects: R2Object[],
+/** Every original of one tenant, folder markers left out. */
+export async function listOriginals(
+  bucket: R2Bucket,
   tenantRoot: string,
-): string[] {
-  const tenantPrefix = `public/${tenantRoot}/`;
-  const folders = new Set<string>();
-  for (const obj of objects) {
-    if (!obj.key.startsWith(tenantPrefix)) continue;
-    const relative = obj.key.slice(tenantPrefix.length);
-    const parts = relative.split("/").filter(Boolean);
-    const dirDepth = relative.endsWith("/") ? parts.length : parts.length - 1;
-    for (let i = 1; i <= dirDepth; i++)
-      folders.add(parts.slice(0, i).join("/"));
-  }
-  return [...folders].sort((a, b) => a.localeCompare(b));
+): Promise<R2Object[]> {
+  const objects = await listAll(bucket, publicPrefix(tenantRoot, ""));
+  return objects.filter((obj) => !obj.key.endsWith("/"));
+}
+
+/** Folder paths of one tenant's originals (marker keys count as folders). */
+export async function listFolderPaths(
+  bucket: R2Bucket,
+  tenantRoot: string,
+): Promise<string[]> {
+  const tenantPrefix = publicPrefix(tenantRoot, "");
+  const objects = await listAll(bucket, tenantPrefix);
+  return deriveRelativeFolderPaths(
+    objects.map((obj) => obj.key.slice(tenantPrefix.length)),
+  );
 }
 
 export async function createFolder(
@@ -240,7 +149,7 @@ export async function folderExists(
 }
 
 export async function existsOriginal(
-  bucket: R2Bucket,
+  bucket: Pick<R2Bucket, "head">,
   tenantRoot: string,
   filePath: string,
 ): Promise<boolean> {
@@ -289,22 +198,9 @@ export async function downloadOriginal(
   return bucket.get(publicKey(tenantRoot, filePath), options);
 }
 
-// Partial read for /download/*'s Range support - mediabunny's UrlSource
-// (used to pull one video frame client-side for thumbnail generation, see
-// generate-video-thumbnail.ts) needs this to fetch just the moov atom and a
-// keyframe's worth of bytes instead of the whole file.
-export async function downloadOriginalRange(
-  bucket: R2Bucket,
-  tenantRoot: string,
-  filePath: string,
-  range: R2Range,
-): Promise<R2ObjectBody | null> {
-  return bucket.get(publicKey(tenantRoot, filePath), { range });
-}
-
 // R2 binding has no server-side copy command - streams a get straight into a
 // put, preserving http/custom metadata, instead of buffering in Worker memory.
-export async function copyObject(
+async function copyObject(
   bucket: R2Bucket,
   sourceKey: string,
   destKey: string,
@@ -382,7 +278,7 @@ export async function deleteFolder(
 // "x-original-path" rather than an R2 prefix - cache/ keys are md5 hashes
 // with no per-tenant grouping (see deleteCachedTransformations). Backs the
 // per-bucket numbers in /storage/stats since a full cache/ scan is too
-// expensive to do on every read (see schema/bucket.ts).
+// expensive to do on every read (see shared/db/schema/bucket.ts).
 export async function listCacheForTenant(
   bucket: R2Bucket,
   tenantRoot: string,
@@ -421,8 +317,7 @@ export async function deleteCacheForTenant(
 }
 
 // fullPath is "{tenantRoot}/{relativePath}" - the same "originalPath" the
-// container's TransformService hashes into cache/ keys (see
-// transform-cache.ts's generateCacheKey and tryServeFromR2Cache).
+// container's TransformService hashes into cache/ keys.
 //
 // Matches that one file *and* anything beneath it as a folder, so a caller
 // renaming a 500-file directory sweeps it in this one scan rather than 500 of
@@ -459,27 +354,4 @@ export async function deleteCachedTransformations(
     await bucket.delete(keysToDelete.slice(i, i + 1000));
   }
   return keysToDelete.length;
-}
-
-// Mirrors utils/get-unique-file-path.js exactly: "(1)", "(2)", ... suffixes
-// before the extension until an unused path is found.
-export async function getUniqueFilePath(
-  originalPath: string,
-  exists: (candidate: string) => Promise<boolean>,
-  maxAttempts = 100,
-): Promise<string> {
-  if (!(await exists(originalPath))) return originalPath;
-  const dir = path.dirname(originalPath);
-  const baseName = path.basename(originalPath);
-  const ext = path.extname(baseName);
-  const nameWithoutExt = ext ? baseName.slice(0, -ext.length) : baseName;
-  for (let i = 1; i <= maxAttempts; i++) {
-    const candidateName = `${nameWithoutExt} (${i})${ext}`;
-    const candidatePath =
-      dir === "." ? candidateName : `${dir}/${candidateName}`;
-    if (!(await exists(candidatePath))) return candidatePath;
-  }
-  throw new Error(
-    `Unable to generate unique file path after ${maxAttempts} attempts for ${originalPath}`,
-  );
 }

@@ -1,4 +1,4 @@
-import { type DeliveryEvent, otlpLogsBody } from "../api/lib/delivery-log.js";
+import { type DeliveryEvent, otlpLogsBody } from "./lib/delivery-log.js";
 
 // PostHog Logs is a generic OTLP receiver, so this is a plain POST rather
 // than an OpenTelemetry SDK - nothing in the Worker needs the SDK's batching

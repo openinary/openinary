@@ -2,23 +2,22 @@
   "name": "cloud-server",
   "private": true,
   "license": "SEE LICENSE IN ../LICENSE",
-  "main": "api/index.ts",
+  "exports": {
+    "./router": "./worker/rpc/index.ts"
+  },
   "type": "module",
   "scripts": {
-    "build": "tsc && tsc-alias",
-    "type-check": "tsc --noEmit",
-    "test": "tsx worker/transform-cache.test.ts && tsx worker/bucket-delete.test.ts && tsx worker/rename-cache-purge.test.ts && tsx worker/delivery-log.test.ts && tsx worker/video-metering.test.ts && tsx worker/admin-suspend.test.ts && tsx worker/loops-lifecycle.test.ts && tsx worker/loops-collisions.test.ts && tsx worker/url-hostile-keys.test.ts && tsx worker/signup-attribution.test.ts && tsx worker/sign-in-probe.test.ts && tsx worker/overlays.test.ts && tsx worker/effects.test.ts",
-    "compile": "bun build --compile --minify --sourcemap --bytecode ./api/index.ts --outfile server",
+    "build": "tsc",
+    "type-check": "tsc --noEmit && tsc --noEmit -p worker",
+    "check:bundle": "node scripts/check-worker-bundle.mjs",
+    "test": "tsx shared/video-metering.test.ts && tsx worker/cdn/path.test.ts && tsx worker/cdn/cache-keys.test.ts && tsx worker/cdn/overlays.test.ts && tsx worker/cdn/effects.test.ts && tsx worker/owner-cache.test.ts && tsx worker/usage-meter-storage.test.ts && tsx worker/bucket-delete.test.ts && tsx worker/rename-cache-purge.test.ts && tsx worker/url-hostile-keys.test.ts && tsx worker/upload-token.test.ts && tsx worker/upload-routes.test.ts && tsx worker/video-duration.test.ts && tsx worker/lib/billing.test.ts && tsx worker/lib/auth.test.ts && tsx worker/lib/delivery-log.test.ts && tsx worker/lib/loops-lifecycle.test.ts && tsx worker/lib/sign-in-probe.test.ts && tsx worker/lib/signup-attribution.test.ts && tsx scripts/loops-collisions.test.ts",
     "dev": "wrangler dev --port 3100",
     "dev:local": "wrangler dev --port 3100 --local",
-    "dev:container": "NODE_ENV=development tsx watch api/index.ts",
-    "start": "node dist/api/index.js",
     "deploy": "wrangler deploy",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "backfill:storage": "tsx api/scripts/backfill-storage.ts"
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",
@@ -26,6 +25,7 @@
     "@hono/node-server": "^1.14.4",
     "@neondatabase/serverless": "^1.1.0",
     "@openinary/core": "workspace:*",
+    "@openinary/plans": "workspace:*",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.14.8",
     "autumn-js": "1.2.43",
@@ -39,7 +39,6 @@
     "@cloudflare/workers-types": "^5.20260716.1",
     "@types/node": "^22.13.11",
     "drizzle-kit": "^0.31.2",
-    "tsc-alias": "^1.8.11",
     "tsx": "^4.19.2",
     "typescript": "^5.8.2",
     "wrangler": "^4.111.0"

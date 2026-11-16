@@ -1,0 +1,5 @@
+# Old Mintlify paths, now served elsewhere under /docs.
+/docs/api-reference/introduction /docs/api-reference 301
+/docs/api-reference/introduction.md /docs/api-reference/index.md 301
+/docs/changelog https://openinary.dev/changelog 301
+/docs/changelog/* https://openinary.dev/changelog 301

@@ -16,6 +16,16 @@ export {
   type OpeninaryProviderProps,
 } from "./provider/openinary-provider";
 
+// Primitives. One copy of each: the apps and @openinary/dashboard import
+// these instead of keeping their own.
+export { Button, buttonVariants } from "./ui/button";
+export { Input } from "./ui/input";
+export { Label } from "./ui/label";
+export { Badge, badgeVariants } from "./ui/badge";
+export { Switch } from "./ui/switch";
+export * from "./ui/dialog";
+export * from "./ui/tabs";
+
 // Leaf components
 export { CopyInput } from "./ui/copy-input";
 export {
@@ -29,8 +39,14 @@ export {
   SelectValue,
 } from "./ui/select";
 export { DefaultDialog } from "./components/default-dialog";
+export { FieldErrors } from "./components/field-errors";
+export { celebrate } from "./lib/celebrate";
 export { BottomSheet } from "./components/bottom-sheet";
-export { QuickActions, type QuickAction } from "./components/quick-actions";
+export {
+  openQuickActions,
+  QuickActions,
+  type QuickAction,
+} from "./components/quick-actions";
 export { DeleteConfirmDialog } from "./components/delete-confirm-dialog";
 export { RenameSection } from "./components/rename-section";
 export { ColumnCountSlider, MIN_COLUMNS, MAX_COLUMNS } from "./components/column-count-slider";
@@ -65,7 +81,7 @@ export { BulkActionBarContent } from "./components/bulk-action-bar";
 export { UploadSection } from "./components/upload-section";
 export { CreateFolderSection } from "./components/create-folder-section";
 export { DeleteFolderButton } from "./components/delete-folder-button";
-export { UploadButtonWithDialog } from "./components/upload-button-with-dialog";
+export { UploadButtonWithDialog, UploadDialog } from "./components/upload-button-with-dialog";
 export { CreateFolderButtonWithDialog } from "./components/create-folder-button-with-dialog";
 
 // Data hooks

@@ -25,9 +25,8 @@ const BucketSwitchContext = createContext<BucketSwitchContextValue | null>(
  * teardown, and duplicating that invalidation list is how one of them ends up
  * showing the outgoing bucket's files.
  *
- * `isSwitching` is also read by MediaGrid's host in dashboard.tsx, which has to
- * block clicks/hover on the old bucket's thumbnails while the switch is in
- * flight - @openinary/ui's MediaGrid has no "disabled" prop of its own.
+ * `isSwitching` is also read by AssetsView, which blocks the old bucket's
+ * thumbnails while the switch is in flight.
  */
 export function BucketSwitchProvider({
   children,

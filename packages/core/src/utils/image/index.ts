@@ -15,7 +15,7 @@ import {
   parseAutoBackground,
   parseBlurredBackground,
   parseBorder,
-} from "./effect-spec";
+} from "../../url/effect-spec";
 import { ImageTransformParams } from "../../types";
 import { SHARP_INPUT_OPTIONS } from "./sharp-options";
 

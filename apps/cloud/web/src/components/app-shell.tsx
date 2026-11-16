@@ -1,59 +1,19 @@
 "use client";
 
-import type { MediaFile } from "@openinary/ui";
-import { usePathname, useRouter } from "next/navigation";
-import { parseAsString, useQueryState } from "nuqs";
+import { ShellInset } from "@openinary/dashboard";
+import { Button } from "@openinary/dashboard/ui/button";
+import { SidebarProvider } from "@openinary/dashboard/ui/sidebar";
 import posthog from "posthog-js";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { DashboardOpeninaryProvider } from "@/components/dashboard-openinary-provider";
+import { CloudDashboardProvider } from "@/components/dashboard-providers";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { BucketSwitchProvider } from "@/components/sidebar/bucket-switch-context";
 import SignInForm from "@/components/sign-in-form";
 import { SupportWidget } from "@/components/support";
-import { Sheet } from "@/components/page";
-import { Button } from "@/components/ui/button";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { authClient } from "@/lib/auth-client";
-
-const ASSETS_ROUTE = "/";
-
-function ShellContent({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  // Shares the "asset" key with AssetsView's own useQueryState, so selecting a
-  // file in the sidebar tree opens the details panel there.
-  const [, setAssetId] = useQueryState(
-    "asset",
-    parseAsString.withOptions({ clearOnDefault: true }),
-  );
-
-  // On the assets route this stays a shallow nuqs update - a router.push would
-  // re-render the page subtree and remount the (virtualised, scrolled) grid.
-  // Anywhere else there is no details panel to open, so it has to navigate.
-  const handleMediaSelect = (media: MediaFile) => {
-    if (pathname === ASSETS_ROUTE) {
-      setAssetId(media.id);
-    } else {
-      router.push(`${ASSETS_ROUTE}?asset=${encodeURIComponent(media.id)}`);
-    }
-  };
-
-  // The page mounts on the client only, so its skeletons can draw the shape
-  // they remembered (see useHydrated); the server paints the bare sheet it
-  // will sit on.
-  const hydrated = useHydrated();
-
-  return (
-    <>
-      <AppSidebar onMediaSelect={handleMediaSelect} />
-      <SidebarInset>{hydrated ? children : <Sheet />}</SidebarInset>
-    </>
-  );
-}
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL;
 
@@ -162,18 +122,19 @@ export function AppShell({
   // bucket arrives. Each region draws its own skeleton while its data loads.
   return (
     <>
-      <DashboardOpeninaryProvider>
+      <CloudDashboardProvider>
         <SidebarProvider defaultOpen={sidebarDefaultOpen}>
           <BucketSwitchProvider>
             <Suspense>
-              <ShellContent>{children}</ShellContent>
+              <AppSidebar />
+              <ShellInset>{children}</ShellInset>
             </Suspense>
             {/* Answering it would write the admin's answers onto the
                 customer's profile and bucket. */}
             {session && !impersonating ? <OnboardingGate /> : null}
           </BucketSwitchProvider>
         </SidebarProvider>
-      </DashboardOpeninaryProvider>
+      </CloudDashboardProvider>
       {/* Swapped for the banner while impersonating: identifying the admin's
           browser as the customer would tie the two in the support inbox. */}
       {session ? (

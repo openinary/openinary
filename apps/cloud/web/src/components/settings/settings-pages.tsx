@@ -1,10 +1,12 @@
+"use client";
+
+import { SettingsPage, type SettingsPageEntry } from "@openinary/dashboard";
 import { AppearanceTab, StorageTab } from "@openinary/ui";
 import {
   Boxes,
   CreditCard,
   HardDrive,
   KeyRound,
-  type LucideIcon,
   Palette,
   ScrollText,
 } from "lucide-react";
@@ -13,17 +15,8 @@ import { ActivityTab } from "@/components/settings/activity-tab";
 import { ApiKeysTab } from "@/components/settings/api-keys-tab";
 import { BucketsTab } from "@/components/settings/buckets-tab";
 import { BillingTab } from "@/components/settings/billing-tab";
-import type { SettingsTab } from "@/components/settings/use-settings-page";
 
-export const SETTINGS_PAGES: {
-  value: SettingsTab;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  content: React.ComponentType;
-  /** Takes the whole width, for pages that are tables and charts. */
-  wide?: boolean;
-}[] = [
+export const SETTINGS_PAGES = [
   {
     value: "appearance",
     label: "Appearance",
@@ -67,4 +60,8 @@ export const SETTINGS_PAGES: {
     content: ActivityTab,
     wide: true,
   },
-];
+] as const satisfies readonly SettingsPageEntry[];
+
+export function Settings({ tab }: { tab: string }) {
+  return <SettingsPage tab={tab} pages={SETTINGS_PAGES} />;
+}

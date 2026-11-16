@@ -1,69 +1,47 @@
 import competitorsData from "@/data/competitors.json";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { PageIntro, PageShell } from "@/components/page-shell";
-import { focusRing, pressable } from "@/components/home/cta-button";
-import { cn } from "@/lib/utils";
+import { compareCopy } from "./[slug]/copy";
+import { FinalCta, PageHero, SiteShell } from "@/components/site/shell";
+import { Container } from "@/components/site/ui";
 
 export const metadata: Metadata = {
-  title: "Compare Openinary vs Competitors | Open-source Media Platform",
+  title: "Compare Openinary | Open-source media platform",
   description:
-    "See how Openinary compares to Cloudinary, ImageKit, Uploadcare and other media management platforms. Open-source, self-hostable, no vendor lock-in.",
+    "Openinary side by side with Cloudinary, ImageKit, Uploadcare, imgix and others, and when each one is the better pick.",
   alternates: { canonical: "/compare" },
 };
 
 export default function CompareIndexPage() {
-  const competitors = Object.values(competitorsData.competitors);
-
   return (
-    <PageShell>
-      <PageIntro
-        eyebrow="Compare"
-        title="Openinary vs the competition"
-        lede="See how the open-source, self-hostable media platform compares to the proprietary alternatives."
+    <SiteShell>
+      <PageHero
+        title="Openinary, side by side. And when to pick the other one."
+        lede="Every comparison lists where each one starts, the facts we checked on their own site, and an honest case for choosing them."
+        location="compare_index_hero"
       />
-
-      {/* Hairlines from the 1px gap over a border-coloured ground, like the
-          feature grid; the grid's own pt-px draws the top rule, so the section
-          carries no border-t of its own, which would double it. Seven cards
-          fill neither two columns nor three, so the fillers below square off
-          the last row: one from sm, where the grid is 2-up and needs an eighth
-          cell, and a second from lg, where 3-up needs a ninth. */}
-      <section>
-        <div className="grid gap-px bg-border pt-px sm:grid-cols-2 lg:grid-cols-3">
-          {competitors.map((competitor) => (
-            <Link
-              key={competitor.slug}
-              href={`/compare/${competitor.slug}`}
-              data-track-event="comparison_clicked"
-              data-track-prop-location="compare_index"
-              className={cn(
-                "group flex flex-col bg-background px-6 py-8 transition-colors hover:bg-muted/40 md:px-8",
-                focusRing,
-                pressable,
-              )}
-            >
-              <h2 className="text-sm font-medium leading-5 text-foreground">
-                vs {competitor.name}
-              </h2>
-              <p className="mt-2.5 line-clamp-3 text-sm leading-[1.63] text-muted-foreground">
-                {competitor.description}
-              </p>
-              <span className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-foreground">
-                View comparison
-                <ArrowRight
-                  className="size-3.5 transition-transform group-hover:translate-x-0.5"
-                  aria-hidden
-                />
-              </span>
-            </Link>
+      <Container className="pb-16">
+        <ul className="border-b-[0.5px] border-rule">
+          {Object.values(competitorsData.competitors).map((c) => (
+            <li key={c.slug}>
+              <Link
+                href={`/compare/${c.slug}`}
+                className="group grid gap-1 border-t-[0.5px] border-rule py-5 transition-colors md:grid-cols-[260px_1fr_auto] md:items-center md:gap-8"
+              >
+                <span className="text-[17px] tracking-[-0.02em] text-ink-12">Openinary vs {c.name}</span>
+                <span className="text-[13px] leading-5 text-ink-11">
+                  {compareCopy[c.slug]?.difference.split(". ")[1]}.
+                </span>
+                <span aria-hidden className="hidden text-ink-10 transition-transform duration-150 ease-(--ease-out) group-hover:translate-x-0.5 group-hover:text-ink-12 md:block">
+                  →
+                </span>
+              </Link>
+            </li>
           ))}
-          <div aria-hidden className="hidden bg-background sm:block" />
-          <div aria-hidden className="hidden bg-background lg:block" />
-        </div>
-      </section>
-    </PageShell>
+        </ul>
+      </Container>
+      <FinalCta location="compare_index_cta" />
+    </SiteShell>
   );
 }
