@@ -64,7 +64,9 @@ export async function cached<T>(key: string, ttl: number, load: () => Promise<T>
   }
   const value = await load();
   if (cache) {
-    await cache.put(url, new Response(JSON.stringify(value), { headers: { "Cache-Control": `max-age=${ttl}` } }));
+    // A failed source (null) is kept 5 minutes, so a broken API isn't asked again on every visit.
+    const maxAge = value === null ? Math.min(ttl, 300) : ttl;
+    await cache.put(url, new Response(JSON.stringify(value), { headers: { "Cache-Control": `max-age=${maxAge}` } }));
   }
   return value;
 }
@@ -75,7 +77,11 @@ class NotConfigured extends Error {}
 /** Settles a source without letting it take the page down. */
 async function settle<T>(name: string, load: () => Promise<T>): Promise<T | null> {
   try {
-    return await load();
+    // A slow source gives up after 8s instead of holding the whole page.
+    return await Promise.race([
+      load(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timed out after 8s")), 8000)),
+    ]);
   } catch (error) {
     if (!(error instanceof NotConfigured)) console.error("transparency: source failed", name, error);
     return null;
@@ -159,7 +165,7 @@ async function hogql(query: string): Promise<unknown[][]> {
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query: { kind: "HogQLQuery", query } }),
   });
-  if (!res.ok) throw new Error(`PostHog: ${res.status}`);
+  if (!res.ok) throw new Error(`PostHog: ${res.status} ${(await res.text()).slice(0, 200)}`);
   return ((await res.json()) as { results: unknown[][] }).results;
 }
 
@@ -305,10 +311,10 @@ async function railway(): Promise<Transparency["railway"]> {
 
 export async function getTransparency(): Promise<Transparency> {
   const [gitHub, usageData, businessData, railwayData] = await Promise.all([
-    settle("github", () => cached("github-v1", HOUR, github)),
-    settle("posthog", () => cached("usage-v2", HOUR, usage)),
-    settle("autumn", () => cached("business-v2", HOUR, business)),
-    settle("railway", () => cached("railway-v1", HOUR, railway)),
+    cached("github-v1", HOUR, () => settle("github", github)),
+    cached("usage-v2", HOUR, () => settle("posthog", usage)),
+    cached("business-v2", HOUR, () => settle("autumn", business)),
+    cached("railway-v1", HOUR, () => settle("railway", railway)),
   ]);
   return {
     updatedAt: new Date().toISOString(),
