@@ -896,13 +896,6 @@ body:not(:has([data-mobile-sidebar])) [data-menu-btn] {
 	}
 }
 
-/* Phones: the section tabs sit on a second header row. */
-@media (max-width: 47.999rem) {
-	:root:has([data-nb-header-tabs]) {
-		--nb-header-height: 5.375rem;
-	}
-}
-
 /* ---- The mark's wave on hover (as on the marketing site) ---- */
 @keyframes mark-wave {
 	40% {

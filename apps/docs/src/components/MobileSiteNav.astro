@@ -1,0 +1,44 @@
+---
+/**
+ * The marketing site's nav, for the phone drawer (DocsLayout), under the docs
+ * tree: the header itself only keeps the logo, Start free and the menu button.
+ */
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { productMenu, resourcesMenu, solutionsMenu } from "./nav";
+import { APP_URL, GITHUB_URL, docs as docsHref, focusRing, site } from "./site";
+
+const link = `flex h-9 items-center rounded-md px-2.5 text-[14px] font-medium text-ink-12 no-underline hover:bg-chip ${focusRing}`;
+const groups = [
+  { label: "Product", items: productMenu },
+  { label: "Solutions", items: solutionsMenu },
+];
+// The docs' own parts are the switch at the top of the drawer.
+const more = [
+  ...resourcesMenu.filter((item) => !item.href.startsWith(docsHref("/"))),
+  { href: site("/pricing"), label: "Pricing" },
+  { href: site("/transparency"), label: "Transparency" },
+];
+const external = { target: "_blank", rel: "noopener noreferrer" };
+---
+
+<nav aria-label="Openinary" class="border-t border-border px-2 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+  <p class="m-0 px-2.5 pb-1 text-[12px] text-ink-10">Openinary</p>
+  {groups.map((group) => (
+    <details class="group/site">
+      <summary class:list={[link, "cursor-pointer list-none justify-between [&::-webkit-details-marker]:hidden"]}>
+        {group.label}
+        <Icon name="lucide:chevron-down" aria-hidden="true" class="size-3.5 text-ink-10 transition-transform group-open/site:rotate-180" />
+      </summary>
+      <ul class="m-0 list-none p-0 pb-1 pl-3">
+        {group.items.map((item) => (
+          <li><a href={item.href} class:list={[link, "font-normal text-ink-11"]}>{item.label}</a></li>
+        ))}
+      </ul>
+    </details>
+  ))}
+  <ul class="m-0 list-none p-0">
+    {more.map((item) => <li><a href={item.href} class={link}>{item.label}</a></li>)}
+    <li><a href={GITHUB_URL} {...external} class={link}>Open source</a></li>
+    <li><a href={APP_URL} {...external} class={link}>Sign in</a></li>
+  </ul>
+</nav>

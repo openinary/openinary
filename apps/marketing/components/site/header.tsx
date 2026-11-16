@@ -18,6 +18,7 @@ import {
   buttonClass,
   focusRing,
 } from "@/components/site/ui";
+import { lenis } from "@/components/site/smooth-scroll";
 import { useGitHubStars } from "@/hooks/use-github-stars";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,28 @@ export function SiteHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // The open mobile menu is the only scroller: lock the page behind it.
+  useEffect(() => {
+    if (!mobile) return;
+    const root = document.documentElement;
+    // Inline "hidden", not Lenis's "clip": scrollbar-gutter (styles/index.css) only
+    // holds the scrollbar's room under hidden, so the page doesn't jump sideways.
+    root.style.overflow = "hidden";
+    // Lenis drives the page from the wheel; stopped, it leaves the menu its own scroll.
+    lenis?.stop();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobile(false);
+    const wide = window.matchMedia("(min-width: 768px)");
+    const onWide = () => wide.matches && setMobile(false);
+    document.addEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
+    return () => {
+      root.style.overflow = "";
+      lenis?.start();
+      document.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
+    };
+  }, [mobile]);
 
   useEffect(() => {
     if (!open) return;
@@ -167,14 +190,14 @@ export function SiteHeader() {
             aria-label={mobile ? "Close menu" : "Open menu"}
             aria-expanded={mobile}
             onClick={() => setMobile((m) => !m)}
-            className={cn("grid size-9 place-items-center rounded-md text-ink-11 md:hidden", focusRing)}
+            className={cn("-mr-2 grid size-9 place-items-center rounded-md text-ink-11 md:hidden", focusRing)}
           >
             {mobile ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
       </nav>
 
-      {mobile ? <MobileMenu /> : null}
+      {mobile ? <MobileMenu onNavigate={() => setMobile(false)} /> : null}
     </header>
   );
 }
@@ -212,27 +235,47 @@ function MenuLink({ item }: { item: NavItem }) {
   );
 }
 
-function MobileMenu() {
+const mobileLinkClass = cn(
+  "flex h-11 items-center rounded-md px-2.5 text-[15px] font-medium text-ink-12 active:bg-chip",
+  focusRing,
+);
+
+function MobileMenu({ onNavigate }: { onNavigate: () => void }) {
   return (
-    <div className="max-h-[calc(100dvh-46px)] overflow-y-auto border-t-[0.5px] border-ink-4 bg-page px-5 pb-8 md:hidden">
+    // Fixed below the header so it is the page's only scroll area. Any link tap
+    // closes it, including same-page hash links that don't change the pathname.
+    <div
+      data-lenis-prevent
+      onClick={(e) => (e.target as Element).closest("a") && onNavigate()}
+      className="fixed inset-x-0 top-[46px] bottom-0 overflow-y-auto overscroll-contain border-t-[0.5px] border-ink-4 bg-page px-5 pb-[max(2rem,env(safe-area-inset-bottom))] md:hidden"
+    >
       {menus.map((menu) => (
         <div key={menu.label} className="pt-5">
           <p className="px-2.5 text-[12px] text-ink-10">{menu.label}</p>
           <ul className="mt-1">
-            {menu.items.map((item) => (
-              <li key={item.href}>
-                <MenuLink item={item} />
-              </li>
-            ))}
+            {menu.items.map((item) => {
+              const ext = item.href.startsWith("http");
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    {...(ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className={mobileLinkClass}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
-      <div className="mt-5 flex flex-col gap-1 border-t-[0.5px] border-ink-4 pt-4">
-        <Link href="/pricing" className={linkClass}>Pricing</Link>
-        <Link href="/transparency" className={linkClass}>Transparency</Link>
-        <Link href={GITHUB_URL} className={linkClass}>Open source</Link>
-        <Link href={APP_URL} className={linkClass}>Sign in</Link>
-      </div>
+      <ul className="mt-5 border-t-[0.5px] border-ink-4 pt-4">
+        <li><Link href="/pricing" className={mobileLinkClass}>Pricing</Link></li>
+        <li><Link href="/transparency" className={mobileLinkClass}>Transparency</Link></li>
+        <li><Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className={mobileLinkClass}>Open source</Link></li>
+        <li><Link href={APP_URL} target="_blank" rel="noopener noreferrer" className={mobileLinkClass}>Sign in</Link></li>
+      </ul>
     </div>
   );
 }
