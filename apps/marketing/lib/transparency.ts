@@ -55,7 +55,7 @@ export type Transparency = {
  * request, but GitHub, PostHog and Autumn are asked at most once an hour per
  * location. Outside a Worker (next dev) there is no cache and it just runs.
  */
-async function cached<T>(key: string, ttl: number, load: () => Promise<T>): Promise<T> {
+export async function cached<T>(key: string, ttl: number, load: () => Promise<T>): Promise<T> {
   const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
   const url = `https://transparency.openinary.internal/${key}`;
   if (cache) {

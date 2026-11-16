@@ -12,7 +12,7 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "test": "node --import tsx scripts/pricing-check.mjs && node --import tsx scripts/github-check.mjs"
+    "test": "node --import tsx scripts/pricing-check.mjs && node --import tsx scripts/github-check.mjs && node --import tsx scripts/status-check.mjs"
   },
   "dependencies": {
     "@openinary/plans": "workspace:*",

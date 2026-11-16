@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/security",
     "/open-source",
     "/transparency",
+    "/status",
     "/compare",
     ...Object.keys(competitorsData.competitors).map((slug) => `/compare/${slug}`),
     "/legal",
