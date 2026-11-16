@@ -10,6 +10,9 @@ import BaseLayout from "./BaseLayout.astro";
 import Header from "@/components/Header.astro";
 import SiteFooter from "@/components/SiteFooter.astro";
 import Logo from "@/components/Logo.astro";
+import MobileSiteNav from "@/components/MobileSiteNav.astro";
+import { docsMenu } from "@/components/nav";
+import { docs as docsHref, linkClass } from "@/components/site";
 import { config } from "virtual:nimbus/config";
 import { Banner } from "@/components/ui/banner";
 import { Sidebar } from "@/components/ui/sidebar";
@@ -299,8 +302,22 @@ const showToc = headings !== false && (hasToc || headings.length > 0);
             <Icon name="lucide:x" class="w-5 h-5" />
           </button>
         </div>
-        {/* The rail's tree is moved here while the drawer is open. */}
-        <div data-nb-sidebar-drawer-slot class="flex min-h-0 flex-1 flex-col [&>[data-nb-sidebar-tree]]:min-h-0 [&>[data-nb-sidebar-tree]]:flex-1 [&>[data-nb-sidebar-tree]]:overflow-y-auto [&>[data-nb-sidebar-tree]]:overscroll-contain"></div>
+        {/* One scroll area: the docs' two parts, the docs tree, then the site's nav. */}
+        <div data-nb-drawer-scroll class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <nav aria-label="Docs" class="flex gap-1 px-3 pt-3">
+            {docsMenu.map((item) => {
+              const current = (item.href === docsHref("/api-reference")) === (collection === "reference");
+              return (
+                <a href={item.href} aria-current={current ? "page" : undefined} class:list={[linkClass, current && "bg-chip text-ink-12"]}>
+                  {item.label}
+                </a>
+              );
+            })}
+          </nav>
+          {/* The rail's tree is moved here while the drawer is open; here it doesn't scroll on its own. */}
+          <div data-nb-sidebar-drawer-slot class="[&>[data-nb-sidebar-tree]]:overflow-visible"></div>
+          <MobileSiteNav />
+        </div>
       </div>
     </dialog>
   )}
@@ -371,6 +388,14 @@ const showToc = headings !== false && (hasToc || headings.length > 0);
         dialog.dataset.state = "open";
 
         dialog.querySelector<HTMLElement>("[data-close-sidebar]")?.focus({ preventScroll: true });
+        // Centre the current page in the drawer (vertically only: the panel is still sliding in).
+        const scroller = dialog.querySelector<HTMLElement>("[data-nb-drawer-scroll]");
+        const active = tree?.querySelector<HTMLElement>("[aria-current='page']");
+        if (scroller && active) {
+          const sr = scroller.getBoundingClientRect();
+          const ar = active.getBoundingClientRect();
+          scroller.scrollTop += ar.top - sr.top - sr.height / 2 + ar.height / 2;
+        }
       };
 
       // Immediate close (no slide-out): reduced motion, or the viewport reaching desktop.
