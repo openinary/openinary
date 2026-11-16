@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { GitHubMark, SiteHeader } from "@/components/site/header";
 import { Mark } from "@/components/site/mark";
 import { footerColumns, legalLinks } from "@/components/site/nav";
+import { StatusPill } from "@/components/site/status-pill";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import {
   Container,
@@ -197,10 +198,13 @@ export function SiteFooter() {
   return (
     <footer>
       <Container className="grid gap-10 pt-10 pb-12 md:grid-cols-[1fr_2fr]">
-        <Link href="/" aria-label="Openinary home" className="flex h-fit items-center gap-2 text-[15px] font-medium tracking-[-0.02em]">
-          <Mark className="size-[17px] text-brand" />
-          Openinary
-        </Link>
+        <div className="flex flex-col justify-between gap-3">
+          <Link href="/" aria-label="Openinary home" className="flex items-center gap-2 text-[15px] font-medium tracking-[-0.02em]">
+            <Mark className="size-[17px] text-brand" />
+            Openinary
+          </Link>
+          <StatusPill />
+        </div>
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           {footerColumns.map((col) => (
             <div key={col.title}>

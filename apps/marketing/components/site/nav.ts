@@ -69,6 +69,7 @@ export const footerColumns: { title: string; links: { href: string; label: strin
       { href: `${DOCS_URL}/migrate-from-cloudinary`, label: "Migrate from Cloudinary" },
       { href: "/security", label: "Security" },
       { href: "/open-source", label: "Open source" },
+      { href: "/status", label: "Status" },
     ],
   },
   {
