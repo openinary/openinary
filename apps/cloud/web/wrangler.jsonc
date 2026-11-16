@@ -24,7 +24,7 @@
       "routes": [{ "pattern": "preprod-app.openinary.dev", "custom_domain": true }],
       "vars": {
         "NEXT_PUBLIC_SERVER_URL": "https://preprod-cdn.openinary.dev",
-        "NEXT_PUBLIC_ADMIN_URL": ""
+        "NEXT_PUBLIC_ADMIN_URL": "https://preprod-admin.openinary.dev"
       }
     }
   },

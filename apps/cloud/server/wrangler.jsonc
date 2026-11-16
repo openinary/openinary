@@ -213,7 +213,7 @@
       "vars": {
         "CORS_ORIGIN": "https://preprod-app.openinary.dev",
         "BETTER_AUTH_URL": "https://preprod-cdn.openinary.dev",
-        "ADMIN_ORIGIN": "",
+        "ADMIN_ORIGIN": "https://preprod-admin.openinary.dev",
         "AUTH_COOKIE_PREFIX": "openinary-preprod",
         "ALLOW_PUBLIC_SIGNUP": "true"
       },

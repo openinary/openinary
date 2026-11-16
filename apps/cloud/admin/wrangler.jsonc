@@ -13,6 +13,15 @@
   // silently re-enables both of these.
   "workers_dev": false,
   "preview_urls": false,
+  // scripts/preprod-cloud.sh: impersonate prod users on a copy of prod data.
+  "env": {
+    "preprod": {
+      "name": "openinary-admin-preprod",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "preprod-admin.openinary.dev", "custom_domain": true }]
+    }
+  },
   "observability": {
     "enabled": true
   }

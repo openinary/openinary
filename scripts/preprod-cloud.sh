@@ -3,6 +3,8 @@
 #
 #   https://preprod-app.openinary.dev   dashboard  (Worker openinary-web-preprod)
 #   https://preprod-cdn.openinary.dev   API + CDN  (Worker openinary-server-preprod)
+#   https://preprod-admin.openinary.dev admin panel, to impersonate prod users
+#                                       (Worker openinary-admin-preprod)
 #
 # Usage (from the repo root, Docker running):
 #   scripts/preprod-cloud.sh data      # refresh the data from prod (DB + files)
@@ -33,6 +35,7 @@ PREPROD_BUCKET=openinary-cloud-storage-preprod
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER="$ROOT/apps/cloud/server"
 WEB="$ROOT/apps/cloud/web"
+ADMIN="$ROOT/apps/cloud/admin"
 PREPROD_ENV="$SERVER/.env.preprod" # gitignored, holds the preprod-only secrets
 
 # Values from a dotenv file, without sourcing it (values hold & and quotes).
@@ -82,6 +85,7 @@ secrets_json() {
     AUTH="$(val "$PREPROD_ENV" BETTER_AUTH_SECRET)" \
     MAIL="$(val "$PREPROD_ENV" CLOUDFLARE_EMAIL_TOKEN)" \
     AUTUMN="$(val "$SERVER/.env" AUTUMN_SECRET_KEY)" \
+    ADMIN_ID="$(val "$SERVER/.env" ADMIN_USER_ID)" \
     R2_ID="$(val "$SERVER/.env" R2_ACCESS_KEY_ID)" \
     R2_KEY="$(val "$SERVER/.env" R2_SECRET_ACCESS_KEY)" \
     R2_URL="$(val "$SERVER/.env" R2_ENDPOINT)" \
@@ -94,6 +98,8 @@ secrets_json() {
         R2_BUCKET_NAME: e.BUCKET, CLOUDFLARE_ACCOUNT_ID: e.ACCOUNT,
       };
       if (e.MAIL) s.CLOUDFLARE_EMAIL_TOKEN = e.MAIL;
+      // The prod admin account exists in the copied data: same id, same panel.
+      if (e.ADMIN_ID) s.ADMIN_USER_ID = e.ADMIN_ID;
       process.stdout.write(JSON.stringify(s));
     '
 }
@@ -110,12 +116,18 @@ deploy() {
   # NEXT_PUBLIC_* are baked in at build time and win over .env.production.
   (cd "$WEB" &&
     NEXT_PUBLIC_SERVER_URL=https://preprod-cdn.openinary.dev \
-    NEXT_PUBLIC_ADMIN_URL= \
+    NEXT_PUBLIC_ADMIN_URL=https://preprod-admin.openinary.dev \
     NEXT_PUBLIC_TURNSTILE_SITE_KEY= \
     NEXT_PUBLIC_COSSISTANT_API_KEY= \
       command npx --no opennextjs-cloudflare build &&
     command npx --no opennextjs-cloudflare deploy --env preprod)
-  echo "Preprod: https://preprod-app.openinary.dev"
+  echo "== Admin -> openinary-admin-preprod"
+  (cd "$ADMIN" &&
+    NEXT_PUBLIC_SERVER_URL=https://preprod-cdn.openinary.dev \
+    NEXT_PUBLIC_APP_URL=https://preprod-app.openinary.dev \
+      command npx --no opennextjs-cloudflare build &&
+    command npx --no opennextjs-cloudflare deploy --env preprod)
+  echo "Preprod: https://preprod-app.openinary.dev (admin: https://preprod-admin.openinary.dev)"
 }
 
 case "${1:-}" in
