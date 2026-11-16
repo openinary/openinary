@@ -3,12 +3,16 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
-<Update label="November 6, 2026" description="v0.9.0" tags={["Feature", "Improvement", "Fix"]}>
+<Update label="November 16, 2026" description="v0.9.0" tags={["Feature", "Improvement", "Fix"]}>
   ## New features
 
 **Know when a transformation will be ready**, A 202 no longer asks you to poll blindly. It says which phase the job is in (`queued`, `processing`, or `waking` while a cloud server starts), how far it has got, and when it should be done, with a typical and a pessimistic figure. `Retry-After` follows that estimate, so a client that simply honors it asks again at the right time. Video progress comes from the encoder itself, and the estimate learns how fast your server encodes. `/video-status` carries the same estimate. See [transform](/api-reference/media/transform).
 
 ## Improvements
+
+**A new look for the dashboard**, The self-hosted dashboard and Openinary Cloud share one calmer design: a grouped sidebar with your account at the bottom, denser working screens, and setup, login and onboarding rebuilt on the same layout. Your data, settings and URLs don't change.
+
+**The docs moved to openinary.dev/docs**, Same pages, now on the main site. Old docs.openinary.dev links redirect to their new address.
 
 **Steadier loading in the dashboard**, Loading states are now skeletons shaped like the real page, in the cloud dashboard and the self-hosted app, so nothing jumps when the data arrives.
 
