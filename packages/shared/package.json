@@ -28,15 +28,15 @@
     "test": "node --import tsx --test $(find src -name '*.test.ts')"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.6.23",
+    "@better-auth/api-key": "1.7.25",
     "@openinary/telemetry-schema": "workspace:*",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.25",
     "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
-    "tsx": "^4.7.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.0.0"
   }
 }
