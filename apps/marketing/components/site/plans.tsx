@@ -4,7 +4,6 @@ import { Check } from "lucide-react";
 import pricing from "@/data/pricing.json";
 import { APP_URL, DOCS_URL, Pill, buttonClass } from "@/components/site/ui";
 import { cn } from "@/lib/utils";
-import { TalkToUs } from "@/components/site/enterprise-form";
 
 /**
  * The plan cards, shared by the homepage teaser and /pricing. Every figure
@@ -139,9 +138,16 @@ export function PlanStrip({ location }: { location: string }) {
             <p className="flex items-center gap-2 text-[16px] font-medium">
               Enterprise <Pill>Custom</Pill>
             </p>
-            <p className="mt-1 text-[13px] text-ink-11">Volume rates, help moving off Cloudinary and a direct line to the people who build it.</p>
+            <p className="mt-1 text-[13px] text-ink-11">SSO, a support SLA, a commercial licence and your Cloudinary migration done for you.</p>
           </div>
-          <TalkToUs location={location} />
+          <Link
+            href="/pricing#business"
+            data-track-event="enterprise_details_clicked"
+            data-track-prop-location={location}
+            className={buttonClass("secondary")}
+          >
+            See Enterprise
+          </Link>
         </div>
         <div className="flex items-center justify-between gap-4 bg-panel p-5">
           <div>
