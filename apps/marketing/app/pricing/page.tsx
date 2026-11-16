@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 };
 
 const { free, included } = pricing.openinaryCloud;
+const cld = Object.fromEntries(pricing.cloudinary.plans.map((p) => [p.id, p]));
 const n = (v: number) => v.toLocaleString("en-US");
 
 type Cell = string | boolean;
@@ -106,11 +107,11 @@ export default function PricingPage() {
       <PageHero
         title={
           <>
-            Pay for what you serve.
-            <br /> Not for seats.
+            Outgrew Cloudinary&nbsp;Free?
+            <br /> Skip the ${cld.plus.monthlyUsd} jump.
           </>
         }
-        lede="Run it yourself for free, or let us run it: a free plan with no card, then usage at the rates below. Files, sites and team members are never what you pay for."
+        lede={`Cloudinary pools storage, bandwidth and transformations into ${cld.free.credits} free credits, then asks $${cld.plus.monthlyUsd} a month. Openinary bills each one at its own rate, with a free plan to start and no monthly fee after it. Or self-host it for free.`}
         location="pricing_hero"
         secondary={{ href: "#calculator", label: "Compare with Cloudinary", event: "pricing_calculator_clicked" }}
         note="Every account starts on Free. No card required."

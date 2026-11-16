@@ -33,6 +33,9 @@ import { ProductFilm } from "@/components/site/film";
 import { GitHubMark } from "@/components/site/header";
 import { OpenAlternativeMark } from "@/components/site/open-alternative-mark";
 import { freeLines } from "@/components/site/plans";
+import pricing from "@/data/pricing.json";
+
+const cld = Object.fromEntries(pricing.cloudinary.plans.map((p) => [p.id, p]));
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -109,11 +112,11 @@ export default function Home() {
       />
 
       <PageHero
-        title="Serve every image and video from one URL."
+        title="The open-source alternative to Cloudinary."
         lede={
           <>
-            Openinary uploads, transforms and delivers your media, cached at the edge.
-            <br className="hidden md:block" /> Open source, so run it yourself or let us run it for you.
+            Same URL transformations for images and video, without the credits.
+            <br className="hidden md:block" /> Start on our free plan, or self-host it on the bucket you already have.
           </>
         }
         location="hero"
@@ -141,7 +144,7 @@ export default function Home() {
       </Container>
 
       <Container className="pt-10 pb-16 lg:pt-14 lg:pb-24">
-        <SplitHeading title="Upload, transform and deliver" muted="from one API.">
+        <SplitHeading title="Your Cloudinary workflow," muted="on one open API.">
           <TextLink href="/features" className="md:self-end">
             See all features ↗
           </TextLink>
@@ -217,9 +220,10 @@ export default function Home() {
         <Sky tone="haze" className="rounded-lg px-4 pt-14 pb-10 md:px-12 md:pt-20 md:pb-14">
           <div className="text-center">
             {/* On the sky, so white in both themes, like the line under it. */}
-            <H2 className="mx-auto text-white">Pay for what you serve, not for seats.</H2>
+            <H2 className="mx-auto text-white">No credits. No ${cld.plus.monthlyUsd} jump.</H2>
             <p className="mx-auto mt-3 max-w-[460px] text-[15px] leading-6 text-white/80">
-              Free plan, no card required. Past it, usage at cost, or run the same engine yourself for nothing.
+              Free plan, no card required. Past it, each resource at its own published rate and no monthly fee, or run
+              the same engine yourself for nothing.
             </p>
           </div>
           <div className="mt-10 grid gap-3 md:grid-cols-3">
