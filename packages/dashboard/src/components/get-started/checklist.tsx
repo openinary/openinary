@@ -77,24 +77,21 @@ export function Checklist() {
                         <span className="mt-0.5 block text-[13px]/5 text-ds-muted text-pretty">
                           {step.description}
                         </span>
-                        <span
-                          className={cn(
-                            buttonVariants({ size: "xs" }),
-                            "mt-3",
-                          )}
-                        >
-                          {step.action}
-                          <ArrowRight className="mi-arrow" />
-                        </span>
-                        {step.waiting && (
-                          <span
-                            aria-live="polite"
-                            className="ds-pill ds-pill-blue mt-3 ml-2 align-middle"
-                          >
-                            <span className="mi-spin size-2.5 rounded-full border-[1.5px] border-current border-t-transparent" />
-                            {step.waiting}
+                        <span className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className={buttonVariants({ size: "xs" })}>
+                            {step.action}
+                            <ArrowRight className="mi-arrow" />
                           </span>
-                        )}
+                          {step.waiting && (
+                            <span
+                              aria-live="polite"
+                              className="ds-pill ds-pill-blue"
+                            >
+                              <span className="mi-spin size-2.5 rounded-full border-[1.5px] border-current border-t-transparent" />
+                              {step.waiting}
+                            </span>
+                          )}
+                        </span>
                       </>
                     )}
                   </span>
