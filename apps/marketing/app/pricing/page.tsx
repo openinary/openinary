@@ -6,17 +6,16 @@ import { Calculator } from "@/components/home/calculator/calculator";
 import pricing from "@/data/pricing.json";
 import { EveryPlan, PlanCard, PlanStrip, plans, rateLines } from "@/components/site/plans";
 import { FaqBlock, FinalCta, PageHero, SiteShell, SplitHeading } from "@/components/site/shell";
-import { Container, DOCS_URL, Sky, StartButtons } from "@/components/site/ui";
+import { Container, DOCS_URL, Sky, StartButtons, buttonClass } from "@/components/site/ui";
 
 export const metadata: Metadata = {
   title: "Pricing | Openinary",
   description:
-    "Self-host Openinary for free, or let us run it: a free plan with no card, then usage at published rates. Compare your Cloudinary bill with the calculator.",
+    "Openinary Cloud with a free plan and published usage rates, the open-source engine on your servers, or Enterprise: SSO, a support SLA, a commercial licence and your Cloudinary migration done for you.",
   alternates: { canonical: "/pricing" },
 };
 
 const { free, included } = pricing.openinaryCloud;
-const cld = Object.fromEntries(pricing.cloudinary.plans.map((p) => [p.id, p]));
 const n = (v: number) => v.toLocaleString("en-US");
 
 type Cell = string | boolean;
@@ -93,11 +92,66 @@ const billingFaqs = [
   },
   {
     question: "Do you offer volume pricing?",
+    answer:
+      "Yes, as part of Enterprise, for large or steady workloads. Tell us your monthly volumes through Talk to us and we will work out a rate.",
+  },
+  {
+    question: "Do I need a commercial licence?",
+    answer:
+      "Most teams don't. Running the stock engine, even inside a hosted product, is fine under the AGPL-3.0. You need one when you ship Openinary inside software your customers run, or when you change the code and don't want to publish those changes. Not sure where you stand? Ask us, and we will tell you plainly, including when the answer is no.",
+  },
+  {
+    question: "Are SSO, roles and audit logs available today?",
+    answer:
+      "They are in early access: we are building them with our first Enterprise customers, in the order those customers need them. If one is a must-have before you sign, say so and we will give you a date in writing.",
+  },
+  {
+    question: "What does the Cloudinary migration include?",
     answer: (
       <>
-        Yes, for large or steady workloads. Press Talk to us under the plans and tell us your monthly volumes; we will work out a rate.
+        On Enterprise, we run it with you: copy your originals into your bucket with our{" "}
+        <a href={`${DOCS_URL}/migrate-from-cloudinary`}>migration script</a>, map your transformation URLs, and switch
+        traffic page by page while Cloudinary keeps serving the rest. It costs nothing on top of the contract.
       </>
     ),
+  },
+];
+
+const business = [
+  {
+    name: "Enterprise",
+    sub: "On your servers or on Openinary Cloud",
+    blurb: "For teams who need it signed off by security, legal and finance.",
+    lines: [
+      "SSO with SAML and OIDC (early access)",
+      "Roles and permissions (early access)",
+      "Audit logs (early access)",
+      "Support SLA and a named engineer",
+      "A say in the roadmap",
+      "Volume rates on Cloud",
+    ],
+  },
+  {
+    name: "Commercial licence",
+    sub: "Openinary without the AGPL",
+    blurb: "For products that ship Openinary to their own customers.",
+    lines: [
+      "Embed it in a proprietary product",
+      "Keep your changes private",
+      "Ship it on your customers' servers",
+      "A contract your legal team can sign",
+    ],
+  },
+  {
+    name: "Cloudinary migration",
+    sub: "Included with Enterprise",
+    blurb: "We move you over, and nothing goes dark while we do.",
+    lines: [
+      "Originals copied into your bucket",
+      "Transformation URLs mapped to Openinary",
+      "Traffic switched page by page",
+      "Cloudinary serves the rest until you're done",
+    ],
   },
 ];
 
@@ -107,11 +161,11 @@ export default function PricingPage() {
       <PageHero
         title={
           <>
-            Outgrew Cloudinary&nbsp;Free?
-            <br /> Skip the ${cld.plus.monthlyUsd} jump.
+            A bill you can predict.
+            <br /> Media you own.
           </>
         }
-        lede={`Cloudinary pools storage, bandwidth and transformations into ${cld.free.credits} free credits, then asks $${cld.plus.monthlyUsd} a month. Openinary bills each one at its own rate, with a free plan to start and no monthly fee after it. Or self-host it for free.`}
+        lede="Each unit at its own rate, no credits to decode. Start on Cloud with a free plan, run the same open-source engine on your servers, or go Enterprise for SSO, an SLA and a Cloudinary migration we run for you."
         location="pricing_hero"
         secondary={{ href: "#calculator", label: "Compare with Cloudinary", event: "pricing_calculator_clicked" }}
         note="Every account starts on Free. No card required."
@@ -130,6 +184,34 @@ export default function PricingPage() {
         </Sky>
         <div className="mt-3">
           <EveryPlan />
+        </div>
+      </Container>
+
+      <Container id="business" className="pt-20 md:pt-28">
+        <SplitHeading
+          title="Running it for a business?"
+          muted="Buy what the AGPL doesn't give you."
+          aside="The code is free for everyone. What a company pays for is the rest: SSO, an SLA, a licence that fits its product, and a migration it doesn't have to staff."
+        >
+          <TalkToUs location="pricing_business" className={buttonClass("primary")} />
+        </SplitHeading>
+        <div className="mt-10 grid gap-3 md:grid-cols-3">
+          {business.map((b) => (
+            <div key={b.name} className="flex flex-col rounded-lg bg-tile p-5">
+              <h3 className="text-[16px] font-medium text-ink-12">{b.name}</h3>
+              <p className="mt-1 text-[13px] text-ink-10">{b.sub}</p>
+              <p className="mt-4 min-h-10 text-[13px] leading-5 text-ink-11">{b.blurb}</p>
+              <ul className="mt-5 flex flex-1 flex-col">
+                {b.lines.map((l) => (
+                  <li key={l} className="flex gap-2 border-t-[0.5px] border-ink-4 py-2.5 text-[13px] leading-5 text-ink-11">
+                    <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-ink-12" />
+                    {l}
+                  </li>
+                ))}
+              </ul>
+              <TalkToUs location={`pricing_${b.name.toLowerCase().replace(/ /g, "_")}`} className={buttonClass("secondary", "mt-5 w-full")} />
+            </div>
+          ))}
         </div>
       </Container>
 
