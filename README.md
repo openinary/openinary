@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://openinary.dev" target="_blank" rel="noopener">
-        <img src="https://i.imgur.com/P5Qfm65.png" alt="Openinary - self-hosted media processing platform" />
+        <img src=".github/readme-banner.jpg" alt="Openinary - self-hosted media processing platform" />
     </a>
 </p>
 
@@ -27,7 +27,7 @@
 ## Quick Start
 
 <p align="left">
-    <a href="https://railway.com/deploy/openinary-1?referralCode=imHr5N&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/railway.svg" alt="Deploy with Railway" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/coolify-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/coolify.svg" alt="Deploy with Coolify" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/dokploy-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/dokploy.svg" alt="Deploy with Dokploy" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://app.openinary.dev" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/cloud.svg" alt="Use Openinary Cloud" style="display: block;" /></a>
+    <a href="https://app.openinary.dev" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/cloud.svg" alt="Use Openinary Cloud" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://railway.com/deploy/openinary-1?referralCode=imHr5N&utm_medium=integration&utm_source=template&utm_campaign=generic" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/railway.svg" alt="Deploy with Railway" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/coolify-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/coolify.svg" alt="Deploy with Coolify" style="display: block;" /></a>&nbsp;&nbsp;<a href="https://docs.openinary.dev/guides/dokploy-deployment" target="_blank" rel="noopener" style="display: inline-block;"><img src="https://www.openinary.dev/deploy/dokploy.svg" alt="Deploy with Dokploy" style="display: block;" /></a>
 </p>
 
 ### Installation
