@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { CHANGELOG_MDX } from "@/lib/generated/sources";
 import type { Metadata } from "next";
 
 import { ChangelogList, type Entry } from "@/app/changelog/changelog-list";
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
  * entry here, read at build time, so the two can never disagree.
  */
 function readEntries(): Entry[] {
-  const src = readFileSync(join(process.cwd(), "../docs/changelog.mdx"), "utf8");
+  const src = CHANGELOG_MDX;
   const re = /<Update label="([^"]+)" description="([^"]+)" tags=\{\[([^\]]*)\]\}>([\s\S]*?)<\/Update>/g;
   return [...src.matchAll(re)].map(([, date, version, tags, body]) => ({
     date,

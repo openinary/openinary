@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { CHANGELOG_MDX } from "@/lib/generated/sources";
 import type { Metadata } from "next";
 import { SolarFolder } from "@/components/site/solar";
 
@@ -27,7 +26,7 @@ const tree = [
 
 /** People thanked in the changelog, so this list grows with every release. */
 function contributors(): string[] {
-  const src = readFileSync(join(process.cwd(), "../docs/changelog.mdx"), "utf8");
+  const src = CHANGELOG_MDX;
   return [...new Set([...src.matchAll(/\]\(https:\/\/github\.com\/([A-Za-z0-9-]+)\)/g)].map((m) => m[1]))].filter(
     (u) => u !== "openinary",
   );

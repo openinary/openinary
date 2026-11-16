@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { DOCKER_COMPOSE_YML } from "@/lib/generated/sources";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -95,7 +94,7 @@ const jsonLd = {
 };
 
 /** The top of the repo's own compose file, read at build so it never drifts. */
-const compose = readFileSync(join(process.cwd(), "../../docker-compose.yml"), "utf8")
+const compose = DOCKER_COMPOSE_YML
   .split("\n")
   .slice(0, 20)
   .join("\n");

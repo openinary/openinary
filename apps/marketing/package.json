@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/inline-sources.mjs",
     "dev": "next dev --turbopack --port 3200",
     "lint": "eslint .",
-    "prebuild": "pnpm --filter @openinary/plans build && pnpm --filter registry run registry:build && node ../../scripts/sync-registry-block.mjs marketing",
+    "prebuild": "node scripts/inline-sources.mjs && pnpm --filter @openinary/plans build && pnpm --filter registry run registry:build && node ../../scripts/sync-registry-block.mjs marketing",
     "build": "next build --webpack",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
