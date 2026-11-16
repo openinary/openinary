@@ -50,3 +50,6 @@ package-lock.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scripts/inline-sources.mjs
+lib/generated/
