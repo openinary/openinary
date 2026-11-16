@@ -9,7 +9,11 @@
   // Served at openinary.dev/docs. The marketing Worker owns the hostname as a
   // custom domain; a route on the same hostname takes precedence over it, so
   // this Worker answers /docs and everything under it, and nothing else.
-  "routes": [{ "pattern": "openinary.dev/docs*", "zone_name": "openinary.dev" }],
+  // www.openinary.dev is the same site, so it needs the same route.
+  "routes": [
+    { "pattern": "openinary.dev/docs*", "zone_name": "openinary.dev" },
+    { "pattern": "www.openinary.dev/docs*", "zone_name": "openinary.dev" }
+  ],
   // Production lives on that route only (same reason as the marketing Worker).
   "workers_dev": false,
   "preview_urls": false,
