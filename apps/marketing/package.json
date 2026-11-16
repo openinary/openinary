@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@openinary/plans": "workspace:*",
-    "@opennextjs/cloudflare": "^1.19.6",
+    "@opennextjs/cloudflare": "^1.20.17",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.1",
@@ -24,7 +24,7 @@
     "lenis": "1.3.27",
     "lucide-react": "^0.536.0",
     "motion": "^12.23.26",
-    "next": "16.2.11",
+    "next": "16.4.6",
     "next-themes": "^0.4.6",
     "posthog-js": "^1.407.2",
     "radix-ui": "^1.4.3",
@@ -39,11 +39,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.11",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.15",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5",
-    "wrangler": "^4.114.0"
+    "wrangler": "^4.162.0"
   }
 }

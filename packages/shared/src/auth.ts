@@ -92,6 +92,9 @@ export function createAuth(db: Db, secret: string) {
     plugins: [
       apiKey({
         references: "user",
+        // The table predates the plugin's lowercase default. SQLite matched it
+        // either way, but Better Auth 1.7's startup schema check is case-sensitive.
+        schema: { apikey: { modelName: "apiKey" } },
         permissions: { defaultPermissions: { api: ["read", "write"] } },
         keyExpiration: { maxExpiresIn: 3650 },
         rateLimit: { enabled: true, timeWindow: 60000, maxRequests: 100 },

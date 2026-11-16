@@ -15,7 +15,7 @@
     "@hugeicons/core-free-icons": "^4.2.3",
     "@hugeicons/react": "^1.1.9",
     "@openinary/plans": "workspace:*",
-    "@opennextjs/cloudflare": "^1.20.1",
+    "@opennextjs/cloudflare": "^1.20.17",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.14.8",
     "@orpc/tanstack-query": "^1.14.8",
@@ -24,7 +24,7 @@
     "@tanstack/react-query-persist-client": "^5.101.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "next": "16.2.10",
+    "next": "16.4.6",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.6.2",
     "react": "^19.2.7",
@@ -42,6 +42,6 @@
     "cloud-server": "workspace:*",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.9.3",
-    "wrangler": "^4.111.0"
+    "wrangler": "^4.162.0"
   }
 }

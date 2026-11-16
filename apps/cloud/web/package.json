@@ -16,19 +16,19 @@
     "@openinary/dashboard": "workspace:*",
     "@openinary/plans": "workspace:*",
     "@openinary/ui": "workspace:*",
-    "@opennextjs/cloudflare": "^1.20.1",
+    "@opennextjs/cloudflare": "^1.20.17",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.14.8",
     "@orpc/tanstack-query": "^1.14.8",
     "@outpacelabs/avatars": "^0.4.0",
     "@tanstack/react-form": "^1.33.2",
     "@tanstack/react-query": "^5.101.2",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.25",
     "env.style": "^1.0.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.24.0",
     "mediabunny": "^1.50.9",
-    "next": "16.2.10",
+    "next": "16.4.6",
     "next-themes": "^0.4.6",
     "nuqs": "^2.9.0",
     "posthog-js": "^1.407.8",
@@ -48,6 +48,6 @@
     "cloud-server": "workspace:*",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.9.3",
-    "wrangler": "^4.111.0"
+    "wrangler": "^4.162.0"
   }
 }
