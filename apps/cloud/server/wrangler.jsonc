@@ -87,6 +87,15 @@
       // production's ownership cache, which is the one failure here that
       // would serve one account's media under another's bucket.
       "preview_id": "c9ba0464d9c04bc48c9fd79cd5ba6cc6"
+    },
+    {
+      // better-auth's secondaryStorage (see worker/lib/auth.ts): session
+      // reads served from here instead of waking Neon. Its own namespace, not
+      // BUCKET_OWNERS: the public CDN path reads that one by a key taken from
+      // the URL, and session tokens must never be addressable from there.
+      "binding": "AUTH_SESSIONS",
+      "id": "a98eb50e9d934f379fa7c103b94db369",
+      "preview_id": "9dd61227b20d47c9826f8d6dd283f5b7"
     }
   ],
   "ratelimits": [
@@ -163,16 +172,20 @@
   // every 5 minutes therefore reset the suspend timer forever, so the compute
   // never scaled to zero and burned the plan's 100 CU-hours/month at
   // 0.25 CU x 24/7 = ~182 CU-hours - the allowance ran out mid-month and
-  // every DB-backed route, sign-in included, started 500ing. Hourly costs a
-  // few seconds of uptime per day. Metering an hour late is invisible:
-  // Autumn bills on totals, not on when the tick landed.
+  // every DB-backed route, sign-in included, started 500ing.
+  // Every 6 hours, not hourly, since the move to the Launch plan: every tick
+  // wakes a suspended compute, and Neon then bills at least 5 minutes of it,
+  // so 24 ticks a day were ~2 h of paid uptime for a few ms of queries. The
+  // 07:00 tick lands with the daily one below and shares its wake. Metering
+  // 6 hours late is invisible: Autumn bills on totals, not on when the tick
+  // landed.
   // Daily at 07:00 UTC: pushes every account's
   // marketing profile to Loops and fires the inactivity / near-limit events
   // (syncLifecycle). Both in worker/cron.ts's scheduled handler, which tells
   // them apart by the expression - so DAILY_CRON there must match the second
   // string here character for character.
   "triggers": {
-    "crons": ["0 * * * *", "0 7 * * *"]
+    "crons": ["0 1,7,13,19 * * *", "0 7 * * *"]
   },
   // Preprod: same code on a copy of prod data (Neon branch + copied R2
   // bucket), at preprod-cdn.openinary.dev. Deploy and refresh the data with
@@ -204,7 +217,8 @@
         { "binding": "MEDIA_BUCKET", "bucket_name": "openinary-cloud-storage-preprod" }
       ],
       "kv_namespaces": [
-        { "binding": "BUCKET_OWNERS", "id": "eebe3e3fffed49ef9a107dac6cda1502" }
+        { "binding": "BUCKET_OWNERS", "id": "eebe3e3fffed49ef9a107dac6cda1502" },
+        { "binding": "AUTH_SESSIONS", "id": "ea75e05435354456b33397268ef9ab46" }
       ],
       "ratelimits": [
         { "name": "CDN_RATE_LIMITER", "namespace_id": "2001", "simple": { "limit": 300, "period": 60 } },

@@ -57,4 +57,29 @@ await assert.rejects(
   /403/,
 );
 
+// Session store: unbound (tests, scripts) every read misses, so better-auth
+// falls back to Postgres; bound, a sub-minute TTL is rounded up to KV's 60s
+// floor instead of failing the write.
+const { auth, bindSessionKv } = await import("./auth.js");
+const store = auth.options.secondaryStorage!;
+assert.equal(await store.get("token"), null);
+const puts: { key: string; ttl?: number }[] = [];
+bindSessionKv({
+  get: async () => "cached",
+  put: async (key, _value, options) => {
+    puts.push({ key, ttl: options?.expirationTtl });
+  },
+  delete: async () => {},
+});
+assert.equal(await store.get("token"), "cached");
+await store.set("a", "v", 5);
+await store.set("b", "v", 3600);
+await store.set("c", "v", undefined);
+assert.deepEqual(puts, [
+  { key: "a", ttl: 60 },
+  { key: "b", ttl: 3600 },
+  { key: "c", ttl: undefined },
+]);
+bindSessionKv(undefined);
+
 console.log("auth-email: all checks passed");

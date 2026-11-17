@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20260710.1 2026-07-16 nodejs_compat
 interface __BaseEnv_Env {
   BUCKET_OWNERS: KVNamespace;
+  AUTH_SESSIONS: KVNamespace;
   MEDIA_BUCKET: R2Bucket;
   CDN_RATE_LIMITER: RateLimit;
   ACCOUNT_RATE_LIMITER: RateLimit;

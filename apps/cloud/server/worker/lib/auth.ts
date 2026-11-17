@@ -94,12 +94,74 @@ export async function sendEmail(message: {
   }
 }
 
+/** The slice of the AUTH_SESSIONS KV namespace better-auth needs. */
+export type SessionKv = {
+  get(key: string): Promise<string | null>;
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number },
+  ): Promise<void>;
+  delete(key: string): Promise<void>;
+};
+
+// Set per request by app.ts's first middleware. Not imported from
+// "cloudflare:workers": this module runs under plain tsx in tests and is
+// type-checked by the dashboards, where that specifier doesn't exist. Unset
+// (tests, scripts), every read misses and falls back to Postgres, which is
+// exactly how auth behaved before this store existed.
+let sessionKv: SessionKv | undefined;
+export function bindSessionKv(kv: SessionKv | undefined): void {
+  sessionKv = kv;
+}
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
 
     schema: schema,
   }),
+  // Session reads off Postgres. Every dashboard request checks its session,
+  // and each check used to be two queries that woke Neon's suspended compute
+  // (billed 5 minutes minimum per wake): it was most of the Neon bill.
+  //
+  // Postgres stays the source of truth (storeSessionInDatabase,
+  // verification.storeInDatabase): writes still land there, a KV miss falls
+  // back to it, and sessions created before this store existed keep working
+  // until they expire. KV only absorbs the reads. The price is KV's
+  // eventual consistency: a revoked session (ban, sign-out elsewhere) can
+  // stay readable for up to ~60s at other Cloudflare locations.
+  secondaryStorage: {
+    get: async (key) => (sessionKv ? sessionKv.get(key) : null),
+    set: async (key, value, ttl) => {
+      // KV refuses an expirationTtl under 60s; rounding a near-expired
+      // session up to a minute is harmless next to failing the write.
+      await sessionKv?.put(
+        key,
+        value,
+        ttl ? { expirationTtl: Math.max(60, Math.ceil(ttl)) } : undefined,
+      );
+    },
+    delete: async (key) => {
+      await sessionKv?.delete(key);
+    },
+    // KV has no atomic read-and-delete or counter. better-auth only calls
+    // these for KV-only verifications and KV-backed rate limiting, both ruled
+    // out just below; throwing makes a config change that re-enables either
+    // fail loudly instead of racing.
+    getAndDelete: () => {
+      throw new Error("AUTH_SESSIONS: getAndDelete unsupported on KV");
+    },
+    increment: () => {
+      throw new Error("AUTH_SESSIONS: increment unsupported on KV");
+    },
+  },
+  session: { storeSessionInDatabase: true },
+  verification: { storeInDatabase: true },
+  // Configuring secondaryStorage would otherwise move rate limiting there: a
+  // KV write per auth request, on a store that allows one write per key per
+  // second. Keep the in-memory default it had before.
+  rateLimit: { storage: "memory" },
   // Two dashboards on two subdomains share this auth server: the customer app
   // (CORS_ORIGIN) and the admin panel (ADMIN_ORIGIN).
   trustedOrigins: DASHBOARD_ORIGINS,
