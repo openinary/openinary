@@ -1,4 +1,4 @@
-import { CHANGELOG_MDX } from "@/lib/generated/sources";
+import { CHANGELOG_MDX, GITHUB_CONTRIBUTORS } from "@/lib/generated/sources";
 import type { Metadata } from "next";
 import { SolarFolder } from "@/components/site/solar";
 
@@ -24,12 +24,18 @@ const tree = [
   { path: "packages/ui", note: "Shared interface components" },
 ];
 
-/** People thanked in the changelog, so this list grows with every release. */
+const CORE_TEAM = new Set(["openinary", "florianheysen"]);
+
+/** People with commits on GitHub (fetched at build), plus anyone thanked in the changelog. */
 function contributors(): string[] {
-  const src = CHANGELOG_MDX;
-  return [...new Set([...src.matchAll(/\]\(https:\/\/github\.com\/([A-Za-z0-9-]+)\)/g)].map((m) => m[1]))].filter(
-    (u) => u !== "openinary",
-  );
+  const thanked = [...CHANGELOG_MDX.matchAll(/\]\(https:\/\/github\.com\/([A-Za-z0-9-]+)\)/g)].map((m) => m[1]);
+  const seen = new Set<string>();
+  return [...GITHUB_CONTRIBUTORS, ...thanked].filter((u) => {
+    const key = u.toLowerCase();
+    if (CORE_TEAM.has(key) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default function OpenSourcePage() {
