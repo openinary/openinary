@@ -30,7 +30,7 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 /**
  * Resolves to null when sign-in works, otherwise to a one-line description
  * of the last failure. Only alerts after every attempt failed, so a single
- * blip (Neon waking its suspended compute on the hourly tick) stays quiet
+ * blip (Neon waking its suspended compute on the six-hourly tick) stays quiet
  * while an outage that outlasts the retry still gets reported.
  */
 export async function probeSignIn(

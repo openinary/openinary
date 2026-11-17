@@ -45,7 +45,7 @@ async function meterCompletedVideoJobs(): Promise<void> {
 }
 
 /**
- * Hourly canary on the one request that matters most: the exact call the
+ * Six-hourly canary on the one request that matters most: the exact call the
  * dashboard's Google button makes (see lib/sign-in-probe.ts).
  *
  * Dispatched into this Worker's own app in-process, not with fetch() to
@@ -69,7 +69,7 @@ async function checkSignIn(env: Env, ctx: ExecutionContext): Promise<void> {
 /**
  * Two schedules, one handler (see wrangler.jsonc's triggers.crons). The
  * lifecycle sync scans every account and talks to Autumn and Loops once per
- * account, so it runs daily and never on the hourly tick - and
+ * account, so it runs daily and never on the six-hourly tick - and
  * syncLifecycle's own "crossed the inactivity threshold today" test assumes
  * exactly one run per day.
  */
@@ -81,12 +81,12 @@ export function scheduled(
   // ctx.waitUntil discards a rejection, so both jobs could fail forever in
   // silence - meterCompletedVideoJobs threw on every tick for two days once
   // Neon's compute allowance ran out, and the first report was a customer
-  // who couldn't sign in. The hourly tick queries Postgres unconditionally,
+  // who couldn't sign in. The six-hourly tick queries Postgres unconditionally,
   // which makes it a database health check that already exists; this just
   // gives it a mouth, in the Telegram chat already watched for signups.
   //
   // ponytail: one message per failed tick, no dedup and no cooldown - a
-  // real outage is 24 a day, which is noise worth having at this size. Add
+  // real outage is 4 a day, which is noise worth having at this size. Add
   // a cooldown (last-alert timestamp in USAGE_METER) if it grates.
   const alert = (job: string) => (error: unknown) =>
     notify("Openinary Cloud cron failed", `${job}: ${error}`);

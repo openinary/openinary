@@ -12,7 +12,7 @@ import {
   DASHBOARD_ORIGINS,
   isAdmin,
 } from "./config.js";
-import { auth } from "./lib/auth.js";
+import { auth, bindSessionKv } from "./lib/auth.js";
 import type { Bindings } from "./bindings.js";
 import { appRouter } from "./rpc/index.js";
 import { adminRoutes } from "./routes/admin.js";
@@ -35,6 +35,15 @@ app.onError((error, c) => {
     },
     500,
   );
+});
+
+// First, so every route that reaches auth reads sessions from KV (see
+// secondaryStorage in lib/auth.ts). Same binding on every request of an
+// isolate, so the module-level slot it fills is never wrong.
+app.use(async (c, next) => {
+  // `?.`: the route tests call app.request() with no env at all.
+  bindSessionKv(c.env?.AUTH_SESSIONS);
+  await next();
 });
 
 // Auth and oRPC are shared by both dashboards: the customer app on
