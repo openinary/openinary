@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { TransformParams, ImageFormat, ImageAnalysis, OptimizationResult } from './types';
 import logger, { serializeError } from '../logger';
 import { SHARP_INPUT_OPTIONS } from './sharp-options';
+import { parseBackgroundColor } from './background';
 import { supportsFormat } from '../../url/negotiate';
 
 export class Compression {
@@ -52,7 +53,7 @@ export class Compression {
       let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
       
       // Apply the explicit format
-      pipeline = this.applyFormat(pipeline, explicitFormat, optimalQuality);
+      pipeline = this.applyFormat(pipeline, explicitFormat, optimalQuality, params.background);
       
       const optimizedBuffer = await pipeline.toBuffer();
       const optimizedSize = optimizedBuffer.length;
@@ -126,7 +127,7 @@ export class Compression {
       try {
         const quality = this.calculateOptimalQuality(analysis, originalSize, format, userQuality);
         let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
-        pipeline = this.applyFormat(pipeline, format, quality);
+        pipeline = this.applyFormat(pipeline, format, quality, params.background);
         
         const buffer = await pipeline.toBuffer();
         results.push({
@@ -145,7 +146,7 @@ export class Compression {
       // Fallback: use JPEG
       const quality = this.calculateOptimalQuality(analysis, originalSize, 'jpeg', userQuality);
       let pipeline = this.preparePipeline(inputPath, analysis, metadata, originalSize);
-      pipeline = this.applyFormat(pipeline, 'jpeg', quality);
+      pipeline = this.applyFormat(pipeline, 'jpeg', quality, params.background);
       const buffer = await pipeline.toBuffer();
       
       return {
@@ -219,7 +220,8 @@ export class Compression {
   private applyFormat(
     pipeline: sharp.Sharp,
     format: ImageFormat,
-    quality: number
+    quality: number,
+    background?: string
   ): sharp.Sharp {
     switch (format) {
       case 'avif':
@@ -238,12 +240,17 @@ export class Compression {
         
       case 'jpeg':
       case 'jpg':
-        return pipeline.jpeg({
-          quality,
-          progressive: false, 
-          mozjpeg: false,
-          chromaSubsampling: '4:2:0'
-        });
+        // JPEG has no alpha: without flatten() transparent pixels turn black.
+        return pipeline
+          .flatten({
+            background: parseBackgroundColor(background === 'transparent' ? undefined : background),
+          })
+          .jpeg({
+            quality,
+            progressive: false,
+            mozjpeg: false,
+            chromaSubsampling: '4:2:0'
+          });
         
       case 'png':
         return pipeline.png({
