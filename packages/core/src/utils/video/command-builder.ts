@@ -48,7 +48,9 @@ export class VideoCommandBuilder {
     // -movflags and -max_muxing_queue_size are MOV/MP4 container options and are
     // incompatible with image output formats (image2 muxer used for thumbnails).
     // Only apply them for video output.
-    if (!context.isImageOutput) {
+    if (context.isImageOutput) {
+      this.command = this.command.noAudio();
+    } else {
       this.command = this.command
         .addOption("-movflags", "+faststart") // Optimize for web streaming
         .addOption("-max_muxing_queue_size", "1024"); // Prevent buffer issues
@@ -95,7 +97,11 @@ export class VideoCommandBuilder {
     if (this.complexFilter.length > 0) {
       this.command
         .complexFilter(this.complexFilter)
-        .outputOptions(["-map", `[${this.outputVideoStream}]`, "-map", "0:a?"]);
+        .outputOptions(["-map", `[${this.outputVideoStream}]`]);
+      // Still-image outputs cannot contain audio, even when the source does.
+      if (!this.context.isImageOutput) {
+        this.command.outputOptions(["-map", "0:a?"]);
+      }
     }
 
     return new Promise((resolve, reject) => {
