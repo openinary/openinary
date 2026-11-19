@@ -30,3 +30,19 @@ export const ADMIN_USER_ID = env.ADMIN_USER_ID ?? "";
 export function isAdmin(userId: string | undefined): boolean {
   return ADMIN_USER_ID !== "" && userId === ADMIN_USER_ID;
 }
+
+/**
+ * Teams rollout gate (wrangler.jsonc vars). Off: the team router refuses and
+ * the dashboard hides the Team tab. TEAMS_ALLOWLIST, a comma-separated list
+ * of user ids, narrows it to a beta; empty means everyone.
+ */
+const TEAMS_ENABLED = env.TEAMS_ENABLED === "true";
+const TEAMS_ALLOWLIST = (env.TEAMS_ALLOWLIST ?? "")
+  .split(",")
+  .map((id: string) => id.trim())
+  .filter(Boolean);
+
+export function teamsEnabledFor(userId: string | undefined): boolean {
+  if (!TEAMS_ENABLED || !userId) return false;
+  return TEAMS_ALLOWLIST.length === 0 || TEAMS_ALLOWLIST.includes(userId);
+}

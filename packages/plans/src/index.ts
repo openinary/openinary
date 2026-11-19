@@ -16,15 +16,26 @@ export type Plan = {
    * count derivable exactly at any moment would only drift if metered.
    */
   buckets: number;
+  /**
+   * People on the account, owner included. Same hard cap as buckets, counted
+   * from the team's members plus pending invitations (worker/lib/auth.ts).
+   */
+  seats: number;
 };
 
 // `early_access` is displayed as Alpha (renamed in Autumn when Cloud went to
 // public alpha); the id is load-bearing, only the name changed. Alpha is Cloud
 // with no base price and double the Free allowance.
 export const PLANS: Record<PlanId, Plan> = {
-  free: { name: "Free", monthlyUsd: 0, metered: false, buckets: 1 },
-  early_access: { name: "Alpha", monthlyUsd: 0, metered: true, buckets: 2 },
-  cloud: { name: "Cloud", monthlyUsd: 20, metered: true, buckets: 10 },
+  free: { name: "Free", monthlyUsd: 0, metered: false, buckets: 1, seats: 1 },
+  early_access: {
+    name: "Alpha",
+    monthlyUsd: 0,
+    metered: true,
+    buckets: 2,
+    seats: 3,
+  },
+  cloud: { name: "Cloud", monthlyUsd: 20, metered: true, buckets: 10, seats: 3 },
 };
 
 /** Any account with no subscription, or on an unknown plan id. */

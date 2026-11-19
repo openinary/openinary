@@ -1,8 +1,13 @@
 import { z } from "zod";
 import { captureEvent } from "../lib/analytics.js";
 import { auth } from "../lib/auth.js";
-import { assertOwnsBucket, bucketIdOf } from "../lib/bucket.js";
-import { protectedProcedure } from "./orpc.js";
+import {
+  deleteAccountKey,
+  listAccountKeys,
+  setAccountKeyEnabled,
+} from "../lib/api-keys.js";
+import { assertOwnsBucket } from "../lib/bucket.js";
+import { accountProcedure } from "./orpc.js";
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -29,25 +34,14 @@ type ApiKeySummary = {
 };
 
 export const apiKeyRouter = {
-  list: protectedProcedure.handler(
-    async ({ context }): Promise<ApiKeySummary[]> => {
-      const { apiKeys } = await auth.api.listApiKeys({
-        headers: context.headers,
-      });
-      return apiKeys.map((key) => ({
-        id: key.id,
-        name: key.name,
-        start: key.start,
-        enabled: key.enabled,
-        bucketId: bucketIdOf(key.metadata),
-        expiresAt: key.expiresAt?.toISOString() ?? null,
-        createdAt: key.createdAt.toISOString(),
-        lastRequest: key.lastRequest?.toISOString() ?? null,
-      }));
-    },
+  list: accountProcedure("apiKey.manage").handler(
+    async ({ context }): Promise<ApiKeySummary[]> =>
+      (await listAccountKeys(context.account.accountId)).map(
+        ({ requestCount: _, ...key }) => key,
+      ),
   ),
 
-  create: protectedProcedure
+  create: accountProcedure("apiKey.manage")
     .input(
       z.object({
         name: z.string().trim().min(1).max(32),
@@ -57,13 +51,19 @@ export const apiKeyRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      await assertOwnsBucket(context.session.user.id, input.bucketId);
+      const { accountId } = context.account;
+      await assertOwnsBucket(accountId, input.bucketId);
+      // Server-side, on the account's id: the key belongs to the account and
+      // keeps working after whoever minted it leaves (lib/api-keys.ts).
       const created = await auth.api.createApiKey({
-        headers: context.headers,
         body: {
+          userId: accountId,
           name: input.name,
           expiresIn: input.expiresInDays * DAY_SECONDS,
-          metadata: { bucketId: input.bucketId },
+          metadata: {
+            bucketId: input.bucketId,
+            createdBy: context.session.user.id,
+          },
         },
       });
       // The Get started checklist's "Connect your app".
@@ -74,23 +74,21 @@ export const apiKeyRouter = {
       return { key: created.key };
     }),
 
-  setEnabled: protectedProcedure
+  setEnabled: accountProcedure("apiKey.manage")
     .input(z.object({ keyId: z.string(), enabled: z.boolean() }))
     .handler(async ({ context, input }) => {
-      await auth.api.updateApiKey({
-        headers: context.headers,
-        body: { keyId: input.keyId, enabled: input.enabled },
-      });
+      await setAccountKeyEnabled(
+        context.account.accountId,
+        input.keyId,
+        input.enabled,
+      );
       return { success: true };
     }),
 
-  delete: protectedProcedure
+  delete: accountProcedure("apiKey.manage")
     .input(z.object({ keyId: z.string() }))
     .handler(async ({ context, input }) => {
-      await auth.api.deleteApiKey({
-        headers: context.headers,
-        body: { keyId: input.keyId },
-      });
+      await deleteAccountKey(context.account.accountId, input.keyId);
       return { success: true };
     }),
 };

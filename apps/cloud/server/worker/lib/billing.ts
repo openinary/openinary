@@ -194,6 +194,15 @@ export async function getBucketLimit(
   return planOf(planId).buckets;
 }
 
+/** People allowed on the account, owner included: see PLANS in @openinary/plans. */
+export async function getSeatLimit(
+  userId: string,
+  data?: CustomerData,
+): Promise<number> {
+  const { planId } = await getUsage(userId, data);
+  return planOf(planId).seats;
+}
+
 /**
  * Starts checkout for UPGRADE_PLAN. redirectMode "always" on purpose: with
  * "if_required" a customer who already has a card on file gets charged inline,

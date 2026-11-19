@@ -13,6 +13,8 @@ interface BucketSwitchContextValue {
   /** Non-null only while a switch is in flight - the bucket being switched to. */
   switchingToId: string | null;
   switchToBucket: (bucketId: string) => Promise<void>;
+  /** Moves the session to another account: one's own, or a team's. */
+  switchToAccount: (accountId: string) => Promise<void>;
 }
 
 const BucketSwitchContext = createContext<BucketSwitchContextValue | null>(
@@ -81,6 +83,23 @@ export function BucketSwitchProvider({
           if (!wasHidden) setHideThumbnails(false);
           setIsSwitching(false);
           setSwitchingToId(null);
+        }
+      },
+      switchToAccount: async (accountId: string) => {
+        setIsSwitching(true);
+        const wasHidden = hideThumbnailsRef.current;
+        if (!wasHidden) setHideThumbnails(true);
+        try {
+          await client.team.setActive({ accountId });
+          // Every cached answer belonged to the other account: buckets,
+          // files, usage, keys, role. Drop them all rather than list them.
+          await queryClient.invalidateQueries();
+          router.push("/");
+        } catch {
+          toast.error("Couldn't switch account");
+        } finally {
+          if (!wasHidden) setHideThumbnails(false);
+          setIsSwitching(false);
         }
       },
     }),

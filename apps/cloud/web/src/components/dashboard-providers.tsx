@@ -12,6 +12,7 @@ import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { dashboardAnalytics } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
+import { useAccount } from "@/hooks/use-account";
 
 export const FILE_UPLOADER_DOCS =
   "https://docs.openinary.dev/cloud/file-uploader";
@@ -50,7 +51,12 @@ export function CloudOpeninaryProvider({
 
 /** Nothing but a customer creating one makes an API key exist. */
 function useHasApiKey() {
-  const apiKeys = useQuery(orpc.apiKey.list.queryOptions());
+  // Members can't list keys (the server would answer 403); the step stays open.
+  const canListKeys = useAccount().can("apiKey.manage");
+  const apiKeys = useQuery({
+    ...orpc.apiKey.list.queryOptions(),
+    enabled: canListKeys,
+  });
   return apiKeys.data && apiKeys.data.length > 0;
 }
 

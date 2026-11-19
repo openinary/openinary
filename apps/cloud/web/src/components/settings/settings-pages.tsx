@@ -9,12 +9,15 @@ import {
   KeyRound,
   Palette,
   ScrollText,
+  Users,
 } from "lucide-react";
 
 import { ActivityTab } from "@/components/settings/activity-tab";
 import { ApiKeysTab } from "@/components/settings/api-keys-tab";
 import { BucketsTab } from "@/components/settings/buckets-tab";
 import { BillingTab } from "@/components/settings/billing-tab";
+import { TeamTab } from "@/components/settings/team-tab";
+import { useAccount } from "@/hooks/use-account";
 
 export const SETTINGS_PAGES = [
   {
@@ -46,6 +49,13 @@ export const SETTINGS_PAGES = [
     content: ApiKeysTab,
   },
   {
+    value: "team",
+    label: "Team",
+    description: "The people who can use this account, and what they can do.",
+    icon: Users,
+    content: TeamTab,
+  },
+  {
     value: "billing",
     label: "Usage & billing",
     description: "What you've used this period, what it costs and your plan.",
@@ -63,5 +73,14 @@ export const SETTINGS_PAGES = [
 ] as const satisfies readonly SettingsPageEntry[];
 
 export function Settings({ tab }: { tab: string }) {
-  return <SettingsPage tab={tab} pages={SETTINGS_PAGES} />;
+  const account = useAccount();
+  // Hidden rather than refused: the server enforces both either way.
+  // Unfiltered until the role is known, so a direct link never 404s on load.
+  const pages = SETTINGS_PAGES.filter(
+    (page) =>
+      !account.loaded ||
+      ((page.value !== "team" || account.teamsEnabled) &&
+        (page.value !== "api-keys" || account.can("apiKey.manage"))),
+  );
+  return <SettingsPage tab={tab} pages={pages} />;
 }

@@ -4,6 +4,7 @@ import type { Context, Hono, Next } from "hono";
 import type { CustomerData } from "../../shared/autumn.js";
 import { tenantRootFor } from "../../shared/tenant.js";
 import { auth } from "../lib/auth.js";
+import { activeBucketFor, resolveAccount } from "../lib/account.js";
 import { getActiveBucketId } from "../lib/bucket.js";
 import { meterFor } from "../lib/meter.js";
 
@@ -91,10 +92,17 @@ export async function applySessionTenant(c: Ctx): Promise<boolean> {
 
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   if (!session?.user) return false;
-  setTenant(c, session.user.id, await getActiveBucketId(session.user.id), {
-    name: session.user.name,
-    email: session.user.email,
-  });
+  // Any role may work with media, so no permission check: only which account.
+  const account = await resolveAccount(session);
+  setTenant(
+    c,
+    account.accountId,
+    await activeBucketFor(account),
+    // Autumn's customer is the owner's: a member's details stay out of it.
+    account.memberId
+      ? {}
+      : { name: session.user.name, email: session.user.email },
+  );
   return true;
 }
 

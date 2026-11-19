@@ -18,7 +18,8 @@ import {
 } from "../lib/meter.js";
 import { MAX_EVENTS } from "../lib/delivery-log.js";
 import { recentVideoJobs } from "../video-jobs.js";
-import { protectedProcedure } from "./orpc.js";
+import { customerDataOf } from "./customer.js";
+import { accountProcedure, protectedProcedure } from "./orpc.js";
 
 /** Option ids from the onboarding form, never free text. */
 const slug = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -32,12 +33,9 @@ const ONBOARDING_SHIPPED_AT = Date.parse("2026-10-01T00:00:00Z");
 
 export const usageRouter = {
   get: protectedProcedure.handler(async ({ context }) => {
-    const userId = context.session.user.id;
+    const userId = context.account.accountId;
     const [summary, pendingCdn] = await Promise.all([
-      getUsage(userId, {
-        name: context.session.user.name,
-        email: context.session.user.email,
-      }),
+      getUsage(userId, customerDataOf(context)),
       pendingCdnRequests(context.env, userId),
     ]);
     return withPendingCdn(summary, pendingCdn);
@@ -55,7 +53,7 @@ export const usageRouter = {
       const earliest = Date.now() - 35 * 24 * 60 * 60 * 1000;
       try {
         return await getUsageHistory(
-          context.session.user.id,
+          context.account.accountId,
           Math.max(input.start, earliest),
         );
       } catch (error) {
@@ -122,7 +120,7 @@ export const usageRouter = {
    * they are durable and where the timestamps that were billed already sit.
    */
   activity: protectedProcedure.handler(async ({ context }) => {
-    const userId = context.session.user.id;
+    const userId = context.account.accountId;
     const [deliveries, videoJobs] = await Promise.all([
       readDeliveries(context.env, userId),
       recentVideoJobs(userId),
@@ -132,22 +130,22 @@ export const usageRouter = {
 };
 
 export const billingRouter = {
-  checkout: protectedProcedure.handler(async ({ context }) => {
+  checkout: accountProcedure("billing").handler(async ({ context }) => {
     const paymentUrl = await startUpgradeCheckout(
-      context.session.user.id,
+      context.account.accountId,
       planSettingsUrl,
     );
     return { paymentUrl };
   }),
 
   /** Card brand and last four, or null without one on file. */
-  paymentMethod: protectedProcedure.handler(({ context }) =>
-    getPaymentMethod(context.session.user.id),
+  paymentMethod: accountProcedure("billing").handler(({ context }) =>
+    getPaymentMethod(context.account.accountId),
   ),
 
-  portal: protectedProcedure.handler(async ({ context }) => {
+  portal: accountProcedure("billing").handler(async ({ context }) => {
     const url = await openBillingPortal(
-      context.session.user.id,
+      context.account.accountId,
       planSettingsUrl,
     );
     return { url };

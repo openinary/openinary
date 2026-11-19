@@ -108,7 +108,7 @@ export default function UserPage() {
 
   if (!data) return <NoData error={error} rows={6} />;
 
-  const { user, usage, billing, buckets, apiKeys, sessions, activity, attio } =
+  const { user, usage, billing, buckets, apiKeys, team, sessions, activity, attio } =
     data;
 
   return (
@@ -427,6 +427,30 @@ export default function UserPage() {
                   {key.requestCount.toLocaleString()} reqs
                 </Field>
               ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Team ({team.members.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {team.members.length === 0 && team.memberOf.length === 0 ? (
+              <Empty>Solo account.</Empty>
+            ) : (
+              <>
+                {team.members.map((m) => (
+                  <Field key={m.userId} label={m.email}>
+                    {m.role}
+                  </Field>
+                ))}
+                {team.memberOf.map((t) => (
+                  <Field key={t.accountId} label={`Member of ${t.name}`}>
+                    <Link href={`/users/${t.accountId}`}>{t.role}</Link>
+                  </Field>
+                ))}
+              </>
             )}
           </CardContent>
         </Card>

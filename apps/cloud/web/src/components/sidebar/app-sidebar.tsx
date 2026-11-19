@@ -15,6 +15,7 @@ import { Logo } from "@/components/logo";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { BucketSwitcher } from "@/components/sidebar/bucket-switcher";
 import { UpgradeCard } from "@/components/sidebar/upgrade-card";
+import { useAccount } from "@/hooks/use-account";
 
 const mainItems = [
   { title: "Assets", icon: SolarAssets, url: "/" },
@@ -32,12 +33,21 @@ const settingsPages = [
 
 export function AppSidebar() {
   const setSettingsTab = useSettingsPage();
+  const account = useAccount();
 
   return (
     <DashboardSidebar
       brand={<Logo markOnly className="size-[18px]" />}
-      mainItems={mainItems}
-      settingsPages={settingsPages}
+      mainItems={
+        account.can("apiKey.manage")
+          ? mainItems
+          : mainItems.filter((item) => item.url !== "/settings/api-keys")
+      }
+      settingsPages={
+        account.teamsEnabled
+          ? [{ title: "Team", url: "/settings/team" }, ...settingsPages]
+          : settingsPages
+      }
       settingsActions={[
         {
           label: "Manage buckets",

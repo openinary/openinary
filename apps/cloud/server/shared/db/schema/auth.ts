@@ -50,6 +50,9 @@ export const session = pgTable("session", {
   // dashboard reads it to show its "viewing as" banner and to stay out of the
   // customer's analytics and support identity.
   impersonatedBy: text("impersonated_by"),
+  // better-auth organization plugin: the team account this session acts on.
+  // Null means the user's own account (see worker/lib/account.ts).
+  activeOrganizationId: text("active_organization_id"),
 });
 
 export const account = pgTable("account", {
@@ -115,4 +118,55 @@ export const apikey = pgTable("apikey", {
   updatedAt: timestamp("updated_at").notNull(),
   permissions: text("permissions"),
   metadata: text("metadata"),
+});
+
+/**
+ * Teams, in the shape better-auth's organization plugin expects (property
+ * names are what the drizzle adapter looks up). One organization per owner,
+ * created by worker/rpc/team.ts, never by the user. `ownerUserId` is the
+ * account id every tenant key already uses (R2 prefix, Autumn customer,
+ * UsageMeter, BUCKET_OWNERS), so joining a team never moves data.
+ */
+export const organization = pgTable("organization", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  createdAt: timestamp("created_at").notNull(),
+  metadata: text("metadata"),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const member = pgTable("member", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("member"),
+  createdAt: timestamp("created_at").notNull(),
+  // The bucket this person views inside the team, so one member switching
+  // doesn't move everyone (the owner keeps bucket.active). No FK: bucket.ts
+  // can't be imported here (see schema/bucket.ts), and a stale id falls back.
+  activeBucketId: text("active_bucket_id"),
+});
+
+export const invitation = pgTable("invitation", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role"),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  inviterId: text("inviter_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
 });
