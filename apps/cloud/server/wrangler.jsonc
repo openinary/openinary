@@ -167,8 +167,9 @@
     "ALLOW_PUBLIC_SIGNUP": "true",
     // Teams (worker/rpc/team.ts). "true" turns them on; the beta audience is
     // TEAMS_ALLOWLIST, a Worker secret (comma-separated account ids, kept out
-    // of this public repo like ADMIN_USER_ID). Unset allowlist = everyone.
-    "TEAMS_ENABLED": "false"
+    // of this public repo like ADMIN_USER_ID). Unset allowlist = everyone, so
+    // set the secret before this flag ever goes to "true" on a fresh Worker.
+    "TEAMS_ENABLED": "true"
   },
   // Hourly, NOT every 5 minutes: meterCompletedVideoJobs opens a Postgres
   // connection on every tick, and Neon's Free plan suspends an idle compute
