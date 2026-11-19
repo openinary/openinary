@@ -21,6 +21,7 @@ import {
   planMonthly,
   usageCost,
 } from "@/lib/usage";
+import { useAccount } from "@/hooks/use-account";
 import { cn } from "@/lib/utils";
 import { PLANS, UPGRADE_PLAN } from "@openinary/plans";
 import { orpc } from "@/utils/orpc";
@@ -32,6 +33,13 @@ const BUCKET_ROW = {
   free: String(PLANS.free.buckets),
   early: String(PLANS.early_access.buckets),
   cloud: String(PLANS.cloud.buckets),
+};
+
+const SEATS_ROW = {
+  label: "Team members",
+  free: String(PLANS.free.seats),
+  early: String(PLANS.early_access.seats),
+  cloud: String(PLANS.cloud.seats),
 };
 
 // CDN hits still reach the billing ledger on a one-minute timer so serving an
@@ -259,6 +267,8 @@ export function BillingTab() {
   const { data, isLoading, isError } = useQuery(orpc.usage.get.queryOptions());
   const checkout = useMutation(orpc.billing.checkout.mutationOptions());
   const portal = useMutation(orpc.billing.portal.mutationOptions());
+  // Billing belongs to the account owner; teammates see usage only.
+  const canBill = useAccount().can("billing");
   const planId = data?.planId ?? null;
   const isMetered = isMeteredPlan(planId);
   const monthly = planMonthly(planId);
@@ -381,7 +391,7 @@ export function BillingTab() {
   );
   const paymentMethod = useQuery({
     ...orpc.billing.paymentMethod.queryOptions(),
-    enabled: isMetered,
+    enabled: isMetered && canBill,
   });
 
   // The curve: on a metered plan, what the period has cost so far; on a
@@ -463,7 +473,7 @@ export function BillingTab() {
   const loading =
     isLoading ||
     (periodStart !== null && history.isPending) ||
-    (isMetered && paymentMethod.isPending);
+    (isMetered && canBill && paymentMethod.isPending);
 
   const content = (
     <div className="space-y-4">
@@ -645,7 +655,7 @@ export function BillingTab() {
                 : `${paidPlan.name} ${paidPlan.column === "early" ? "doubles" : "raises"} every allowance and keeps things running past it:`}
             </p>
             <ul className="mt-3 space-y-2 text-sm">
-              {[...FEATURES, BUCKET_ROW].map((feature) => (
+              {[...FEATURES, BUCKET_ROW, SEATS_ROW].map((feature) => (
                 <li key={feature.label} className="flex items-center gap-2">
                   <Check className="size-4 shrink-0 text-muted-foreground" />
                   <span className="tabular-nums">
@@ -662,7 +672,11 @@ export function BillingTab() {
               ))}
             </ul>
             <div className="mt-5">
-              {isMetered ? (
+              {!canBill ? (
+                <p className="text-muted-foreground text-xs">
+                  The account owner manages the plan.
+                </p>
+              ) : isMetered ? (
                 // Alpha has a $0 base price but still bills usage, so the
                 // portal is the only way it can put a card on file.
                 <Button
@@ -847,7 +861,7 @@ export function BillingTab() {
               <span className="w-16 text-right">Free</span>
               <span className="w-20 text-right">{paidPlan.name}</span>
             </div>
-            {[...FEATURES, BUCKET_ROW].map((feature) => (
+            {[...FEATURES, BUCKET_ROW, SEATS_ROW].map((feature) => (
               <div
                 key={feature.label}
                 className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 border-b py-2"

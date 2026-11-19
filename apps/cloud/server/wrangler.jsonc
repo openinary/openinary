@@ -164,7 +164,11 @@
     // Public alpha: unknown emails may sign up (see signUpClosed in
     // worker/lib/auth.ts). Set to anything but "true" - or remove - to close
     // signups again; existing accounts keep working either way.
-    "ALLOW_PUBLIC_SIGNUP": "true"
+    "ALLOW_PUBLIC_SIGNUP": "true",
+    // Teams (worker/rpc/team.ts). "true" turns them on; the beta audience is
+    // TEAMS_ALLOWLIST, a Worker secret (comma-separated account ids, kept out
+    // of this public repo like ADMIN_USER_ID). Unset allowlist = everyone.
+    "TEAMS_ENABLED": "false"
   },
   // Hourly, NOT every 5 minutes: meterCompletedVideoJobs opens a Postgres
   // connection on every tick, and Neon's Free plan suspends an idle compute
@@ -229,7 +233,8 @@
         "BETTER_AUTH_URL": "https://preprod-cdn.openinary.dev",
         "ADMIN_ORIGIN": "https://preprod-admin.openinary.dev",
         "AUTH_COOKIE_PREFIX": "openinary-preprod",
-        "ALLOW_PUBLIC_SIGNUP": "true"
+        "ALLOW_PUBLIC_SIGNUP": "true",
+        "TEAMS_ENABLED": "true"
       },
       "triggers": { "crons": [] }
     }

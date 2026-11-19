@@ -83,3 +83,20 @@ assert.deepEqual(puts, [
 bindSessionKv(undefined);
 
 console.log("auth-email: all checks passed");
+
+// Team invitations: names are user input and land in HTML.
+{
+  const { invitationEmail } = await import("./auth.js");
+  const email = invitationEmail({
+    inviterName: "Eve <b>",
+    accountName: "Acme & Co",
+    role: "admin",
+    url: "https://app.openinary.dev/invite/inv_1",
+  });
+  assert.ok(email.html.includes("Eve &lt;b&gt;"));
+  assert.ok(email.html.includes("Acme &amp; Co"));
+  assert.ok(!email.html.includes("<b>"));
+  assert.ok(email.html.includes('href="https://app.openinary.dev/invite/inv_1"'));
+  assert.ok(email.text.includes("https://app.openinary.dev/invite/inv_1"));
+  assert.equal(email.subject, "Eve <b> invited you to Acme & Co on Openinary");
+}

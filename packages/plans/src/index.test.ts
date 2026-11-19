@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   type Balance,
   FEATURES,
+  PLANS,
   formatGrant,
   formatOverage,
   usageCost,
@@ -66,4 +67,11 @@ test("allowances and overage render as the plan tab shows them", () => {
     ["15 min / mo", "30 min / mo", "500 min / mo", "$0.01 / min"],
     ["25,000 / mo", "50,000 / mo", "1,500,000 / mo", "$0.50 / 100,000"],
   ]);
+});
+
+// Seats are owner included: Free stays solo, paid plans get a small team.
+test("seats per plan", () => {
+  assert.equal(PLANS.free.seats, 1);
+  assert.equal(PLANS.early_access.seats, 3);
+  assert.equal(PLANS.cloud.seats, 3);
 });

@@ -1,5 +1,5 @@
 import { apiKey } from "@better-auth/api-key";
-import { betterAuth } from "better-auth";
+import { APIError, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import {
   admin,
@@ -7,7 +7,9 @@ import {
   emailOTP,
   lastLoginMethod,
   magicLink,
+  organization,
 } from "better-auth/plugins";
+import { count, eq } from "drizzle-orm";
 import { db } from "../../shared/db/index.js";
 import * as schema from "../../shared/db/schema/auth.js";
 import {
@@ -67,6 +69,62 @@ const DOCS_OVERVIEW_URL = "https://docs.openinary.dev/cloud/overview";
  * The sending domain is onboarded once, out of band:
  *   wrangler email sending enable openinary.dev
  */
+const escapeHtml = (value: string) =>
+  value.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ] as string,
+  );
+
+/** Team invitation email. Names are user input, so the HTML escapes them. */
+export function invitationEmail(input: {
+  inviterName: string;
+  accountName: string;
+  role: string;
+  url: string;
+}) {
+  const inviter = escapeHtml(input.inviterName);
+  const account = escapeHtml(input.accountName);
+  return {
+    subject: `${input.inviterName} invited you to ${input.accountName} on Openinary`,
+    text: `${input.inviterName} invited you to join ${input.accountName} on Openinary as ${input.role}.\n\nAccept the invitation:\n${input.url}\n\nIt expires in 48 hours. If you weren't expecting it, ignore this email.`,
+    html: `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#111">
+  <p style="margin:0 0 16px;font-size:15px">${inviter} invited you to join <strong>${account}</strong> on Openinary as ${escapeHtml(input.role)}.</p>
+  <p style="margin:0 0 16px"><a href="${input.url}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none;font-size:15px;font-weight:600">Accept invitation</a></p>
+  <p style="margin:0;font-size:13px;color:#666">It expires in 48 hours. If you weren't expecting it, ignore this email.</p>
+</div>`,
+  };
+}
+
+/** People on a team account right now. */
+async function memberCount(organizationId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(schema.member)
+    .where(eq(schema.member.organizationId, organizationId));
+  return row?.n ?? 0;
+}
+
+/** The account id behind a team: its owner's user id. */
+async function ownerOf(organizationId: string): Promise<string | undefined> {
+  const [row] = await db
+    .select({ ownerUserId: schema.organization.ownerUserId })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, organizationId));
+  return row?.ownerUserId;
+}
+
+async function seatLimitOf(organizationId: string): Promise<number> {
+  const owner = await ownerOf(organizationId);
+  if (!owner) return 0;
+  // Imported lazily: billing pulls in the Autumn client, which tests that
+  // only exercise sign-in emails never need.
+  const { getSeatLimit } = await import("./billing.js");
+  return getSeatLimit(owner);
+}
+
 export async function sendEmail(message: {
   to: string;
   subject: string;
@@ -321,6 +379,71 @@ export const auth = betterAuth({
       // media API. Quotas are already enforced per account by Autumn
       // (lib/billing.ts), so leave throttling to that.
       rateLimit: { enabled: false },
+    }),
+    /**
+     * Teams (worker/lib/account.ts, worker/rpc/team.ts). One organization per
+     * owner, created only by rpc/team.ts, keyed by `ownerUserId`: the account
+     * id storage, billing and the CDN already use. Roles are the plugin's
+     * defaults (owner, admin, member), which already stop a member inviting
+     * or changing roles; what each role may do with buckets, keys and billing
+     * is lib/account.ts's `can()`.
+     *
+     * Seats (owner included) cap members plus pending invitations: the
+     * invitation limit is whatever seats are left, and accepting re-checks
+     * the member count in case the plan dropped meanwhile.
+     */
+    organization({
+      allowUserToCreateOrganization: false,
+      membershipLimit: (_user, org) => seatLimitOf(org.id),
+      invitationLimit: async ({ organization: org }) =>
+        Math.max(0, (await seatLimitOf(org.id)) - (await memberCount(org.id))),
+      invitationExpiresIn: 48 * 60 * 60,
+      // The invite is bound to an address: only a proven owner of it may join.
+      requireEmailVerificationOnInvitation: true,
+      // Our code tears teams down (admin user deletion); a stray client call
+      // must not cut every member off at once.
+      disableOrganizationDeletion: true,
+      organizationHooks: {
+        // ownerUserId is the tenant every request resolves to. Rewriting it
+        // would point the team at another customer's storage and billing.
+        beforeUpdateOrganization: async ({ organization: data }) => {
+          if ("ownerUserId" in data) {
+            throw new APIError("FORBIDDEN", {
+              message: "The account owner can't be changed.",
+            });
+          }
+        },
+      },
+      // Inviting the same email again replaces the old link instead of stacking.
+      cancelPendingInvitationsOnReInvite: true,
+      async sendInvitationEmail({ id, email, role, organization: org, inviter }) {
+        const url = `${DASHBOARD_ORIGIN}/invite/${id}`;
+        if (!process.env.CLOUDFLARE_EMAIL_TOKEN) {
+          console.log(`[auth] team invitation for ${email}: ${url}`);
+          return;
+        }
+        await sendEmail({
+          to: email,
+          ...invitationEmail({
+            inviterName: inviter.user.name || inviter.user.email,
+            accountName: org.name,
+            role,
+            url,
+          }),
+        });
+      },
+      schema: {
+        organization: {
+          additionalFields: {
+            ownerUserId: { type: "string", required: true, input: true },
+          },
+        },
+        member: {
+          additionalFields: {
+            activeBucketId: { type: "string", required: false, input: false },
+          },
+        },
+      },
     }),
     // Cookie-only (no storeInDatabase): the sign-in form just needs a hint of
     // which button to highlight, and the cookie is readable client-side.

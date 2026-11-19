@@ -13,13 +13,14 @@ import {
 } from "@openinary/dashboard/ui/dropdown-menu";
 import { Spinner } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Check, LogOut, Settings2 } from "lucide-react";
+import { Check, LogOut, Settings2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
 import { UsagePanel } from "@/components/sidebar/nav-plan";
+import { useAccount } from "@/hooks/use-account";
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -31,7 +32,12 @@ import { orpc } from "@/utils/orpc";
  */
 export function BucketSwitcher() {
   const setSettingsTab = useSettingsPage();
-  const { isSwitching, switchingToId, switchToBucket } = useBucketSwitch();
+  const { isSwitching, switchingToId, switchToBucket, switchToAccount } =
+    useBucketSwitch();
+  const account = useAccount();
+  const currentAccount = account.accounts.find(
+    (a) => a.accountId === account.current,
+  );
   const router = useRouter();
   const user = authClient.useSession().data?.user;
   const userName = user?.name || user?.email?.split("@")[0] || "You";
@@ -55,7 +61,12 @@ export function BucketSwitcher() {
         )
       }
       name={isSwitching ? "Switching…" : (activeBucket?.name ?? "My bucket")}
-      detail={`${plan ?? "Free"} · ${count} ${count === 1 ? "bucket" : "buckets"}`}
+      detail={
+        // Inside someone else's account, say whose: that's the surprise to avoid.
+        currentAccount && currentAccount.accountId !== user?.id
+          ? `${currentAccount.name} · ${currentAccount.role}`
+          : `${plan ?? "Free"} · ${count} ${count === 1 ? "bucket" : "buckets"}`
+      }
       workspaceMenu={
         <>
           <DropdownMenuGroup>
@@ -78,13 +89,15 @@ export function BucketSwitcher() {
                 )}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuItem
-              disabled={isSwitching}
-              onSelect={() => setSettingsTab("buckets")}
-            >
-              <Settings2 />
-              Manage buckets
-            </DropdownMenuItem>
+            {account.can("bucket.manage") && (
+              <DropdownMenuItem
+                disabled={isSwitching}
+                onSelect={() => setSettingsTab("buckets")}
+              >
+                <Settings2 />
+                Manage buckets
+              </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -109,6 +122,35 @@ export function BucketSwitcher() {
             <span className="truncate">{user?.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {account.accounts.length > 1 && (
+            <>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Accounts</DropdownMenuLabel>
+                {account.accounts.map((a) => (
+                  <DropdownMenuItem
+                    key={a.accountId}
+                    disabled={isSwitching}
+                    onSelect={() => {
+                      if (a.accountId !== account.current)
+                        switchToAccount(a.accountId);
+                    }}
+                  >
+                    <span className="flex-1 truncate">
+                      {a.accountId === user?.id ? "Personal" : a.name}
+                    </span>
+                    {a.accountId === account.current && <Check />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
+          {account.teamsEnabled && (
+            <DropdownMenuItem onSelect={() => setSettingsTab("team")}>
+              <Users />
+              Team
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onSelect={() => setSettingsTab("appearance")}>
             <SolarPalette />
             Appearance

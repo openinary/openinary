@@ -1,0 +1,56 @@
+---
+title: "Teams"
+sidebar:
+  # Unhide when TEAMS_ALLOWLIST is cleared and teams are open to everyone.
+  hidden: true
+description: "Invite people to your Openinary Cloud account, give them a role, and switch between your own account and the teams you belong to."
+---
+
+A team is a set of people who work in the same Cloud account: the same buckets, files, API keys and usage, all on the account owner's plan. Nothing is copied or moved when someone joins.
+
+## Roles
+
+| | Owner | Admin | Member |
+| --- | :---: | :---: | :---: |
+| Upload, browse and delete media | ✓ | ✓ | ✓ |
+| See usage | ✓ | ✓ | ✓ |
+| Create, rename and delete buckets | ✓ | ✓ | |
+| Create and revoke API keys | ✓ | ✓ | |
+| Invite and remove people, change roles | ✓ | ✓ | |
+| Change the plan, billing and payment method | ✓ | | |
+
+Every account has exactly one owner: the person who created it. Billing always stays with them.
+
+## Seats
+
+Seats count everyone on the account, owner included, plus pending invitations.
+
+| Plan | Seats |
+| --- | :---: |
+| Free | 1 |
+| Alpha | 3 |
+| Cloud | 3 |
+
+A Free account is a solo account. Upgrade from **Settings → Usage & billing** to invite people.
+
+## Invite someone
+
+1. Open **Settings → Team** in the [dashboard](https://app.openinary.dev).
+2. Enter their email address, pick **Member** or **Admin**, and send the invitation.
+3. They get an email with a link. It works for 48 hours and only for that address. If they have no Openinary account yet, they create one by signing in from the link.
+
+Pending invitations are listed under the members. Cancel one to free its seat.
+
+## Switch accounts
+
+Joining a team doesn't replace your own account. Open the account menu at the bottom of the sidebar and pick **Personal** or a team under **Accounts**. Everything in the dashboard follows: buckets, files, keys and usage.
+
+Each person keeps their own active bucket inside a team, so switching buckets never changes what a teammate is looking at.
+
+## API keys belong to the account
+
+A key created by an admin belongs to the account, not to that person. It keeps working after they leave the team, and the owner and other admins can revoke it. Removing someone only takes away their dashboard access.
+
+## Remove someone
+
+In **Settings → Team**, use the trash icon next to their name. They lose access on their next request. Files they uploaded stay in the account.

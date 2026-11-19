@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { BucketAvatar } from "@/components/bucket-avatar";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useBucketSwitch } from "@/components/sidebar/bucket-switch-context";
+import { useAccount } from "@/hooks/use-account";
 import { Button } from "@openinary/dashboard/ui/button";
 import { Input } from "@openinary/dashboard/ui/input";
 import { Skeleton } from "skullet/react";
@@ -64,6 +65,8 @@ export function BucketsTab() {
   const quota = useQuery(orpc.bucket.quota.queryOptions());
   const setSettingsTab = useSettingsPage();
   const { isSwitching, switchingToId, switchToBucket } = useBucketSwitch();
+  // Members can switch buckets but not create, rename or delete them.
+  const canManage = useAccount().can("bucket.manage");
 
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -152,6 +155,7 @@ export function BucketsTab() {
 
   return (
     <div className="space-y-6">
+      {canManage && (
       <form onSubmit={handleCreate}>
         <SettingsSection
           title="Create a bucket"
@@ -204,11 +208,16 @@ export function BucketsTab() {
           </SettingsActions>
         </SettingsSection>
       </form>
+      )}
 
 
       <SettingsSection
         title="Your buckets"
-        description="Click a name to rename it. Deleting a bucket deletes its files."
+        description={
+          canManage
+            ? "Click a name to rename it. Deleting a bucket deletes its files."
+            : "Switch to the bucket you want to work in."
+        }
       >
         {/* One skeleton across loading and loaded: under this id skullet
             recalls the list as it last looked, so its height never changes. */}
@@ -265,7 +274,8 @@ export function BucketsTab() {
                     ) : (
                       <button
                         type="button"
-                        className="flex max-w-full items-center gap-1.5 truncate rounded-md px-1 py-0.5 font-medium hover:bg-muted"
+                        disabled={!canManage}
+                        className="flex max-w-full items-center gap-1.5 truncate rounded-md px-1 py-0.5 font-medium hover:bg-muted disabled:hover:bg-transparent"
                         onClick={() => {
                           setRenamingId(bucket.id);
                           setRenameValue(bucket.name);
@@ -303,6 +313,7 @@ export function BucketsTab() {
                         )}
                       </Button>
                     )}
+                    {canManage && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -323,6 +334,7 @@ export function BucketsTab() {
                           : "Delete"}
                       </TooltipContent>
                     </Tooltip>
+                    )}
                   </div>
                 </div>
               ))}

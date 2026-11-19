@@ -26,7 +26,9 @@ import {
   getUsage,
   grantPlan,
 } from "../lib/billing.js";
-import { bucketIdOf, listBuckets } from "../lib/bucket.js";
+import { teamOf } from "../lib/account.js";
+import { listAccountKeys } from "../lib/api-keys.js";
+import { listBuckets } from "../lib/bucket.js";
 import {
   pendingCdnRequests,
   readDeliveries,
@@ -89,47 +91,6 @@ type AdminSession = Awaited<
   ReturnType<typeof auth.api.listUserSessions>
 >["sessions"][number];
 
-/** better-auth stores apikey.metadata as a JSON string; drizzle hands it back raw. */
-function parseMetadata(raw: string | null): unknown {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-async function apiKeysOf(userId: string) {
-  const rows = await db
-    .select({
-      id: apikey.id,
-      name: apikey.name,
-      start: apikey.start,
-      enabled: apikey.enabled,
-      metadata: apikey.metadata,
-      createdAt: apikey.createdAt,
-      expiresAt: apikey.expiresAt,
-      lastRequest: apikey.lastRequest,
-      requestCount: apikey.requestCount,
-    })
-    // Queried directly rather than through auth.api.listApiKeys, which reads
-    // the *caller's* keys off their session - there is no admin variant.
-    .from(apikey)
-    .where(eq(apikey.referenceId, userId));
-
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    start: row.start,
-    enabled: row.enabled ?? false,
-    bucketId: bucketIdOf(parseMetadata(row.metadata)),
-    createdAt: row.createdAt.toISOString(),
-    expiresAt: row.expiresAt?.toISOString() ?? null,
-    lastRequest: row.lastRequest?.toISOString() ?? null,
-    requestCount: row.requestCount ?? 0,
-  }));
-}
-
 /**
  * Flips service off (or back on) for an account. Three independent switches,
  * because three independent things authenticate a request:
@@ -183,7 +144,8 @@ type AdminUserDetail = {
     suspended: boolean;
   };
   buckets: Awaited<ReturnType<typeof listBuckets>>;
-  apiKeys: Awaited<ReturnType<typeof apiKeysOf>>;
+  apiKeys: Awaited<ReturnType<typeof listAccountKeys>>;
+  team: Awaited<ReturnType<typeof teamOf>>;
   sessions: {
     id: string;
     createdAt: string;
@@ -272,9 +234,10 @@ export const adminRouter = {
         deliveries,
         videoJobs,
         attio,
+        team,
       ] = await Promise.all([
         settle(listBuckets(userId), [], "buckets"),
-        settle(apiKeysOf(userId), [], "api keys"),
+        settle(listAccountKeys(userId), [], "api keys"),
         settle<AdminSession[]>(
           auth.api
             .listUserSessions({ headers: context.headers, body: { userId } })
@@ -288,6 +251,7 @@ export const adminRouter = {
         settle(readDeliveries(context.env, userId), [], "deliveries"),
         settle(recentVideoJobs(userId), [], "video jobs"),
         settle(findPersonByEmail(account.email), null, "Attio record"),
+        settle(teamOf(userId), { members: [], memberOf: [] }, "team"),
       ]);
 
       return {
@@ -307,6 +271,7 @@ export const adminRouter = {
         },
         buckets,
         apiKeys,
+        team,
         sessions: sessions.map((session) => ({
           id: session.id,
           createdAt: new Date(session.createdAt).toISOString(),

@@ -4,8 +4,10 @@
 
 import { tenantRootFor } from "../../shared/tenant.js";
 import { deleteTenant } from "../assets.js";
+import { can, resolveAccount } from "../lib/account.js";
+import { deleteBucketKeys } from "../lib/api-keys.js";
 import { auth } from "../lib/auth.js";
-import { bucketIdOf, deleteBucket, listBuckets } from "../lib/bucket.js";
+import { deleteBucket, listBuckets } from "../lib/bucket.js";
 import { meterFor } from "../lib/meter.js";
 import { forgetBuckets } from "../owner-cache.js";
 import type { App } from "./tenant.js";
@@ -21,7 +23,10 @@ export function bucketRoutes(app: App): void {
   app.delete("/buckets/:bucketId", async (c) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     if (!session?.user) return c.json({ error: "Unauthorized" }, 401);
-    const userId = session.user.id;
+    const account = await resolveAccount(session);
+    if (!can(account.role, "bucket.manage"))
+      return c.json({ error: "Forbidden" }, 403);
+    const userId = account.accountId;
     const bucketId = c.req.param("bucketId");
 
     const buckets = await listBuckets(userId);
@@ -39,17 +44,9 @@ export function bucketRoutes(app: App): void {
     );
 
     // Keys pinned to this bucket would otherwise keep authenticating while
-    // writing into a prefix nothing can read back.
-    const { apiKeys } = await auth.api.listApiKeys({
-      headers: c.req.raw.headers,
-    });
-    for (const key of apiKeys) {
-      if (bucketIdOf(key.metadata) === bucketId)
-        await auth.api.deleteApiKey({
-          headers: c.req.raw.headers,
-          body: { keyId: key.id },
-        });
-    }
+    // writing into a prefix nothing can read back. Every key on the account,
+    // whoever on the team minted it.
+    await deleteBucketKeys(userId, bucketId);
 
     await deleteBucket(userId, bucketId);
     const meter = meterFor(c.env.USAGE_METER, userId);
@@ -58,10 +55,12 @@ export function bucketRoutes(app: App): void {
     await meter.forgetBucket(bucketId);
     await forgetBuckets(c.env.BUCKET_OWNERS, [bucketId]);
     c.executionCtx.waitUntil(
-      meter.trackStorage(-bytes, {
-        name: session.user.name,
-        email: session.user.email,
-      }),
+      meter.trackStorage(
+        -bytes,
+        account.memberId
+          ? {}
+          : { name: session.user.name, email: session.user.email },
+      ),
     );
     return c.body(null, 204);
   });
