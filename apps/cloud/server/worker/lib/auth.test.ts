@@ -60,8 +60,10 @@ await assert.rejects(
 // Session store: unbound (tests, scripts) every read misses, so better-auth
 // falls back to Postgres; bound, a sub-minute TTL is rounded up to KV's 60s
 // floor instead of failing the write.
-const { auth, bindSessionKv } = await import("./auth.js");
-const store = auth.options.secondaryStorage!;
+// Through loadAuth, so this also proves the lazily loaded instance reads the
+// KV that app.ts binds on the light module.
+const { loadAuth, bindSessionKv } = await import("./auth.js");
+const store = (await loadAuth()).options.secondaryStorage!;
 assert.equal(await store.get("token"), null);
 const puts: { key: string; ttl?: number }[] = [];
 bindSessionKv({
