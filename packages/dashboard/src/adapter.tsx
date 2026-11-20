@@ -43,6 +43,8 @@ export interface DashboardAdapter {
   /** next/navigation's notFound. */
   notFound: () => never;
 
+  /** The tab title's suffix, "Page · <this>": the active bucket on Cloud. Null while it loads. */
+  useWorkspaceName: () => string | null;
   /** What holds the user's files, as prose: "storage" or "bucket". */
   storageNoun: "storage" | "bucket";
   /** Where the empty library's Documentation link goes. */

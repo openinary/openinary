@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Skeleton } from "skullet/react";
 
 import { useCanManageApiKeys, useDashboard } from "../../adapter";
+import { useDocumentTitle } from "../../hooks/use-document-title";
 import {
   SolarImages,
   SolarIntegrate,
@@ -30,6 +31,7 @@ export function GetStartedPage({
   description: string;
   children: React.ReactNode;
 }) {
+  useDocumentTitle(title);
   return (
     <Page
       title={heading}

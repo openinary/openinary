@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTabTitle } from "@openinary/dashboard";
 import { FileUploader, type SignedUpload, type UploadedFile } from "@openinary/ui";
 
 /**
@@ -10,6 +11,7 @@ import { FileUploader, type SignedUpload, type UploadedFile } from "@openinary/u
  */
 export default function UploaderDemoPage() {
   const [uploaded, setUploaded] = React.useState<UploadedFile[]>([]);
+  useTabTitle("Uploader demo · Openinary");
 
   const baseUrl =
     process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";

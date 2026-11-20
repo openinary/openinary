@@ -8,6 +8,7 @@ import {
   useQueueEvents,
 } from "@openinary/ui";
 import { Skeleton } from "skullet/react";
+import { useDocumentTitle } from "@openinary/dashboard";
 
 // The real table over stand-in jobs, measured into the skeleton.
 const SAMPLE_JOBS: QueueJob[] = [0, 1, 2].map((i) => ({
@@ -26,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
 
 export default function QueuePage() {
+  useDocumentTitle("Queue");
   const [jobs, setJobs] = useState<QueueJob[]>([]);
   const [stats, setStats] = useState({
     total: 0,

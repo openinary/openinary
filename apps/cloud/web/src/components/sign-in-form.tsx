@@ -1,5 +1,6 @@
 "use client";
 
+import { useTabTitle } from "@openinary/dashboard";
 import { useForm } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -193,6 +194,7 @@ export default function SignInForm({
   // The address the code went to. Empty = still on the email step; no valid
   // email is ever "", so it doubles as the step flag.
   const [sentTo, setSentTo] = useState("");
+  useTabTitle(`${sentTo ? "Check your email" : "Sign in"} · Openinary Cloud`);
 
   // One form across both steps: same submit button, and the email is still
   // there when the code comes back. useForm re-applies these options on every

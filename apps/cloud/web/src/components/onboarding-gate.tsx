@@ -9,6 +9,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { useDocumentTitle } from "@openinary/dashboard";
+
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import {
   trackOnboardingStarted,
@@ -37,6 +39,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
 
   const onboarded = state.data?.onboarded;
   const shown = !!user && !!bucket && onboarded === false;
+  useDocumentTitle(shown ? "Welcome" : null);
   useEffect(() => {
     if (shown) trackOnboardingStarted();
   }, [shown]);

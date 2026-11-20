@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import { useDashboard } from "../../adapter";
+import { useDocumentTitle } from "../../hooks/use-document-title";
 import { Page } from "../page";
 
 export interface SettingsPageEntry {
@@ -28,6 +29,7 @@ export function SettingsPage({
 }) {
   const { notFound } = useDashboard();
   const page = pages.find(({ value }) => value === tab);
+  useDocumentTitle(page?.label);
   if (!page) return notFound();
 
   return (

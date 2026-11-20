@@ -10,6 +10,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { useDocumentTitle } from "@openinary/dashboard";
+
 import { authClient, useSession } from "@/lib/auth-client";
 
 export interface OnboardingState {
@@ -51,6 +53,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
 
   const data = state.data;
   const completed = data?.completed;
+  useDocumentTitle(session?.user && data && !completed ? "Welcome" : null);
   useEffect(() => {
     if (completed) rememberOnboarded();
   }, [completed]);

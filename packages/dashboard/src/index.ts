@@ -28,3 +28,4 @@ export * from "./ui/solar-icons";
 export { useDeliveryBase } from "./hooks/use-delivery-base";
 export { useHydrated } from "./hooks/use-hydrated";
 export { formatSeconds, splitDelivery } from "./lib/activity";
+export { useDocumentTitle, useTabTitle } from "./hooks/use-document-title";
