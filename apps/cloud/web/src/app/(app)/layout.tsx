@@ -18,12 +18,17 @@ export default async function AppLayout({
   const signedIn = cookieStore.get("signed_in")?.value === "1";
   // Written by OnboardingGate once an account here is known to be onboarded.
   const onboarded = cookieStore.get("onboarded")?.value === "1";
+  // Better Auth's own last-used cookie, so the sign-in form greets a
+  // returning visitor right from the server render, with no swap.
+  const lastMethod =
+    cookieStore.get("better-auth.last_used_login_method")?.value ?? null;
 
   return (
     <AppShell
       sidebarDefaultOpen={sidebarOpen}
       signedInHint={signedIn}
       onboardedHint={onboarded}
+      lastMethodHint={lastMethod}
     >
       {children}
     </AppShell>

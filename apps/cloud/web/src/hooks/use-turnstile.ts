@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Public site key - unset means no widget and no server-side check either
 // (the captcha plugin is gated on TURNSTILE_SECRET_KEY, see server auth.ts).
@@ -9,7 +9,13 @@ const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 type Turnstile = {
   render: (
     el: HTMLElement,
-    opts: { sitekey: string; callback: (token: string) => void },
+    opts: {
+      sitekey: string;
+      callback: (token: string) => void;
+      appearance?: "always" | "execute" | "interaction-only";
+      "before-interactive-callback"?: () => void;
+      "after-interactive-callback"?: () => void;
+    },
   ) => string;
   reset: (id: string) => void;
   remove: (id: string) => void;
@@ -37,6 +43,8 @@ export function useTurnstile() {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string>(undefined);
   const token = useRef(pendingToken());
+  // The widget stays invisible unless Cloudflare asks the visitor to click.
+  const [interactive, setInteractive] = useState(false);
 
   // Explicit render (not the `cf-turnstile` class auto-scan): the script is
   // only parsed once per document, so a client-side nav back to this form
@@ -49,6 +57,9 @@ export function useTurnstile() {
       widgetId.current = window.turnstile?.render(el, {
         sitekey: SITE_KEY,
         callback: (t) => token.current.resolve(t),
+        appearance: "interaction-only",
+        "before-interactive-callback": () => setInteractive(true),
+        "after-interactive-callback": () => setInteractive(false),
       });
     };
 
@@ -83,6 +94,8 @@ export function useTurnstile() {
 
   return {
     containerRef,
+    /** True only while Cloudflare shows a challenge the visitor must click. */
+    interactive,
     reset,
     /**
      * Auth request headers: `{}` when Turnstile is off, `null` when no token

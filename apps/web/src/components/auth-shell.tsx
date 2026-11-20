@@ -20,7 +20,7 @@ export function AuthShell({
     <AuthSplit>
     <div className="flex flex-1 flex-col items-center px-4">
       <VersionBadge />
-      <div className="ds-rise my-auto w-full max-w-[356px] py-10">
+      <div className="my-auto w-full max-w-[356px] py-10">
         <div className="mb-12 flex items-center justify-center gap-2">
           <Image
             src="/icon.svg"
