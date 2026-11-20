@@ -1,8 +1,14 @@
 "use client";
 
-import { Onboarding, useOpeninary } from "@openinary/ui";
+import {
+  Onboarding,
+  OnboardingBackdrop,
+  rememberOnboarded,
+  useOpeninary,
+} from "@openinary/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { authClient, useSession } from "@/lib/auth-client";
 
@@ -31,16 +37,29 @@ export function useOnboardingState() {
  * Covers the dashboard with the first-run questionnaire until the signed-in
  * account has answered it. Rendered over the page rather than instead of it,
  * so accounts that are done never wait on this request.
+ *
+ * Until the answer is known, a browser that never saw an onboarded account
+ * (no `onboarded` cookie, read by the layout) gets the onboarding's sky, so a
+ * first sign-in doesn't flash the dashboard before the questionnaire.
  */
-export function OnboardingGate() {
+export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   const { apiBaseUrl, fetch } = useOpeninary();
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const state = useOnboardingState();
   const queryClient = useQueryClient();
   const router = useRouter();
 
   const data = state.data;
-  if (!session?.user || !data || data.completed) return null;
+  const completed = data?.completed;
+  useEffect(() => {
+    if (completed) rememberOnboarded();
+  }, [completed]);
+
+  if (!session?.user || !data) {
+    const loading = sessionPending || (!!session?.user && state.isPending);
+    return loading && !onboardedHint ? <OnboardingBackdrop /> : null;
+  }
+  if (data.completed) return null;
 
   return (
     <Onboarding

@@ -134,6 +134,8 @@ export {
 // First-run onboarding (cloud and self-hosted)
 export {
   Onboarding,
+  OnboardingBackdrop,
+  rememberOnboarded,
   ONBOARDING_ROLES,
   ONBOARDING_SOURCES,
   ONBOARDING_USE_CASES,

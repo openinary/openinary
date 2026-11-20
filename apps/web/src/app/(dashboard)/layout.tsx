@@ -13,13 +13,15 @@ export default async function DashboardLayout({
 }>) {
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  // Written by OnboardingGate once an account here is known to be onboarded.
+  const onboarded = cookieStore.get("onboarded")?.value === "1";
 
   return (
     <WebDashboardProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <DashboardShell>{children}</DashboardShell>
         <ChatbotButton />
-        <OnboardingGate />
+        <OnboardingGate onboardedHint={onboarded} />
       </SidebarProvider>
     </WebDashboardProvider>
   );

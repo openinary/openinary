@@ -70,10 +70,12 @@ function ImpersonationBanner({
 export function AppShell({
   sidebarDefaultOpen,
   signedInHint,
+  onboardedHint,
   children,
 }: {
   sidebarDefaultOpen: boolean;
   signedInHint: boolean;
+  onboardedHint: boolean;
   children: React.ReactNode;
 }) {
   const { data: session, isPending } = authClient.useSession();
@@ -131,7 +133,7 @@ export function AppShell({
             </Suspense>
             {/* Answering it would write the admin's answers onto the
                 customer's profile and bucket. */}
-            {session && !impersonating ? <OnboardingGate /> : null}
+            {session && !impersonating ? <OnboardingGate onboardedHint={onboardedHint} /> : null}
           </BucketSwitchProvider>
         </SidebarProvider>
       </CloudDashboardProvider>

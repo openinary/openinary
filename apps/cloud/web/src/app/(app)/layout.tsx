@@ -16,9 +16,15 @@ export default async function AppLayout({
   // Hint written by AppShell once the session is known, so the first paint
   // can guess which screen is coming (shell skeleton or sign-in form).
   const signedIn = cookieStore.get("signed_in")?.value === "1";
+  // Written by OnboardingGate once an account here is known to be onboarded.
+  const onboarded = cookieStore.get("onboarded")?.value === "1";
 
   return (
-    <AppShell sidebarDefaultOpen={sidebarOpen} signedInHint={signedIn}>
+    <AppShell
+      sidebarDefaultOpen={sidebarOpen}
+      signedInHint={signedIn}
+      onboardedHint={onboarded}
+    >
       {children}
     </AppShell>
   );
