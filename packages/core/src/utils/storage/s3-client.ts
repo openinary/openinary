@@ -334,6 +334,7 @@ export class S3ClientWrapper {
    */
   async getObjectMetadata(
     key: string,
+    { throwOnError = false }: { throwOnError?: boolean } = {},
   ): Promise<{
     size: number;
     lastModified: Date;
@@ -352,7 +353,12 @@ export class S3ClientWrapper {
         lastModified: response.LastModified ?? new Date(),
         metadata: response.Metadata,
       };
-    } catch {
+    } catch (error: any) {
+      // A missing key is null either way; other failures (auth, network)
+      // only look like "missing" when the caller doesn't ask to see them.
+      const notFound =
+        error?.name === "NotFound" || error?.$metadata?.httpStatusCode === 404;
+      if (throwOnError && !notFound) throw error;
       return null;
     }
   }
@@ -383,7 +389,15 @@ export class S3ClientWrapper {
         }),
       );
 
-      totalDeleted += batch.length - (response.Errors?.length ?? 0);
+      // DeleteObjects answers 200 even when some keys failed.
+      if (response.Errors?.length) {
+        throw new Error(
+          `Failed to delete ${response.Errors.length} storage object(s): ${response.Errors.map(
+            (e) => `${e.Key}: ${e.Code}`,
+          ).join("; ")}`,
+        );
+      }
+      totalDeleted += batch.length;
     }
 
     return totalDeleted;
