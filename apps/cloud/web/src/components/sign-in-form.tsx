@@ -9,6 +9,7 @@ import z from "zod";
 import { useTurnstile } from "@/hooks/use-turnstile";
 import { authClient } from "@/lib/auth-client";
 import { Logo } from "./logo";
+import { AuthSplit } from "@openinary/dashboard/ui/auth-split";
 import { Button } from "@openinary/dashboard/ui/button";
 import {
   Card,
@@ -144,7 +145,7 @@ export function GoogleButton({
 export function AuthSeparator() {
   return (
     <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
-      <span className="relative z-10 bg-(--ds-modal-bg) px-2 text-ds-faint text-xs">
+      <span className="relative z-10 bg-ds-panel px-2 text-ds-faint text-xs">
         Or continue with
       </span>
     </div>
@@ -262,78 +263,126 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-ds-panel px-4 py-10 text-ds-text">
-      <div className="ds-rise flex w-full max-w-[420px] flex-col gap-6">
-        <a
-          href="https://www.openinary.dev"
-          className="self-center text-foreground"
-        >
-          <Logo className="h-6 w-auto" />
-        </a>
+    <AuthSplit>
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
+        <div className="ds-rise flex w-full max-w-[356px] flex-col gap-6">
+          <a
+            href="https://www.openinary.dev"
+            className="mb-6 self-center text-foreground"
+          >
+            <Logo className="h-6 w-auto" />
+          </a>
 
-        <Card className="ds-modal gap-6 border-0 py-6 sm:py-8 [&>div]:px-6 sm:[&>div]:px-8">
-          <CardHeader>
-            {/* This page signs in *and* signs up, so it only greets someone as
+          <Card className="gap-6 rounded-none border-0 bg-transparent py-0 shadow-none [&>div]:px-0">
+            <CardHeader>
+              {/* This page signs in *and* signs up, so it only greets someone as
                 returning when the last-used cookie proves they are - otherwise
                 it stays neutral. Same cookie as the badge below, so both light
                 up together after hydration. */}
-            <CardTitle className="font-semibold text-[18px]/6 tracking-[-0.01em]">
-              {sentTo
-                ? "Check your email"
-                : lastMethod
-                  ? "Welcome back"
-                  : "Welcome to Openinary Cloud"}
-            </CardTitle>
-            <CardDescription>
-              {sentTo ? (
-                `We sent a 6-digit code to ${sentTo}`
-              ) : lastMethod ? (
-                "Continue with the method you used last time."
-              ) : (
-                <>
-                  Sign in or create your account.
-                  <br />
-                  We'll email you a 6-digit code.
-                </>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                void form.handleSubmit();
-              }}
-              className="grid gap-6"
-            >
-              {!sentTo && (
-                <>
-                  <GoogleButton
-                    label="Login with Google"
-                    lastUsed={lastMethod === "google"}
-                  />
+              <CardTitle className="font-semibold text-[18px]/6 tracking-[-0.01em]">
+                {sentTo
+                  ? "Check your email"
+                  : lastMethod
+                    ? "Welcome back"
+                    : "Welcome to Openinary Cloud"}
+              </CardTitle>
+              <CardDescription>
+                {sentTo ? (
+                  `We sent a 6-digit code to ${sentTo}`
+                ) : lastMethod ? (
+                  "Continue with the method you used last time."
+                ) : (
+                  <>
+                    Sign in or create your account.
+                    <br />
+                    We'll email you a 6-digit code.
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void form.handleSubmit();
+                }}
+                className="grid gap-6"
+              >
+                {!sentTo && (
+                  <>
+                    <GoogleButton
+                      label="Login with Google"
+                      lastUsed={lastMethod === "google"}
+                    />
 
-                  <AuthSeparator />
+                    <AuthSeparator />
 
-                  <form.Field name="email">
+                    <form.Field name="email">
+                      {(field) => (
+                        <div className="grid gap-2">
+                          <Label htmlFor={field.name}>Email</Label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            type="email"
+                            autoComplete="email"
+                            placeholder="m@example.com"
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                          />
+                          {field.state.meta.errors.map((error) => (
+                            <p
+                              key={error?.message}
+                              className="text-destructive text-sm"
+                            >
+                              {error?.message}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </form.Field>
+                  </>
+                )}
+
+                {sentTo && (
+                  <form.Field name="otp">
                     {(field) => (
                       <div className="grid gap-2">
-                        <Label htmlFor={field.name}>Email</Label>
-                        <Input
+                        <Label htmlFor={field.name} className="sr-only">
+                          Code
+                        </Label>
+                        <InputOTP
                           id={field.name}
                           name={field.name}
-                          type="email"
-                          autoComplete="email"
-                          placeholder="m@example.com"
+                          maxLength={6}
+                          // Only field on this step, reached by an explicit
+                          // submit, so focus is where the user is already looking.
+                          // (autoComplete="one-time-code" is the component's own
+                          // default, which is what lets the OS offer the code.)
+                          autoFocus
+                          containerClassName="justify-center"
                           value={field.state.value}
                           onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                        />
+                          onChange={(value) => {
+                            field.handleChange(value);
+                            // Submit on the last digit - typing it, or pasting
+                            // the whole code at once. Fixing a wrong code drops
+                            // back under six, so the correction re-submits too.
+                            if (value.length === 6) void form.handleSubmit();
+                          }}
+                        >
+                          <InputOTPGroup>
+                            {[0, 1, 2, 3, 4, 5].map((i) => (
+                              <InputOTPSlot key={i} index={i} />
+                            ))}
+                          </InputOTPGroup>
+                        </InputOTP>
                         {field.state.meta.errors.map((error) => (
                           <p
                             key={error?.message}
-                            className="text-destructive text-sm"
+                            className="text-center text-destructive text-sm"
                           >
                             {error?.message}
                           </p>
@@ -341,110 +390,64 @@ export default function SignInForm() {
                       </div>
                     )}
                   </form.Field>
-                </>
-              )}
+                )}
 
-              {sentTo && (
-                <form.Field name="otp">
-                  {(field) => (
-                    <div className="grid gap-2">
-                      <Label htmlFor={field.name} className="sr-only">
-                        Code
-                      </Label>
-                      <InputOTP
-                        id={field.name}
-                        name={field.name}
-                        maxLength={6}
-                        // Only field on this step, reached by an explicit
-                        // submit, so focus is where the user is already looking.
-                        // (autoComplete="one-time-code" is the component's own
-                        // default, which is what lets the OS offer the code.)
-                        autoFocus
-                        containerClassName="justify-center"
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(value) => {
-                          field.handleChange(value);
-                          // Submit on the last digit - typing it, or pasting
-                          // the whole code at once. Fixing a wrong code drops
-                          // back under six, so the correction re-submits too.
-                          if (value.length === 6) void form.handleSubmit();
-                        }}
-                      >
-                        <InputOTPGroup>
-                          {[0, 1, 2, 3, 4, 5].map((i) => (
-                            <InputOTPSlot key={i} index={i} />
-                          ))}
-                        </InputOTPGroup>
-                      </InputOTP>
-                      {field.state.meta.errors.map((error) => (
-                        <p
-                          key={error?.message}
-                          className="text-center text-destructive text-sm"
-                        >
-                          {error?.message}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </form.Field>
-              )}
-
-              {/* Stays mounted across both steps: the widget is rendered once
+                {/* Stays mounted across both steps: the widget is rendered once
                   into this node, and unmounting it would leave the email step
                   captcha-less on the way back. */}
-              <div
-                ref={captcha.containerRef}
-                className={
-                  sentTo ? "hidden" : "flex justify-center empty:hidden"
-                }
-              />
+                <div
+                  ref={captcha.containerRef}
+                  className={
+                    sentTo ? "hidden" : "flex justify-center empty:hidden"
+                  }
+                />
 
-              <form.Subscribe>
-                {(state) => {
-                  const button = (
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={!state.canSubmit || state.isSubmitting}
-                    >
-                      {state.isSubmitting ? (
-                        <Loader2
-                          className="animate-spin"
-                          aria-label="Loading"
-                        />
-                      ) : sentTo ? (
-                        "Sign in"
-                      ) : (
-                        "Send code"
-                      )}
-                    </Button>
-                  );
-                  // Only worth pointing at the email route before a code is
-                  // requested; on the code step there is nothing else to pick.
-                  return lastMethod === "email" && !sentTo ? (
-                    <LastUsedBadge invert>{button}</LastUsedBadge>
-                  ) : (
-                    button
-                  );
-                }}
-              </form.Subscribe>
+                <form.Subscribe>
+                  {(state) => {
+                    const button = (
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={!state.canSubmit || state.isSubmitting}
+                      >
+                        {state.isSubmitting ? (
+                          <Loader2
+                            className="animate-spin"
+                            aria-label="Loading"
+                          />
+                        ) : sentTo ? (
+                          "Sign in"
+                        ) : (
+                          "Send code"
+                        )}
+                      </Button>
+                    );
+                    // Only worth pointing at the email route before a code is
+                    // requested; on the code step there is nothing else to pick.
+                    return lastMethod === "email" && !sentTo ? (
+                      <LastUsedBadge invert>{button}</LastUsedBadge>
+                    ) : (
+                      button
+                    );
+                  }}
+                </form.Subscribe>
 
-              {sentTo && (
-                <button
-                  type="button"
-                  onClick={backToEmail}
-                  className="text-center text-muted-foreground text-sm underline underline-offset-4 hover:text-primary"
-                >
-                  Use a different email
-                </button>
-              )}
-            </form>
-          </CardContent>
-        </Card>
+                {sentTo && (
+                  <button
+                    type="button"
+                    onClick={backToEmail}
+                    className="text-center text-muted-foreground text-sm underline underline-offset-4 hover:text-primary"
+                  >
+                    Use a different email
+                  </button>
+                )}
+              </form>
+            </CardContent>
+          </Card>
 
-        <AuthFooter />
+          <AuthFooter />
+        </div>
       </div>
-    </div>
+    </AuthSplit>
   );
 }

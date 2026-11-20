@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { AuthSplit } from "@openinary/dashboard/ui/auth-split";
 import { VersionBadge } from "@/components/ui/version-badge";
 
 /**
@@ -16,10 +17,11 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-svh flex-col items-center bg-ds-panel px-4 text-ds-text">
+    <AuthSplit>
+    <div className="flex flex-1 flex-col items-center px-4">
       <VersionBadge />
-      <div className="ds-rise my-auto w-full max-w-[420px] py-10">
-        <div className="mb-6 flex items-center justify-center gap-2">
+      <div className="ds-rise my-auto w-full max-w-[356px] py-10">
+        <div className="mb-12 flex items-center justify-center gap-2">
           <Image
             src="/icon.svg"
             alt=""
@@ -31,7 +33,7 @@ export function AuthShell({
             Openinary
           </span>
         </div>
-        <main className="ds-modal p-6 sm:p-8">
+        <main>
           <h1 className="font-semibold text-[18px]/6 tracking-[-0.01em]">
             {title}
           </h1>
@@ -45,6 +47,7 @@ export function AuthShell({
         </p>
       </div>
     </div>
+    </AuthSplit>
   );
 }
 
