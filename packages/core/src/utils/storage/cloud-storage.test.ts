@@ -61,3 +61,70 @@ test("existsOriginal is false only on a 404; other storage errors throw", async 
   error = throttled;
   await assert.rejects(storage.existsOriginal("flaky.jpg"), /SlowDown/);
 });
+
+// #184: deleting one asset HEADs every cached object. Serially, a big cache
+// pushed single-asset deletion past client timeouts.
+const cacheBucket = (
+  send: (command: any) => Promise<any>,
+) => {
+  const storage = new CloudStorage({ region: "auto", accessKeyId: "k", secretAccessKey: "s", bucketName: "b" });
+  (storage as any).s3Client.s3Client = { send };
+  (storage as any).loadPersistedStats = async () => null;
+  return storage;
+};
+const listing = (n: number) => ({
+  Contents: Array.from({ length: n }, (_, i) => ({ Key: `cache/${i}.jpg`, Size: 1 })),
+  IsTruncated: false,
+});
+const kind = (command: any) => command.constructor.name;
+
+test("asset cache cleanup reads metadata concurrently, bounded, and deletes only that asset's derivatives", async () => {
+  let active = 0;
+  let peak = 0;
+  const deleted: string[] = [];
+  const storage = cacheBucket(async (command) => {
+    if (kind(command) === "ListObjectsV2Command") return listing(40);
+    if (kind(command) === "HeadObjectCommand") {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setImmediate(r));
+      active--;
+      const mine = command.input.Key === "cache/7.jpg";
+      return { ContentLength: 1, Metadata: { "x-original-path": mine ? "a.jpg" : "b.jpg" } };
+    }
+    if (kind(command) === "DeleteObjectsCommand") {
+      deleted.push(...command.input.Delete.Objects.map((o: any) => o.Key));
+      return {};
+    }
+    return {};
+  });
+  assert.equal(await storage.deleteAllCachedTransformations("a.jpg"), 1);
+  assert.deepEqual(deleted, ["cache/7.jpg"]);
+  assert.ok(peak > 1 && peak <= 16, `peak ${peak}`);
+});
+
+test("asset cache cleanup fails on a metadata error instead of reporting success", async () => {
+  let deletes = 0;
+  const storage = cacheBucket(async (command) => {
+    if (kind(command) === "ListObjectsV2Command") return listing(3);
+    if (kind(command) === "HeadObjectCommand") {
+      if (command.input.Key === "cache/1.jpg")
+        throw Object.assign(new Error("SlowDown"), { $metadata: { httpStatusCode: 503 } });
+      throw Object.assign(new Error("NotFound"), { name: "NotFound", $metadata: { httpStatusCode: 404 } });
+    }
+    if (kind(command) === "DeleteObjectsCommand") deletes++;
+    return {};
+  });
+  await assert.rejects(storage.deleteAllCachedTransformations("a.jpg"), /SlowDown/);
+  assert.equal(deletes, 0);
+});
+
+test("a partially failed bulk delete is an error, not a success", async () => {
+  const storage = cacheBucket(async (command) => {
+    if (kind(command) === "ListObjectsV2Command") return listing(2);
+    if (kind(command) === "DeleteObjectsCommand")
+      return { Errors: [{ Key: "cache/1.jpg", Code: "AccessDenied" }] };
+    return {};
+  });
+  await assert.rejects(storage.clearAllCache(), /cache\/1\.jpg: AccessDenied/);
+});

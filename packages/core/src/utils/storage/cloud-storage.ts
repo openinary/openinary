@@ -424,23 +424,28 @@ export class CloudStorage implements StatsBackend {
 
       const keysToDelete: string[] = [];
       let sizeToDelete = 0;
+      const wanted = encodeURIComponent(originalPath);
 
-      for (const obj of cacheObjects) {
-        try {
-          const metadata = await this.s3Client.getObjectMetadata(obj.key);
-          if (
-            metadata?.metadata?.["x-original-path"] ===
-            encodeURIComponent(originalPath)
-          ) {
+      // Flat keys carry no asset identity, so each derivative's metadata is
+      // read; 16 at a time instead of one by one keeps deletion under client
+      // timeouts. A failed read fails the cleanup rather than leaving
+      // derivatives behind while reporting success.
+      // ponytail: still one HEAD per cached object; asset-scoped key prefixes
+      // would remove the scan but re-key every derivative (#184).
+      const concurrency = 16;
+      for (let i = 0; i < cacheObjects.length; i += concurrency) {
+        const batch = cacheObjects.slice(i, i + concurrency);
+        const metadata = await Promise.all(
+          batch.map((obj) =>
+            this.s3Client.getObjectMetadata(obj.key, { throwOnError: true }),
+          ),
+        );
+        batch.forEach((obj, j) => {
+          if (metadata[j]?.metadata?.["x-original-path"] === wanted) {
             keysToDelete.push(obj.key);
             sizeToDelete += obj.size ?? 0;
           }
-        } catch (error) {
-          logger.warn(
-            { error: serializeError(error), key: obj.key },
-            "Failed to get metadata for cache object",
-          );
-        }
+        });
       }
 
       if (keysToDelete.length === 0) {
@@ -451,6 +456,8 @@ export class CloudStorage implements StatsBackend {
         return 0;
       }
 
+      // Forget existence first: a bulk delete can fail halfway through.
+      this.invalidateAllCacheEntries(originalPath);
       const deletedCount = await this.s3Client.deleteObjects(keysToDelete);
 
       adjustBucketStats(this, "cache", {
@@ -549,6 +556,8 @@ export class CloudStorage implements StatsBackend {
    */
   async clearAllCache(): Promise<number> {
     const cacheObjects = await this.s3Client.listObjects("cache/");
+    // Before the delete, which can fail partway.
+    this.cache.clear();
     const deletedCount =
       cacheObjects.length === 0
         ? 0
@@ -560,8 +569,6 @@ export class CloudStorage implements StatsBackend {
         fileCount: -cacheObjects.length,
       });
     }
-
-    this.cache.clear();
 
     return deletedCount;
   }
