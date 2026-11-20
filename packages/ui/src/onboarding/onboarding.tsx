@@ -34,8 +34,6 @@ export interface OnboardingProps {
   user: { name?: string | null; image?: string | null };
   /** Current workspace (cloud: the active bucket). No name derives one from the user's. */
   workspace: { name?: string; logo?: string | null };
-  /** The product mark shown above the card, next to its name. */
-  brand?: ReactNode;
   /** Shown under the last step's buttons, e.g. where the answers go. */
   note?: ReactNode;
   /** Persists the answers. A throw keeps the user on the last step with a toast. */
@@ -106,6 +104,30 @@ const COPY = {
     defaultName: (first: string) => `${first}'s Team`,
   },
 } satisfies Record<OnboardingVariant, unknown>;
+
+/** Night sky over a blue horizon, fading into the page so the bottom stays plain. */
+const SKY =
+  "linear-gradient(180deg, #050b22 0%, #0a1846 24%, #1a49c4 44%, #3d7bf0 50%, #a9c6f8 58%, var(--ds-panel) 70%)";
+
+/** The Openinary mark in currentColor, so cloud and self-hosted show the same one. */
+function OpeninaryMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 104 104"
+      fill="currentColor"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M42.9136 103.049H39.6245C31.0807 103.049 25.9403 103.047 22.0137 102.317L44.7386 72.2227L42.9136 103.049Z" />
+      <path d="M80.5019 102.41C76.6427 103.047 71.5864 103.05 63.4218 103.05H59.5335L57.6992 72.2148L80.5019 102.41Z" />
+      <path d="M102.201 81.5916C102.035 82.3812 101.839 83.1237 101.601 83.8376C100.042 88.5111 97.3051 92.6215 93.7383 95.8315L68.1133 67.0957L102.201 81.5916Z" />
+      <path d="M8.97896 95.5262C5.57455 92.3623 2.95561 88.3663 1.44514 83.8388C1.18358 83.0546 0.966405 82.2375 0.791016 81.3597L34.3251 67.1016L8.97896 95.5262Z" />
+      <path d="M103.051 63.4231C103.051 66.3201 103.043 68.8257 103.015 71.0253L72.582 59.2695H103.051V63.4231Z" />
+      <path d="M29.8745 59.2695L0.0274456 70.7968C0.00181909 68.6523 0 66.2201 0 63.4231V59.2695H29.8745Z" />
+      <path d="M63.4224 0C74.1457 0 79.5076 0.00142634 83.8372 1.44547C92.2236 4.24338 98.8059 10.8255 101.604 19.2119C103.048 23.5415 103.049 28.9035 103.049 39.6268V51.5658H70.8692L94.079 41.6991L87.1948 37.1294L64.6757 45.8249L75.2468 31.837L67.6443 29.7557L55.9709 42.8381L55.1017 28.1043H47.3575L46.4747 42.8381L34.8103 29.7557L27.2125 31.837L37.7698 45.8206L15.2643 37.1294L8.38006 41.6991L31.5853 51.5658H0V39.6268C0 28.9035 0.00142634 23.5415 1.44547 19.2119C4.24338 10.8255 10.8255 4.24338 19.2119 1.44547C23.5415 0.00142634 28.9035 0 39.6268 0H63.4224Z" />
+    </svg>
+  );
+}
 
 const STEPS = 4;
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -344,7 +366,6 @@ export function Onboarding({
   variant,
   user,
   workspace,
-  brand,
   note,
   onComplete,
   onStepComplete,
@@ -453,10 +474,13 @@ export function Onboarding({
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-ds-panel text-ds-text">
-        <div className="ds-rise mx-auto flex min-h-full w-full max-w-[460px] flex-col justify-center px-4 py-10">
-          <div className="mb-6 flex items-center justify-center gap-2">
-            {brand}
+      <div
+        className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-ds-panel text-ds-text"
+        style={{ backgroundImage: SKY }}
+      >
+        <div className="ds-rise mx-auto flex w-full max-w-[460px] flex-1 flex-col justify-center px-4 py-10">
+          <div className="mb-6 flex items-center justify-center gap-2 text-white">
+            <OpeninaryMark className="size-5" />
             <span className="font-semibold text-[17px]/6 tracking-[-0.02em]">
               Openinary
             </span>
@@ -722,11 +746,11 @@ export function Onboarding({
               </p>
             )}
           </form>
-
-          <p className="mt-6 text-center text-[12px]/4 text-ds-faint">
-            © Openinary {new Date().getFullYear()}
-          </p>
         </div>
+
+        <p className="pb-6 text-center text-[12px]/4 text-ds-faint">
+          © Openinary {new Date().getFullYear()}
+        </p>
       </div>
     </MotionConfig>
   );
