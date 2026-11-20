@@ -1,6 +1,10 @@
 "use client";
 
-import { Onboarding } from "@openinary/ui";
+import {
+  Onboarding,
+  OnboardingBackdrop,
+  rememberOnboarded,
+} from "@openinary/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -19,19 +23,31 @@ import { client, orpc } from "@/utils/orpc";
  * Rendered over the shell rather than instead of it, so accounts that are done
  * never wait on this request: it is the one the Get started checklist already
  * makes.
+ *
+ * Until the answer is known, a browser that never saw an onboarded account
+ * (no `onboarded` cookie, read by the layout) gets the onboarding's sky, so a
+ * first sign-in doesn't flash the dashboard before the questionnaire.
  */
-export function OnboardingGate() {
+export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   const user = authClient.useSession().data?.user;
   const state = useQuery(orpc.usage.onboarding.queryOptions());
-  const { bucket } = useActiveBucket();
+  const { bucket, isLoading: bucketLoading } = useActiveBucket();
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const shown = !!user && !!bucket && state.data?.onboarded === false;
+  const onboarded = state.data?.onboarded;
+  const shown = !!user && !!bucket && onboarded === false;
   useEffect(() => {
     if (shown) trackOnboardingStarted();
   }, [shown]);
-  if (!shown) return null;
+  useEffect(() => {
+    if (onboarded) rememberOnboarded();
+  }, [onboarded]);
+  if (!shown) {
+    const loading =
+      state.isPending || (onboarded === false && !bucket && bucketLoading);
+    return loading && !onboardedHint ? <OnboardingBackdrop /> : null;
+  }
 
   return (
     <Onboarding

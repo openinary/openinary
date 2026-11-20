@@ -109,6 +109,25 @@ const COPY = {
 const SKY =
   "linear-gradient(180deg, #050b22 0%, #0a1846 24%, #1a49c4 44%, #3d7bf0 50%, #a9c6f8 58%, var(--ds-panel) 70%)";
 
+const BACKDROP_CLASS =
+  "fixed inset-0 z-50 flex flex-col overflow-y-auto bg-ds-panel text-ds-text";
+
+/**
+ * The onboarding's sky on its own. Gates draw it while they don't know yet
+ * whether the account has onboarded, so the dashboard never flashes first.
+ */
+export function OnboardingBackdrop() {
+  return <div className={BACKDROP_CLASS} style={{ backgroundImage: SKY }} />;
+}
+
+/**
+ * Marks this browser as having seen an onboarded account. The dashboard
+ * layouts read the `onboarded` cookie on the server and skip the backdrop.
+ */
+export function rememberOnboarded() {
+  document.cookie = "onboarded=1; path=/; max-age=31536000; samesite=lax";
+}
+
 /** The Openinary mark in currentColor, so cloud and self-hosted show the same one. */
 function OpeninaryMark({ className }: { className?: string }) {
   return (
@@ -474,10 +493,7 @@ export function Onboarding({
 
   return (
     <MotionConfig reducedMotion="user">
-      <div
-        className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-ds-panel text-ds-text"
-        style={{ backgroundImage: SKY }}
-      >
+      <div className={BACKDROP_CLASS} style={{ backgroundImage: SKY }}>
         <div className="ds-rise mx-auto flex w-full max-w-[460px] flex-1 flex-col justify-center px-4 py-10">
           <div className="mb-6 flex items-center justify-center gap-2 text-white">
             <OpeninaryMark className="size-5" />
