@@ -49,6 +49,11 @@ export function CloudOpeninaryProvider({
   );
 }
 
+/** Team members (Cloud teams) can't open the API keys page. */
+function useCanManageApiKeys() {
+  return useAccount().can("apiKey.manage");
+}
+
 /** Nothing but a customer creating one makes an API key exist. */
 function useHasApiKey() {
   // Members can't list keys (the server would answer 403); the step stays open.
@@ -110,6 +115,7 @@ const adapter: DashboardAdapter = {
   storageNoun: "bucket",
   docsUrl: "https://docs.openinary.dev/cloud/overview",
   useHasApiKey,
+  useCanManageApiKeys,
   useOnboardingSignals,
   useAiPrompt,
   aiPromptSample: aiPrompt({
