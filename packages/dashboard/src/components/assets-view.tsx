@@ -25,6 +25,7 @@ import {
   ResizablePanelGroup,
 } from "../ui/resizable";
 import { useIsMobile } from "../hooks/use-mobile";
+import { baseName, useDocumentTitle } from "../hooks/use-document-title";
 import { cn } from "@openinary/ui/server";
 
 const SIDEBAR_MIN_WIDTH_PX = 320;
@@ -64,6 +65,7 @@ export function AssetsView({
   // Lets anything link straight into the upload dialog (/?upload=true), like
   // the command palette's "Upload files".
   const [upload, setUpload] = useSearchParam("upload");
+  useDocumentTitle(baseName(assetId || folderPath || "") || "Assets");
   // Deep-linking to ?asset=... must not animate the sidebar in on first paint,
   // and its content must not fade in either - it starts open and visible.
   const openOnFirstPaint = useRef(!!assetId).current;

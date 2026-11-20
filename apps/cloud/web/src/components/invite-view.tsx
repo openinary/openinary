@@ -1,6 +1,6 @@
 "use client";
 
-import { Page } from "@openinary/dashboard";
+import { Page, useDocumentTitle } from "@openinary/dashboard";
 import { Button } from "@openinary/dashboard/ui/button";
 import { SettingsSection, Spinner } from "@openinary/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,6 +50,7 @@ export function InviteView({ id }: { id: string }) {
   };
 
   const data = invitation.data;
+  useDocumentTitle(data ? `Join ${data.organizationName}` : "Team invitation");
 
   return (
     <Page title="Team invitation" className="max-w-xl">

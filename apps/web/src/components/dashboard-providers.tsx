@@ -12,6 +12,7 @@ import { notFound, usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
 import { aiPrompt } from "@/components/get-started/integration-snippets";
+import { useOnboardingState } from "@/components/onboarding-gate";
 import { authClient } from "@/lib/auth-client";
 import { toAbsoluteUrl } from "@/lib/utils";
 
@@ -72,6 +73,11 @@ const adapter: DashboardAdapter = {
   usePathname,
   useSearchParam: (key) => useQueryState(key),
   notFound,
+  // The instance-wide name set during onboarding, like the sidebar shows.
+  useWorkspaceName: () => {
+    const { data } = useOnboardingState();
+    return data ? (data.workspace?.name ?? "Openinary") : null;
+  },
   storageNoun: "storage",
   docsUrl: "https://docs.openinary.dev/",
   useHasApiKey,

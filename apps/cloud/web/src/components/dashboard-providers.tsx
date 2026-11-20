@@ -112,6 +112,7 @@ const adapter: DashboardAdapter = {
   usePathname,
   useSearchParam: (key) => useQueryState(key),
   notFound,
+  useWorkspaceName: () => useActiveBucket().bucket?.name ?? null,
   storageNoun: "bucket",
   docsUrl: "https://docs.openinary.dev/cloud/overview",
   useHasApiKey,

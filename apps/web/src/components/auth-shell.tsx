@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { useTabTitle } from "@openinary/dashboard";
 import { AuthSplit } from "@openinary/dashboard/ui/auth-split";
 import { VersionBadge } from "@/components/ui/version-badge";
 
@@ -16,6 +17,7 @@ export function AuthShell({
   description: string;
   children: React.ReactNode;
 }) {
+  useTabTitle(`${title} · Openinary`);
   return (
     <AuthSplit>
     <div className="flex flex-1 flex-col items-center px-4">
