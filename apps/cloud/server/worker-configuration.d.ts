@@ -15,6 +15,8 @@ interface __BaseEnv_Env {
   BETTER_AUTH_URL: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
   AUTUMN_SECRET_KEY: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
@@ -55,6 +57,8 @@ declare namespace NodeJS {
         | "BETTER_AUTH_URL"
         | "GOOGLE_CLIENT_ID"
         | "GOOGLE_CLIENT_SECRET"
+        | "GITHUB_CLIENT_ID"
+        | "GITHUB_CLIENT_SECRET"
         | "AUTUMN_SECRET_KEY"
         | "R2_ACCESS_KEY_ID"
         | "R2_SECRET_ACCESS_KEY"

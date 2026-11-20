@@ -197,20 +197,27 @@ export const authInstance = betterAuth({
       },
     },
   },
-  // Google OAuth only activates when credentials are provided; the web app
-  // always shows the button, so unset env vars surface as a sign-in error.
-  socialProviders: process.env.GOOGLE_CLIENT_ID
-    ? {
-        google: {
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-          // Same signup rule as the email code: when signups are closed,
-          // Google sign-in only logs in existing users; an unknown Google
-          // account is rejected instead of silently creating one.
-          disableSignUp: signUpClosed,
-        },
-      }
-    : undefined,
+  // Each social provider only activates when its credentials are set; the
+  // web app always shows both buttons, so unset env vars surface as a
+  // sign-in error. Same signup rule as the email code for both: when signups
+  // are closed, an unknown Google or GitHub account is rejected instead of
+  // silently creating one.
+  socialProviders: {
+    ...(process.env.GOOGLE_CLIENT_ID && {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        disableSignUp: signUpClosed,
+      },
+    }),
+    ...(process.env.GITHUB_CLIENT_ID && {
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+        disableSignUp: signUpClosed,
+      },
+    }),
+  },
   plugins: [
     // Passwords are gone: signing in means receiving a 6-digit code. The same
     // endpoint registers a first-time visitor, so there is no separate
