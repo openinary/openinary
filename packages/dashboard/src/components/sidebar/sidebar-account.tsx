@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronsUpDown } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { useHydrated } from "../../hooks/use-hydrated";
 
@@ -70,10 +71,26 @@ export function SidebarAccount({
 }) {
   // What it shows comes from the session and the workspace, which only the
   // client knows: the server paints the row's space and nothing in it.
-  if (!useHydrated()) return <div className="h-10" />;
+  // Both menus span the row exactly, edge to edge with the nav items above.
+  // Collapsed to icons, the row is one tile wide: keep the default widths.
+  const row = useRef<HTMLDivElement>(null);
+  const [rowWidth, setRowWidth] = useState<number>();
+  const measure = (open: boolean) => {
+    const el = row.current;
+    if (open && el)
+      setRowWidth(
+        el.closest('[data-collapsible="icon"]') ? undefined : el.offsetWidth,
+      );
+  };
+  const span = rowWidth ? { width: rowWidth, minWidth: 0 } : undefined;
+  const hydrated = useHydrated();
+  if (!hydrated) return <div className="h-10" />;
   return (
-    <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
-      <DropdownMenu>
+    <div
+      ref={row}
+      className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col"
+    >
+      <DropdownMenu onOpenChange={measure}>
         <DropdownMenuTrigger
           className={`flex h-10 min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-[12px] p-1 text-left group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:flex-none ${TRIGGER}`}
         >
@@ -95,11 +112,12 @@ export function SidebarAccount({
           align="start"
           sideOffset={6}
           className="w-60"
+          style={span}
         >
           {workspaceMenu}
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={measure}>
         <DropdownMenuTrigger
           aria-label="Account"
           className={`flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] ${TRIGGER}`}
@@ -110,9 +128,11 @@ export function SidebarAccount({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           side="top"
-          align="end"
+          // Collapsed, the avatar sits under the tile: open from its left edge.
+          align={rowWidth ? "end" : "start"}
           sideOffset={6}
           className="min-w-56"
+          style={span}
         >
           {accountMenu}
         </DropdownMenuContent>
