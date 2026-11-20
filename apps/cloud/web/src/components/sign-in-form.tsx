@@ -11,13 +11,6 @@ import { authClient } from "@/lib/auth-client";
 import { Logo } from "./logo";
 import { AuthSplit } from "@openinary/dashboard/ui/auth-split";
 import { Button } from "@openinary/dashboard/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
 import { Input } from "@openinary/dashboard/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "./ui/input-otp";
 import { Label } from "@openinary/dashboard/ui/label";
@@ -38,35 +31,31 @@ function isFreshAccount(createdAt: Date | string) {
   return Date.now() - new Date(createdAt).getTime() < 60_000;
 }
 
-// The last-used method lives in a cookie, so it can only be read after
-// hydration - reading it during render would mismatch the server HTML.
-function useLastLoginMethod() {
-  const [method, setMethod] = useState<string | null>(null);
+// The last-used method lives in a cookie. The layout reads it on the server
+// so the first paint already greets a returning visitor; the effect only
+// catches a change made since that render.
+function useLastLoginMethod(hint: string | null) {
+  const [method, setMethod] = useState(hint);
   useEffect(() => {
     setMethod(authClient.getLastUsedLoginMethod());
   }, []);
   return method;
 }
 
-// Notification-style badge pinned to the button's top-right corner. `invert`
-// flips it for the filled Login button, which the light pill sits badly on.
+// Pill straddling the top-right edge of the method the visitor used last:
+// the Google button or the email field, both white, so it stays white too.
 function LastUsedBadge({
+  show,
   children,
-  invert,
 }: {
+  show: boolean;
   children: React.ReactNode;
-  invert?: boolean;
 }) {
+  if (!show) return children;
   return (
     <div className="relative">
       {children}
-      <span
-        className={`-top-2 pointer-events-none absolute right-2 z-10 rounded-full border px-1.5 py-0.5 font-medium text-[10px] shadow-sm ${
-          invert
-            ? "border-muted-foreground bg-primary text-primary-foreground"
-            : "border-border bg-background text-muted-foreground"
-        }`}
-      >
+      <span className="-translate-y-1/2 pointer-events-none absolute top-0 right-3 z-10 rounded-full border border-ds-border bg-white px-1.5 font-medium text-[10px]/4 text-ds-muted shadow-xs">
         Last used
       </span>
     </div>
@@ -139,14 +128,14 @@ export function GoogleButton({
       )}
     </Button>
   );
-  return lastUsed ? <LastUsedBadge>{button}</LastUsedBadge> : button;
+  return <LastUsedBadge show={!!lastUsed}>{button}</LastUsedBadge>;
 }
 
 export function AuthSeparator() {
   return (
     <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
       <span className="relative z-10 bg-ds-panel px-2 text-ds-faint text-xs">
-        Or continue with
+        or
       </span>
     </div>
   );
@@ -176,10 +165,14 @@ export function AuthFooter() {
   );
 }
 
-export default function SignInForm() {
+export default function SignInForm({
+  lastMethodHint = null,
+}: {
+  lastMethodHint?: string | null;
+}) {
   const router = useRouter();
   const captcha = useTurnstile();
-  const lastMethod = useLastLoginMethod();
+  const lastMethod = useLastLoginMethod(lastMethodHint);
   // The address the code went to. Empty = still on the email step; no valid
   // email is ever "", so it doubles as the step flag.
   const [sentTo, setSentTo] = useState("");
@@ -265,28 +258,28 @@ export default function SignInForm() {
   return (
     <AuthSplit>
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
-        <div className="ds-rise flex w-full max-w-[356px] flex-col gap-6">
+        <div className="flex w-full max-w-[356px] flex-col gap-6">
           <a
             href="https://www.openinary.dev"
-            className="mb-6 self-center text-foreground"
+            className="mb-10 self-center text-foreground"
           >
             <Logo className="h-6 w-auto" />
           </a>
 
-          <Card className="gap-6 rounded-none border-0 bg-transparent py-0 shadow-none [&>div]:px-0">
-            <CardHeader>
+          <div>
+            <div className="text-center">
               {/* This page signs in *and* signs up, so it only greets someone as
                 returning when the last-used cookie proves they are - otherwise
-                it stays neutral. Same cookie as the badge below, so both light
-                up together after hydration. */}
-              <CardTitle className="font-semibold text-[18px]/6 tracking-[-0.01em]">
+                it stays neutral. Same cookie as the badge below, read on
+                the server so the first paint is already right. */}
+              <h1 className="font-semibold text-[20px]/7 tracking-[-0.015em]">
                 {sentTo
                   ? "Check your email"
                   : lastMethod
                     ? "Welcome back"
                     : "Welcome to Openinary Cloud"}
-              </CardTitle>
-              <CardDescription>
+              </h1>
+              <p className="mt-2 text-pretty text-[14px]/5 text-ds-muted">
                 {sentTo ? (
                   `We sent a 6-digit code to ${sentTo}`
                 ) : lastMethod ? (
@@ -298,16 +291,16 @@ export default function SignInForm() {
                     We'll email you a 6-digit code.
                   </>
                 )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </p>
+            </div>
+            <div className="mt-8">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   void form.handleSubmit();
                 }}
-                className="grid gap-6"
+                className="grid gap-5"
               >
                 {!sentTo && (
                   <>
@@ -322,16 +315,20 @@ export default function SignInForm() {
                       {(field) => (
                         <div className="grid gap-2">
                           <Label htmlFor={field.name}>Email</Label>
-                          <Input
-                            id={field.name}
-                            name={field.name}
-                            type="email"
-                            autoComplete="email"
-                            placeholder="m@example.com"
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                          />
+                          <LastUsedBadge show={lastMethod === "email"}>
+                            <Input
+                              id={field.name}
+                              name={field.name}
+                              type="email"
+                              autoComplete="email"
+                              placeholder="m@example.com"
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(e) =>
+                                field.handleChange(e.target.value)
+                              }
+                            />
+                          </LastUsedBadge>
                           {field.state.meta.errors.map((error) => (
                             <p
                               key={error?.message}
@@ -392,19 +389,22 @@ export default function SignInForm() {
                   </form.Field>
                 )}
 
-                {/* Stays mounted across both steps: the widget is rendered once
+                <div className="grid">
+                  {/* Stays mounted across both steps: the widget is rendered once
                   into this node, and unmounting it would leave the email step
-                  captcha-less on the way back. */}
-                <div
-                  ref={captcha.containerRef}
-                  className={
-                    sentTo ? "hidden" : "flex justify-center empty:hidden"
-                  }
-                />
+                  captcha-less on the way back. It takes no room unless
+                  Cloudflare asks for a click. */}
+                  <div
+                    ref={captcha.containerRef}
+                    className={
+                      captcha.interactive && !sentTo
+                        ? "mb-5 flex justify-center"
+                        : "h-0 overflow-hidden"
+                    }
+                  />
 
-                <form.Subscribe>
-                  {(state) => {
-                    const button = (
+                  <form.Subscribe>
+                    {(state) => (
                       <Button
                         type="submit"
                         className="w-full"
@@ -421,16 +421,9 @@ export default function SignInForm() {
                           "Send code"
                         )}
                       </Button>
-                    );
-                    // Only worth pointing at the email route before a code is
-                    // requested; on the code step there is nothing else to pick.
-                    return lastMethod === "email" && !sentTo ? (
-                      <LastUsedBadge invert>{button}</LastUsedBadge>
-                    ) : (
-                      button
-                    );
-                  }}
-                </form.Subscribe>
+                    )}
+                  </form.Subscribe>
+                </div>
 
                 {sentTo && (
                   <button
@@ -442,8 +435,8 @@ export default function SignInForm() {
                   </button>
                 )}
               </form>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <AuthFooter />
         </div>

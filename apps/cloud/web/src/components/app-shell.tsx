@@ -71,11 +71,13 @@ export function AppShell({
   sidebarDefaultOpen,
   signedInHint,
   onboardedHint,
+  lastMethodHint,
   children,
 }: {
   sidebarDefaultOpen: boolean;
   signedInHint: boolean;
   onboardedHint: boolean;
+  lastMethodHint: string | null;
   children: React.ReactNode;
 }) {
   const { data: session, isPending } = authClient.useSession();
@@ -115,7 +117,7 @@ export function AppShell({
   // signed-out visitor, or a first visit, gets the real form straight away.
   const awaitingFirstCheck = isPending && !sessionKnown.current;
   if (!session && !(awaitingFirstCheck && signedInHint)) {
-    return <SignInForm />;
+    return <SignInForm lastMethodHint={lastMethodHint} />;
   }
 
   // From here on one tree, from the first (server) paint until every request
