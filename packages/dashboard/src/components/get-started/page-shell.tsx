@@ -3,7 +3,7 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Skeleton } from "skullet/react";
 
-import { useDashboard } from "../../adapter";
+import { useCanManageApiKeys, useDashboard } from "../../adapter";
 import {
   SolarImages,
   SolarIntegrate,
@@ -45,12 +45,16 @@ export function GetStartedPage({
 /** Where people go next, one row each. */
 function Shortcuts() {
   const { Link, docsUrl } = useDashboard();
+  const canManageKeys = useCanManageApiKeys();
   const rows = [
     { label: "Upload files", href: "/?upload=true", icon: SolarUploader },
     { label: "Connect your app", href: "/get-started/integrate", icon: SolarIntegrate },
     { label: "Try image transformations", href: "/get-started/images", icon: SolarImages },
     { label: "Try video transformations", href: "/get-started/videos", icon: SolarVideos },
-    { label: "Create an API key", href: "/settings/api-keys", icon: SolarKey },
+    // Not every role may open the keys page (Cloud team members can't).
+    ...(canManageKeys
+      ? [{ label: "Create an API key", href: "/settings/api-keys", icon: SolarKey }]
+      : []),
   ];
   const row =
     "group flex h-10 items-center gap-2.5 px-4 text-[13px]/5 text-ds-secondary transition-colors hover:bg-ds-row-hover hover:text-ds-text";

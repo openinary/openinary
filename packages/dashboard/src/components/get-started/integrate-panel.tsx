@@ -3,7 +3,7 @@
 import { ArrowUpRight, KeyRound } from "lucide-react";
 import { Skeleton } from "skullet/react";
 
-import { useDashboard } from "../../adapter";
+import { useCanManageApiKeys, useDashboard } from "../../adapter";
 import { Button } from "../../ui/button";
 import { CopyPromptButton } from "./prompt-copy";
 
@@ -69,6 +69,7 @@ export function IntegratePanel() {
   const { Link, analytics, useHasApiKey, useAiPrompt, aiPromptSample } =
     useDashboard();
   const hasKey = useHasApiKey();
+  const canManageKeys = useCanManageApiKeys();
   const content = useAiPrompt();
 
   return (
@@ -76,12 +77,14 @@ export function IntegratePanel() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-medium text-sm">AI prompt</p>
         <div className="flex items-center gap-2">
-          <Button asChild className="h-7 text-xs" size="sm" variant="outline">
-            <Link href="/settings/api-keys">
-              <KeyRound className="size-3.5" />
-              {hasKey ? "Manage keys" : "Create an API key"}
-            </Link>
-          </Button>
+          {canManageKeys && (
+            <Button asChild className="h-7 text-xs" size="sm" variant="outline">
+              <Link href="/settings/api-keys">
+                <KeyRound className="size-3.5" />
+                {hasKey ? "Manage keys" : "Create an API key"}
+              </Link>
+            </Button>
+          )}
           <CopyPromptButton />
         </div>
       </div>
@@ -97,7 +100,8 @@ export function IntegratePanel() {
       <p className="text-muted-foreground text-xs leading-relaxed">
         Prefilled with your own URLs, but never with your API key - Openinary
         keys mint upload signatures, so they have to stay on your
-        server. Create one above and paste it into your backend's
+        server. {canManageKeys ? "Create one above" : "Ask an admin of this account for one"}{" "}
+        and paste it into your backend's
         <code className="mx-1 font-mono">.env</code> as
         <code className="mx-1 font-mono">OPENINARY_API_KEY</code> while your
         agent writes the rest.

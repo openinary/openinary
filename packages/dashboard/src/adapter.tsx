@@ -49,6 +49,11 @@ export interface DashboardAdapter {
   docsUrl: string;
   /** Whether the account has an API key: undefined while it loads. */
   useHasApiKey: () => boolean | undefined;
+  /**
+   * Whether this user may open the API keys page. Cloud teams hide it from
+   * members; omitted, everyone can (self-hosted has one user).
+   */
+  useCanManageApiKeys?: () => boolean;
   /** The checklist's other two signals: undefined while they load. */
   useOnboardingSignals: () => {
     hasUploaded: boolean | undefined;
@@ -77,4 +82,11 @@ export function useDashboard(): DashboardAdapter {
   const adapter = useContext(DashboardContext);
   if (!adapter) throw new Error("useDashboard must be used inside <DashboardProvider>");
   return adapter;
+}
+
+const always = () => true;
+
+/** useCanManageApiKeys with its default, safe to call as a hook. */
+export function useCanManageApiKeys(): boolean {
+  return (useDashboard().useCanManageApiKeys ?? always)();
 }
