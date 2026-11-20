@@ -1,5 +1,9 @@
 import sharp from "sharp";
-import { ImageResizeTransformParams, OverlayTransformParams } from "../../types";
+import {
+  FullGravityMode,
+  ImageResizeTransformParams,
+  OverlayTransformParams,
+} from "../../types";
 import logger from "../logger";
 
 /**
@@ -76,13 +80,33 @@ export const applyOverlayImage = async (
             .toBuffer()
         : overlayResizedBuffer;
 
+    // sharp ignores gravity once top/left are set, so lx_/ly_ are turned
+    // into an absolute position measured from the lg_ anchor here. Tiles
+    // keep passing them straight through, as before.
+    const hasOffset =
+      params.overlayXOffset != null && params.overlayYOffset != null;
+    const placement =
+      hasOffset && !params.overlayTiled
+        ? overlayOffset(
+            params.overlayGravity,
+            baseInfo.width,
+            baseInfo.height,
+            width,
+            height,
+            params.overlayXOffset!,
+            params.overlayYOffset!,
+          )
+        : {
+            gravity: params.overlayGravity,
+            top: params.overlayYOffset,
+            left: params.overlayXOffset,
+          };
+
     const output = await sharp(baseData)
       .composite([
         {
           input: tileBuffer,
-          gravity: params.overlayGravity,
-          top: params.overlayYOffset,
-          left: params.overlayXOffset,
+          ...placement,
           tile: params.overlayTiled,
         },
       ])
@@ -131,4 +155,51 @@ export const overlaySize = (
     width: Math.max(1, Math.round(width * shrink)),
     height: Math.max(1, Math.round(height * shrink)),
   };
+};
+
+/**
+ * Where an overlay with lx_/ly_ goes, as {left, top} from the top-left.
+ * Same rules as the video path: the offsets push the overlay in from the
+ * lg_ edge (lx_10 on east moves it 10px left of the right edge) and shift
+ * it on a centred axis. Without lg_ they count from the top-left, which is
+ * what image URLs have always done. The result is clamped so the overlay
+ * stays inside the base, which sharp's composite requires.
+ */
+export const overlayOffset = (
+  gravity: FullGravityMode | undefined,
+  baseWidth: number,
+  baseHeight: number,
+  overlayWidth: number,
+  overlayHeight: number,
+  x: number,
+  y: number,
+): { left: number; top: number } => {
+  const g = gravity ?? FullGravityMode.NORTHWEST;
+  const freeX = baseWidth - overlayWidth;
+  const freeY = baseHeight - overlayHeight;
+
+  const left =
+    g === FullGravityMode.NORTHWEST ||
+    g === FullGravityMode.WEST ||
+    g === FullGravityMode.SOUTHWEST
+      ? x
+      : g === FullGravityMode.NORTHEAST ||
+          g === FullGravityMode.EAST ||
+          g === FullGravityMode.SOUTHEAST
+        ? freeX - x
+        : Math.round(freeX / 2) + x;
+
+  const top =
+    g === FullGravityMode.NORTHWEST ||
+    g === FullGravityMode.NORTH ||
+    g === FullGravityMode.NORTHEAST
+      ? y
+      : g === FullGravityMode.SOUTHWEST ||
+          g === FullGravityMode.SOUTH ||
+          g === FullGravityMode.SOUTHEAST
+        ? freeY - y
+        : Math.round(freeY / 2) + y;
+
+  const clamp = (v: number, max: number) => Math.min(Math.max(0, v), Math.max(0, max));
+  return { left: clamp(left, freeX), top: clamp(top, freeY) };
 };
