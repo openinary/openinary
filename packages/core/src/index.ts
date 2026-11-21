@@ -1,5 +1,6 @@
 // Transform engine
 export { TransformService } from "./services/transform.service";
+export type { TransformOutcome, TransformResult } from "./services/transform.service";
 
 // Video job queue
 export { VideoJobQueue, type VideoJob, type JobStatus } from "./utils/video-job-queue";
@@ -37,6 +38,7 @@ export { createVideoStatusRoute } from "./routes/video-status";
 export { createQueueEventsRoute } from "./routes/queue-events";
 export { createQueueRoute } from "./routes/queue";
 export { createInvalidateRoute } from "./routes/invalidate";
+export { transformOutcome } from "./routes/delivery";
 
 // Shared utilities
 export {

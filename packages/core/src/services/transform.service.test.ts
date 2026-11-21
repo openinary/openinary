@@ -58,6 +58,7 @@ test("a bare video URL serves the original and queues nothing", async () => {
   assert.ok(result.stream, "original should be streamed");
   assert.equal(result.status, undefined);
   assert.equal(result.contentType, "video/mp4");
+  assert.equal(result.outcome, "original");
 });
 
 // Camera JPEGs libjpeg refuses but browsers decode: served as the original
@@ -92,6 +93,7 @@ test("a JPEG libvips refuses with the SOS error is served as the original", asyn
   assert.equal(result.contentType, "image/jpeg");
   assert.equal(result.headers["Cache-Control"], "no-store");
   assert.equal(result.headers["X-Transform-Fallback"], "original");
+  assert.equal(result.outcome, "original");
   assert.deepEqual(cached, [], "the original is not cached as the transform");
 });
 
@@ -100,6 +102,7 @@ test("other transform errors, or the SOS error on a non-JPEG, are not hidden", a
     const { result } = await transformWhileSharpFails(message, file);
     assert.equal(result.status, 500, `${message} on ${file}`);
     assert.equal(result.headers["X-Transform-Fallback"], undefined);
+    assert.equal(result.outcome, undefined, "errors carry no outcome");
   }
 });
 
@@ -116,6 +119,7 @@ test("a pending video transform answers 202 instead of the original", async () =
   });
 
   assert.equal(result.status, 202);
+  assert.equal(result.outcome, "queued");
   assert.equal(result.stream, undefined, "must not fall back to the original");
   const body = JSON.parse(result.buffer!.toString());
   assert.equal(body.status, "processing");
@@ -178,6 +182,7 @@ test("a cached video→image transform is served as an image, not video/mp4", as
     userAgent: "",
   });
   assert.equal(image.contentType, "image/avif");
+  assert.equal(image.outcome, "cache");
 
   const video = await service.transform({
     path: "/t/w_640,q_80/clip.mp4",
@@ -227,4 +232,24 @@ test("transform params on a non-transformable type 400 instead of serving or err
   assert.equal(result.status, 400);
   assert.equal(result.stream, undefined, "must not fall back to the original");
   assert.match(result.buffer!.toString(), /audio\/sfx\.wav/);
+});
+
+// The local cache keeps a derivative from its second request (SmartCache), so
+// the third is the first one it can answer.
+test("an image is transformed until cached, then served from the cache", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "outcome-"));
+  try {
+    await mkdir(join(dir, "public"));
+    await sharp({ create: { width: 8, height: 8, channels: 3, background: "#3c3" } }).toFile(join(dir, "public", "a.png"));
+    const service = new TransformService(null, fakeQueue(), enginePathsIn(dir));
+
+    const outcomes = [];
+    for (let i = 0; i < 3; i++) {
+      outcomes.push((await service.transform({ path: "/t/w_4/a.png", userAgent: "" })).outcome);
+    }
+
+    assert.deepEqual(outcomes, ["transformed", "transformed", "cache"]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

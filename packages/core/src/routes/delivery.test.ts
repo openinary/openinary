@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
-import { respond } from "./delivery";
+import { respond, transformOutcome } from "./delivery";
 import type { TransformResult } from "../services/transform.service";
 import { createAuthenticatedRoute } from "./authenticated";
 import { generateSignature } from "../utils/signature";
@@ -188,4 +188,18 @@ test("no delivery route reads outside the public folder", async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("respond() leaves the outcome where middleware after the route can read it", async () => {
+  let seen: string | undefined = "unset";
+  const app = new Hono();
+  app.use("/*", async (c, next) => {
+    await next();
+    seen = transformOutcome(c);
+  });
+  app.get("/*", (c) =>
+    respond(c, { buffer: Buffer.from("x"), contentType: "image/webp", headers: {}, outcome: "cache" }, "a.png"),
+  );
+  await app.request("/t/w_1/a.png");
+  assert.equal(seen, "cache");
 });
