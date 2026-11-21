@@ -16,6 +16,16 @@
       "import": "./dist/auth.js",
       "default": "./dist/auth.js"
     },
+    "./permissions": {
+      "types": "./src/permissions.ts",
+      "import": "./dist/permissions.js",
+      "default": "./dist/permissions.js"
+    },
+    "./access-control": {
+      "types": "./src/access-control.ts",
+      "import": "./dist/access-control.js",
+      "default": "./dist/access-control.js"
+    },
     "./auth-client": {
       "types": "./src/auth-client.ts",
       "import": "./dist/auth-client.js",

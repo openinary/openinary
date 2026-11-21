@@ -12,7 +12,9 @@ interface JobActionsProps {
 }
 
 export function JobActions({ jobId, status, onActionComplete }: JobActionsProps) {
-  const { apiBaseUrl, fetch } = useOpeninary();
+  // Read-only covers the queue too: the roles that can't change media can't
+  // retry, cancel or delete jobs either.
+  const { apiBaseUrl, fetch, readOnly } = useOpeninary();
   const [isRetrying, setIsRetrying] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -80,6 +82,8 @@ export function JobActions({ jobId, status, onActionComplete }: JobActionsProps)
       setIsDeleting(false);
     }
   };
+
+  if (readOnly) return null;
 
   return (
     <div className="flex gap-2">

@@ -17,13 +17,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@openinary/dashboard/ui/dropdown-menu";
-import { ArrowUpRight, LogOut, Settings } from "lucide-react";
+import { ArrowUpRight, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useOnboardingState } from "@/components/onboarding-gate";
 import { useVersion } from "@/components/sidebar/version-display";
-import { signOut, useSession } from "@/lib/auth-client";
+import { useCanManageApiKeys } from "@/components/dashboard-providers";
+import { signOut, useRole, useSession } from "@/lib/auth-client";
 
 const GITHUB_URL = "https://github.com/openinary/openinary";
 
@@ -39,6 +40,12 @@ const settingsPages = [
   { title: "Account", url: "/settings/account" },
   { title: "Appearance", url: "/settings/appearance" },
 ];
+
+const SETTINGS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Account: SolarAccount,
+  Appearance: SolarPalette,
+  Users,
+};
 
 /** The workspace (this instance) and the signed-in account, at the bottom. */
 function Account() {
@@ -124,16 +131,26 @@ function Account() {
 
 export function AppSidebar() {
   const router = useRouter();
+  // Viewers hold no API keys; only admins manage users. The pages themselves
+  // 404 for the rest, this just keeps the links from leading there.
+  const canManageKeys = useCanManageApiKeys();
+  const isAdmin = useRole() === "admin";
+  const items = canManageKeys
+    ? mainItems
+    : mainItems.filter((item) => item.url !== "/settings/api-keys");
+  const pages = isAdmin
+    ? [...settingsPages, { title: "Users", url: "/settings/users" }]
+    : settingsPages;
 
   return (
     <DashboardSidebar
       brand={<img src="/icon.svg" alt="" className="size-[18px] dark:invert" />}
-      mainItems={mainItems}
-      settingsPages={settingsPages}
-      settingsActions={settingsPages.map((page) => ({
+      mainItems={items}
+      settingsPages={pages}
+      settingsActions={pages.map((page) => ({
         label: page.title,
         group: "Settings",
-        icon: page.title === "Account" ? SolarAccount : SolarPalette,
+        icon: SETTINGS_ICONS[page.title],
         onSelect: () => router.push(page.url),
       }))}
       account={<Account />}

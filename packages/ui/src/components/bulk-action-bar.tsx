@@ -50,8 +50,10 @@ export function BulkActionBarContent({
   count: number;
   onClear: () => void;
   onDownload: () => void;
-  onDelete: () => void;
-  onMove: (destination: string) => void;
+  /** Omitted (a read-only viewer): no Delete button. */
+  onDelete?: () => void;
+  /** Omitted (a read-only viewer): no Move menu. */
+  onMove?: (destination: string) => void;
   currentDir: string;
 }) {
   return (
@@ -77,6 +79,7 @@ export function BulkActionBarContent({
       <BulkActionIconButton onClick={onDownload} label="Download">
         <Download className="h-4 w-4" />
       </BulkActionIconButton>
+      {onMove && (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -100,9 +103,12 @@ export function BulkActionBarContent({
           />
         </DropdownMenuContent>
       </DropdownMenu>
-      <BulkActionIconButton onClick={onDelete} label="Delete" destructive>
-        <Trash2 className="h-4 w-4" />
-      </BulkActionIconButton>
+      )}
+      {onDelete && (
+        <BulkActionIconButton onClick={onDelete} label="Delete" destructive>
+          <Trash2 className="h-4 w-4" />
+        </BulkActionIconButton>
+      )}
     </div>
   );
 }

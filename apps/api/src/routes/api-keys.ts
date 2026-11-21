@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { getDb } from "shared";
 import { getAuth } from "shared/auth";
-import { apiKeyAuth, AuthVariables } from "../middleware/auth";
+import { apiKeyAuth, AuthVariables, requirePermission } from "../middleware/auth";
 import { logger, serializeError } from "@openinary/core";
 
 /**
@@ -10,7 +10,7 @@ import { logger, serializeError } from "@openinary/core";
  */
 const apiKeys = new Hono<AuthVariables>();
 
-apiKeys.use("/*", apiKeyAuth);
+apiKeys.use("/*", apiKeyAuth, requirePermission("apiKeys:manage"));
 
 const serverError = (c: Context, error: unknown, message: string) => {
   logger.error({ error: serializeError(error), path: c.req.path }, message);

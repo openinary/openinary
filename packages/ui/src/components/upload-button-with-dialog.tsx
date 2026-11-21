@@ -4,8 +4,12 @@ import { Upload } from "lucide-react";
 import { DefaultDialog } from "./default-dialog";
 import { UploadSection } from "./upload-section";
 import { Button } from "../ui/button";
+import { useOpeninary } from "../provider/openinary-provider";
 
-/** The upload dialog on its own, for opening it from state (a URL, say). */
+/**
+ * The upload dialog on its own, for opening it from state (a URL, say).
+ * Nothing at all in a read-only provider, so ?upload=true opens nothing.
+ */
 export function UploadDialog({
   uploadToFolder,
   open,
@@ -17,6 +21,8 @@ export function UploadDialog({
   onOpenChange?: (open: boolean) => void;
   trigger?: React.ReactNode;
 }) {
+  const { readOnly } = useOpeninary();
+  if (readOnly) return null;
   return (
     <DefaultDialog
       title={uploadToFolder ? `Upload to ${uploadToFolder}` : "Upload files"}

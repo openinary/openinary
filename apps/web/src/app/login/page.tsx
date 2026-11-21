@@ -18,8 +18,21 @@ import {
 } from "@/components/ui/form";
 import { Skeleton } from "skullet/react";
 import logger from "@/lib/logger";
-import { validateAuthConfig } from "@/lib/validate-auth-config";
+import {
+  type AuthOptions,
+  PASSWORD_ONLY,
+  validateAuthConfig,
+} from "@/lib/validate-auth-config";
+import { callbackErrorMessage, describeAuthError } from "@/lib/auth-errors";
 import { AuthError, AuthShell } from "@/components/auth-shell";
+import { AuthSeparator, LastUsedBadge } from "@openinary/dashboard/ui/social-button";
+import {
+  confirmPendingLoginMethod,
+  forgetPendingLoginMethod,
+  rememberLoginMethod,
+  SsoButtons,
+  useLastLoginMethod,
+} from "@/components/sso-buttons";
 
 const loginFormSchema = z.object({
   email: z
@@ -38,6 +51,23 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
+  // Password only until the server says otherwise: what every instance drew
+  // before SSO, and the shape the skeleton measures.
+  const [authOptions, setAuthOptions] = useState<AuthOptions>(PASSWORD_ONLY);
+  const lastMethod = useLastLoginMethod();
+
+  // A failed SSO callback lands back here with ?error=<code>. Read once, then
+  // dropped from the address bar so a reload doesn't show it again.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("error");
+    if (!code) return;
+    forgetPendingLoginMethod();
+    setError(callbackErrorMessage(code));
+    url.searchParams.delete("error");
+    url.searchParams.delete("error_description");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -57,6 +87,10 @@ export default function LoginPage() {
         const configValidation = await validateAuthConfig();
         
         if (!isMounted) return;
+
+        if (configValidation.authOptions) {
+          setAuthOptions(configValidation.authOptions);
+        }
         
         if (!configValidation.isValid) {
           // Show configuration error and block access
@@ -79,6 +113,7 @@ export default function LoginPage() {
         if (!isMounted) return;
         
         if (session?.data?.session) {
+          confirmPendingLoginMethod();
           // User is already signed in, redirect to home
           router.push("/");
           return;
@@ -155,6 +190,9 @@ export default function LoginPage() {
 
       // Verify the sign-in was successful
       if (result && result.data) {
+        // An SSO click this tab abandoned earlier mustn't win once we land.
+        forgetPendingLoginMethod();
+        rememberLoginMethod("email");
         // Wait a bit for cookie to be set, then redirect
         // This ensures the cookie is available when middleware checks
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -164,7 +202,8 @@ export default function LoginPage() {
         window.location.href = "/";
       } else {
         logger.error("[Login] Sign in failed - no data in result", { result });
-        throw new Error(result?.error?.message || "Sign in failed - please try again");
+        setError(describeAuthError(result?.error, "Sign in failed - please try again"));
+        return;
       }
     } catch (err) {
       logger.error("[Login] Sign in error", { error: err });
@@ -176,69 +215,106 @@ export default function LoginPage() {
     }
   };
 
+  const { providers, passwordLogin } = authOptions;
+  const hasSso = providers.length > 0;
+
   // The form itself, measured into a skeleton while the setup check runs.
   return (
     <Skeleton loading={checkingSetup} label="Loading sign in">
-      <AuthShell title="Sign in" description="Welcome back. Use the account you set up on this instance.">
+      <AuthShell
+        title="Sign in"
+        description={
+          passwordLogin
+            ? "Welcome back. Sign in to your account on this instance."
+            : "Welcome back. Sign in with your organization's account."
+        }
+      >
           {configError && (
             <pre className="mb-4 whitespace-pre-wrap rounded-[10px] bg-ds-red/10 px-3.5 py-2.5 font-mono text-ds-red text-xs">
               {configError}
             </pre>
           )}
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-              <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="admin@example.com"
-                          autoComplete="email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <div className="grid gap-5">
+            <SsoButtons
+              providers={providers}
+              returnTo="/login"
+              lastMethod={lastMethod}
+              disabled={!!configError}
+              onError={setError}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          autoComplete="current-password"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+            {hasSso && passwordLogin && <AuthSeparator />}
 
-              {error && <AuthError>{error}</AuthError>}
+            {passwordLogin ? (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <LastUsedBadge show={hasSso && lastMethod === "email"}>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="you@example.com"
+                                autoComplete="email"
+                                {...field}
+                              />
+                            </FormControl>
+                          </LastUsedBadge>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-              <Button
-                type="submit"
-                disabled={form.formState.isSubmitting || !!configError}
-                className="w-full"
-              >
-                {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-          </Form>
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="••••••••"
+                              autoComplete="current-password"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {error && <AuthError>{error}</AuthError>}
+
+                  <Button
+                    type="submit"
+                    disabled={form.formState.isSubmitting || !!configError}
+                    className="w-full"
+                  >
+                    {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+                  </Button>
+                </form>
+              </Form>
+            ) : (
+              <>
+                {error && <AuthError>{error}</AuthError>}
+                {!hasSso && !configError && (
+                  // Password sign-in off and no provider: nothing to offer.
+                  <AuthError>
+                    No sign-in method is configured on this instance. Set
+                    AUTH_PROVIDERS, or turn AUTH_PASSWORD_LOGIN back on.
+                  </AuthError>
+                )}
+              </>
+            )}
+          </div>
       </AuthShell>
     </Skeleton>
   );

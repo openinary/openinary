@@ -2,12 +2,21 @@
 
 import { SettingsPage, type SettingsPageEntry } from "@openinary/dashboard";
 import { AppearanceTab, StorageTab } from "@openinary/ui";
-import { HardDrive, KeyRound, Palette, ScrollText, User } from "lucide-react";
+import {
+  HardDrive,
+  KeyRound,
+  Palette,
+  ScrollText,
+  User,
+  Users,
+} from "lucide-react";
+import { type Action, can } from "shared/permissions";
 
 import { ApiKeyManager } from "@/components/api-key-manager";
 import { AccountTab } from "@/components/settings/account-tab";
 import { ActivityTab } from "@/components/settings/activity-tab";
-import { useSession } from "@/lib/auth-client";
+import { UsersTab } from "@/components/settings/users-tab";
+import { useRole, useSession } from "@/lib/auth-client";
 import { Skeleton } from "skullet/react";
 
 function AccountPage() {
@@ -29,7 +38,12 @@ function AccountPage() {
   );
 }
 
-export const SETTINGS_PAGES: SettingsPageEntry[] = [
+type WebSettingsPage = SettingsPageEntry & {
+  /** What a role needs to see the page. Omitted: everyone. */
+  requires?: Action;
+};
+
+export const SETTINGS_PAGES: WebSettingsPage[] = [
   {
     value: "account",
     label: "Account",
@@ -50,6 +64,7 @@ export const SETTINGS_PAGES: SettingsPageEntry[] = [
     description: "The keys your apps use to authenticate with Openinary.",
     icon: KeyRound,
     content: ApiKeyManager,
+    requires: "apiKeys:manage",
   },
   {
     value: "storage",
@@ -66,8 +81,27 @@ export const SETTINGS_PAGES: SettingsPageEntry[] = [
     content: ActivityTab,
     wide: true,
   },
+  {
+    value: "users",
+    label: "Users",
+    description: "Who can sign in to this instance, and what they can do.",
+    icon: Users,
+    content: UsersTab,
+    requires: "users:manage",
+  },
 ];
 
+/** The settings pages `role` may open. Unfiltered while the role loads. */
+export function useSettingsPages() {
+  const role = useRole();
+  return SETTINGS_PAGES.filter(
+    (page) => role === undefined || !page.requires || can(role, page.requires),
+  );
+}
+
 export function Settings({ tab }: { tab: string }) {
-  return <SettingsPage tab={tab} pages={SETTINGS_PAGES} />;
+  // Hidden rather than refused: the API and Better Auth enforce both. Unfiltered
+  // until the role is known, so a direct link never 404s on load; once it is,
+  // a page this role can't open is a 404.
+  return <SettingsPage tab={tab} pages={useSettingsPages()} />;
 }

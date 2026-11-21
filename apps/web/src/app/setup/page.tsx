@@ -18,8 +18,19 @@ import {
 } from "@/components/ui/form";
 import { Skeleton } from "skullet/react";
 import logger from "@/lib/logger";
-import { validateAuthConfig } from "@/lib/validate-auth-config";
+import {
+  type AuthOptions,
+  PASSWORD_ONLY,
+  validateAuthConfig,
+} from "@/lib/validate-auth-config";
+import { callbackErrorMessage } from "@/lib/auth-errors";
 import { AuthError, AuthShell } from "@/components/auth-shell";
+import { AuthSeparator } from "@openinary/dashboard/ui/social-button";
+import {
+  confirmPendingLoginMethod,
+  forgetPendingLoginMethod,
+  SsoButtons,
+} from "@/components/sso-buttons";
 
 const setupFormSchema = z
   .object({
@@ -61,6 +72,19 @@ export default function SetupPage() {
   const [error, setError] = useState("");
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [authOptions, setAuthOptions] = useState<AuthOptions>(PASSWORD_ONLY);
+
+  // A first SSO sign-in that failed comes back here with ?error=<code>.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("error");
+    if (!code) return;
+    forgetPendingLoginMethod();
+    setError(callbackErrorMessage(code));
+    url.searchParams.delete("error");
+    url.searchParams.delete("error_description");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
 
   const form = useForm<SetupFormValues>({
     resolver: zodResolver(setupFormSchema),
@@ -76,6 +100,10 @@ export default function SetupPage() {
     const checkAuthAndSetup = async () => {
       try {
         const configValidation = await validateAuthConfig();
+
+        if (configValidation.authOptions) {
+          setAuthOptions(configValidation.authOptions);
+        }
         
         if (!configValidation.isValid) {
           setConfigError(configValidation.error || "Configuration error");
@@ -86,6 +114,7 @@ export default function SetupPage() {
         const session = await authClient.getSession();
         
         if (session?.data?.session) {
+          confirmPendingLoginMethod();
           router.push("/");
           return;
         }
@@ -141,16 +170,38 @@ export default function SetupPage() {
     }
   };
 
+  const { providers, passwordLogin } = authOptions;
+
   // The form itself, measured into a skeleton while the setup check runs.
   return (
     <Skeleton loading={checkingSetup} label="Loading setup">
-      <AuthShell title="Create your account" description="You'll own this instance. Pick a password you don't use anywhere else.">
+      <AuthShell
+        title={passwordLogin ? "Create your account" : "Set up Openinary"}
+        description={
+          passwordLogin
+            ? "You'll be this instance's first admin. Pick a password you don't use anywhere else."
+            : "Sign in with your organization's account. The first person to sign in becomes this instance's admin; everyone after joins with the default role."
+        }
+      >
           {configError && (
             <pre className="mb-4 whitespace-pre-wrap rounded-[10px] bg-ds-red/10 px-3.5 py-2.5 font-mono text-ds-red text-xs">
               {configError}
             </pre>
           )}
 
+          <div className="grid gap-5">
+          <SsoButtons
+            providers={providers}
+            returnTo="/setup"
+            disabled={!!configError}
+            onError={setError}
+          />
+
+          {providers.length > 0 && passwordLogin && <AuthSeparator />}
+
+          {!passwordLogin && error && <AuthError>{error}</AuthError>}
+
+          {passwordLogin && (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <div className="space-y-4">
@@ -244,6 +295,8 @@ export default function SetupPage() {
               </Button>
             </form>
           </Form>
+          )}
+          </div>
       </AuthShell>
     </Skeleton>
   );

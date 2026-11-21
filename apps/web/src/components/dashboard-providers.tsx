@@ -10,22 +10,39 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { notFound, usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
+import { useEffect } from "react";
+import { can } from "shared/permissions";
 
 import { aiPrompt } from "@/components/get-started/integration-snippets";
 import { useOnboardingState } from "@/components/onboarding-gate";
-import { authClient } from "@/lib/auth-client";
+import { confirmPendingLoginMethod } from "@/components/sso-buttons";
+import { authClient, useRole, useSession } from "@/lib/auth-client";
 import { toAbsoluteUrl } from "@/lib/utils";
+
+/**
+ * Viewers can't hold API keys. Allowed until the role is known, so a direct
+ * link to the page doesn't 404 while the session loads.
+ */
+export function useCanManageApiKeys() {
+  const role = useRole();
+  return role === undefined || can(role, "apiKeys:manage");
+}
 
 /** Nothing but someone creating one makes an API key exist. */
 function useHasApiKey() {
-  return useQuery({
+  // A viewer's list would only 403; the step stays open for them (false, not
+  // undefined, or the checklist waits on it forever).
+  const canListKeys = useCanManageApiKeys();
+  const hasKey = useQuery({
     queryKey: ["openinary", "api-keys", "any"],
     queryFn: async () => {
       const result = await authClient.apiKey.list();
       if (result.error) throw new Error(result.error.message);
       return result.data.apiKeys.length > 0;
     },
+    enabled: canListKeys,
   }).data;
+  return canListKeys ? hasKey : false;
 }
 
 /**
@@ -81,6 +98,7 @@ const adapter: DashboardAdapter = {
   storageNoun: "storage",
   docsUrl: "https://docs.openinary.dev/",
   useHasApiKey,
+  useCanManageApiKeys,
   useOnboardingSignals,
   useAiPrompt,
   aiPromptSample: aiPrompt({
@@ -94,5 +112,12 @@ export function WebDashboardProvider({
 }: {
   children: React.ReactNode;
 }) {
+  // A single sign-on callback that worked lands here: only now does the
+  // provider clicked on the sign-in page earn its "Last used" pill.
+  const signedIn = !!useSession().data?.session;
+  useEffect(() => {
+    if (signedIn) confirmPendingLoginMethod();
+  }, [signedIn]);
+
   return <DashboardProvider adapter={adapter}>{children}</DashboardProvider>;
 }

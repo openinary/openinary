@@ -15,6 +15,11 @@ export interface OpeninaryConfig {
   transformBaseUrl: string | null;
   /** Every request the package makes goes through this. */
   fetch: OpeninaryFetch;
+  /**
+   * Browse and download only: no upload, new folder, rename, move or delete
+   * anywhere in the package. UX only; the API refuses the writes either way.
+   */
+  readOnly: boolean;
 }
 
 export interface OpeninaryProviderProps {
@@ -28,6 +33,8 @@ export interface OpeninaryProviderProps {
    *  Cannot be passed as a prop from a Server Component — functions aren't
    *  serializable across the RSC boundary. */
   fetch?: OpeninaryFetch;
+  /** Hide every control that changes media (a read-only role). Default false. */
+  readOnly?: boolean;
   children: React.ReactNode;
 }
 
@@ -39,6 +46,7 @@ export function OpeninaryProvider({
   apiBaseUrl,
   transformBaseUrl,
   fetch: fetchImpl,
+  readOnly = false,
   children,
 }: OpeninaryProviderProps) {
   const value = React.useMemo<OpeninaryConfig>(
@@ -52,8 +60,9 @@ export function OpeninaryProvider({
         fetchImpl ??
         ((input, init) =>
           globalThis.fetch(input, { credentials: "include", ...init })),
+      readOnly,
     }),
-    [apiBaseUrl, transformBaseUrl, fetchImpl],
+    [apiBaseUrl, transformBaseUrl, fetchImpl, readOnly],
   );
 
   return (

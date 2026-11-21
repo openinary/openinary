@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
-import { allowedOrigins } from "shared";
+import { allowedOrigins, mediaActionFor } from "shared";
 import {
   createTransformRoute,
   createAuthenticatedRoute,
@@ -24,7 +24,7 @@ import activity from "./routes/activity";
 import onboarding from "./routes/onboarding";
 import health from "./routes/health";
 import { logDelivery, noteApiUpload } from "./middleware/activity";
-import { apiKeyAuth } from "./middleware/auth";
+import { apiKeyAuth, requirePermission } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
 import { getSharedStorage } from "./config/storage";
 import { enginePaths, videoJobQueue } from "./config/queue";
@@ -125,37 +125,50 @@ app.route("/queue/events", queueEvents);
 // presigned signature minted by POST /upload/sign, so it gets its own
 // auth handling (see presignedOrApiKeyAuth) plus public rate limiting,
 // while the other /upload/* subroutes stay strictly API-key protected.
+// Each route checks its role after authenticating; POST /upload does so in
+// the upload route, after its own auth.
+const mediaWrite = requirePermission("media:write");
+const mediaRead = requirePermission("media:read");
 app.use("/upload", publicRateLimit);
 app.use("/upload", noteApiUpload);
-app.use("/upload/sign", apiKeyAuth);
-app.use("/upload/createfolder", apiKeyAuth);
+app.use("/upload/sign", apiKeyAuth, mediaWrite);
+app.use("/upload/createfolder", apiKeyAuth, mediaWrite);
 app.route("/upload", upload);
 
 // Compression scoped to /storage (large JSON listings); not global because
 // /queue/events streams SSE and /t/* serves already-compressed media
 app.use("/storage/*", compress());
 app.use("/storage/*", apiKeyAuth);
+app.use("/storage/*", requirePermission((c) => mediaActionFor(c.req.method)));
 app.route("/storage", storageRoute);
 
-app.use("/download-zip", apiKeyAuth);
-app.use("/download-zip/*", apiKeyAuth);
+// A POST, but it only reads.
+app.use("/download-zip", apiKeyAuth, mediaRead);
+app.use("/download-zip/*", apiKeyAuth, mediaRead);
 app.route("/download-zip", downloadZip);
 
-app.use("/invalidate/*", apiKeyAuth);
+app.use("/invalidate/*", apiKeyAuth, mediaWrite);
 app.route("/invalidate", invalidateRoute);
 
 app.use("/queue/*", apiKeyAuth);
+app.use(
+  "/queue/*",
+  requirePermission((c) => (mediaActionFor(c.req.method) === "media:read" ? "media:read" : "queue:manage")),
+);
 app.route("/queue", queue);
 
-app.use("/activity", apiKeyAuth);
-app.use("/activity/*", apiKeyAuth);
+app.use("/activity", apiKeyAuth, mediaRead);
+app.use("/activity/*", apiKeyAuth, mediaRead);
 app.route("/activity", activity);
 
+// Anyone signed in saves their own answers; the route itself guards the
+// instance-wide workspace.
 app.use("/onboarding", apiKeyAuth);
 app.use("/onboarding/*", apiKeyAuth);
+app.get("/onboarding", mediaRead);
 app.route("/onboarding", onboarding);
 
-// Applies apiKeyAuth itself.
+// Applies apiKeyAuth and its permission itself.
 app.route("/api-keys", apiKeys);
 
 export default app;

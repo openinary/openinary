@@ -1,51 +1,12 @@
-import { allowedOrigins, hasAdmin } from "shared";
+import { allowedOrigins } from "shared";
 import { getAuth } from "shared/auth";
 import logger from "@/lib/logger";
 
-const json = (body: unknown, status: number) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-
+// Who may sign up, sign in and with what is decided in shared/auth's hooks,
+// for every route at once; this only hands requests over.
 export const GET = (request: Request) => getAuth().handler(request);
 
-// No second account once one exists. The database trigger enforces it too;
-// this answers with a readable error instead.
-export async function POST(request: Request) {
-  const url = new URL(request.url);
-
-  if (url.pathname.endsWith("/sign-up/email")) {
-    try {
-      if (hasAdmin()) {
-        logger.warn("[Auth] Sign-up attempt blocked: admin already exists", {
-          pathname: url.pathname,
-        });
-        return json(
-          {
-            error:
-              "Setup is already completed. Creating additional administrator accounts is disabled.",
-          },
-          403,
-        );
-      }
-    } catch (error) {
-      // Fail closed: if we cannot verify, we refuse sign-up.
-      logger.error("[Auth] Error while checking admin account before sign-up", {
-        error,
-      });
-      return json(
-        {
-          error:
-            "Unable to verify setup status. For security reasons, sign-up is disabled.",
-        },
-        500,
-      );
-    }
-  }
-
-  return getAuth().handler(request);
-}
+export const POST = (request: Request) => getAuth().handler(request);
 
 export async function OPTIONS(request: Request) {
   const origin = request.headers.get("origin");

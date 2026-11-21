@@ -10,7 +10,10 @@ import { verifyUploadSignature, logger, serializeError } from "@openinary/core";
 export const presignedOrApiKeyAuth =
   (apiSecret: string | undefined) =>
   async (c: Context<AuthVariables>, next: Next) => {
-    if (await authenticateRequest(c)) {
+    const authenticated = await authenticateRequest(c);
+    // A banned or locked-out account's key is refused, not retried as a signature.
+    if (authenticated instanceof Response) return authenticated;
+    if (authenticated) {
       await next();
       return;
     }

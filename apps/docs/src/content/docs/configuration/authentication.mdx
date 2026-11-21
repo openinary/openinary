@@ -1,0 +1,302 @@
+---
+title: "Users & Single Sign-On"
+description: "Invite your team with roles, sign in with Google Workspace, Microsoft Entra, Okta or any OIDC provider, and limit access to your email domains."
+---
+
+A self-hosted instance can have as many users as you like. Each one has a role, and people can sign in with a password, with single sign-on (SSO), or both. You configure SSO with environment variables. With none of them set, the instance works as before: password sign-in, with admins adding people by hand.
+
+## Roles
+
+| | Viewer | Member | Admin |
+| --- | :---: | :---: | :---: |
+| Browse files and folders, download, see stats, the queue and logs | ✓ | ✓ | ✓ |
+| Upload, create folders, rename, move and delete | | ✓ | ✓ |
+| Invalidate and clear the cache | | ✓ | ✓ |
+| Retry, cancel and delete video jobs | | ✓ | ✓ |
+| Create and manage their own API keys | | ✓ | ✓ |
+| Change workspace settings, such as the name and logo | | | ✓ |
+| Manage users: add, change roles, ban, remove | | | ✓ |
+
+An API key acts with its owner's **current** role. Demote a member to viewer and their keys can only read from then on. Ban or remove them and their keys stop working.
+
+## The first admin
+
+The first account on an instance is always made admin, however it is created:
+
+- at `/setup` in the dashboard,
+- from `OPENINARY_ADMIN_EMAIL` and `OPENINARY_ADMIN_PASSWORD` on first boot (see [admin bootstrap](/configuration/server#admin-bootstrap)),
+- or by the first person who signs in with SSO.
+
+A first account created through `/setup` or `OPENINARY_ADMIN_*` skips the email domain allowlist, so setting one up front can't lock you out of setup. A first account created through SSO does not: it must pass the allowlist like everyone else, so a stranger can't claim admin on a fresh instance with an account from another domain. If you plan to let the first SSO sign-in create the admin, sign in yourself straight after deploying, or set `AUTH_ADMIN_EMAILS` so the right person gets admin whatever the order.
+
+## Adding people
+
+Once the first account exists, nobody can sign up with a password. New people get in one of two ways:
+
+- **Through SSO.** The first time someone signs in with a configured provider, an account is created with `AUTH_DEFAULT_ROLE` (`viewer` unless you change it), or admin if their address is in `AUTH_ADMIN_EMAILS`. The [email domain allowlist](#limit-sign-in-to-your-domains) decides who may.
+- **By an admin.** Go to **Settings › Users** to add someone, change their role, ban them or remove them.
+
+Promote people in **Settings › Users** after their first sign-in, or set `AUTH_DEFAULT_ROLE=member` if everyone who can sign in should be able to upload.
+
+<Warning>
+  With a provider whose sign-up is open to anyone, such as a Google OAuth app
+  set to *External* or gitlab.com, and no `AUTH_ALLOWED_EMAIL_DOMAINS`, anyone
+  with an account there can sign in and get the default role. Set an allowlist,
+  restrict the app at the provider, or set `AUTH_<ID>_ALLOW_SIGNUP=false`.
+</Warning>
+
+## Environment variables
+
+### General
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `AUTH_PROVIDERS` | | Provider ids to offer on the sign-in page, comma-separated, such as `google,corp`. Lowercase letters, digits and dashes. Each id is configured with the `AUTH_<ID>_*` variables below |
+| `AUTH_ALLOWED_EMAIL_DOMAINS` | | Only these email domains may sign in or be added, comma-separated, such as `acme.com,acme.io`. Empty: any domain. See [limit sign-in to your domains](#limit-sign-in-to-your-domains) |
+| `AUTH_DEFAULT_ROLE` | `viewer` | Role for new accounts: `viewer`, `member` or `admin` |
+| `AUTH_ADMIN_EMAILS` | | Addresses made admin when their account is created, comma-separated. They also skip the domain allowlist |
+| `AUTH_PASSWORD_LOGIN` | `true` | `false` turns off email and password sign-in. Needs at least one provider. See [SSO only](#sso-only) |
+
+### Per provider
+
+For each id in `AUTH_PROVIDERS`, set `AUTH_<ID>_*`, with the id uppercased and dashes turned into underscores. `corp` reads `AUTH_CORP_CLIENT_ID`, `acme-sso` reads `AUTH_ACME_SSO_CLIENT_ID`.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `AUTH_<ID>_TYPE` | the id if it is a preset name, otherwise `oidc` | `google`, `microsoft`, `okta`, `keycloak`, `auth0`, `authentik`, `gitlab`, or `oidc` for any other OpenID Connect provider. An id named `google` is a Google provider without setting this |
+| `AUTH_<ID>_CLIENT_ID` | **required** | The client (application) id from the provider |
+| `AUTH_<ID>_CLIENT_SECRET` | | The client secret. Leave empty only for a public client that uses PKCE |
+| `AUTH_<ID>_ISSUER` | | The issuer URL. Required for `okta`, `keycloak`, `authentik` and `oidc`, optional for `gitlab` (self-managed) and `auth0` |
+| `AUTH_<ID>_DISCOVERY_URL` | built from the issuer | Full URL of `/.well-known/openid-configuration`. Overrides everything else that locates the provider |
+| `AUTH_<ID>_TENANT_ID` | | `microsoft` only: your Entra directory (tenant) id. Required |
+| `AUTH_<ID>_DOMAIN` | | `auth0` only: your tenant domain, such as `acme.eu.auth0.com`. An alternative to `ISSUER` |
+| `AUTH_<ID>_NAME` | the preset's name, or the id | Button label: "Continue with *name*" |
+| `AUTH_<ID>_SCOPES` | `openid profile email` | Scopes to request, space- or comma-separated |
+| `AUTH_<ID>_ALLOW_SIGNUP` | `true` | `false`: only people who already have an account may use this provider. It creates no new accounts |
+| `AUTH_<ID>_PKCE` | `true` | Use PKCE. Turn off only for a provider that rejects it |
+| `AUTH_<ID>_TRUST_EMAIL` | `true` for `microsoft` with a specific tenant, otherwise `false` | Treat the provider's email as verified even without an `email_verified` claim. Set it only for a provider that owns every address it issues |
+| `AUTH_<ID>_DOMAIN_CLAIM` | `hd` for `google` | A claim that names the user's verified organisation domain. With an allowlist, it must match one of the allowed domains |
+
+A mistake in any of these, such as a missing client id, an unknown type or `AUTH_PASSWORD_LOGIN=false` without a provider, stops the server at startup with an `Invalid sign-in configuration: …` error naming the variable. Nothing starts half-configured.
+
+### Redirect URI
+
+Every provider asks for the URL it sends people back to after they sign in. For a provider with id `<id>` it is:
+
+```
+${BETTER_AUTH_URL}/api/auth/callback/<id>
+```
+
+For an instance at `https://media.acme.com` with a provider called `google`, that is `https://media.acme.com/api/auth/callback/google`. It must match character for character: scheme, host, port and no trailing slash. The id is part of it, so renaming a provider means updating the URI at the provider too.
+
+### Docker Compose
+
+`docker-compose.yml` only passes the variables it lists to the container, and provider variable names depend on the ids you pick. It forwards:
+
+- all the [general variables](#general),
+- `AUTH_GOOGLE_CLIENT_ID` and `AUTH_GOOGLE_CLIENT_SECRET`, for a provider with id `google`,
+- `AUTH_SSO_TYPE`, `NAME`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER`, `DISCOVERY_URL`, `TENANT_ID` and `DOMAIN`, for a provider with id `sso`. Set `AUTH_SSO_TYPE` to any type above, so this one id covers Microsoft, Okta, Keycloak, Auth0, authentik, GitLab or generic OIDC.
+
+So `AUTH_PROVIDERS=google,sso` works from `.env` alone. For other ids, or the advanced options (`SCOPES`, `ALLOW_SIGNUP`, `PKCE`, `TRUST_EMAIL`, `DOMAIN_CLAIM`), add them in a `docker-compose.override.yml` next to `docker-compose.yml`. Compose reads it automatically and merges its variables in, and it doesn't conflict when you update the main file:
+
+```yaml title="docker-compose.override.yml"
+services:
+  openinary:   # or "api" for the API-only profile
+    environment:
+      - AUTH_CORP_TYPE=${AUTH_CORP_TYPE:-}
+      - AUTH_CORP_ISSUER=${AUTH_CORP_ISSUER:-}
+      - AUTH_CORP_CLIENT_ID=${AUTH_CORP_CLIENT_ID:-}
+      - AUTH_CORP_CLIENT_SECRET=${AUTH_CORP_CLIENT_SECRET:-}
+      - AUTH_SSO_ALLOW_SIGNUP=${AUTH_SSO_ALLOW_SIGNUP:-}
+```
+
+In the `full` image, both the dashboard (which serves `/api/auth`, sign-in and the callbacks) and the API (which checks roles on every request) receive the container's environment, so set each variable once. Running from source, put the same `AUTH_*` values in both `apps/web/.env` and `apps/api/.env`. On Coolify, Dokploy, Railway and similar platforms, add the variables in the platform's environment settings.
+
+## Limit sign-in to your domains
+
+`AUTH_ALLOWED_EMAIL_DOMAINS=acme.com,acme.io` limits the instance to those domains:
+
+- It is checked when an account is created, by SSO or by an admin, and again **on every sign-in**. Remove a domain and its accounts can no longer sign in.
+- Admins are exempt, and so are addresses in `AUTH_ADMIN_EMAILS` and a first account created through `/setup` or `OPENINARY_ADMIN_*`, so changing the list can't lock the owners out. A first account created through SSO must still pass the allowlist.
+- With an allowlist, an SSO account also needs an email address the provider has **verified**: the `email_verified` claim, or `AUTH_<ID>_TRUST_EMAIL=true` for a provider that owns every address it issues. Otherwise anyone could register `you@acme.com` at some provider without owning it.
+- For Google, the Workspace `hd` claim must name an allowed domain as well. See [why `hd` is checked](#why-hd-is-checked).
+
+## Google Workspace
+
+This lets everyone in your Google Workspace sign in with their work account, and nobody else.
+
+<Steps>
+  <Step title="Create the consent screen">
+    In the [Google Cloud console](https://console.cloud.google.com/), pick or create a project, then open **Google Auth Platform** (formerly **APIs & Services › OAuth consent screen**). Set the app name and support email, and under **Audience** choose **Internal**. Internal apps only accept accounts from your Workspace organisation, and need no verification by Google.
+  </Step>
+  <Step title="Create the OAuth client">
+    Go to **Clients** (or **Credentials › Create credentials › OAuth client ID**) and choose application type **Web application**. Under **Authorized redirect URIs**, add:
+
+    ```
+    https://media.acme.com/api/auth/callback/google
+    ```
+
+    with your own `BETTER_AUTH_URL` in place of `https://media.acme.com`. JavaScript origins aren't needed. Copy the client id and secret.
+  </Step>
+  <Step title="Configure Openinary">
+    ```bash title=".env"
+    BETTER_AUTH_URL=https://media.acme.com
+    AUTH_PROVIDERS=google
+    AUTH_GOOGLE_CLIENT_ID=1234567890-abc.apps.googleusercontent.com
+    AUTH_GOOGLE_CLIENT_SECRET=GOCSPX-...
+    AUTH_ALLOWED_EMAIL_DOMAINS=acme.com
+    AUTH_ADMIN_EMAILS=you@acme.com
+    ```
+
+    Restart. The sign-in page shows **Continue with Google**.
+  </Step>
+</Steps>
+
+### Why `hd` is checked
+
+Anyone can create a personal Google account with an existing address, such as `jane@acme.com`, without a Workspace, and Google marks that email as verified. Its ID token, though, has no `hd` (hosted domain) claim: only Workspace accounts carry one, set to their organisation's domain. With an allowlist, Openinary therefore requires `hd` to name an allowed domain, so a personal Google account registered with a work address is refused even when your consent screen is External.
+
+When exactly one domain is allowed, Openinary also passes it to Google, so the account picker only offers accounts from that Workspace. That is a convenience for users. The `hd` check is what enforces it.
+
+To allow several Workspaces, list all their domains. A Google provider with no allowlist accepts any Google account its consent screen accepts.
+
+## Other providers
+
+Each recipe uses its own provider id. Register `${BETTER_AUTH_URL}/api/auth/callback/<id>` as the redirect URI and create a confidential (client secret) web application. Under Docker Compose without an override file, use the id `sso` and set `AUTH_SSO_TYPE` instead.
+
+### Microsoft Entra ID
+
+Register an app in **Entra admin center › App registrations**, with a **Web** redirect URI of `.../api/auth/callback/microsoft`. Create a secret under **Certificates & secrets**. The tenant id is on the app's overview page.
+
+```bash
+AUTH_PROVIDERS=microsoft
+AUTH_MICROSOFT_TENANT_ID=00000000-0000-0000-0000-000000000000
+AUTH_MICROSOFT_CLIENT_ID=...
+AUTH_MICROSOFT_CLIENT_SECRET=...
+```
+
+Entra doesn't send `email_verified`, so with a specific tenant id the email is trusted by default: the tenant owns its addresses. With `common`, `organizations` or `consumers`, which accept accounts from anywhere, it isn't, and an allowlist will refuse those accounts. Make sure users have an email address in Entra (or add the `email` optional claim), since sign-in needs one.
+
+### Okta
+
+Create an **OIDC, Web Application** app integration with the sign-in redirect URI `.../api/auth/callback/okta`, and assign the people or groups who may use it.
+
+```bash
+AUTH_PROVIDERS=okta
+AUTH_OKTA_ISSUER=https://acme.okta.com
+AUTH_OKTA_CLIENT_ID=...
+AUTH_OKTA_CLIENT_SECRET=...
+```
+
+Use `https://acme.okta.com/oauth2/default` as the issuer if you use a custom authorization server.
+
+### Keycloak
+
+In your realm, create an **OpenID Connect** client with **Client authentication** on and the valid redirect URI `.../api/auth/callback/keycloak`. The secret is on the client's **Credentials** tab.
+
+```bash
+AUTH_PROVIDERS=keycloak
+AUTH_KEYCLOAK_ISSUER=https://sso.acme.com/realms/acme
+AUTH_KEYCLOAK_CLIENT_ID=openinary
+AUTH_KEYCLOAK_CLIENT_SECRET=...
+```
+
+### Auth0
+
+Create a **Regular Web Application** and add `.../api/auth/callback/auth0` under **Allowed Callback URLs**.
+
+```bash
+AUTH_PROVIDERS=auth0
+AUTH_AUTH0_DOMAIN=acme.eu.auth0.com
+AUTH_AUTH0_CLIENT_ID=...
+AUTH_AUTH0_CLIENT_SECRET=...
+```
+
+With a custom domain, set `AUTH_AUTH0_ISSUER=https://login.acme.com` instead of `DOMAIN`.
+
+### authentik
+
+Create an **OAuth2/OpenID Provider** (confidential client, redirect URI `.../api/auth/callback/authentik`) and an application that uses it. The issuer is the provider's **OpenID Configuration Issuer**, which ends in the application slug.
+
+```bash
+AUTH_PROVIDERS=authentik
+AUTH_AUTHENTIK_ISSUER=https://auth.acme.com/application/o/openinary/
+AUTH_AUTHENTIK_CLIENT_ID=...
+AUTH_AUTHENTIK_CLIENT_SECRET=...
+```
+
+### GitLab
+
+Create an application under **User settings › Applications**, or **Admin › Applications** on a self-managed instance, with the redirect URI `.../api/auth/callback/gitlab` and the scopes `openid`, `profile` and `email`.
+
+```bash
+AUTH_PROVIDERS=gitlab
+AUTH_GITLAB_CLIENT_ID=...
+AUTH_GITLAB_CLIENT_SECRET=...
+# Self-managed GitLab only:
+# AUTH_GITLAB_ISSUER=https://gitlab.acme.com
+```
+
+Anyone can create a gitlab.com account, so pair gitlab.com with an allowlist or `AUTH_GITLAB_ALLOW_SIGNUP=false`.
+
+### Any other OpenID Connect provider
+
+Any provider that publishes `/.well-known/openid-configuration` works with type `oidc`, which is the default for an id that isn't a preset name:
+
+```bash
+AUTH_PROVIDERS=corp
+AUTH_CORP_NAME=Acme SSO
+AUTH_CORP_ISSUER=https://id.acme.com
+AUTH_CORP_CLIENT_ID=...
+AUTH_CORP_CLIENT_SECRET=...
+```
+
+If the discovery document isn't at `<issuer>/.well-known/openid-configuration`, set `AUTH_CORP_DISCOVERY_URL` to its full URL instead.
+
+You can list several providers, such as `AUTH_PROVIDERS=google,corp`. Each gets its own button.
+
+## SSO only
+
+```bash
+AUTH_PROVIDERS=google
+AUTH_PASSWORD_LOGIN=false
+```
+
+The sign-in page shows only the provider buttons, and the password sign-in and sign-up routes refuse requests. `/setup` and `OPENINARY_ADMIN_*` can still create the first account, but in this mode the simplest path is to let the first SSO sign-in become admin, or to name yourself in `AUTH_ADMIN_EMAILS`.
+
+An existing password account keeps working once it signs in with SSO under the same, verified email address: the two are linked into one account.
+
+## Upgrading an existing instance
+
+Before this release an instance allowed exactly one account. On upgrade, that account becomes the admin, and nothing else changes: password sign-in works as before, and no SSO is offered until you set `AUTH_PROVIDERS`. Existing API keys keep working, with their owner's admin role.
+
+To bring your team in, either add them from **Settings › Users** or configure a provider. If you sign in with SSO using the same verified email as your existing account, it is linked to that account rather than creating a new one.
+
+## Troubleshooting
+
+**`redirect_uri_mismatch` or "invalid redirect URI" at the provider.** The redirect URI registered there differs from the one Openinary sends. Copy it from the failing request's `redirect_uri` parameter in the address bar and compare: `http` against `https`, `www.`, a port, a trailing slash, or a different id. It is built from `BETTER_AUTH_URL` and the provider id.
+
+**The provider sends you back to the wrong address, or sign-in loops back to the login page.** `BETTER_AUTH_URL` must be the exact public URL people use to open the dashboard, with `https://` behind a TLS-terminating proxy. A mismatch sends callbacks to the wrong host, and the session cookie is set for a different site than the one you are on. The startup log prints the URL in use under `Better Auth configuration`.
+
+**"Your email domain isn't allowed on this instance."** The address isn't in `AUTH_ALLOWED_EMAIL_DOMAINS`. Add the domain, or add the address to `AUTH_ADMIN_EMAILS` if it should be an admin.
+
+**"Your identity provider didn't confirm this email address belongs to an allowed organisation."** With an allowlist, the provider didn't mark the email as verified, or, for Google, the account is a personal one without a matching Workspace `hd`. Sign in with the work account. For a provider that never sends `email_verified` but owns all its addresses, set `AUTH_<ID>_TRUST_EMAIL=true`.
+
+**"Your account doesn't have access to this instance."** The account exists but is banned, or its domain is no longer allowed. An admin can lift a ban in **Settings › Users**.
+
+**"Setup is already completed."** Password sign-up is closed once the first account exists. Ask an admin to add you, or sign in with SSO.
+
+**The server doesn't start: `Invalid sign-in configuration: …`.** The message names the variable to fix. Under Docker Compose, also check the variable actually reaches the container (`docker compose config` shows what is passed): ids other than `google` and `sso` need a [`docker-compose.override.yml`](#docker-compose).
+
+**Clicking the provider button fails straight away.** Openinary reads the provider's discovery document to find its endpoints and the keys that verify ID tokens. Check that the issuer or discovery URL is right, and that the container can reach it over HTTPS.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Server configuration" icon="server" href="/configuration/server">
+    Secrets, URLs and the admin bootstrap.
+  </Card>
+  <Card title="Security" icon="lock" href="/security">
+    Sessions, API keys and the auth database.
+  </Card>
+</CardGroup>
