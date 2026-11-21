@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import Database from "better-sqlite3";
 
-import { getUserAccess, hasAdmin, kvGet, migrate } from "./db";
+import { getUserAccess, hasAdmin, kvGet, kvSet, migrate } from "./db";
 
 const insertUser = (db: Database.Database, id: string, email = `${id}@example.com`) =>
   db
@@ -102,4 +102,51 @@ test("getUserAccess reads role and ban, and an expired ban no longer counts", ()
   assert.equal(getUserAccess("d", db)?.banned, true);
   assert.equal(getUserAccess("b", db)?.role, "member");
   assert.equal(getUserAccess("missing", db), undefined);
+});
+
+test("password accounts are marked verified once, SSO-only ones are left alone", () => {
+  const db = new Database(":memory:");
+  migrate(db);
+  // An instance from before the backfill: the marker isn't there yet.
+  db.prepare("DELETE FROM app_state WHERE key = 'credential_emails_verified'").run();
+  const addAccount = (userId: string, providerId: string) =>
+    db
+      .prepare(
+        "INSERT INTO account (id, userId, accountId, providerId, createdAt, updatedAt) VALUES (?, ?, ?, ?, 1, 1)",
+      )
+      .run(`${userId}-${providerId}`, userId, userId, providerId);
+  const verified = (id: string) =>
+    (db.prepare("SELECT emailVerified FROM user WHERE id = ?").get(id) as { emailVerified: number }).emailVerified;
+
+  insertUser(db, "owner");
+  addAccount("owner", "credential");
+  insertUser(db, "both");
+  addAccount("both", "credential");
+  addAccount("both", "google");
+  insertUser(db, "sso");
+  addAccount("sso", "google");
+
+  migrate(db);
+  assert.equal(verified("owner"), 1);
+  assert.equal(verified("both"), 1);
+  assert.equal(verified("sso"), 0);
+  assert.equal(kvGet(db, "credential_emails_verified"), "1");
+
+  // It runs once: a later password account, or one unverified on purpose,
+  // isn't touched by the next start.
+  insertUser(db, "later");
+  addAccount("later", "credential");
+  db.prepare("UPDATE user SET emailVerified = 0 WHERE id = 'owner'").run();
+  migrate(db);
+  migrate(db);
+  assert.equal(verified("later"), 0);
+  assert.equal(verified("owner"), 0);
+  assert.equal(verified("sso"), 0);
+
+  // And running it again (marker cleared) only ever sets credential users.
+  kvSet(db, "credential_emails_verified", "");
+  migrate(db);
+  assert.equal(verified("owner"), 1);
+  assert.equal(verified("later"), 1);
+  assert.equal(verified("sso"), 0);
 });

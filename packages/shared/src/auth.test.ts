@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
 
+import { handleOAuthUserInfo } from "better-auth/oauth2";
+
 import { createAuth, oauthRedirectURI, oidcConfig } from "./auth";
 import { readAuthPolicy } from "./auth-config";
 import { type Db, getUserAccess, openDb } from "./db";
@@ -58,7 +60,29 @@ const createUser = (auth: Auth, email: string) =>
 const roleOf = (db: Db, email: string) =>
   (db.prepare("SELECT role FROM user WHERE email = ?").get(email) as { role: string | null } | undefined)?.role;
 
+const verifiedOf = (db: Db, email: string) =>
+  (db.prepare("SELECT emailVerified FROM user WHERE email = ?").get(email) as { emailVerified: number })
+    .emailVerified === 1;
+
 const errorCode = async (res: Response) => ((await res.json()) as { code?: string }).code;
+
+/**
+ * Sign in with Google the way the OAuth callback does once the provider has
+ * answered: Better Auth's own `handleOAuthUserInfo`, with the user info the
+ * profile mapping produced. Only the provider round trip is skipped.
+ */
+async function googleSignIn(auth: Auth, email: string, emailVerified: boolean, accountId = "google-sub-1") {
+  return handleOAuthUserInfo({ context: await auth.$context } as never, {
+    userInfo: { id: accountId, email, name: email.split("@")[0]!, emailVerified },
+    account: { providerId: "google", accountId },
+    source: { method: "oauth", oauth: { providerId: "google" } },
+  });
+}
+
+const accountsOf = (db: Db, userId: string) =>
+  (db.prepare("SELECT providerId FROM account WHERE userId = ? ORDER BY providerId").all(userId) as {
+    providerId: string;
+  }[]).map((a) => a.providerId);
 
 const cookieOf = (res: Response) =>
   res.headers
@@ -333,4 +357,119 @@ test("the OIDC redirect URI is the public URL even behind an internal one", () =
   assert.equal(oauthRedirectURI("x", "https://a.test/api/auth/"), "https://a.test/api/auth/callback/x");
   // Without a public URL, Better Auth's baseURL already is the public one.
   assert.equal(oauthRedirectURI("x", undefined), undefined);
+});
+
+test("SSO with a verified email links to the existing password account", async () => {
+  const { db, auth } = instance({ AUTH_DEFAULT_ROLE: "member" });
+  const { user: owner } = await createUser(auth, "owner@acme.com");
+  const { user: member } = await createUser(auth, "member@acme.com");
+  // The instance vouches for the password accounts it makes.
+  assert.equal(owner.emailVerified, true);
+  assert.equal(auth.options.account?.accountLinking?.requireLocalEmailVerified, false);
+  // The provider's word is still needed: none is trusted outright.
+  assert.deepEqual((await auth.$context).trustedProviders, []);
+
+  const signedIn = await googleSignIn(auth, "Owner@acme.com", true);
+  assert.equal(signedIn.error, null);
+  assert.equal(signedIn.data?.user.id, owner.id);
+  assert.equal(signedIn.data?.session.userId, owner.id);
+  assert.equal(signedIn.isRegister, false);
+  assert.deepEqual(accountsOf(db, owner.id), ["credential", "google"]);
+  assert.equal(roleOf(db, "owner@acme.com"), "admin");
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM user").get() as { n: number }).n, 2);
+
+  // A non-admin keeps their role too, and the next sign-in finds the link.
+  assert.equal((await googleSignIn(auth, "member@acme.com", true, "google-sub-2")).data?.user.id, member.id);
+  assert.equal((await googleSignIn(auth, "member@acme.com", true, "google-sub-2")).data?.user.id, member.id);
+  assert.equal(roleOf(db, "member@acme.com"), "member");
+  // Password sign-in still works after the link.
+  assert.equal((await signIn(auth, "owner@acme.com")).status, 200);
+});
+
+test("SSO with an unverified email never links to an existing account", async () => {
+  const { db, auth } = instance();
+  const { user: owner } = await createUser(auth, "owner@acme.com");
+  // Better Auth's "account not linked", which the callback reports as account_not_linked.
+  const refused = await googleSignIn(auth, "owner@acme.com", false);
+  assert.equal(refused.error, "account not linked");
+  assert.equal(refused.data, null);
+  assert.deepEqual(accountsOf(db, owner.id), ["credential"]);
+
+  // The same goes for a Google account outside the allowlisted Workspace,
+  // which the profile mapping reports as unverified.
+  const policy = readAuthPolicy({
+    AUTH_PROVIDERS: "google",
+    AUTH_GOOGLE_CLIENT_ID: "g",
+    AUTH_ALLOWED_EMAIL_DOMAINS: "acme.com",
+  });
+  const map = oidcConfig(policy, policy.providers[0]!).mapProfileToUser;
+  const emailVerified = map({ email_verified: true, hd: "other.com" }).emailVerified;
+  assert.equal((await googleSignIn(auth, "owner@acme.com", emailVerified)).error, "account not linked");
+  assert.deepEqual(accountsOf(db, owner.id), ["credential"]);
+});
+
+test("linking doesn't let an account outside the allowlist in", async () => {
+  const open = instance();
+  await createUser(open.auth, "owner@acme.com");
+  const { user } = await createUser(open.auth, "viewer@other.org");
+  const auth = createAuth(open.db, SECRET, readAuthPolicy({ AUTH_ALLOWED_EMAIL_DOMAINS: "acme.com" }));
+  const sessions = () =>
+    (open.db.prepare("SELECT COUNT(*) AS n FROM session WHERE userId = ?").get(user.id) as { n: number }).n;
+  const before = sessions();
+  await assert.rejects(googleSignIn(auth, "viewer@other.org", true), /doesn't have access/);
+  assert.equal(sessions(), before);
+});
+
+test("accounts the instance makes are verified, SSO ones keep the provider's word", async () => {
+  const { db, auth } = instance();
+  // The first sign-up over HTTP (the /setup page), then server-side and admin-made ones.
+  assert.equal((await signUp(auth, "owner@acme.com")).status, 200);
+  await createUser(auth, "server@acme.com");
+  const ownerCookie = cookieOf(await signIn(auth, "owner@acme.com"));
+  const added = await http(
+    auth,
+    "/admin/create-user",
+    { email: "added@acme.com", password: throwawayLogin, name: "Added" },
+    ownerCookie,
+  );
+  assert.equal(added.status, 200);
+  for (const email of ["owner@acme.com", "server@acme.com", "added@acme.com"]) {
+    assert.equal(verifiedOf(db, email), true, email);
+  }
+
+  // The callback's create, as the provider reported it.
+  const before = auth.options.databaseHooks!.user!.create!.before!;
+  const sso = async (emailVerified: boolean) =>
+    ((await before({ email: "sso@acme.com", name: "S", emailVerified } as never, {
+      path: "/callback/:id",
+      request: new Request(`${ORIGIN}/api/auth/callback/google`),
+    } as never)) as { data: { emailVerified: boolean } }).data.emailVerified;
+  assert.equal(await sso(false), false);
+  assert.equal(await sso(true), true);
+  // Server-side over an SSO path is still SSO.
+  assert.equal(
+    ((await before({ email: "sso2@acme.com", name: "S", emailVerified: false } as never, {
+      path: "/callback/:id",
+    } as never)) as { data: { emailVerified: boolean } }).data.emailVerified,
+    false,
+  );
+});
+
+test("linking works without the deprecated requireLocalEmailVerified: false", async () => {
+  const { db, auth } = instance();
+  const { user: owner } = await createUser(auth, "owner@acme.com");
+  await createUser(auth, "legacy@acme.com");
+  // Better Auth 1.8's behaviour: the local address has to be verified.
+  const context = await auth.$context;
+  (context.options.account!.accountLinking as { requireLocalEmailVerified?: boolean }).requireLocalEmailVerified = true;
+
+  const linked = await googleSignIn(auth, "owner@acme.com", true);
+  assert.equal(linked.error, null);
+  assert.equal(linked.data?.user.id, owner.id);
+  assert.deepEqual(accountsOf(db, owner.id), ["credential", "google"]);
+
+  // The gate is real: an unverified local account (one migrate() hasn't
+  // backfilled) is refused, which is what the stopgap option covers today.
+  db.prepare("UPDATE user SET emailVerified = 0 WHERE email = ?").run("legacy@acme.com");
+  assert.equal((await googleSignIn(auth, "legacy@acme.com", true, "google-sub-3")).error, "account not linked");
 });

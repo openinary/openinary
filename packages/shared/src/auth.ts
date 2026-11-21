@@ -142,6 +142,24 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
     // create the first account through it server-side. The hook below closes
     // the HTTP routes instead.
     emailAndPassword: { enabled: true },
+    account: {
+      accountLinking: {
+        enabled: true,
+        // Better Auth only links an SSO sign-in to an existing account with the
+        // same email once the local address is verified, so nobody can
+        // pre-register a password account with someone else's address and
+        // wait for them. A password account here can only come from /setup,
+        // OPENINARY_ADMIN_* or an admin, so the create hook below marks it
+        // verified, and migrate() did the same once for older accounts: that
+        // is the lasting mechanism. This option is a stopgap for databases
+        // that haven't been through that yet; it's deprecated and goes away in
+        // better-auth 1.8. The provider still has to vouch: no SSO provider is
+        // trusted, and an unverified IdP email (or a Google `hd` outside the
+        // allowlist) is never linked. Linking only adds an account row, so the
+        // user keeps their role and the session hook still checks access.
+        requireLocalEmailVerified: false,
+      },
+    },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         // Server-side calls (no request) are the instance itself: setup,
@@ -228,7 +246,14 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
                 : adminEmail
                   ? roleForNewUser(policy, email)
                   : policy.defaultRole;
-            return { data: { ...user, role } };
+            // We have no mailer, so nothing would ever verify a password
+            // account's address, and Better Auth won't link SSO to an
+            // unverified one. The instance vouches for the accounts it makes
+            // itself: server-side (/setup, OPENINARY_ADMIN_*), the first
+            // sign-up, and an admin's. SSO accounts keep the provider's word.
+            const vouched =
+              !viaSso && (!ctx?.request || ctx.path === "/admin/create-user" || isFirst);
+            return { data: { ...user, role, ...(vouched && { emailVerified: true }) } };
           },
         },
       },

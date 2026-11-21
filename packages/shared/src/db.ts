@@ -62,6 +62,9 @@ const API_KEY_COLUMNS = `
 
 const HOUR_MS = 3_600_000;
 
+/** app_state marker: the one-time backfill of verified password emails ran. */
+const CREDENTIAL_EMAILS_VERIFIED = "credential_emails_verified";
+
 const tableExists = (db: Db, name: string) =>
   !!db
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
@@ -227,6 +230,20 @@ export function migrate(db: Db): void {
         INSERT OR IGNORE INTO app_state (key, value) SELECT key, value FROM ${legacy};
         DROP TABLE ${legacy};
       `);
+    }
+
+    // Password accounts were never marked verified (there is no mailer), so
+    // Better Auth won't link an SSO sign-in to them. They were all made by
+    // the instance (/setup, OPENINARY_ADMIN_* or an admin), so it vouches for
+    // them once; new ones are marked verified when created. Accounts that
+    // only have SSO keep what their provider said.
+    if (!kvGet(db, CREDENTIAL_EMAILS_VERIFIED)) {
+      db.exec(`
+        UPDATE user SET emailVerified = 1
+        WHERE emailVerified = 0
+          AND id IN (SELECT userId FROM account WHERE providerId = 'credential')
+      `);
+      kvSet(db, CREDENTIAL_EMAILS_VERIFIED, "1");
     }
 
     // An instance upgrading to counts starts them from the lines it already
