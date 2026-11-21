@@ -418,6 +418,35 @@ test("linking doesn't let an account outside the allowlist in", async () => {
   const before = sessions();
   await assert.rejects(googleSignIn(auth, "viewer@other.org", true), /doesn't have access/);
   assert.equal(sessions(), before);
+  // Refused before the link is written, so re-allowing them later doesn't
+  // bring an unreviewed SSO login with it.
+  assert.deepEqual(accountsOf(open.db, user.id), ["credential"]);
+});
+
+test("a banned user signing in with a verified SSO email is refused and not linked", async () => {
+  const { db, auth } = instance();
+  await createUser(auth, "owner@acme.com");
+  const { user } = await createUser(auth, "banned@acme.com");
+  db.prepare("UPDATE user SET banned = 1 WHERE id = ?").run(user.id);
+  const sessions = () =>
+    (db.prepare("SELECT COUNT(*) AS n FROM session WHERE userId = ?").get(user.id) as { n: number }).n;
+  const before = sessions();
+  await assert.rejects(googleSignIn(auth, "banned@acme.com", true), (e: { body?: { code?: string } }) => {
+    assert.equal(e.body?.code, "BANNED_USER");
+    return true;
+  });
+  assert.deepEqual(accountsOf(db, user.id), ["credential"]);
+  assert.equal(sessions(), before);
+});
+
+test("a new SSO sign-up still creates the user and their account", async () => {
+  const { db, auth } = instance({ AUTH_ALLOWED_EMAIL_DOMAINS: "acme.com" });
+  await createUser(auth, "owner@acme.com");
+  const signedUp = await googleSignIn(auth, "new@acme.com", true, "google-sub-new");
+  assert.equal(signedUp.error, null);
+  assert.equal(signedUp.isRegister, true);
+  assert.deepEqual(accountsOf(db, signedUp.data!.user.id), ["google"]);
+  assert.equal(signedUp.data?.session.userId, signedUp.data?.user.id);
 });
 
 test("accounts the instance makes are verified, SSO ones keep the provider's word", async () => {

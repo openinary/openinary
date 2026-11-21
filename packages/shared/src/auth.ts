@@ -78,6 +78,10 @@ function assertSameSecret(db: Db, secret: string): void {
 const forbidden = (message: string, code: string) =>
   APIError.from("FORBIDDEN", { message, code });
 
+// The admin plugin's default, so a refused link reads like a refused sign-in.
+const BANNED_MESSAGE =
+  "You have been banned from this application. Please contact support if you believe this is an error.";
+
 // Routes that create accounts with a password. Any other route that creates
 // one (/callback/:id, /sign-in/social with an ID token) is single sign-on.
 const PASSWORD_CREATE_PATHS = new Set(["/sign-up/email", "/admin/create-user"]);
@@ -254,6 +258,21 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
             const vouched =
               !viaSso && (!ctx?.request || ctx.path === "/admin/create-user" || isFirst);
             return { data: { ...user, role, ...(vouched && { emailVerified: true }) } };
+          },
+        },
+      },
+      account: {
+        create: {
+          // SSO linking to an existing user writes the account before the
+          // session check below runs, so refuse here: a user who isn't let in
+          // shouldn't leave a link that works once they're allowed back.
+          before: async (account) => {
+            if (account.providerId === "credential") return;
+            const access = getUserAccess(account.userId, db);
+            if (access?.banned) throw forbidden(BANNED_MESSAGE, "BANNED_USER");
+            if (access && !mayAccess(policy, access)) {
+              throw forbidden("Your account doesn't have access to this instance.", "ACCESS_REVOKED");
+            }
           },
         },
       },
