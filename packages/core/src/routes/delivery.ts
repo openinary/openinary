@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import type { TransformResult } from "../services/transform.service";
+import type { TransformOutcome, TransformResult } from "../services/transform.service";
 import { contentTypeForExt } from "../url/media-types";
 import { HTTPException } from "hono/http-exception";
 import { decodeRequestPath } from "../url/grammar";
@@ -20,8 +20,20 @@ export function pathBelowMount(c: Context): string {
   return rest;
 }
 
+const OUTCOME_KEY = "openinary.transformOutcome";
+
+/**
+ * How the transform route served this request, for middleware that runs after
+ * it (metrics). Undefined when the route failed before a result, or for any
+ * route that does not go through respond().
+ */
+export function transformOutcome(c: Context): TransformOutcome | undefined {
+  return c.get(OUTCOME_KEY);
+}
+
 /** The HTTP response of a transform result, shared by /t and /authenticated. */
 export function respond(c: Context, result: TransformResult, filePath: string): Response {
+  if (result.outcome) c.set(OUTCOME_KEY, result.outcome);
   // Content-Length is dropped for a buffered body and kept for a streamed
   // one, because @hono/node-server only writes its own when it can measure
   // the body:

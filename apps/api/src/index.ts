@@ -24,6 +24,7 @@ import activity from "./routes/activity";
 import onboarding from "./routes/onboarding";
 import health from "./routes/health";
 import { logDelivery, noteApiUpload } from "./middleware/activity";
+import { measureDelivery } from "./middleware/metrics";
 import { apiKeyAuth } from "./middleware/auth";
 import { publicRateLimit } from "./middleware/rate-limit";
 import { getSharedStorage } from "./config/storage";
@@ -98,6 +99,7 @@ app.use("/video-status/*", publicRateLimit);
 app.route("/video-status", videoStatus);
 
 app.use("/t", publicRateLimit);
+app.use("/t/*", measureDelivery("t"));
 app.use("/t/*", publicRateLimit);
 app.use("/t/*", logDelivery("/t"));
 app.route("/t", transform);
@@ -112,6 +114,7 @@ app.route("/download-folder", downloadFolder);
 
 // Public too: the URL's signature is the authorization.
 app.use("/authenticated", publicRateLimit);
+app.use("/authenticated/*", measureDelivery("authenticated"));
 app.use("/authenticated/*", publicRateLimit);
 app.use("/authenticated/*", logDelivery("/authenticated"));
 app.route("/authenticated", authenticated);
