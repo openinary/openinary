@@ -19,7 +19,7 @@ import { Button } from "@openinary/dashboard/ui/button";
 import { Input } from "@openinary/dashboard/ui/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, RotateCcw, Trash2, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ROLES, type Role } from "shared/permissions";
 import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
@@ -113,14 +113,17 @@ function RoleSelect({
   onChange,
   disabled,
   className,
+  container,
 }: {
   value: Role;
   onChange: (role: Role) => void;
   disabled?: boolean;
   className?: string;
+  container?: React.RefObject<HTMLElement | null>;
 }) {
   return (
     <Select
+      items={ROLE_LABEL}
       value={value}
       onValueChange={(next) => onChange(next as Role)}
       disabled={disabled}
@@ -128,7 +131,7 @@ function RoleSelect({
       <SelectTrigger className={className}>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent container={container} alignItemWithTrigger={!container}>
         {ROLES.map((role) => (
           <SelectItem key={role} value={role}>
             {ROLE_LABEL[role]}
@@ -153,6 +156,9 @@ function AddUserDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("member");
+  // The role menu renders inside the dialog (see SelectContent), below the
+  // trigger: the dialog's transform throws off the trigger-aligned placement.
+  const form = useRef<HTMLFormElement>(null);
 
   const create = useMutation({
     mutationFn: () =>
@@ -202,7 +208,7 @@ function AddUserDialog({
         if (!create.isPending) close();
       }}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form ref={form} onSubmit={handleSubmit} className="space-y-4">
         <SettingsFields>
           <SettingsField label="Name">
             <Input
@@ -241,7 +247,12 @@ function AddUserDialog({
           </p>
         )}
         <SettingsField label="Role" hint={ROLE_HINT[role]}>
-          <RoleSelect value={role} onChange={setRole} className="w-40" />
+          <RoleSelect
+            value={role}
+            onChange={setRole}
+            className="w-40"
+            container={form}
+          />
         </SettingsField>
         <div className="-mx-4 -mb-4 flex flex-row justify-end gap-2 rounded-b-lg border-t bg-muted/50 px-4 py-4">
           <Button

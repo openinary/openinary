@@ -28,9 +28,10 @@ export function useCanManageApiKeys() {
 
 /** Nothing but someone creating one makes an API key exist. */
 function useHasApiKey() {
-  // A viewer's list would only 403; the step stays open for them.
+  // A viewer's list would only 403; the step stays open for them (false, not
+  // undefined, or the checklist waits on it forever).
   const canListKeys = useCanManageApiKeys();
-  return useQuery({
+  const hasKey = useQuery({
     queryKey: ["openinary", "api-keys", "any"],
     queryFn: async () => {
       const result = await authClient.apiKey.list();
@@ -39,6 +40,7 @@ function useHasApiKey() {
     },
     enabled: canListKeys,
   }).data;
+  return canListKeys ? hasKey : false;
 }
 
 /**

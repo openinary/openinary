@@ -187,6 +187,16 @@ test("only admins may call the admin plugin's endpoints", async () => {
   assert.equal(res.status, 403);
 });
 
+test("an admin can't change their own role", async () => {
+  const { db, auth } = instance();
+  const { user } = await createUser(auth, "owner@acme.com");
+  const ownerCookie = cookieOf(await signIn(auth, "owner@acme.com"));
+  const res = await http(auth, "/admin/set-role", { userId: user.id, role: "viewer" }, ownerCookie);
+  assert.equal(res.status, 403);
+  assert.equal(await errorCode(res), "CANNOT_CHANGE_OWN_ROLE");
+  assert.equal(roleOf(db, "owner@acme.com"), "admin");
+});
+
 test("AUTH_PASSWORD_LOGIN=false closes password sign-in over HTTP only", async () => {
   const { auth } = instance({
     AUTH_PASSWORD_LOGIN: "false",

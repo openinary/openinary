@@ -173,6 +173,15 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
             throw forbidden("Your role can't manage API keys.", "FORBIDDEN_ROLE");
           }
         }
+
+        // The admin plugin refuses banning or removing yourself, not a new
+        // role: an admin demoting themselves could leave the instance without one.
+        if (ctx.path === "/admin/set-role") {
+          const session = await getSessionFromCtx(ctx);
+          if (session && ctx.body?.userId === session.user.id) {
+            throw forbidden("You can't change your own role.", "CANNOT_CHANGE_OWN_ROLE");
+          }
+        }
       }),
     },
     databaseHooks: {
