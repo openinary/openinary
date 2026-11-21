@@ -19,6 +19,7 @@ import {
 import fs from "fs";
 import path from "path";
 import { presignedOrApiKeyAuth } from "../middleware/presigned-upload-auth";
+import { requirePermission } from "../middleware/auth";
 import heicConvert from "heic-convert";
 
 const MAX_FILE_SIZE =
@@ -336,7 +337,7 @@ export function createUploadRoute(deps: RouteDeps) {
   /**
    * POST /upload - Upload single or multiple files
    */
-  upload.post("/", presignedOrApiKeyAuth(apiSecret), async (c) => {
+  upload.post("/", presignedOrApiKeyAuth(apiSecret), requirePermission("media:write"), async (c) => {
     try {
       const formData = await c.req.formData();
       const uploadFolder = formData.get("folder") as string | null;

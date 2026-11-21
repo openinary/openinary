@@ -122,14 +122,10 @@ export function migrate(db: Db): void {
       );
       CREATE TABLE IF NOT EXISTS apiKey (${API_KEY_COLUMNS});
 
-      -- One account per instance, enforced where two concurrent sign-ups
-      -- cannot both slip past an application-level check.
-      CREATE TRIGGER IF NOT EXISTS prevent_multiple_users
-      BEFORE INSERT ON user
-      WHEN (SELECT COUNT(*) FROM user) >= 1
-      BEGIN
-        SELECT RAISE(ABORT, 'Only one user account is allowed in this deployment');
-      END;
+      -- Instances used to allow a single account. Who may join is now the
+      -- sign-in policy's job (see auth-config.ts), and what they may do is
+      -- their role's.
+      DROP TRIGGER IF EXISTS prevent_multiple_users;
 
       CREATE TABLE IF NOT EXISTS video_jobs (
         id TEXT PRIMARY KEY,
@@ -191,6 +187,38 @@ export function migrate(db: Db): void {
       `);
     }
 
+    // Better Auth's admin plugin: roles and bans. Every account that existed
+    // before roles was its instance's only one, so it was the admin.
+    const hasColumn = (table: string, column: string) =>
+      !!db
+        .prepare("SELECT 1 FROM pragma_table_info(?) WHERE name = ?")
+        .get(table, column);
+    if (!hasColumn("user", "role")) {
+      db.exec(`
+        ALTER TABLE user ADD COLUMN role TEXT;
+        UPDATE user SET role = 'admin';
+      `);
+    }
+    if (!hasColumn("user", "banned")) db.exec("ALTER TABLE user ADD COLUMN banned INTEGER DEFAULT 0");
+    if (!hasColumn("user", "banReason")) db.exec("ALTER TABLE user ADD COLUMN banReason TEXT");
+    if (!hasColumn("user", "banExpires")) db.exec("ALTER TABLE user ADD COLUMN banExpires INTEGER");
+    if (!hasColumn("session", "impersonatedBy")) {
+      db.exec("ALTER TABLE session ADD COLUMN impersonatedBy TEXT");
+    }
+
+    // The first account is the admin, however it was created (/setup,
+    // OPENINARY_ADMIN_*, or a first SSO sign-in). Done in the database since
+    // SQLite runs one write at a time, so of two sign-ups racing
+    // on an empty instance exactly one sees a count of 1.
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS first_user_is_admin
+      AFTER INSERT ON user
+      WHEN (SELECT COUNT(*) FROM user) = 1
+      BEGIN
+        UPDATE user SET role = 'admin' WHERE id = NEW.id;
+      END;
+    `);
+
     // Older releases kept settings in two more key/value tables. Their
     // keys never overlap app_state's, so the rows move over unchanged.
     for (const legacy of ["_auth_config", "_telemetry_config"]) {
@@ -214,9 +242,33 @@ export function migrate(db: Db): void {
   }).immediate();
 }
 
-/** True once the instance's one account exists. */
+/**
+ * True once setup is done, that is once any account exists (the first one is
+ * always made admin). Kept under this name for the routes that already call it.
+ */
 export function hasAdmin(db: Db = getDb()): boolean {
   return !!db.prepare("SELECT 1 FROM user LIMIT 1").get();
+}
+
+export interface UserAccess {
+  id: string;
+  email: string;
+  name: string;
+  role: string | null;
+  banned: boolean;
+}
+
+/** The fields every request's permission check needs, read fresh from the database. */
+export function getUserAccess(userId: string, db: Db = getDb()): UserAccess | undefined {
+  const row = db
+    .prepare("SELECT id, email, name, role, banned, banExpires FROM user WHERE id = ?")
+    .get(userId) as
+    | (Omit<UserAccess, "banned"> & { banned: number | null; banExpires: number | string | null })
+    | undefined;
+  if (!row) return undefined;
+  // A ban with an expiry ends on its own, like Better Auth's own check.
+  const banEnded = row.banExpires != null && new Date(row.banExpires).getTime() < Date.now();
+  return { id: row.id, email: row.email, name: row.name, role: row.role, banned: !!row.banned && !banEnded };
 }
 
 export function kvGet(db: Db, key: string): string | undefined {

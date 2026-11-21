@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import Database from "better-sqlite3";
 
-import { hasAdmin, kvGet, migrate } from "./db";
+import { getUserAccess, hasAdmin, kvGet, migrate } from "./db";
+
+const insertUser = (db: Database.Database, id: string, email = `${id}@example.com`) =>
+  db
+    .prepare("INSERT INTO user (id, email, name, createdAt, updatedAt) VALUES (?, ?, ?, 1, 1)")
+    .run(id, email, id);
+
+const roleOf = (db: Database.Database, id: string) =>
+  (db.prepare("SELECT role FROM user WHERE id = ?").get(id) as { role: string | null }).role;
 
 test("an older volume keeps its settings and API keys", () => {
   const db = new Database(":memory:");
@@ -34,7 +42,64 @@ test("an older volume keeps its settings and API keys", () => {
     { id: "k1", referenceId: "u1" },
   ]);
   assert.equal(hasAdmin(db), true);
-  assert.throws(() =>
-    db.exec("INSERT INTO user (id, email, name, createdAt, updatedAt) VALUES ('u2', 'x@y.z', 'X', 1, 1)"),
-  );
+  // The instance's only account predates roles, so it owned the instance.
+  assert.equal(roleOf(db, "u1"), "admin");
+});
+
+test("an instance with the old single-account trigger accepts more users", () => {
+  const db = new Database(":memory:");
+  migrate(db);
+  db.exec(`
+    CREATE TRIGGER prevent_multiple_users BEFORE INSERT ON user
+    WHEN (SELECT COUNT(*) FROM user) >= 1
+    BEGIN SELECT RAISE(ABORT, 'Only one user account is allowed in this deployment'); END;
+  `);
+  insertUser(db, "u1");
+  migrate(db);
+  insertUser(db, "u2");
+  insertUser(db, "u3");
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM user").get() as { n: number }).n, 3);
+});
+
+test("on a fresh instance only the first account becomes admin", () => {
+  const db = new Database(":memory:");
+  migrate(db);
+  insertUser(db, "first");
+  db.prepare("INSERT INTO user (id, email, name, createdAt, updatedAt, role) VALUES ('second', 's@x.y', 'S', 1, 1, 'viewer')").run();
+  insertUser(db, "third");
+  assert.equal(roleOf(db, "first"), "admin");
+  assert.equal(roleOf(db, "second"), "viewer");
+  assert.equal(roleOf(db, "third"), null);
+
+  // Re-running never re-promotes anyone or touches roles.
+  migrate(db);
+  migrate(db);
+  assert.equal(roleOf(db, "second"), "viewer");
+  assert.equal(roleOf(db, "third"), null);
+});
+
+test("getUserAccess reads role and ban, and an expired ban no longer counts", () => {
+  const db = new Database(":memory:");
+  migrate(db);
+  insertUser(db, "a");
+  insertUser(db, "b");
+  insertUser(db, "c");
+  insertUser(db, "d");
+  const ban = db.prepare("UPDATE user SET role = 'member', banned = 1, banExpires = ? WHERE id = ?");
+  ban.run(null, "b");
+  ban.run(Date.now() - 1000, "c");
+  ban.run(Date.now() + 60_000, "d");
+
+  assert.deepEqual(getUserAccess("a", db), {
+    id: "a",
+    email: "a@example.com",
+    name: "a",
+    role: "admin",
+    banned: false,
+  });
+  assert.equal(getUserAccess("b", db)?.banned, true);
+  assert.equal(getUserAccess("c", db)?.banned, false);
+  assert.equal(getUserAccess("d", db)?.banned, true);
+  assert.equal(getUserAccess("b", db)?.role, "member");
+  assert.equal(getUserAccess("missing", db), undefined);
 });

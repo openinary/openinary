@@ -5,6 +5,7 @@ import { ReactNode, useRef } from "react";
 import { CreateFolderSection } from "./create-folder-section";
 import { DefaultDialog } from "./default-dialog";
 import { Button } from "../ui/button";
+import { useOpeninary } from "../provider/openinary-provider";
 
 export function CreateFolderButtonWithDialog({
   uploadToFolder,
@@ -16,6 +17,9 @@ export function CreateFolderButtonWithDialog({
   trigger?: ReactNode;
 }) {
   const dialogRef = useRef<{ close: () => void }>(null);
+  const { readOnly } = useOpeninary();
+  // Read-only: no trigger either, so the "New folder" tile goes too.
+  if (readOnly) return null;
 
   return (
     <DefaultDialog

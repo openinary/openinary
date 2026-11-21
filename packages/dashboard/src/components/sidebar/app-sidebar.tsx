@@ -4,6 +4,7 @@ import {
   openQuickActions,
   type QuickAction,
   QuickActions,
+  useOpeninary,
 } from "@openinary/ui";
 import { BookOpen, Search, Upload } from "lucide-react";
 
@@ -59,6 +60,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { Link, useRouter, docsUrl } = useDashboard();
   const router = useRouter();
+  const { readOnly } = useOpeninary();
 
   const startItems: NavItem[] = [
     { title: "Home", icon: SolarHome, url: "/get-started" },
@@ -95,12 +97,16 @@ export function AppSidebar({
     });
 
   const quickActions: QuickAction[] = [
-    {
-      label: "Upload files",
-      group: "Actions",
-      icon: Upload,
-      onSelect: () => router.push("/?upload=true"),
-    },
+    ...(readOnly
+      ? []
+      : [
+          {
+            label: "Upload files",
+            group: "Actions",
+            icon: Upload,
+            onSelect: () => router.push("/?upload=true"),
+          },
+        ]),
     ...startItems.map(toAction("Pages")),
     ...buildItems.map(toAction("Build")),
     ...settingsActions,

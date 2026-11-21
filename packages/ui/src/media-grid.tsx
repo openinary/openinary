@@ -370,7 +370,7 @@ function MediaGridBody({
   emptyFooter,
   selectionSlot,
 }: MediaGridProps) {
-  const { apiBaseUrl, transformBaseUrl, fetch } = useOpeninary();
+  const { apiBaseUrl, transformBaseUrl, fetch, readOnly } = useOpeninary();
   const [hideThumbnails] = useHideThumbnails();
   const queryClient = useQueryClient();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -522,10 +522,11 @@ function MediaGridBody({
     return () => observer.disconnect();
   }, [foldersEl]);
 
-  // First entry is the "New folder" tile/row (null sentinel)
+  // First entry is the "New folder" tile/row (null sentinel), which a
+  // read-only viewer doesn't get.
   const folderEntries = useMemo<((typeof folders)[number] | null)[]>(
-    () => [null, ...folders],
-    [folders],
+    () => (readOnly ? folders : [null, ...folders]),
+    [folders, readOnly],
   );
 
   const folderRows = useMemo(() => {
@@ -592,8 +593,14 @@ function MediaGridBody({
           count={selection.size}
           onClear={clearSelection}
           onDownload={() => bulkActionsRef.current.onDownload()}
-          onDelete={() => bulkActionsRef.current.onDelete()}
-          onMove={(destination) => setBulkMoveDestination({ destination })}
+          onDelete={
+            readOnly ? undefined : () => bulkActionsRef.current.onDelete()
+          }
+          onMove={
+            readOnly
+              ? undefined
+              : (destination) => setBulkMoveDestination({ destination })
+          }
           currentDir={currentDir}
         />
       ),
@@ -609,7 +616,7 @@ function MediaGridBody({
         },
       },
     );
-  }, [selection, currentDir, selectionSlot]);
+  }, [selection, currentDir, selectionSlot, readOnly]);
 
   if (error) {
     return (
@@ -1077,27 +1084,33 @@ function MediaGridBody({
         <Download className="h-4 w-4" />
         Download selection
       </ContextMenuItem>
-      <ContextMenuSub>
-        <ContextMenuSubTrigger>
-          <Move className="h-4 w-4" />
-          Move selection
-        </ContextMenuSubTrigger>
-        <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
-          <MoveToNavigator
-            ItemComponent={ContextMenuItem}
-            currentDir={currentDir}
-            onSelect={(destination) => setBulkMoveDestination({ destination })}
-          />
-        </ContextMenuSubContent>
-      </ContextMenuSub>
-      <ContextMenuSeparator />
-      <ContextMenuItem
-        onClick={() => setBulkDeleteConfirmOpen(true)}
-        variant="destructive"
-      >
-        <Trash2 className="h-4 w-4" />
-        Delete selection
-      </ContextMenuItem>
+      {!readOnly && (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <Move className="h-4 w-4" />
+            Move selection
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
+            <MoveToNavigator
+              ItemComponent={ContextMenuItem}
+              currentDir={currentDir}
+              onSelect={(destination) => setBulkMoveDestination({ destination })}
+            />
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      )}
+      {!readOnly && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => setBulkDeleteConfirmOpen(true)}
+            variant="destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete selection
+          </ContextMenuItem>
+        </>
+      )}
     </ContextMenuContent>
   );
 
@@ -1111,8 +1124,14 @@ function MediaGridBody({
             count={selection.size}
             onClear={clearSelection}
             onDownload={() => bulkActionsRef.current.onDownload()}
-            onDelete={() => bulkActionsRef.current.onDelete()}
-            onMove={(destination) => setBulkMoveDestination({ destination })}
+            onDelete={
+              readOnly ? undefined : () => bulkActionsRef.current.onDelete()
+            }
+            onMove={
+              readOnly
+                ? undefined
+                : (destination) => setBulkMoveDestination({ destination })
+            }
             currentDir={currentDir}
           />,
           selectionSlot,
@@ -1265,7 +1284,8 @@ function MediaGridBody({
       />
 
       <ContextMenu>
-        <ContextMenuTrigger asChild>
+        {/* Upload and New folder are all this menu has: none when read-only. */}
+        <ContextMenuTrigger asChild disabled={readOnly}>
           <div className="space-y-4">
             {view === "grid" && (
               <div
@@ -1438,32 +1458,36 @@ function MediaGridBody({
                               ) : null
                             ) : (
                               <ContextMenuContent>
-                                <ContextMenuItem
-                                  onClick={(e: React.MouseEvent) => {
-                                    e.stopPropagation();
-                                    const path = folder.path;
-                                    setTimeout(
-                                      () => setFolderUploadTarget(path),
-                                      0,
-                                    );
-                                  }}
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  Upload to folder
-                                </ContextMenuItem>
-                                <ContextMenuItem
-                                  onClick={(e: React.MouseEvent) => {
-                                    e.stopPropagation();
-                                    const target = folder;
-                                    setTimeout(
-                                      () => setRenameFolderTarget(target),
-                                      0,
-                                    );
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                  Rename
-                                </ContextMenuItem>
+                                {!readOnly && (
+                                  <ContextMenuItem
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      const path = folder.path;
+                                      setTimeout(
+                                        () => setFolderUploadTarget(path),
+                                        0,
+                                      );
+                                    }}
+                                  >
+                                    <Upload className="h-4 w-4" />
+                                    Upload to folder
+                                  </ContextMenuItem>
+                                )}
+                                {!readOnly && (
+                                  <ContextMenuItem
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      const target = folder;
+                                      setTimeout(
+                                        () => setRenameFolderTarget(target),
+                                        0,
+                                      );
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    Rename
+                                  </ContextMenuItem>
+                                )}
                                 <ContextMenuItem
                                   onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
@@ -1476,21 +1500,25 @@ function MediaGridBody({
                                   <Download className="h-4 w-4" />
                                   Download folder
                                 </ContextMenuItem>
-                                <ContextMenuSeparator />
-                                <ContextMenuItem
-                                  onClick={(e: React.MouseEvent) => {
-                                    e.stopPropagation();
-                                    const path = folder.path;
-                                    setTimeout(
-                                      () => setDeleteFolderTarget(path),
-                                      0,
-                                    );
-                                  }}
-                                  variant="destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete folder
-                                </ContextMenuItem>
+                                {!readOnly && (
+                                  <>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem
+                                      onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        const path = folder.path;
+                                        setTimeout(
+                                          () => setDeleteFolderTarget(path),
+                                          0,
+                                        );
+                                      }}
+                                      variant="destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Delete folder
+                                    </ContextMenuItem>
+                                  </>
+                                )}
                               </ContextMenuContent>
                             )}
                           </ContextMenu>
@@ -1637,21 +1665,23 @@ function MediaGridBody({
                             <div className="flex w-20 shrink-0 items-center justify-end @md:w-28">
                               {isFolderHovered ? (
                                 <div className="flex items-center gap-3">
-                                  <button
-                                    type="button"
-                                    className="cursor-pointer text-muted-foreground hover:text-foreground"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const path = folder.path;
-                                      setTimeout(
-                                        () => setFolderUploadTarget(path),
-                                        0,
-                                      );
-                                    }}
-                                    aria-label="Upload to folder"
-                                  >
-                                    <Upload className="h-4 w-4" />
-                                  </button>
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      className="cursor-pointer text-muted-foreground hover:text-foreground"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const path = folder.path;
+                                        setTimeout(
+                                          () => setFolderUploadTarget(path),
+                                          0,
+                                        );
+                                      }}
+                                      aria-label="Upload to folder"
+                                    >
+                                      <Upload className="h-4 w-4" />
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     className="cursor-pointer text-muted-foreground hover:text-foreground"
@@ -1666,21 +1696,23 @@ function MediaGridBody({
                                   >
                                     <Download className="h-4 w-4" />
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="cursor-pointer text-muted-foreground hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const path = folder.path;
-                                      setTimeout(
-                                        () => setDeleteFolderTarget(path),
-                                        0,
-                                      );
-                                    }}
-                                    aria-label="Delete folder"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      className="cursor-pointer text-muted-foreground hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const path = folder.path;
+                                        setTimeout(
+                                          () => setDeleteFolderTarget(path),
+                                          0,
+                                        );
+                                      }}
+                                      aria-label="Delete folder"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
                                 </div>
                               ) : null}
                             </div>
@@ -1692,32 +1724,36 @@ function MediaGridBody({
                           ) : null
                         ) : (
                           <ContextMenuContent>
-                            <ContextMenuItem
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                const path = folder.path;
-                                setTimeout(
-                                  () => setFolderUploadTarget(path),
-                                  0,
-                                );
-                              }}
-                            >
-                              <Upload className="h-4 w-4" />
-                              Upload to folder
-                            </ContextMenuItem>
-                            <ContextMenuItem
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                const target = folder;
-                                setTimeout(
-                                  () => setRenameFolderTarget(target),
-                                  0,
-                                );
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Rename
-                            </ContextMenuItem>
+                            {!readOnly && (
+                              <ContextMenuItem
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  const path = folder.path;
+                                  setTimeout(
+                                    () => setFolderUploadTarget(path),
+                                    0,
+                                  );
+                                }}
+                              >
+                                <Upload className="h-4 w-4" />
+                                Upload to folder
+                              </ContextMenuItem>
+                            )}
+                            {!readOnly && (
+                              <ContextMenuItem
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  const target = folder;
+                                  setTimeout(
+                                    () => setRenameFolderTarget(target),
+                                    0,
+                                  );
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Rename
+                              </ContextMenuItem>
+                            )}
                             <ContextMenuItem
                               onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation();
@@ -1727,21 +1763,25 @@ function MediaGridBody({
                               <Download className="h-4 w-4" />
                               Download folder
                             </ContextMenuItem>
-                            <ContextMenuSeparator />
-                            <ContextMenuItem
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                const path = folder.path;
-                                setTimeout(
-                                  () => setDeleteFolderTarget(path),
-                                  0,
-                                );
-                              }}
-                              variant="destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete folder
-                            </ContextMenuItem>
+                            {!readOnly && (
+                              <>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    const path = folder.path;
+                                    setTimeout(
+                                      () => setDeleteFolderTarget(path),
+                                      0,
+                                    );
+                                  }}
+                                  variant="destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete folder
+                                </ContextMenuItem>
+                              </>
+                            )}
                           </ContextMenuContent>
                         )}
                       </ContextMenu>
@@ -1868,41 +1908,47 @@ function MediaGridBody({
                                     <File className="h-4 w-4" />
                                     Open
                                   </ContextMenuItem>
-                                  <ContextMenuItem
-                                    onClick={() =>
-                                      setTimeout(
-                                        () => setRenameTarget(media),
-                                        0,
-                                      )
-                                    }
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                    Rename
-                                  </ContextMenuItem>
-                                  <ContextMenuItem
-                                    onClick={() => handleCopyMedia(media.path)}
-                                  >
-                                    <Copy className="h-4 w-4" />
-                                    Make a copy
-                                  </ContextMenuItem>
-                                  <ContextMenuSub>
-                                    <ContextMenuSubTrigger>
-                                      <Move className="h-4 w-4" />
-                                      Move to
-                                    </ContextMenuSubTrigger>
-                                    <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
-                                      <MoveToNavigator
-                                        ItemComponent={ContextMenuItem}
-                                        currentDir={currentDir}
-                                        onSelect={(path) =>
-                                          setMoveMediaTarget({
-                                            media,
-                                            destination: path,
-                                          })
-                                        }
-                                      />
-                                    </ContextMenuSubContent>
-                                  </ContextMenuSub>
+                                  {!readOnly && (
+                                    <ContextMenuItem
+                                      onClick={() =>
+                                        setTimeout(
+                                          () => setRenameTarget(media),
+                                          0,
+                                        )
+                                      }
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                      Rename
+                                    </ContextMenuItem>
+                                  )}
+                                  {!readOnly && (
+                                    <ContextMenuItem
+                                      onClick={() => handleCopyMedia(media.path)}
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                      Make a copy
+                                    </ContextMenuItem>
+                                  )}
+                                  {!readOnly && (
+                                    <ContextMenuSub>
+                                      <ContextMenuSubTrigger>
+                                        <Move className="h-4 w-4" />
+                                        Move to
+                                      </ContextMenuSubTrigger>
+                                      <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
+                                        <MoveToNavigator
+                                          ItemComponent={ContextMenuItem}
+                                          currentDir={currentDir}
+                                          onSelect={(path) =>
+                                            setMoveMediaTarget({
+                                              media,
+                                              destination: path,
+                                            })
+                                          }
+                                        />
+                                      </ContextMenuSubContent>
+                                    </ContextMenuSub>
+                                  )}
                                   <ContextMenuItem
                                     onClick={() =>
                                       handleDownload(media.path, media.name)
@@ -1914,19 +1960,23 @@ function MediaGridBody({
                                       {mac ? "⇧⌘D" : "Ctrl Shift D"}
                                     </ContextMenuShortcut>
                                   </ContextMenuItem>
-                                  <ContextMenuSeparator />
-                                  <ContextMenuItem
-                                    onClick={() =>
-                                      setTimeout(
-                                        () => setDeleteMediaTarget(media),
-                                        0,
-                                      )
-                                    }
-                                    variant="destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete
-                                  </ContextMenuItem>
+                                  {!readOnly && (
+                                    <>
+                                      <ContextMenuSeparator />
+                                      <ContextMenuItem
+                                        onClick={() =>
+                                          setTimeout(
+                                            () => setDeleteMediaTarget(media),
+                                            0,
+                                          )
+                                        }
+                                        variant="destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        Delete
+                                      </ContextMenuItem>
+                                    </>
+                                  )}
                                 </ContextMenuContent>
                               )}
                             </ContextMenu>
@@ -2103,20 +2153,22 @@ function MediaGridBody({
                                   >
                                     <Download className="h-4 w-4" />
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="cursor-pointer text-muted-foreground hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setTimeout(
-                                        () => setDeleteMediaTarget(media),
-                                        0,
-                                      );
-                                    }}
-                                    aria-label="Delete"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      className="cursor-pointer text-muted-foreground hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTimeout(
+                                          () => setDeleteMediaTarget(media),
+                                          0,
+                                        );
+                                      }}
+                                      aria-label="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-xs text-muted-foreground">
@@ -2137,38 +2189,44 @@ function MediaGridBody({
                               <File className="h-4 w-4" />
                               Open
                             </ContextMenuItem>
-                            <ContextMenuItem
-                              onClick={() =>
-                                setTimeout(() => setRenameTarget(media), 0)
-                              }
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Rename
-                            </ContextMenuItem>
-                            <ContextMenuItem
-                              onClick={() => handleCopyMedia(media.path)}
-                            >
-                              <Copy className="h-4 w-4" />
-                              Make a copy
-                            </ContextMenuItem>
-                            <ContextMenuSub>
-                              <ContextMenuSubTrigger>
-                                <Move className="h-4 w-4" />
-                                Move to
-                              </ContextMenuSubTrigger>
-                              <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
-                                <MoveToNavigator
-                                  ItemComponent={ContextMenuItem}
-                                  currentDir={currentDir}
-                                  onSelect={(path) =>
-                                    setMoveMediaTarget({
-                                      media,
-                                      destination: path,
-                                    })
-                                  }
-                                />
-                              </ContextMenuSubContent>
-                            </ContextMenuSub>
+                            {!readOnly && (
+                              <ContextMenuItem
+                                onClick={() =>
+                                  setTimeout(() => setRenameTarget(media), 0)
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Rename
+                              </ContextMenuItem>
+                            )}
+                            {!readOnly && (
+                              <ContextMenuItem
+                                onClick={() => handleCopyMedia(media.path)}
+                              >
+                                <Copy className="h-4 w-4" />
+                                Make a copy
+                              </ContextMenuItem>
+                            )}
+                            {!readOnly && (
+                              <ContextMenuSub>
+                                <ContextMenuSubTrigger>
+                                  <Move className="h-4 w-4" />
+                                  Move to
+                                </ContextMenuSubTrigger>
+                                <ContextMenuSubContent className="w-48 max-h-[400px] overflow-y-auto">
+                                  <MoveToNavigator
+                                    ItemComponent={ContextMenuItem}
+                                    currentDir={currentDir}
+                                    onSelect={(path) =>
+                                      setMoveMediaTarget({
+                                        media,
+                                        destination: path,
+                                      })
+                                    }
+                                  />
+                                </ContextMenuSubContent>
+                              </ContextMenuSub>
+                            )}
                             <ContextMenuItem
                               onClick={() => handleCopyUrl(media.path)}
                             >
@@ -2186,16 +2244,20 @@ function MediaGridBody({
                                 {mac ? "⇧⌘D" : "Ctrl Shift D"}
                               </ContextMenuShortcut>
                             </ContextMenuItem>
-                            <ContextMenuSeparator />
-                            <ContextMenuItem
-                              onClick={() =>
-                                setTimeout(() => setDeleteMediaTarget(media), 0)
-                              }
-                              variant="destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </ContextMenuItem>
+                            {!readOnly && (
+                              <>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onClick={() =>
+                                    setTimeout(() => setDeleteMediaTarget(media), 0)
+                                  }
+                                  variant="destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </ContextMenuItem>
+                              </>
+                            )}
                           </ContextMenuContent>
                         )}
                       </ContextMenu>
@@ -2208,18 +2270,22 @@ function MediaGridBody({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem
-            onClick={() => setTimeout(() => setGridUploadOpen(true), 0)}
-          >
-            <Upload className="h-4 w-4" />
-            Upload
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => setTimeout(() => setGridCreateFolderOpen(true), 0)}
-          >
-            <FolderPlus className="h-4 w-4" />
-            Create folder
-          </ContextMenuItem>
+          {!readOnly && (
+            <ContextMenuItem
+              onClick={() => setTimeout(() => setGridUploadOpen(true), 0)}
+            >
+              <Upload className="h-4 w-4" />
+              Upload
+            </ContextMenuItem>
+          )}
+          {!readOnly && (
+            <ContextMenuItem
+              onClick={() => setTimeout(() => setGridCreateFolderOpen(true), 0)}
+            >
+              <FolderPlus className="h-4 w-4" />
+              Create folder
+            </ContextMenuItem>
+          )}
         </ContextMenuContent>
       </ContextMenu>
     </>

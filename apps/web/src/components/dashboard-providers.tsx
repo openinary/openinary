@@ -10,14 +10,26 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { notFound, usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
+import { can } from "shared/permissions";
 
 import { aiPrompt } from "@/components/get-started/integration-snippets";
 import { useOnboardingState } from "@/components/onboarding-gate";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useRole } from "@/lib/auth-client";
 import { toAbsoluteUrl } from "@/lib/utils";
+
+/**
+ * Viewers can't hold API keys. Allowed until the role is known, so a direct
+ * link to the page doesn't 404 while the session loads.
+ */
+export function useCanManageApiKeys() {
+  const role = useRole();
+  return role === undefined || can(role, "apiKeys:manage");
+}
 
 /** Nothing but someone creating one makes an API key exist. */
 function useHasApiKey() {
+  // A viewer's list would only 403; the step stays open for them.
+  const canListKeys = useCanManageApiKeys();
   return useQuery({
     queryKey: ["openinary", "api-keys", "any"],
     queryFn: async () => {
@@ -25,6 +37,7 @@ function useHasApiKey() {
       if (result.error) throw new Error(result.error.message);
       return result.data.apiKeys.length > 0;
     },
+    enabled: canListKeys,
   }).data;
 }
 
@@ -81,6 +94,7 @@ const adapter: DashboardAdapter = {
   storageNoun: "storage",
   docsUrl: "https://docs.openinary.dev/",
   useHasApiKey,
+  useCanManageApiKeys,
   useOnboardingSignals,
   useAiPrompt,
   aiPromptSample: aiPrompt({

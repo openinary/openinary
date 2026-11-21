@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getDb, kvGet, kvInit, kvSet, MAX_USE_CASES, SLUG } from "shared";
+import { can, getDb, kvGet, kvInit, kvSet, MAX_USE_CASES, SLUG } from "shared";
 
 import type { AuthVariables } from "../middleware/auth";
 import { telemetryEnabled, trackOnboardingCompleted } from "../utils/telemetry";
@@ -76,7 +76,14 @@ onboarding.post("/", async (c) => {
     return c.json({ error: "Invalid onboarding answers" }, 400);
   }
 
-  kvSet(getDb(), "workspace", JSON.stringify({ name, logo } satisfies Workspace));
+  // Everyone saves their own answers, but the workspace is the instance's:
+  // only an admin may change it, except to name it the first time.
+  const user = c.get("user");
+  const workspaceSaved =
+    can(user?.role, "settings:manage") || kvGet(getDb(), "workspace") === undefined;
+  if (workspaceSaved) {
+    kvSet(getDb(), "workspace", JSON.stringify({ name, logo } satisfies Workspace));
+  }
   kvSet(
     getDb(),
     answersKey(userId),
@@ -84,7 +91,7 @@ onboarding.post("/", async (c) => {
   );
   void trackOnboardingCompleted({ role, use_cases: useCases, source });
 
-  return c.json({ ok: true });
+  return c.json({ ok: true, workspaceSaved });
 });
 
 export default onboarding;

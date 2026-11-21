@@ -12,7 +12,9 @@ import { useEffect } from "react";
 
 import { useDocumentTitle } from "@openinary/dashboard";
 
-import { authClient, useSession } from "@/lib/auth-client";
+import { can } from "shared/permissions";
+
+import { authClient, useRole, useSession } from "@/lib/auth-client";
 
 export interface OnboardingState {
   completed: boolean;
@@ -50,6 +52,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   const state = useOnboardingState();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const role = useRole();
 
   const data = state.data;
   const completed = data?.completed;
@@ -85,10 +88,13 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
         });
         if (updated.error) throw new Error(updated.error.message);
 
-        const workspace = {
-          name: answers.workspaceName,
-          logo: answers.workspaceLogo,
-        };
+        // The workspace is the instance's: only someone who may change its
+        // settings renames it. Everyone else sends back the one they were shown,
+        // unless nobody has named it yet.
+        const workspace =
+          data.workspace && !can(role, "settings:manage")
+            ? data.workspace
+            : { name: answers.workspaceName, logo: answers.workspaceLogo };
         const res = await fetch(`${apiBaseUrl}/onboarding`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
