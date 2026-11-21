@@ -10,11 +10,13 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { notFound, usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
+import { useEffect } from "react";
 import { can } from "shared/permissions";
 
 import { aiPrompt } from "@/components/get-started/integration-snippets";
 import { useOnboardingState } from "@/components/onboarding-gate";
-import { authClient, useRole } from "@/lib/auth-client";
+import { confirmPendingLoginMethod } from "@/components/sso-buttons";
+import { authClient, useRole, useSession } from "@/lib/auth-client";
 import { toAbsoluteUrl } from "@/lib/utils";
 
 /**
@@ -110,5 +112,12 @@ export function WebDashboardProvider({
 }: {
   children: React.ReactNode;
 }) {
+  // A single sign-on callback that worked lands here: only now does the
+  // provider clicked on the sign-in page earn its "Last used" pill.
+  const signedIn = !!useSession().data?.session;
+  useEffect(() => {
+    if (signedIn) confirmPendingLoginMethod();
+  }, [signedIn]);
+
   return <DashboardProvider adapter={adapter}>{children}</DashboardProvider>;
 }

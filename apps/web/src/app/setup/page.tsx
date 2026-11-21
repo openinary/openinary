@@ -26,7 +26,11 @@ import {
 import { callbackErrorMessage } from "@/lib/auth-errors";
 import { AuthError, AuthShell } from "@/components/auth-shell";
 import { AuthSeparator } from "@openinary/dashboard/ui/social-button";
-import { SsoButtons } from "@/components/sso-buttons";
+import {
+  confirmPendingLoginMethod,
+  forgetPendingLoginMethod,
+  SsoButtons,
+} from "@/components/sso-buttons";
 
 const setupFormSchema = z
   .object({
@@ -75,6 +79,7 @@ export default function SetupPage() {
     const url = new URL(window.location.href);
     const code = url.searchParams.get("error");
     if (!code) return;
+    forgetPendingLoginMethod();
     setError(callbackErrorMessage(code));
     url.searchParams.delete("error");
     url.searchParams.delete("error_description");
@@ -109,6 +114,7 @@ export default function SetupPage() {
         const session = await authClient.getSession();
         
         if (session?.data?.session) {
+          confirmPendingLoginMethod();
           router.push("/");
           return;
         }

@@ -72,7 +72,9 @@ function useUsers(enabled: boolean) {
         query: { limit: 1000, sortBy: "createdAt", sortDirection: "asc" },
       });
       if (result.error) {
-        throw new Error(describeAuthError(result.error, "Failed to load users"));
+        throw new Error(
+          describeAuthError(result.error, "Failed to load users", { context: "admin" }),
+        );
       }
       return result.data.users as UserRow[];
     },
@@ -95,13 +97,18 @@ function useAuthOptions() {
   }).data;
 }
 
-/** Better Auth answers with `{ error }` instead of throwing; this throws it. */
+/**
+ * Better Auth answers with `{ error }` instead of throwing; this throws it,
+ * worded for the admin doing it rather than the account it's done to.
+ */
 async function unwrap<T extends { error: { code?: string; message?: string } | null }>(
   promise: Promise<T>,
   fallback: string,
 ): Promise<T> {
   const result = await promise;
-  if (result.error) throw new Error(describeAuthError(result.error, fallback));
+  if (result.error) {
+    throw new Error(describeAuthError(result.error, fallback, { context: "admin" }));
+  }
   return result;
 }
 
@@ -114,18 +121,21 @@ function RoleSelect({
   disabled,
   className,
   container,
+  onOpenChange,
 }: {
   value: Role;
   onChange: (role: Role) => void;
   disabled?: boolean;
   className?: string;
   container?: React.RefObject<HTMLElement | null>;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
     <Select
       items={ROLE_LABEL}
       value={value}
       onValueChange={(next) => onChange(next as Role)}
+      onOpenChange={onOpenChange}
       disabled={disabled}
     >
       <SelectTrigger className={className}>
@@ -159,6 +169,9 @@ function AddUserDialog({
   // The role menu renders inside the dialog (see SelectContent), below the
   // trigger: the dialog's transform throws off the trigger-aligned placement.
   const form = useRef<HTMLFormElement>(null);
+  // Whether that menu is open: Escape then closes the menu, not the dialog
+  // (and the fields typed so far). A ref, read in the same keypress.
+  const roleMenuOpen = useRef(false);
 
   const create = useMutation({
     mutationFn: () =>
@@ -182,6 +195,7 @@ function AddUserDialog({
     setEmail("");
     setPassword("");
     setRole("member");
+    roleMenuOpen.current = false;
     create.reset();
   };
 
@@ -206,6 +220,9 @@ function AddUserDialog({
       contentClassName="max-w-[440px]"
       onClose={() => {
         if (!create.isPending) close();
+      }}
+      onEscapeKeyDown={(event) => {
+        if (roleMenuOpen.current) event.preventDefault();
       }}
     >
       <form ref={form} onSubmit={handleSubmit} className="space-y-4">
@@ -252,6 +269,9 @@ function AddUserDialog({
             onChange={setRole}
             className="w-40"
             container={form}
+            onOpenChange={(next) => {
+              roleMenuOpen.current = next;
+            }}
           />
         </SettingsField>
         <div className="-mx-4 -mb-4 flex flex-row justify-end gap-2 rounded-b-lg border-t bg-muted/50 px-4 py-4">

@@ -10,10 +10,38 @@ import type { AuthOptions } from "@/lib/validate-auth-config";
 // The method this browser signed in with last, for the "Last used" pill. Only
 // a convenience: storage can be off, and then no pill.
 const LAST_METHOD_KEY = "openinary:last-login-method";
+// The provider clicked, until the sign-in is known to have worked: an IdP
+// that refuses comes back with ?error=, and that one shouldn't get the pill.
+// Per tab, so a sign-in abandoned in one doesn't count in another.
+const PENDING_METHOD_KEY = "openinary:pending-login-method";
 
 export function rememberLoginMethod(method: string) {
   try {
     localStorage.setItem(LAST_METHOD_KEY, method);
+  } catch {}
+}
+
+/** Before the redirect to the IdP; made "last used" once signed in. */
+function rememberPendingLoginMethod(method: string) {
+  try {
+    sessionStorage.setItem(PENDING_METHOD_KEY, method);
+  } catch {}
+}
+
+/** The sign-in came back with an error, or never left: forget the click. */
+export function forgetPendingLoginMethod() {
+  try {
+    sessionStorage.removeItem(PENDING_METHOD_KEY);
+  } catch {}
+}
+
+/** Signed in: the provider clicked on the way here becomes "last used". */
+export function confirmPendingLoginMethod() {
+  try {
+    const method = sessionStorage.getItem(PENDING_METHOD_KEY);
+    if (!method) return;
+    sessionStorage.removeItem(PENDING_METHOD_KEY);
+    rememberLoginMethod(method);
   } catch {}
 }
 
@@ -62,7 +90,7 @@ export function SsoButtons({
           lastUsed={lastMethod === provider.id}
           onClick={() => {
             setPending(provider.id);
-            rememberLoginMethod(provider.id);
+            rememberPendingLoginMethod(provider.id);
             const origin = window.location.origin;
             void authClient.signIn.social(
               {
@@ -74,6 +102,7 @@ export function SsoButtons({
                 // Only errors before the redirect land here (an unknown
                 // provider, the server down); the IdP's come back as ?error=.
                 onError: ({ error }) => {
+                  forgetPendingLoginMethod();
                   onError(describeAuthError(error, "Couldn't start single sign-on"));
                   setPending(null);
                 },

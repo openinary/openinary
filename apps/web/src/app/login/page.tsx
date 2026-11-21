@@ -27,6 +27,8 @@ import { callbackErrorMessage, describeAuthError } from "@/lib/auth-errors";
 import { AuthError, AuthShell } from "@/components/auth-shell";
 import { AuthSeparator, LastUsedBadge } from "@openinary/dashboard/ui/social-button";
 import {
+  confirmPendingLoginMethod,
+  forgetPendingLoginMethod,
   rememberLoginMethod,
   SsoButtons,
   useLastLoginMethod,
@@ -60,6 +62,7 @@ export default function LoginPage() {
     const url = new URL(window.location.href);
     const code = url.searchParams.get("error");
     if (!code) return;
+    forgetPendingLoginMethod();
     setError(callbackErrorMessage(code));
     url.searchParams.delete("error");
     url.searchParams.delete("error_description");
@@ -110,6 +113,7 @@ export default function LoginPage() {
         if (!isMounted) return;
         
         if (session?.data?.session) {
+          confirmPendingLoginMethod();
           // User is already signed in, redirect to home
           router.push("/");
           return;
@@ -186,6 +190,8 @@ export default function LoginPage() {
 
       // Verify the sign-in was successful
       if (result && result.data) {
+        // An SSO click this tab abandoned earlier mustn't win once we land.
+        forgetPendingLoginMethod();
         rememberLoginMethod("email");
         // Wait a bit for cookie to be set, then redirect
         // This ensures the cookie is available when middleware checks
