@@ -91,7 +91,7 @@ function Account() {
       }
       avatar={
         user?.image ? (
-          <img src={user.image} alt="" className="size-full object-cover" />
+          <img src={user.image} alt="" referrerPolicy="no-referrer" className="size-full object-cover" />
         ) : (
           initials(userName)
         )

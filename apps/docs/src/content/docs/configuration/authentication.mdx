@@ -270,6 +270,8 @@ The sign-in page shows only the provider buttons, and the password sign-in and s
 
 An existing password account keeps working once it signs in with SSO under the same, verified email address: the two are linked into one account.
 
+If the account has no avatar, it takes the picture the provider sends on the next SSO sign-in (Google, Okta, Keycloak and most OIDC providers send one; Microsoft Entra doesn't). An avatar you've already set is never replaced.
+
 ## Upgrading an existing instance
 
 Before this release an instance allowed exactly one account. On upgrade, that account becomes the admin, and nothing else changes: password sign-in works as before, and no SSO is offered until you set `AUTH_PROVIDERS`. Existing API keys keep working, with their owner's admin role.

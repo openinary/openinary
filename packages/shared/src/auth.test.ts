@@ -7,7 +7,7 @@ import { after, test } from "node:test";
 
 import { handleOAuthUserInfo } from "better-auth/oauth2";
 
-import { createAuth, oauthRedirectURI, oidcConfig } from "./auth";
+import { createAuth, oauthRedirectURI, oidcConfig, pictureFromIdToken } from "./auth";
 import { readAuthPolicy } from "./auth-config";
 import { type Db, getUserAccess, openDb } from "./db";
 
@@ -71,13 +71,29 @@ const errorCode = async (res: Response) => ((await res.json()) as { code?: strin
  * answered: Better Auth's own `handleOAuthUserInfo`, with the user info the
  * profile mapping produced. Only the provider round trip is skipped.
  */
-async function googleSignIn(auth: Auth, email: string, emailVerified: boolean, accountId = "google-sub-1") {
+async function googleSignIn(
+  auth: Auth,
+  email: string,
+  emailVerified: boolean,
+  accountId = "google-sub-1",
+  picture?: string,
+) {
+  // The callback stores the provider's (already verified) ID token on the account.
+  const idToken = picture === undefined ? undefined : idTokenWith({ sub: accountId, email, picture });
   return handleOAuthUserInfo({ context: await auth.$context } as never, {
-    userInfo: { id: accountId, email, name: email.split("@")[0]!, emailVerified },
-    account: { providerId: "google", accountId },
+    userInfo: { id: accountId, email, name: email.split("@")[0]!, emailVerified, image: picture },
+    account: { providerId: "google", accountId, idToken },
     source: { method: "oauth", oauth: { providerId: "google" } },
   });
 }
+
+/** An unsigned JWT with these claims: the hooks only decode what Better Auth verified. */
+const idTokenWith = (claims: Record<string, unknown>) =>
+  ["{\"alg\":\"none\"}", JSON.stringify(claims)].map((p) => Buffer.from(p).toString("base64url")).join(".") +
+  ".sig";
+
+const imageOf = (db: Db, email: string) =>
+  (db.prepare("SELECT image FROM user WHERE email = ?").get(email) as { image: string | null }).image;
 
 const accountsOf = (db: Db, userId: string) =>
   (db.prepare("SELECT providerId FROM account WHERE userId = ? ORDER BY providerId").all(userId) as {
@@ -501,4 +517,73 @@ test("linking works without the deprecated requireLocalEmailVerified: false", as
   // backfilled) is refused, which is what the stopgap option covers today.
   db.prepare("UPDATE user SET emailVerified = 0 WHERE email = ?").run("legacy@acme.com");
   assert.equal((await googleSignIn(auth, "legacy@acme.com", true, "google-sub-3")).error, "account not linked");
+});
+
+const AVATAR = "https://lh3.googleusercontent.com/a/avatar-1=s96-c";
+
+test("linking SSO gives a password account without an avatar the provider's picture", async () => {
+  const { db, auth } = instance();
+  const { user } = await createUser(auth, "owner@acme.com");
+  const name = (db.prepare("SELECT name FROM user WHERE id = ?").get(user.id) as { name: string }).name;
+  assert.equal(imageOf(db, "owner@acme.com"), null);
+
+  const linked = await googleSignIn(auth, "owner@acme.com", true, "google-sub-1", AVATAR);
+  assert.equal(linked.error, null);
+  assert.equal(imageOf(db, "owner@acme.com"), AVATAR);
+  // Only the avatar: the name and verified email stay the instance's.
+  assert.equal((db.prepare("SELECT name FROM user WHERE id = ?").get(user.id) as { name: string }).name, name);
+  assert.equal(verifiedOf(db, "owner@acme.com"), true);
+});
+
+test("a later SSO sign-in fills an empty avatar but never replaces one", async () => {
+  const { db, auth } = instance();
+  const { user } = await createUser(auth, "owner@acme.com");
+  // Linked while the provider had no picture.
+  assert.equal((await googleSignIn(auth, "owner@acme.com", true)).error, null);
+  assert.equal(imageOf(db, "owner@acme.com"), null);
+
+  // The next sign-in stores a fresh ID token, now with one.
+  db.prepare("UPDATE user SET image = '' WHERE id = ?").run(user.id);
+  assert.equal((await googleSignIn(auth, "owner@acme.com", true, "google-sub-1", AVATAR)).error, null);
+  assert.equal(imageOf(db, "owner@acme.com"), AVATAR);
+
+  // An avatar the user already has is kept.
+  const own = "https://example.com/me.png";
+  db.prepare("UPDATE user SET image = ? WHERE id = ?").run(own, user.id);
+  await googleSignIn(auth, "owner@acme.com", true, "google-sub-1", "https://lh3.googleusercontent.com/a/other");
+  assert.equal(imageOf(db, "owner@acme.com"), own);
+});
+
+test("only http(s) pictures of sane length are taken, and a bad one doesn't fail sign-in", async () => {
+  assert.equal(pictureFromIdToken(idTokenWith({ picture: AVATAR })), AVATAR);
+  assert.equal(pictureFromIdToken(idTokenWith({ picture: "javascript:alert(1)" })), undefined);
+  assert.equal(pictureFromIdToken(idTokenWith({ picture: "data:image/png;base64,AAAA" })), undefined);
+  assert.equal(pictureFromIdToken(idTokenWith({ picture: `https://x.com/${"a".repeat(2048)}` })), undefined);
+  assert.equal(pictureFromIdToken(idTokenWith({ picture: 42 })), undefined);
+  assert.equal(pictureFromIdToken(idTokenWith({})), undefined);
+  assert.equal(pictureFromIdToken(undefined), undefined);
+
+  const { db, auth } = instance();
+  await createUser(auth, "owner@acme.com");
+  await createUser(auth, "second@acme.com");
+  const bad = await googleSignIn(auth, "owner@acme.com", true, "google-sub-1", "javascript:alert(1)");
+  assert.equal(bad.error, null);
+  assert.equal(imageOf(db, "owner@acme.com"), null);
+
+  // A malformed ID token is logged and skipped, not a failed sign-in.
+  const garbled = await handleOAuthUserInfo({ context: await auth.$context } as never, {
+    userInfo: { id: "google-sub-2", email: "second@acme.com", name: "second", emailVerified: true },
+    account: { providerId: "google", accountId: "google-sub-2", idToken: "not.@@@.jwt" },
+    source: { method: "oauth", oauth: { providerId: "google" } },
+  });
+  assert.equal(garbled.error, null);
+  assert.equal(imageOf(db, "second@acme.com"), null);
+});
+
+test("a new SSO user still gets the provider's picture", async () => {
+  const { db, auth } = instance();
+  await createUser(auth, "owner@acme.com");
+  const signedUp = await googleSignIn(auth, "new@acme.com", true, "google-sub-new", AVATAR);
+  assert.equal(signedUp.isRegister, true);
+  assert.equal(imageOf(db, "new@acme.com"), AVATAR);
 });

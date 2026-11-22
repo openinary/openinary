@@ -381,7 +381,7 @@ export function UsersTab() {
                   >
                     <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[11px] font-medium">
                       {person.image ? (
-                        <img src={person.image} alt="" className="size-full object-cover" />
+                        <img src={person.image} alt="" referrerPolicy="no-referrer" className="size-full object-cover" />
                       ) : (
                         initials(label)
                       )}

@@ -12,6 +12,8 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
 **Limit sign-in to your email domains**, `AUTH_ALLOWED_EMAIL_DOMAINS=acme.com` is checked when an account is created and on every sign-in, and SSO accounts need an email address the provider has verified. For Google, the Workspace domain must match too, so a personal Google account registered with a work address is refused. Admins are exempt, so changing the list can't lock you out.
 
+**Avatars from your provider**, An account without an avatar takes the picture its SSO provider sends, including a password account that later signs in with Google. An avatar you've already set is kept.
+
 **Upgrading**, Your existing account becomes the admin and nothing else changes until you set the new variables. Once an instance is set up, nobody can sign up with a password: people join through SSO or an admin adds them. Under Docker Compose, the general settings and the `google` and `sso` provider ids are forwarded from `.env`; other ids go in a `docker-compose.override.yml`.
 </Update>
 

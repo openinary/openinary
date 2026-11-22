@@ -135,6 +135,52 @@ export function oidcConfig(policy: AuthPolicy, p: ProviderConfig, publicUrl = pr
   };
 }
 
+const MAX_IMAGE_URL_LENGTH = 2048;
+
+/**
+ * The `picture` claim of an ID token, when it's an http(s) URL of sane
+ * length. Only decodes: Better Auth verified the token against the issuer's
+ * keys before storing it (requireIdTokenVerification). Exported for tests.
+ */
+export function pictureFromIdToken(idToken: unknown): string | undefined {
+  if (typeof idToken !== "string") return undefined;
+  const payload = idToken.split(".")[1];
+  if (!payload) return undefined;
+  const claims: unknown = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+  const picture = (claims as { picture?: unknown } | null)?.picture;
+  if (typeof picture !== "string" || picture.length > MAX_IMAGE_URL_LENGTH) return undefined;
+  let url: URL;
+  try {
+    url = new URL(picture);
+  } catch {
+    return undefined;
+  }
+  return url.protocol === "https:" || url.protocol === "http:" ? picture : undefined;
+}
+
+/**
+ * Gives a user without an avatar the one their SSO provider sends. Better
+ * Auth only copies the picture on sign-up, so a password account that later
+ * links Google would otherwise stay blank. Never replaces an avatar, never
+ * touches name or email (which `updateUserInfoOnLink` would), and never fails
+ * the sign-in.
+ */
+function fillEmptyImage(db: Db, account: { providerId?: unknown; userId?: unknown; idToken?: unknown }): void {
+  try {
+    if (account.providerId === "credential" || typeof account.userId !== "string") return;
+    const picture = pictureFromIdToken(account.idToken);
+    if (!picture) return;
+    db.prepare(
+      "UPDATE user SET image = ?, updatedAt = ? WHERE id = ? AND (image IS NULL OR TRIM(image) = '')",
+    ).run(picture, new Date().toISOString(), account.userId);
+  } catch (error) {
+    console.warn(
+      "Could not copy the SSO avatar to the user:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
 export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuthPolicy()) {
   const publicAuthUrl = process.env.BETTER_AUTH_URL;
   const baseURL =
@@ -274,6 +320,13 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
               throw forbidden("Your account doesn't have access to this instance.", "ACCESS_REVOKED");
             }
           },
+          // A new link (or a new SSO user, who already has the picture).
+          after: async (account) => fillEmptyImage(db, account),
+        },
+        // Every later SSO sign-in stores the fresh tokens, ID token included,
+        // so an avatar added at the provider since shows up next time.
+        update: {
+          after: async (account) => fillEmptyImage(db, account),
         },
       },
       session: {
