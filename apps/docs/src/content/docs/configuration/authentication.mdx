@@ -19,6 +19,10 @@ A self-hosted instance can have as many users as you like. Each one has a role, 
 
 An API key acts with its owner's **current** role. Demote a member to viewer and their keys can only read from then on. Ban or remove them and their keys stop working.
 
+### The workspace
+
+An instance has one workspace: the name and logo everyone sees in the sidebar. Only admins set it, during their first-run setup or later in **Settings › Workspace**. Members and viewers see it, read-only, when they first sign in. Until an admin names it, it shows as "Openinary".
+
 ## The first admin
 
 The first account on an instance is always made admin, however it is created:
@@ -269,6 +273,8 @@ An existing password account keeps working once it signs in with SSO under the s
 ## Upgrading an existing instance
 
 Before this release an instance allowed exactly one account. On upgrade, that account becomes the admin, and nothing else changes: password sign-in works as before, and no SSO is offered until you set `AUTH_PROVIDERS`. Existing API keys keep working, with their owner's admin role.
+
+An admin from before the upgrade doesn't see the first-run setup, so if your workspace was never named, set its name and logo in **Settings › Workspace**.
 
 To bring your team in, either add them from **Settings › Users** or configure a provider. If you sign in with SSO using the same verified email as your existing account, it is linked to that account rather than creating a new one.
 

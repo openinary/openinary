@@ -17,9 +17,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@openinary/dashboard/ui/dropdown-menu";
-import { ArrowUpRight, LogOut, Settings, Users } from "lucide-react";
+import { ArrowUpRight, Building2, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+import { can } from "shared/permissions";
 
 import { useOnboardingState } from "@/components/onboarding-gate";
 import { useVersion } from "@/components/sidebar/version-display";
@@ -44,6 +46,7 @@ const settingsPages = [
 const SETTINGS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Account: SolarAccount,
   Appearance: SolarPalette,
+  Workspace: Building2,
   Users,
 };
 
@@ -53,6 +56,7 @@ function Account() {
   const user = useSession().data?.user;
   const workspace = useOnboardingState().data?.workspace;
   const version = useVersion();
+  const managesWorkspace = can(useRole(), "settings:manage");
   const name = workspace?.name ?? "Openinary";
   const userName = user?.name || user?.email?.split("@")[0] || "You";
 
@@ -65,7 +69,7 @@ function Account() {
         <>
           <DropdownMenuLabel>{name}</DropdownMenuLabel>
           <DropdownMenuItem asChild>
-            <Link href="/settings/storage">
+            <Link href={managesWorkspace ? "/settings/workspace" : "/settings/storage"}>
               <Settings />
               Workspace settings
             </Link>
@@ -134,13 +138,18 @@ export function AppSidebar() {
   // Viewers hold no API keys; only admins manage users. The pages themselves
   // 404 for the rest, this just keeps the links from leading there.
   const canManageKeys = useCanManageApiKeys();
-  const isAdmin = useRole() === "admin";
+  const role = useRole();
+  const isAdmin = role === "admin";
   const items = canManageKeys
     ? mainItems
     : mainItems.filter((item) => item.url !== "/settings/api-keys");
-  const pages = isAdmin
-    ? [...settingsPages, { title: "Users", url: "/settings/users" }]
-    : settingsPages;
+  const pages = [
+    ...settingsPages,
+    ...(can(role, "settings:manage")
+      ? [{ title: "Workspace", url: "/settings/workspace" }]
+      : []),
+    ...(isAdmin ? [{ title: "Users", url: "/settings/users" }] : []),
+  ];
 
   return (
     <DashboardSidebar

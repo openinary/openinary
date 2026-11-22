@@ -133,8 +133,10 @@ export {
 
 // First-run onboarding (cloud and self-hosted)
 export {
+  ImagePicker,
   Onboarding,
   OnboardingBackdrop,
+  toSquareDataUrl,
   rememberOnboarded,
   ONBOARDING_ROLES,
   ONBOARDING_SOURCES,

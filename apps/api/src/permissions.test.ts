@@ -146,28 +146,74 @@ test("an API key acts with its owner's current role", async () => {
   }
 });
 
-test("everyone saves their onboarding, only admins rename the workspace once set", async () => {
-  const answers = (name: string) =>
-    JSON.stringify({ role: "developer", useCases: ["ecommerce"], workspace: { name } });
+test("everyone saves their onboarding, only admins set the workspace", async () => {
+  const answers = (workspace?: { name: string; logo?: string | null }) =>
+    JSON.stringify({ role: "developer", useCases: ["ecommerce"], ...(workspace && { workspace }) });
   const workspace = async () =>
     ((await (await call("admin", "GET", "/onboarding")).json()) as { workspace: { name: string } | null })
       .workspace?.name;
-  const post = async (who: string, name: string) => {
-    const res = await call(who, "POST", "/onboarding", answers(name), true);
-    assert.equal(res.status, 200);
+  const post = async (who: string, body: string) => {
+    const res = await call(who, "POST", "/onboarding", body, true);
+    assert.equal(res.status, 200, await res.clone().text());
     return ((await res.json()) as { workspaceSaved: boolean }).workspaceSaved;
   };
 
-  // Whoever answers first names the instance.
+  // Nobody has named it yet: a viewer's answers save, but name nothing,
+  // whether they send a workspace or not.
   assert.equal(await workspace(), undefined);
-  assert.equal(await post("viewer", "First"), true);
-  assert.equal(await workspace(), "First");
-
-  assert.equal(await post("member", "Hijack"), false);
-  assert.equal(await workspace(), "First");
+  assert.equal(await post("viewer", answers()), false);
+  assert.equal(await post("viewer", answers({ name: "First" })), false);
+  assert.equal(await post("member", answers({ name: "Hijack" })), false);
+  assert.equal(await workspace(), undefined);
   const viewerState = (await (await call("viewer", "GET", "/onboarding")).json()) as { completed: boolean };
   assert.equal(viewerState.completed, true);
 
-  assert.equal(await post("admin", "Acme"), true);
+  // An admin must send a valid one, and it sticks.
+  for (const bad of [answers(), answers({ name: "  " }), answers({ name: "Acme", logo: "javascript:x" })]) {
+    const res = await call("admin", "POST", "/onboarding", bad, true);
+    assert.equal(res.status, 400);
+  }
+  assert.equal(await post("admin", answers({ name: "  Acme  " })), true);
   assert.equal(await workspace(), "Acme");
+  assert.equal(await post("member", answers({ name: "Hijack" })), false);
+  assert.equal(await workspace(), "Acme");
+});
+
+test("only admins edit the workspace from settings", async () => {
+  const put = (who: string | null, body: unknown) =>
+    call(who, "PUT", "/onboarding/workspace", JSON.stringify(body), true);
+  const logo = "data:image/webp;base64,UklGRg==";
+
+  assert.equal((await put(null, { name: "Nope" })).status, 401);
+  await forbidden(await put("viewer", { name: "Nope" }));
+  await forbidden(await put("member", { name: "Nope" }));
+
+  for (const bad of [
+    {},
+    { name: "" },
+    { name: "   " },
+    { name: 42 },
+    { name: "Acme", logo: "https://example.com/logo.png" },
+    { name: "Acme", logo: `data:image/png;base64,${"A".repeat(200_001)}` },
+    { name: "Acme", logo: 7 },
+  ]) {
+    const res = await put("admin", bad);
+    assert.equal(res.status, 400, JSON.stringify(bad).slice(0, 80));
+  }
+
+  const res = await put("admin", { name: `  ${"N".repeat(80)}  `, logo });
+  assert.equal(res.status, 200);
+  const saved = ((await res.json()) as { workspace: { name: string; logo: string | null } }).workspace;
+  assert.deepEqual(saved, { name: "N".repeat(60), logo });
+
+  const state = (await (await call("viewer", "GET", "/onboarding")).json()) as {
+    workspace: { name: string; logo: string | null };
+  };
+  assert.deepEqual(state.workspace, saved);
+
+  assert.equal((await put("admin", { name: "Acme", logo: null })).status, 200);
+  const cleared = (await (await call("viewer", "GET", "/onboarding")).json()) as {
+    workspace: { name: string; logo: string | null };
+  };
+  assert.deepEqual(cleared.workspace, { name: "Acme", logo: null });
 });

@@ -6,7 +6,7 @@ description: "New features, improvements, and fixes shipped in Openinary"
 <Update label="Unreleased" description="Unreleased" tags={["Feature"]}>
   ## New features
 
-**Your whole team on one self-hosted instance**, A self-hosted instance is no longer limited to one account. Everyone gets a role: viewers browse, download and read stats and logs, members also upload, organise files, manage the cache and video jobs and create their own API keys, and admins also change workspace settings and manage users from **Settings › Users**. An API key acts with its owner's current role. See [users & single sign-on](/configuration/authentication).
+**Your whole team on one self-hosted instance**, A self-hosted instance is no longer limited to one account. Everyone gets a role: viewers browse, download and read stats and logs, members also upload, organise files, manage the cache and video jobs and create their own API keys, and admins also manage users from **Settings › Users**. The workspace name and logo are shared by everyone and only admins set them, in their first-run setup or in the new **Settings › Workspace**; members and viewers see them read-only. An API key acts with its owner's current role. See [users & single sign-on](/configuration/authentication).
 
 **Single sign-on with Google Workspace, Microsoft Entra, Okta and any OIDC provider**, List providers in `AUTH_PROVIDERS` and configure each with `AUTH_<ID>_*`. Presets cover Google, Microsoft, Okta, Keycloak, Auth0, authentik and GitLab, and `oidc` covers the rest. `AUTH_PASSWORD_LOGIN=false` makes the instance SSO only. A wrong setting stops startup with an error naming the variable.
 

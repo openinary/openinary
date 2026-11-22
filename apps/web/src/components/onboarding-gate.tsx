@@ -18,7 +18,7 @@ import { authClient, useRole, useSession } from "@/lib/auth-client";
 
 export interface OnboardingState {
   completed: boolean;
-  /** Instance-wide, shown in the sidebar. Null until someone onboards. */
+  /** Instance-wide, shown in the sidebar. Null until an admin names it. */
   workspace: { name: string; logo: string | null } | null;
   telemetry: boolean;
 }
@@ -67,11 +67,17 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   }
   if (data.completed) return null;
 
+  // The workspace is the instance's: only someone who may change its settings
+  // names it here. Everyone else is shown it (or "Openinary" until an admin
+  // names it) and the API ignores theirs.
+  const managesWorkspace = can(role, "settings:manage");
+
   return (
     <Onboarding
       variant="self-hosted"
       user={session.user}
       workspace={{ name: data.workspace?.name, logo: data.workspace?.logo }}
+      workspaceReadOnly={!managesWorkspace}
       note={
         data.telemetry ? (
           <>
@@ -88,13 +94,9 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
         });
         if (updated.error) throw new Error(updated.error.message);
 
-        // The workspace is the instance's: only someone who may change its
-        // settings renames it. Everyone else sends back the one they were shown,
-        // unless nobody has named it yet.
-        const workspace =
-          data.workspace && !can(role, "settings:manage")
-            ? data.workspace
-            : { name: answers.workspaceName, logo: answers.workspaceLogo };
+        const workspace = managesWorkspace
+          ? { name: answers.workspaceName, logo: answers.workspaceLogo }
+          : data.workspace;
         const res = await fetch(`${apiBaseUrl}/onboarding`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -102,7 +104,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
             role: answers.role,
             useCases: answers.useCases,
             source: answers.source,
-            workspace,
+            ...(managesWorkspace && { workspace }),
           }),
         });
         if (!res.ok) throw new Error("Could not save your answers");

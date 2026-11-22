@@ -161,11 +161,12 @@ app.use("/activity", apiKeyAuth, mediaRead);
 app.use("/activity/*", apiKeyAuth, mediaRead);
 app.route("/activity", activity);
 
-// Anyone signed in saves their own answers; the route itself guards the
-// instance-wide workspace.
+// Anyone signed in saves their own answers; the route itself ignores the
+// instance-wide workspace from anyone who may not manage settings.
 app.use("/onboarding", apiKeyAuth);
 app.use("/onboarding/*", apiKeyAuth);
 app.get("/onboarding", mediaRead);
+app.put("/onboarding/workspace", requirePermission("settings:manage"));
 app.route("/onboarding", onboarding);
 
 // Applies apiKeyAuth and its permission itself.

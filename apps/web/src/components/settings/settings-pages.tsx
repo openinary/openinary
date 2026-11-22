@@ -3,6 +3,7 @@
 import { SettingsPage, type SettingsPageEntry } from "@openinary/dashboard";
 import { AppearanceTab, StorageTab } from "@openinary/ui";
 import {
+  Building2,
   HardDrive,
   KeyRound,
   Palette,
@@ -16,6 +17,7 @@ import { ApiKeyManager } from "@/components/api-key-manager";
 import { AccountTab } from "@/components/settings/account-tab";
 import { ActivityTab } from "@/components/settings/activity-tab";
 import { UsersTab } from "@/components/settings/users-tab";
+import { WorkspaceTab } from "@/components/settings/workspace-tab";
 import { useRole, useSession } from "@/lib/auth-client";
 import { Skeleton } from "skullet/react";
 
@@ -80,6 +82,14 @@ export const SETTINGS_PAGES: WebSettingsPage[] = [
     icon: ScrollText,
     content: ActivityTab,
     wide: true,
+  },
+  {
+    value: "workspace",
+    label: "Workspace",
+    description: "The name and logo everyone on this instance sees.",
+    icon: Building2,
+    content: WorkspaceTab,
+    requires: "settings:manage",
   },
   {
     value: "users",
