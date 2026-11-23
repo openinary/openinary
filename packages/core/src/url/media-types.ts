@@ -110,6 +110,10 @@ const MEDIA_TYPES: readonly MediaType[] = [
   { ext: "gltf", contentType: "model/gltf+json",
     uploadMimes: ["model/gltf+json", "application/octet-stream"],
     matches: jsonObject },
+  // Lottie animations (stored + delivered as originals): a Lottie is a JSON
+  // document, played client-side by lottie-web or a native Lottie player.
+  { ext: "json", contentType: "application/json", uploadMimes: ["application/json"],
+    matches: jsonObject },
 ];
 
 const CONTENT_TYPE_BY_EXT: Readonly<Record<string, string>> = Object.fromEntries(

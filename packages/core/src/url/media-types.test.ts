@@ -83,6 +83,14 @@ test("accepts audio and 3D uploads with the MIME variants browsers send", () => 
   assert.ok(validateUploadFileType("scene.gltf", "model/gltf+json"));
 });
 
+test("accepts a Lottie JSON animation", () => {
+  assert.ok(validateUploadFileType("intro.json", "application/json"));
+  assert.ok(!validateUploadFileType("intro.json", "text/html"));
+  assert.equal(contentTypeForExt("json"), "application/json");
+  assert.ok(validateUploadContent("intro.json", body('{"v":"5.7.4","layers":[]}')));
+  assert.ok(!validateUploadContent("evil.json", body("<script>alert(1)")));
+});
+
 test("still rejects disallowed types and ext/MIME mismatches", () => {
   assert.ok(!validateUploadFileType("evil.svg", "image/svg+xml"));
   assert.ok(!validateUploadFileType("clip.wav", "video/mp4"));
