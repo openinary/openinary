@@ -145,14 +145,18 @@ export class TransformService {
     return result;
   }
 
-  /** Params with the negotiated format an image without f_ is encoded in. */
+  /** Params with the negotiated format an image without f_ (or with f_auto) is encoded in. */
   private effectiveParams(
     ext: string | undefined,
     params: CombindedTransformParams,
     userAgent?: string,
     acceptHeader?: string,
   ): CombindedTransformParams {
-    if (params.format || !isTransformableImageExt(ext)) return { ...params };
+    // f_auto is negotiated like no format, so the cache key names the format the
+    // client gets (the Cloud Worker does the same).
+    if ((params.format && params.format !== "auto") || !isTransformableImageExt(ext)) {
+      return { ...params };
+    }
     const format = determineOptimalFormatForCache(userAgent, acceptHeader, ext);
     return { ...params, format: format as CombindedTransformParams["format"] };
   }

@@ -228,3 +228,34 @@ test("transform params on a non-transformable type 400 instead of serving or err
   assert.equal(result.stream, undefined, "must not fall back to the original");
   assert.match(result.buffer!.toString(), /audio\/sfx\.wav/);
 });
+
+test("f_auto derivatives are cached per negotiated format", async () => {
+  const root = await mkdtemp(join(tmpdir(), "oi-f-auto-"));
+  try {
+    await mkdir(join(root, "public"), { recursive: true });
+    // a logo where AVIF is the smallest format for Chrome
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><circle cx="200" cy="150" r="120" fill="#1e40af"/></svg>';
+    await sharp(Buffer.from(svg)).png().toFile(join(root, "public", "logo.png"));
+    const service = new TransformService(null as any, fakeQueue(), enginePathsIn(root));
+    const chrome = {
+      userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      acceptHeader: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    };
+    const safari15 = {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15",
+      acceptHeader: "image/webp,image/png,image/*;q=0.8,*/*;q=0.5",
+    };
+
+    // the second request makes the derivative popular enough to be cached
+    await service.transform({ path: "/t/f_auto/logo.png", ...chrome });
+    const first = await service.transform({ path: "/t/f_auto/logo.png", ...chrome });
+    assert.equal(first.contentType, "image/avif");
+
+    // Safari 15 cannot decode AVIF, so it must not get Chrome's cached derivative
+
+    const safari = await service.transform({ path: "/t/f_auto/logo.png", ...safari15 });
+    assert.notEqual(safari.contentType, "image/avif");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
