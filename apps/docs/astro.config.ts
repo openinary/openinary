@@ -76,7 +76,7 @@ const nimbusConfig = defineNimbusConfig({
             "guides/integrate/nextjs",
             "guides/integrate/react",
           ]),
-          group("Cloud", "cloud", ["cloud/overview", "cloud/api"]),
+          group("Cloud", "cloud", ["cloud/overview", "cloud/teams", "cloud/api"]),
           group("Self-hosting", "server", [
             "configuration/server",
             "configuration/storage",
