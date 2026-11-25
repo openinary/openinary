@@ -76,7 +76,7 @@ const nimbusConfig = defineNimbusConfig({
             "guides/integrate/nextjs",
             "guides/integrate/react",
           ]),
-          group("Cloud", "cloud", ["cloud/overview", "cloud/api"]),
+          group("Cloud", "cloud", ["cloud/overview", "cloud/teams", "cloud/api"]),
           group("Self-hosting", "server", [
             "configuration/server",
             "configuration/authentication",
@@ -84,6 +84,7 @@ const nimbusConfig = defineNimbusConfig({
             "configuration/video-processing",
             "configuration/docker-resources",
             "configuration/telemetry",
+            "configuration/opentelemetry",
             "guides/coolify-deployment",
             "guides/dokploy-deployment",
             "guides/railway-deployment",

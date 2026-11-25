@@ -58,6 +58,7 @@ test("a bare video URL serves the original and queues nothing", async () => {
   assert.ok(result.stream, "original should be streamed");
   assert.equal(result.status, undefined);
   assert.equal(result.contentType, "video/mp4");
+  assert.equal(result.outcome, "original");
 });
 
 // Camera JPEGs libjpeg refuses but browsers decode: served as the original
@@ -92,6 +93,7 @@ test("a JPEG libvips refuses with the SOS error is served as the original", asyn
   assert.equal(result.contentType, "image/jpeg");
   assert.equal(result.headers["Cache-Control"], "no-store");
   assert.equal(result.headers["X-Transform-Fallback"], "original");
+  assert.equal(result.outcome, "original");
   assert.deepEqual(cached, [], "the original is not cached as the transform");
 });
 
@@ -100,6 +102,7 @@ test("other transform errors, or the SOS error on a non-JPEG, are not hidden", a
     const { result } = await transformWhileSharpFails(message, file);
     assert.equal(result.status, 500, `${message} on ${file}`);
     assert.equal(result.headers["X-Transform-Fallback"], undefined);
+    assert.equal(result.outcome, undefined, "errors carry no outcome");
   }
 });
 
@@ -116,6 +119,7 @@ test("a pending video transform answers 202 instead of the original", async () =
   });
 
   assert.equal(result.status, 202);
+  assert.equal(result.outcome, "queued");
   assert.equal(result.stream, undefined, "must not fall back to the original");
   const body = JSON.parse(result.buffer!.toString());
   assert.equal(body.status, "processing");
@@ -178,6 +182,7 @@ test("a cached video→image transform is served as an image, not video/mp4", as
     userAgent: "",
   });
   assert.equal(image.contentType, "image/avif");
+  assert.equal(image.outcome, "cache");
 
   const video = await service.transform({
     path: "/t/w_640,q_80/clip.mp4",
@@ -227,4 +232,54 @@ test("transform params on a non-transformable type 400 instead of serving or err
   assert.equal(result.status, 400);
   assert.equal(result.stream, undefined, "must not fall back to the original");
   assert.match(result.buffer!.toString(), /audio\/sfx\.wav/);
+});
+
+// The local cache keeps a derivative from its second request (SmartCache), so
+// the third is the first one it can answer.
+test("an image is transformed until cached, then served from the cache", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "outcome-"));
+  try {
+    await mkdir(join(dir, "public"));
+    await sharp({ create: { width: 8, height: 8, channels: 3, background: "#3c3" } }).toFile(join(dir, "public", "a.png"));
+    const service = new TransformService(null, fakeQueue(), enginePathsIn(dir));
+
+    const outcomes = [];
+    for (let i = 0; i < 3; i++) {
+      outcomes.push((await service.transform({ path: "/t/w_4/a.png", userAgent: "" })).outcome);
+    }
+
+    assert.deepEqual(outcomes, ["transformed", "transformed", "cache"]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("f_auto derivatives are cached per negotiated format", async () => {
+  const root = await mkdtemp(join(tmpdir(), "oi-f-auto-"));
+  try {
+    await mkdir(join(root, "public"), { recursive: true });
+    // a logo where AVIF is the smallest format for Chrome
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><circle cx="200" cy="150" r="120" fill="#1e40af"/></svg>';
+    await sharp(Buffer.from(svg)).png().toFile(join(root, "public", "logo.png"));
+    const service = new TransformService(null as any, fakeQueue(), enginePathsIn(root));
+    const chrome = {
+      userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      acceptHeader: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    };
+    const safari15 = {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15",
+      acceptHeader: "image/webp,image/png,image/*;q=0.8,*/*;q=0.5",
+    };
+
+    // the second request makes the derivative popular enough to be cached
+    await service.transform({ path: "/t/f_auto/logo.png", ...chrome });
+    const first = await service.transform({ path: "/t/f_auto/logo.png", ...chrome });
+    assert.equal(first.contentType, "image/avif");
+
+    // Safari 15 cannot decode AVIF, so it must not get Chrome's cached derivative
+    const safari = await service.transform({ path: "/t/f_auto/logo.png", ...safari15 });
+    assert.notEqual(safari.contentType, "image/avif");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
