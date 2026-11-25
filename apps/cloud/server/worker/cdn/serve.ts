@@ -301,6 +301,11 @@ async function tryServeFromR2Cache(
     // supported downloads the file from the start every time.
     headers.set("Accept-Ranges", "bytes");
   }
+  // Same as core: a negotiated format must not leak to other clients through
+  // shared caches.
+  if (req.isImage && !req.isDashboardThumb && params.format !== req.params.format) {
+    headers.set("Vary", "Accept");
+  }
   headers.set("X-Openinary-Cache", "HIT");
   const range = wantsRange ? servedRange(object) : null;
   if (!range) headers.set("X-Openinary-Cache-Key", key);
