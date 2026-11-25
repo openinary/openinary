@@ -1,0 +1,143 @@
+---
+title: "OpenTelemetry"
+description: "Export request counts, transformations and per-request delivery logs to any OpenTelemetry backend"
+---
+
+Openinary can export what its delivery routes serve over [OpenTelemetry](https://opentelemetry.io/) (OTLP/HTTP): how many requests came in, how many derivatives were rendered, how long they took, and, if you want it, one log record per request with the URL and transformation. It is off by default. It sends nothing until you point it at an endpoint you run, and nothing goes to the Openinary project.
+
+This is separate from [anonymous telemetry](/configuration/telemetry). That sends a few bucketed counts to the project; this sends your own traffic to your own backend.
+
+## Turn it on
+
+Set the standard OpenTelemetry variable on the API container:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+```
+
+The endpoint is anything that accepts OTLP over HTTP: an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/), Grafana Alloy, or a vendor's OTLP intake. The log line `OpenTelemetry export enabled` confirms it started.
+
+All the [SDK's standard variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) apply. The ones you are most likely to want:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset (export off) | Base URL; `/v1/metrics` and `/v1/logs` are appended |
+| `OTEL_EXPORTER_OTLP_HEADERS` | unset | Auth headers for a hosted backend, e.g. `Authorization=Bearer xyz` |
+| `OTEL_SERVICE_NAME` | `openinary` | Tells several instances apart |
+| `OTEL_RESOURCE_ATTRIBUTES` | unset | Extra labels on everything, e.g. `deployment.environment=prod` |
+| `OTEL_METRIC_EXPORT_INTERVAL` | `60000` | Milliseconds between metric exports |
+| `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` | `cumulative` | Set `delta` for backends that store each export as its own row (ClickHouse, for one) |
+| `OTEL_SDK_DISABLED` | `false` | `true` turns the export off whatever else is set |
+| `OPENINARY_OTEL_DELIVERY_LOGS` | `true` | `false` keeps the metrics and drops the per-request log records |
+
+## What is exported
+
+Only the public delivery routes are measured: `/t/*` and `/authenticated/*`. Every request counts, including repeats, rate-limited ones and the dashboard's own previews (labelled, so you can filter them out). The dashboard's Logs page, by contrast, leaves repeats and previews out.
+
+### Metrics
+
+| Metric | Type | Attributes |
+| --- | --- | --- |
+| `openinary.delivery.requests` | Counter | `openinary.route`, `openinary.kind`, `openinary.outcome`, `openinary.dashboard`, `http.request.method`, `http.response.status_code` |
+| `openinary.delivery.duration` | Histogram (ms) | same as above |
+| `openinary.transforms` | Counter | `openinary.kind`, `openinary.trigger` |
+
+- `openinary.route`: `t` or `authenticated`.
+- `openinary.kind`: `image`, `video` or `other`, from the file's extension.
+- `openinary.outcome`: how the request was served:
+  - `original`: the stored file, untouched
+  - `cache`: a derivative rendered earlier
+  - `transformed`: rendered during this request
+  - `queued`: a video transcode handed to the job queue (answered 202)
+  - `none`: an error or a rate-limited request
+
+  A bare image URL such as `/t/photo.jpg` is still re-encoded to the best format the browser accepts, so its first requests are `transformed` and later ones `cache`. `original` is for files served untouched: bare video, audio and other non-image URLs.
+- `openinary.transforms` counts derivatives actually rendered. Images and video thumbnails count during the request (`openinary.trigger=request`), and video transcodes count when their job completes (`openinary.trigger=video_job`). Cache hits never count.
+
+URLs are never metric attributes, so the number of time series stays small however many files you serve.
+
+### Delivery logs
+
+One OpenTelemetry log record per request, with event name `openinary.delivery`, carrying the metric attributes above plus:
+
+| Attribute | Example |
+| --- | --- |
+| `url.path` | `/t/w_400,h_300,c_fill/products/shoe.jpg` |
+| `openinary.transform` | `w_400,h_300,c_fill` |
+| `openinary.file` | `products/shoe.jpg` |
+| `openinary.duration_ms` | `41.7` |
+
+The signature in an `/authenticated` URL is stripped before export. If file paths are sensitive in your setup, set `OPENINARY_OTEL_DELIVERY_LOGS=false` to keep the counts and drop the paths.
+
+Numbers are counted at the origin. With a CDN in front, requests the CDN answers from its own cache never reach Openinary.
+
+## Example: Collector to ClickHouse
+
+Any OTLP backend works the same way. ClickHouse is shown here because the Collector's ClickHouse exporter creates its own tables, so there is no schema to write.
+
+`otel-collector.yaml`:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  clickhouse:
+    endpoint: ${env:CLICKHOUSE_ENDPOINT}   # tcp://clickhouse:9000 or https://host:8443
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    database: openinary
+    create_schema: true
+    ttl: 2160h                             # 90 days
+
+service:
+  pipelines:
+    logs:    { receivers: [otlp], processors: [batch], exporters: [clickhouse] }
+    metrics: { receivers: [otlp], processors: [batch], exporters: [clickhouse] }
+```
+
+Next to Openinary in `docker-compose.yml`:
+
+```yaml
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    environment:
+      CLICKHOUSE_ENDPOINT: ${CLICKHOUSE_ENDPOINT}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    restart: unless-stopped
+
+  openinary:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: delta
+```
+
+Then, for example, the most requested transformations of the last day:
+
+```sql
+SELECT
+  LogAttributes['openinary.file'] AS file,
+  LogAttributes['openinary.transform'] AS transform,
+  count() AS requests,
+  countIf(LogAttributes['openinary.outcome'] = 'transformed') AS rendered
+FROM openinary.otel_logs
+WHERE EventName = 'openinary.delivery' AND Timestamp > now() - INTERVAL 1 DAY
+GROUP BY file, transform
+ORDER BY requests DESC
+LIMIT 20;
+```
+
+The ClickHouse user needs `CREATE` on the database for the first start, when the exporter creates its tables. If the Collector starts before ClickHouse accepts connections it exits, and `restart: unless-stopped` brings it back once ClickHouse is up.
+
+If the Collector is down, Openinary keeps serving and that window's data is dropped. The export never blocks or fails a request. On shutdown Openinary flushes what it has buffered, for up to three seconds.

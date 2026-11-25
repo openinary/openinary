@@ -50,6 +50,16 @@ export interface TransformRequest {
   sourceUrl?: string;
 }
 
+/**
+ * How a delivery was served, for anyone measuring it (the self-hosted API's
+ * OpenTelemetry export reads it). Unset on errors.
+ * - original: the stored file, untouched
+ * - cache: a derivative rendered earlier
+ * - transformed: rendered during this request
+ * - queued: a video transcode handed to the job queue (202)
+ */
+export type TransformOutcome = "original" | "cache" | "transformed" | "queued";
+
 export interface TransformResult {
   buffer?: Buffer;
   /** Set instead of buffer for large payloads served without buffering */
@@ -58,6 +68,7 @@ export interface TransformResult {
   headers: Record<string, string>;
   /** 200 when unset */
   status?: number;
+  outcome?: TransformOutcome;
 }
 
 const textResult = (status: number, message: string, headers: Record<string, string>): TransformResult => ({
@@ -102,7 +113,7 @@ export class TransformService {
       // point, so they keep optimizing; transcoding only happens when the URL
       // asks for it, either with explicit parameters or with q_auto.
       if (Object.keys(effectiveParams).length === 0) {
-        return await this.streamOriginal(filePath, ext ?? "", sourceUrl);
+        return { ...(await this.streamOriginal(filePath, ext ?? "", sourceUrl)), outcome: "original" };
       }
 
       const cached =
@@ -178,7 +189,7 @@ export class TransformService {
       ? contentTypeForFormat(determineOutputFormat(ext, effectiveParams.format).format)
       : (sniffImageContentType(buffer) ?? "");
 
-    return { buffer, contentType, headers };
+    return { buffer, contentType, headers, outcome: "cache" };
   }
 
   private async processFile(
@@ -237,6 +248,7 @@ export class TransformService {
             "Content-Length": result.buffer.length.toString(),
             "Cache-Control": IMMUTABLE,
           },
+          outcome: "transformed",
         };
       }
 
@@ -258,6 +270,7 @@ export class TransformService {
         const fallback = await this.streamOriginal(filePath, ext ?? "jpg", sourceUrl);
         fallback.headers["Cache-Control"] = "no-store";
         fallback.headers["X-Transform-Fallback"] = "original";
+        fallback.outcome = "original";
         logger.warn({ error: serializeError(error), filePath }, "JPEG transform failed; serving original");
         return fallback;
       }
@@ -276,7 +289,7 @@ export class TransformService {
         headers["X-Compression-Ratio"] = optimization.compressionRatio.toFixed(2);
         headers["X-Savings-Percent"] = optimization.savings.toFixed(1);
       }
-      return { buffer: result.buffer, contentType: result.contentType, headers };
+      return { buffer: result.buffer, contentType: result.contentType, headers, outcome: "transformed" };
     } finally {
       await source?.cleanup();
       await overlay?.cleanup();
@@ -305,6 +318,7 @@ export class TransformService {
             "Content-Length": local.length.toString(),
             "Cache-Control": IMMUTABLE,
           },
+          outcome: "cache",
         };
       }
       // A cloud copy only reaches this point if the cloud cache check above
@@ -341,6 +355,7 @@ export class TransformService {
       ),
       contentType: "application/json",
       status: 202,
+      outcome: "queued",
       headers: {
         "X-Video-Status": "processing",
         "Cache-Control": "no-store",

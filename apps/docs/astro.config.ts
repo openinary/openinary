@@ -83,6 +83,7 @@ const nimbusConfig = defineNimbusConfig({
             "configuration/video-processing",
             "configuration/docker-resources",
             "configuration/telemetry",
+            "configuration/opentelemetry",
             "guides/coolify-deployment",
             "guides/dokploy-deployment",
             "guides/railway-deployment",

@@ -8,12 +8,17 @@ import { randomUUID } from "crypto";
 import { clearAllCache, logger } from "@openinary/core";
 import { enginePaths, videoJobQueue } from "./config/queue";
 import { initTelemetry } from "./utils/telemetry";
+import { initOtel, recordVideoTranscode, shutdownOtel } from "./utils/otel";
 import { deploymentMode } from "./config/mode";
 
 // In cloud mode the bucket is the cache: local files from a previous run go.
 if (getSharedStorage()) await clearAllCache(enginePaths.cache);
 
 videoJobQueue.start();
+
+// Opt-in OpenTelemetry export (OTEL_EXPORTER_OTLP_ENDPOINT); a no-op otherwise.
+await initOtel();
+videoJobQueue.on("job:completed", recordVideoTranscode);
 
 /**
  * First boot only: creates the admin from OPENINARY_ADMIN_* and, in API mode
@@ -122,14 +127,15 @@ initTelemetry();
 initializeAuth();
 
 // Graceful shutdown
+// Flushes buffered metrics and delivery logs first, within a few seconds.
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received, shutting down gracefully...");
   videoJobQueue.stop();
-  process.exit(0);
+  void shutdownOtel().finally(() => process.exit(0));
 });
 
 process.on("SIGINT", () => {
   logger.info("SIGINT received, shutting down gracefully...");
   videoJobQueue.stop();
-  process.exit(0);
+  void shutdownOtel().finally(() => process.exit(0));
 });
