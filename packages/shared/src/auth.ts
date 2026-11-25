@@ -18,9 +18,9 @@ import {
   readAuthPolicy,
   roleForNewUser,
 } from "./auth-config";
-import { type Db, getDb, getUserAccess, hasAdmin, kvInit, resolveDbPath } from "./db";
+import { claimSetup, type Db, getDb, getUserAccess, hasAdmin, kvInit, resolveDbPath } from "./db";
 import { allowedOrigins, isPlaceholderSecret } from "./env";
-import { can } from "./permissions";
+import { can, isRole } from "./permissions";
 
 const BUILD_TIME_SECRET = "build-time-secret-will-be-replaced";
 
@@ -193,22 +193,12 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
     // the HTTP routes instead.
     emailAndPassword: { enabled: true },
     account: {
-      accountLinking: {
-        enabled: true,
-        // Better Auth only links an SSO sign-in to an existing account with the
-        // same email once the local address is verified, so nobody can
-        // pre-register a password account with someone else's address and
-        // wait for them. A password account here can only come from /setup,
-        // OPENINARY_ADMIN_* or an admin, so the create hook below marks it
-        // verified, and migrate() did the same once for older accounts: that
-        // is the lasting mechanism. This option is a stopgap for databases
-        // that haven't been through that yet; it's deprecated and goes away in
-        // better-auth 1.8. The provider still has to vouch: no SSO provider is
-        // trusted, and an unverified IdP email (or a Google `hd` outside the
-        // allowlist) is never linked. Linking only adds an account row, so the
-        // user keeps their role and the session hook still checks access.
-        requireLocalEmailVerified: false,
-      },
+      // Better Auth only links an SSO sign-in to an existing account with the
+      // same email once the local address is verified, so nobody can
+      // pre-register an account with someone else's address and wait for
+      // them. Password accounts are marked verified when the instance makes
+      // them (create hook below), and migrate() did the same for older ones.
+      accountLinking: { enabled: true },
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
@@ -226,8 +216,9 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
         }
 
         // Nobody signs up with a password once setup is done: new people come
-        // in through SSO, or an admin adds them.
-        if (ctx.path === "/sign-up/email" && hasAdmin(db)) {
+        // in through SSO, or an admin adds them. The claim is atomic, so
+        // sign-ups racing on a fresh instance can't all get through.
+        if (ctx.path === "/sign-up/email" && !claimSetup(db)) {
           throw forbidden(
             "Setup is already completed. Ask an admin to add you, or sign in with single sign-on.",
             "SIGN_UP_CLOSED",
@@ -242,11 +233,36 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
           }
         }
 
+        // The dashboard has no use for it, and it would let an admin act as
+        // someone else without leaving their own name on the actions.
+        if (ctx.path === "/admin/impersonate-user") {
+          throw forbidden("Impersonation is turned off on this instance.", "IMPERSONATION_DISABLED");
+        }
+
+        // A role is exactly one of ours: the plugin also takes a list, which
+        // it would read as admin while can() reads it as nothing.
+        const body = ctx.body as
+          | { userId?: unknown; role?: unknown; data?: Record<string, unknown> }
+          | undefined;
+        const newRole =
+          ctx.path === "/admin/update-user" ? body?.data?.role : ctx.path.startsWith("/admin/") ? body?.role : undefined;
+        if (newRole !== undefined && !isRole(newRole)) {
+          throw APIError.from("BAD_REQUEST", {
+            message: "Role must be one of admin, member or viewer.",
+            code: "INVALID_ROLE",
+          });
+        }
+
         // The admin plugin refuses banning or removing yourself, not a new
-        // role: an admin demoting themselves could leave the instance without one.
-        if (ctx.path === "/admin/set-role") {
-          const session = await getSessionFromCtx(ctx);
-          if (session && ctx.body?.userId === session.user.id) {
+        // role, through either route: the last admin demoting themselves would
+        // leave nobody able to manage the instance. Other admins can only be
+        // demoted by an admin, so there is always one left.
+        if (ctx.path === "/admin/set-role" || ctx.path === "/admin/update-user") {
+          const touchesAccess =
+            ctx.path === "/admin/set-role" ||
+            (!!body?.data && ("role" in body.data || "banned" in body.data));
+          const session = touchesAccess ? await getSessionFromCtx(ctx) : null;
+          if (session && body?.userId === session.user.id) {
             throw forbidden("You can't change your own role.", "CANNOT_CHANGE_OWN_ROLE");
           }
         }
@@ -258,7 +274,9 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
           before: async (user, ctx) => {
             const email = String(user.email ?? "");
             const isFirst = !hasAdmin(db);
-            const viaSso = !!ctx?.path && !PASSWORD_CREATE_PATHS.has(ctx.path);
+            // Anything but a known password route counts as SSO, a route we
+            // can't see included: that side never vouches for an address.
+            const viaSso = !PASSWORD_CREATE_PATHS.has(ctx?.path ?? "");
 
             // A named admin email only counts over SSO once the provider vouches
             // for it: an IdP that lets people type any address would otherwise
@@ -390,6 +408,15 @@ export type Auth = ReturnType<typeof createAuth>;
 export type AuthSession = Auth["$Infer"]["Session"]["session"];
 export type AuthUser = Auth["$Infer"]["Session"]["user"];
 
+/**
+ * Providers that create an account for whoever signs in, with no domain
+ * allowlist to narrow it. Fine for a company IdP, open to the world for a
+ * public Google or GitLab app. Exported for tests.
+ */
+export function openSignUpProviders(policy: AuthPolicy): ProviderConfig[] {
+  return policy.allowedDomains.length > 0 ? [] : policy.providers.filter((p) => p.allowSignUp);
+}
+
 let sharedPolicy: AuthPolicy | undefined;
 
 /** The instance's sign-in policy from AUTH_*, read once. Throws on a bad config. */
@@ -423,6 +450,13 @@ export function getAuth(): Auth {
   console.log(`  - Internal URL: ${process.env.BETTER_AUTH_INTERNAL_URL || "(not set)"}`);
   console.log(`  - Trusted origins: ${allowedOrigins().join(", ")}`);
   console.log(`  - Database: ${resolveDbPath()}`);
+  for (const p of openSignUpProviders(policy)) {
+    console.warn(
+      `WARNING: anyone who can sign in to ${p.name} gets an account here as "${policy.defaultRole}", ` +
+        "with read access to the whole library at least. Set AUTH_ALLOWED_EMAIL_DOMAINS, " +
+        `or AUTH_${p.id.toUpperCase()}_ALLOW_SIGNUP=false and add people in Settings > Users.`,
+    );
+  }
   if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_URL) {
     console.warn(
       "WARNING: BETTER_AUTH_URL is not set in production. Set it to your app's URL or sign-in and CORS may fail.",

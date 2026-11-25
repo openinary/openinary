@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasAdmin } from "shared";
+import { claimSetup, hasAdmin } from "shared";
 import { getAuth, getAuthPolicy } from "shared/auth";
 import logger from "@/lib/logger";
 
@@ -65,6 +65,15 @@ export async function POST(request: Request) {
             "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
         },
         { status: 400 },
+      );
+    }
+
+    // Atomic, so two setups racing on a fresh instance can't both create an
+    // account (this call goes past the HTTP sign-up hook that claims it too).
+    if (!claimSetup()) {
+      return NextResponse.json(
+        { error: "Setup is already in progress or completed. Reload the page." },
+        { status: 409 },
       );
     }
 

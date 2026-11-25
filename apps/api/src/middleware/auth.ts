@@ -71,6 +71,15 @@ function admitUser(
       403,
     );
   }
+  // A role that can't manage keys can't see or revoke them either, so keys
+  // left from an earlier role stop working until the role allows them again.
+  if (via === "api_key" && !can(access.role, "apiKeys:manage")) {
+    auditLog(c, "auth.api_key.rejected", { reason: "role_without_api_keys", userId });
+    return c.json(
+      { error: "Forbidden", code: "FORBIDDEN_ROLE", message: "This account's role can't use API keys" },
+      403,
+    );
+  }
   c.set("user", {
     id: access.id,
     email: access.email,

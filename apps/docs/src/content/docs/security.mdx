@@ -19,8 +19,8 @@ The auth layer is [Better Auth](https://www.better-auth.com) 1.6 on a SQLite bac
 How you get the first one depends on the mode.
 
 In fullstack mode, visit `/setup` to create your admin account, then `/api-keys` in
-the dashboard to create the key. A key acts with its owner's current role, so a
-viewer's keys can only read. See [users & single sign-on](/configuration/authentication).
+the dashboard to create the key. A key acts with its owner's current role, and a
+viewer's keys don't work at all. See [users & single sign-on](/configuration/authentication).
 
 In API-only mode the server generates a key on first startup and prints it to the
 console. It is shown once and cannot be retrieved later, so copy it now:

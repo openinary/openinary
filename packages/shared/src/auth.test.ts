@@ -7,9 +7,9 @@ import { after, test } from "node:test";
 
 import { handleOAuthUserInfo } from "better-auth/oauth2";
 
-import { createAuth, oauthRedirectURI, oidcConfig, pictureFromIdToken } from "./auth";
+import { createAuth, oauthRedirectURI, oidcConfig, openSignUpProviders, pictureFromIdToken } from "./auth";
 import { readAuthPolicy } from "./auth-config";
-import { type Db, getUserAccess, openDb } from "./db";
+import { claimSetup, type Db, getUserAccess, openDb } from "./db";
 
 const SECRET = "x".repeat(32);
 const ORIGIN = "http://localhost:3000";
@@ -237,6 +237,74 @@ test("an admin can't change their own role", async () => {
   assert.equal(roleOf(db, "owner@acme.com"), "admin");
 });
 
+test("sign-ups racing on a fresh instance: exactly one gets an account", async () => {
+  const { db, auth } = instance();
+  const results = await Promise.all(["a", "b", "c", "d"].map((n) => signUp(auth, `${n}@acme.com`)));
+  assert.equal(results.filter((r) => r.status === 200).length, 1);
+  for (const r of results.filter((r) => r.status !== 200)) assert.equal(await errorCode(r), "SIGN_UP_CLOSED");
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM user").get() as { n: number }).n, 1);
+});
+
+test("the setup claim is single-use, frees itself after a failed sign-up, and closes with an account", () => {
+  const { db } = instance();
+  assert.equal(claimSetup(db, 1_000_000), true);
+  assert.equal(claimSetup(db, 1_000_000), false);
+  assert.equal(claimSetup(db, 1_030_000), false);
+  assert.equal(claimSetup(db, 1_061_000), true, "a stale claim with no account is free again");
+  db.prepare("INSERT INTO user (id, email, name, createdAt, updatedAt) VALUES ('u', 'u@acme.com', 'U', 1, 1)").run();
+  assert.equal(claimSetup(db, 9_000_000), false);
+});
+
+test("an admin can't demote or ban themselves through update-user either", async () => {
+  const { db, auth } = instance();
+  const { user } = await createUser(auth, "owner@acme.com");
+  const ownerCookie = cookieOf(await signIn(auth, "owner@acme.com"));
+  for (const data of [{ role: "viewer" }, { banned: true }]) {
+    const res = await http(auth, "/admin/update-user", { userId: user.id, data }, ownerCookie);
+    assert.equal(res.status, 403);
+    assert.equal(await errorCode(res), "CANNOT_CHANGE_OWN_ROLE");
+  }
+  assert.equal(roleOf(db, "owner@acme.com"), "admin");
+  // Their own name is still theirs to change.
+  const ok = await http(auth, "/admin/update-user", { userId: user.id, data: { name: "Owner" } }, ownerCookie);
+  assert.equal(ok.status, 200);
+});
+
+test("roles are one of ours, and impersonation is off", async () => {
+  const { db, auth } = instance();
+  await createUser(auth, "owner@acme.com");
+  const { user } = await createUser(auth, "someone@acme.com");
+  const ownerCookie = cookieOf(await signIn(auth, "owner@acme.com"));
+  for (const [route, body] of [
+    ["/admin/set-role", { userId: user.id, role: ["admin", "viewer"] }],
+    ["/admin/set-role", { userId: user.id, role: "owner" }],
+    ["/admin/update-user", { userId: user.id, data: { role: "admin,viewer" } }],
+    ["/admin/create-user", { email: "x@acme.com", password: throwawayLogin, name: "X", role: ["admin"] }],
+  ] as const) {
+    const res = await http(auth, route, body, ownerCookie);
+    assert.equal(res.status, 400, route);
+    assert.equal(await errorCode(res), "INVALID_ROLE");
+  }
+  assert.equal(roleOf(db, "someone@acme.com"), "viewer");
+  const res = await http(auth, "/admin/impersonate-user", { userId: user.id }, ownerCookie);
+  assert.equal(res.status, 403);
+  assert.equal(await errorCode(res), "IMPERSONATION_DISABLED");
+});
+
+test("providers open to anyone are flagged unless an allowlist narrows them", () => {
+  const env = {
+    AUTH_PROVIDERS: "google,corp",
+    AUTH_GOOGLE_CLIENT_ID: "g",
+    AUTH_GOOGLE_CLIENT_SECRET: "s",
+    AUTH_CORP_TYPE: "keycloak",
+    AUTH_CORP_ISSUER: "https://sso.acme.com/realms/acme",
+    AUTH_CORP_CLIENT_ID: "c",
+    AUTH_CORP_ALLOW_SIGNUP: "false",
+  };
+  assert.deepEqual(openSignUpProviders(readAuthPolicy(env)).map((p) => p.id), ["google"]);
+  assert.deepEqual(openSignUpProviders(readAuthPolicy({ ...env, AUTH_ALLOWED_EMAIL_DOMAINS: "acme.com" })), []);
+});
+
 test("AUTH_PASSWORD_LOGIN=false closes password sign-in over HTTP only", async () => {
   const { auth } = instance({
     AUTH_PASSWORD_LOGIN: "false",
@@ -381,7 +449,7 @@ test("SSO with a verified email links to the existing password account", async (
   const { user: member } = await createUser(auth, "member@acme.com");
   // The instance vouches for the password accounts it makes.
   assert.equal(owner.emailVerified, true);
-  assert.equal(auth.options.account?.accountLinking?.requireLocalEmailVerified, false);
+  assert.equal("requireLocalEmailVerified" in (auth.options.account?.accountLinking ?? {}), false);
   // The provider's word is still needed: none is trusted outright.
   assert.deepEqual((await auth.$context).trustedProviders, []);
 
@@ -400,6 +468,18 @@ test("SSO with a verified email links to the existing password account", async (
   assert.equal(roleOf(db, "member@acme.com"), "member");
   // Password sign-in still works after the link.
   assert.equal((await signIn(auth, "owner@acme.com")).status, 200);
+});
+
+test("an unverified account made through SSO can't capture someone's later verified sign-in", async () => {
+  const { db, auth } = instance();
+  await createUser(auth, "owner@acme.com");
+  // Pre-registered through a provider that doesn't check addresses.
+  const planted = await googleSignIn(auth, "victim@acme.com", false, "attacker-sub");
+  const plantedId = planted.data?.user.id;
+  assert.ok(plantedId);
+  const real = await googleSignIn(auth, "victim@acme.com", true, "victim-sub");
+  assert.notEqual(real.data?.user.id, plantedId);
+  assert.deepEqual(accountsOf(db, plantedId), ["google"]);
 });
 
 test("SSO with an unverified email never links to an existing account", async () => {

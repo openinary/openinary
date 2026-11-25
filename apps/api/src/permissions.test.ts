@@ -21,6 +21,7 @@ let app: App;
 let db: import("shared").Db;
 const keys: Record<string, string> = {};
 const ids: Record<string, string> = {};
+let viewerCookie = "";
 
 before(async () => {
   const { getAuth } = await import("shared/auth");
@@ -50,6 +51,12 @@ before(async () => {
   for (const [name, id] of Object.entries(ids)) {
     keys[name] = (await auth.api.createApiKey({ body: { userId: id } })).key;
   }
+  // Viewers can't use API keys, so they come in with a session, as in the dashboard.
+  const { headers } = await auth.api.signInEmail({
+    body: { email: "viewer@acme.com", password: throwawayLogin },
+    returnHeaders: true,
+  });
+  viewerCookie = headers.get("set-cookie")!.split(";")[0];
 });
 
 after(() => {
@@ -60,7 +67,9 @@ const call = (who: string | null, method: string, url: string, body?: BodyInit, 
   app.request(url, {
     method,
     headers: {
-      ...(who && { Authorization: `Bearer ${keys[who]}` }),
+      ...(who === "viewer"
+        ? { Cookie: viewerCookie }
+        : who && { Authorization: `Bearer ${keys[who.replace(/-key$/, "")]}` }),
       ...(json && { "Content-Type": "application/json" }),
     },
     body,
@@ -130,10 +139,11 @@ test("banned and locked-out accounts are refused, deleted ones unauthenticated",
 });
 
 test("an API key acts with its owner's current role", async () => {
-  await forbidden(await call("viewer", "POST", "/queue/jobs/missing/retry"));
+  // A viewer's key (left from an earlier role) doesn't work, not even to read.
+  await forbidden(await call("viewer-key", "GET", "/storage/folders"));
   db.prepare("UPDATE user SET role = 'member' WHERE id = ?").run(ids.viewer);
   try {
-    await allowed(await call("viewer", "POST", "/queue/jobs/missing/retry"));
+    await allowed(await call("viewer-key", "POST", "/queue/jobs/missing/retry"));
   } finally {
     db.prepare("UPDATE user SET role = 'viewer' WHERE id = ?").run(ids.viewer);
   }

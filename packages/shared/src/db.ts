@@ -267,6 +267,27 @@ export function hasAdmin(db: Db = getDb()): boolean {
   return !!db.prepare("SELECT 1 FROM user LIMIT 1").get();
 }
 
+const SETUP_CLAIM = "setup_claim";
+const SETUP_CLAIM_TTL_MS = 60_000;
+
+/**
+ * Reserves the one password account setup may create, in a single statement
+ * so it holds across concurrent requests and both processes: of N sign-ups
+ * racing on an empty instance, exactly one gets true. False once any account
+ * exists. A claim whose sign-up failed frees itself after a minute.
+ */
+export function claimSetup(db: Db = getDb(), now = Date.now()): boolean {
+  const { changes } = db
+    .prepare(
+      `INSERT INTO app_state (key, value)
+       SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM user)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value
+       WHERE CAST(app_state.value AS INTEGER) < ?`,
+    )
+    .run(SETUP_CLAIM, String(now), now - SETUP_CLAIM_TTL_MS);
+  return changes === 1;
+}
+
 export interface UserAccess {
   id: string;
   email: string;
