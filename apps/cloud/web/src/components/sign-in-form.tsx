@@ -44,7 +44,7 @@ function useLastLoginMethod(hint: string | null) {
 }
 
 // Pill straddling the top-right edge of the method the visitor used last:
-// the Google button or the email field, both white, so it stays white too.
+// the Google button or the email field, so it takes the card surface too.
 function LastUsedBadge({
   show,
   children,
@@ -56,7 +56,7 @@ function LastUsedBadge({
   return (
     <div className="relative">
       {children}
-      <span className="-translate-y-1/2 pointer-events-none absolute top-0 right-3 z-10 rounded-full border border-ds-border bg-white px-1.5 font-medium text-[10px]/4 text-ds-muted shadow-xs">
+      <span className="-translate-y-1/2 pointer-events-none absolute top-0 right-3 z-10 rounded-full border border-ds-border bg-ds-card px-1.5 font-medium text-[10px]/4 text-ds-muted shadow-xs">
         Last used
       </span>
     </div>
