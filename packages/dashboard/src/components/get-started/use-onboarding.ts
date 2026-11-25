@@ -1,5 +1,7 @@
 "use client";
 
+import { useOpeninary } from "@openinary/ui";
+
 import { useDashboard } from "../../adapter";
 
 export interface OnboardingStep {
@@ -19,6 +21,9 @@ export interface OnboardingStep {
  * does. Uploading a file here and playing with a playground are the dashboard
  * demonstrating the product, not an app having integrated it, so each app's
  * signals have to tell the two apart (see its useOnboardingSignals).
+ *
+ * A read-only account (a self-hosted viewer) can neither create an API key
+ * nor upload, so it only gets the step it can do; Cloud is never read-only.
  */
 export function useOnboarding(): {
   steps: OnboardingStep[];
@@ -31,8 +36,9 @@ export function useOnboarding(): {
   const { useHasApiKey, useOnboardingSignals } = useDashboard();
   const hasKey = useHasApiKey();
   const { hasUploaded, hasDelivered } = useOnboardingSignals();
+  const { readOnly } = useOpeninary();
 
-  const steps: OnboardingStep[] = [
+  const allSteps: OnboardingStep[] = [
     {
       id: "connect",
       title: "Connect your app",
@@ -54,14 +60,18 @@ export function useOnboarding(): {
     {
       id: "deliver",
       title: "Serve it back",
-      description:
-        "Render the URL you stored, then add a transformation to it.",
+      description: readOnly
+        ? "Open a file's link, then add a transformation to it."
+        : "Render the URL you stored, then add a transformation to it.",
       href: "/get-started/images",
       action: "Try a transformation",
       waiting: "Waiting for your first delivery",
       done: hasDelivered ?? false,
     },
   ];
+  const steps = readOnly
+    ? allSteps.filter((step) => step.id !== "connect" && step.id !== "upload")
+    : allSteps;
 
   const completed = steps.filter((step) => step.done).length;
 

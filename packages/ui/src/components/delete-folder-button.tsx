@@ -17,7 +17,7 @@ export function DeleteFolderButton({
   folderPath: string;
   onSuccessfulDelete?: (folder: string) => void;
 }) {
-  const { apiBaseUrl, fetch } = useOpeninary();
+  const { apiBaseUrl, fetch, readOnly } = useOpeninary();
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -79,6 +79,8 @@ export function DeleteFolderButton({
       console.error("Failed to delete file:", error);
     }
   };
+
+  if (readOnly) return null;
 
   return (
     <>

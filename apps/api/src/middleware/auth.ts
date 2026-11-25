@@ -1,15 +1,21 @@
 import { Context, Next } from "hono";
-import { getDb } from "shared";
-import { getAuth } from "shared/auth";
+import { type Action, can, getUserAccess, isRole, mayAccess, type Role } from "shared";
+import { getAuth, getAuthPolicy } from "shared/auth";
 import { logger, serializeError } from "@openinary/core";
 import { clientIp } from "../utils/client-ip";
 
 export type AuthVariables = {
   Variables: {
+    /**
+     * Null after a presigned upload: the signature, not a user, authorized it.
+     * `role` is read fresh on every request (null for a role this release
+     * doesn't know, which can do nothing).
+     */
     user: {
       id: string;
       email: string;
       name: string;
+      role: Role | null;
     } | null;
     apiKey: {
       id: string;
@@ -27,13 +33,64 @@ function auditLog(c: Context, event: string, data: Record<string, unknown> = {})
 }
 
 /**
+ * Loads the user behind a valid key or session and checks they may still get
+ * in. Done on every request, so a ban, a role change or a tightened allowlist
+ * applies at once, including to API keys (which act with the owner's current
+ * role). Returns the rejection to send, or null after putting the user on the
+ * context.
+ */
+function admitUser(
+  c: Context<AuthVariables>,
+  userId: string,
+  via: "api_key" | "session",
+): Response | null {
+  const access = getUserAccess(userId);
+  if (!access) {
+    // Belt and braces against a key or session outliving its user.
+    auditLog(c, `auth.${via}.rejected`, { reason: "user_not_found_in_db", userId });
+    return c.json(
+      { error: "Authentication required", code: "USER_NOT_FOUND", message: "This account no longer exists" },
+      401,
+    );
+  }
+  if (access.banned) {
+    auditLog(c, `auth.${via}.rejected`, { reason: "banned", userId });
+    return c.json(
+      { error: "Forbidden", code: "BANNED_USER", message: "This account has been banned from this instance" },
+      403,
+    );
+  }
+  if (!mayAccess(getAuthPolicy(), access)) {
+    auditLog(c, `auth.${via}.rejected`, { reason: "access_revoked", userId });
+    return c.json(
+      {
+        error: "Forbidden",
+        code: "ACCESS_REVOKED",
+        message: "This account's email domain is no longer allowed on this instance",
+      },
+      403,
+    );
+  }
+  c.set("user", {
+    id: access.id,
+    email: access.email,
+    name: access.name,
+    role: isRole(access.role) ? access.role : null,
+  });
+  return null;
+}
+
+/**
  * Verifies an API key (Authorization: Bearer) or a session cookie and puts
- * the user on the context. Writes no response: callers decide whether to
- * reject or try another mechanism.
+ * the user on the context. Returns true when authenticated, false when no
+ * valid credentials were sent (callers decide whether to reject or try
+ * another mechanism), or a Response when the credentials were valid but the
+ * account may not get in: send that as is, never fall back to another
+ * mechanism.
  */
 export async function authenticateRequest(
   c: Context<AuthVariables>,
-): Promise<boolean> {
+): Promise<boolean | Response> {
   const authHeader = c.req.header("Authorization");
   const cookieHeader = c.req.header("Cookie");
   const token = authHeader?.startsWith("Bearer ")
@@ -46,8 +103,9 @@ export async function authenticateRequest(
 
       if (result.valid && result.key) {
         const userId = result.key.referenceId;
+        const denied = admitUser(c, userId, "api_key");
+        if (denied) return denied;
         c.set("apiKey", { id: result.key.id, name: result.key.name, userId });
-        c.set("user", { id: userId, email: "", name: "" });
         auditLog(c, "auth.api_key.success", {
           userId,
           apiKeyId: result.key.id,
@@ -73,28 +131,14 @@ export async function authenticateRequest(
       });
 
       if (sessionResult?.session && sessionResult.user) {
-        // Belt and braces against a session outliving its user.
-        const userExists = getDb()
-          .prepare("SELECT 1 FROM user WHERE id = ?")
-          .get(sessionResult.user.id);
-
-        if (userExists) {
-          c.set("user", {
-            id: sessionResult.user.id,
-            email: sessionResult.user.email,
-            name: sessionResult.user.name,
-          });
-          c.set("apiKey", null);
-          auditLog(c, "auth.session.success", {
-            userId: sessionResult.user.id,
-            userEmail: sessionResult.user.email,
-          });
-          return true;
-        }
-        auditLog(c, "auth.session.rejected", {
-          reason: "user_not_found_in_db",
+        const denied = admitUser(c, sessionResult.user.id, "session");
+        if (denied) return denied;
+        c.set("apiKey", null);
+        auditLog(c, "auth.session.success", {
           userId: sessionResult.user.id,
+          userEmail: sessionResult.user.email,
         });
+        return true;
       }
     }
   } catch (error) {
@@ -112,9 +156,11 @@ export async function authenticateRequest(
   return false;
 }
 
-/** Rejects with 401 unless authenticateRequest succeeds. */
+/** Rejects with 401 (or 403 for a banned or locked-out account) unless authenticateRequest succeeds. */
 export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
-  if (await authenticateRequest(c)) {
+  const result = await authenticateRequest(c);
+  if (result instanceof Response) return result;
+  if (result) {
     await next();
     return;
   }
@@ -128,3 +174,39 @@ export async function apiKeyAuth(c: Context<AuthVariables>, next: Next) {
     401,
   );
 }
+
+/**
+ * 403 unless the authenticated user's role may perform `action` (or the
+ * action `action(c)` picks for this request). Goes after apiKeyAuth or
+ * presignedOrApiKeyAuth. A presigned upload has no user (null) and passes:
+ * the signature is its authorization, and only a member could mint it.
+ */
+export const requirePermission =
+  (action: Action | ((c: Context<AuthVariables>) => Action)) =>
+  async (c: Context<AuthVariables>, next: Next) => {
+    const user = c.get("user");
+    if (user === null) {
+      await next();
+      return;
+    }
+    if (!user) {
+      return c.json(
+        { error: "Authentication required", message: "Please sign in or provide an API key" },
+        401,
+      );
+    }
+    const needed = typeof action === "function" ? action(c) : action;
+    if (!can(user.role, needed)) {
+      auditLog(c, "auth.permission.denied", { userId: user.id, role: user.role, action: needed });
+      return c.json(
+        {
+          error: "Forbidden",
+          code: "FORBIDDEN_ROLE",
+          action: needed,
+          message: `Your role (${user.role ?? "none"}) can't do this: it needs ${needed}.`,
+        },
+        403,
+      );
+    }
+    await next();
+  };

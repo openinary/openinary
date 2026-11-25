@@ -42,7 +42,7 @@ API_SECRET=$(openssl rand -hex 32)
 | `OPENINARY_ADMIN_NAME` | `Admin` | Display name |
 | `OPENINARY_GENERATE_API_KEY` | `false` | Create an API key too and print it to the logs. Must be exactly `true` |
 
-These run **only on the very first boot**, while the user table is empty. They cannot reset a password or add a second admin later. Without them, a `fullstack` instance waits for you to create the account at `/setup`.
+These run **only on the very first boot**, while the user table is empty, and the account they create is the instance's first admin. They cannot reset a password or add people later: do that from **Settings › Users**. Without them, a `fullstack` instance waits for you to create the account at `/setup`, or for the first single sign-on sign-in. See [users & single sign-on](/configuration/authentication) for roles, inviting your team and SSO.
 
 Three rules worth knowing before you wire this into a deploy:
 
@@ -78,6 +78,9 @@ The key is printed once and cannot be retrieved afterwards. Capture it on first 
 ## Related
 
 <CardGroup cols={2}>
+  <Card title="Users & single sign-on" icon="key" href="/configuration/authentication">
+    Roles, Google Workspace, OIDC providers and a domain allowlist.
+  </Card>
   <Card title="Storage" icon="cloud" href="/configuration/storage">
     Connect S3-compatible cloud storage.
   </Card>

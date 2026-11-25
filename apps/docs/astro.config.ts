@@ -79,6 +79,7 @@ const nimbusConfig = defineNimbusConfig({
           group("Cloud", "cloud", ["cloud/overview", "cloud/api"]),
           group("Self-hosting", "server", [
             "configuration/server",
+            "configuration/authentication",
             "configuration/storage",
             "configuration/video-processing",
             "configuration/docker-resources",

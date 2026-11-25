@@ -34,6 +34,13 @@ export interface OnboardingProps {
   user: { name?: string | null; image?: string | null };
   /** Current workspace (cloud: the active bucket). No name derives one from the user's. */
   workspace: { name?: string; logo?: string | null };
+  /**
+   * Shows the workspace step without letting this user change it, for a
+   * workspace someone else manages (self-hosted: only admins do). No name
+   * then reads "Openinary" rather than one derived from the user's, and
+   * onComplete gets the workspace back as it was passed.
+   */
+  workspaceReadOnly?: boolean;
   /** Shown under the last step's buttons, e.g. where the answers go. */
   note?: ReactNode;
   /** Persists the answers. A throw keeps the user on the last step with a toast. */
@@ -105,6 +112,14 @@ const COPY = {
   },
 } satisfies Record<OnboardingVariant, unknown>;
 
+/** The workspace step when workspaceReadOnly is set. */
+const READ_ONLY_COPY = {
+  workspaceTitle: "Your team's workspace",
+  workspaceSubtitle:
+    "Everyone here shares this workspace. Its name and logo are managed by your admins.",
+  fallbackName: "Openinary",
+};
+
 /** Night sky over a blue horizon, fading into the page so the bottom stays plain. */
 const SKY =
   "linear-gradient(180deg, #050b22 0%, #0a1846 24%, #1a49c4 44%, #3d7bf0 50%, #a9c6f8 58%, var(--ds-panel) 70%)";
@@ -157,7 +172,10 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  */
 // ponytail: avatars ride inline as ~5-10 KB data URLs. Move them to object
 // storage if anything starts listing users with their pictures in bulk.
-async function toSquareDataUrl(file: File, size = 128): Promise<string> {
+export async function toSquareDataUrl(
+  file: File,
+  size = 128,
+): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const side = Math.min(bitmap.width, bitmap.height);
   const canvas = document.createElement("canvas");
@@ -227,6 +245,79 @@ function Field({
   );
 }
 
+/**
+ * A small square preview with upload, replace and remove buttons. Picked
+ * images are cropped and shrunk with toSquareDataUrl, so `value` is always a
+ * 128px data URL (or null). `id` goes on the hidden file input, for a label.
+ */
+export function ImagePicker({
+  id,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+}: {
+  id: string;
+  value: string | null;
+  onChange: (value: string | null) => void;
+  disabled?: boolean;
+  /** Drawn in the preview when there is no image. Defaults to an image icon. */
+  placeholder?: ReactNode;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ds-hover inset-ring inset-ring-ds-border">
+        {value ? (
+          <img src={value} alt="" className="size-full object-cover" />
+        ) : (
+          (placeholder ?? <ImageIcon className="size-4 text-ds-faint" />)
+        )}
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={() => input.current?.click()}
+      >
+        <Upload />
+        {value ? "Replace" : "Upload image"}
+      </Button>
+      {value && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          onClick={() => onChange(null)}
+        >
+          Remove
+        </Button>
+      )}
+      <input
+        ref={input}
+        id={id}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="sr-only"
+        disabled={disabled}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          // Cleared so picking the same file again still fires a change.
+          e.target.value = "";
+          if (!file) return;
+          try {
+            onChange(await toSquareDataUrl(file));
+          } catch {
+            toast.error("That image could not be read. Try a PNG or JPEG.");
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 function ImageField({
   id,
   label,
@@ -238,55 +329,9 @@ function ImageField({
   value: string | null;
   onChange: (value: string | null) => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
   return (
     <Field label={label} htmlFor={id}>
-      <div className="flex items-center gap-2">
-        <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ds-hover inset-ring inset-ring-ds-border">
-          {value ? (
-            <img src={value} alt="" className="size-full object-cover" />
-          ) : (
-            <ImageIcon className="size-4 text-ds-faint" />
-          )}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => input.current?.click()}
-        >
-          <Upload />
-          {value ? "Replace" : "Upload image"}
-        </Button>
-        {value && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange(null)}
-          >
-            Remove
-          </Button>
-        )}
-        <input
-          ref={input}
-          id={id}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          className="sr-only"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            // Cleared so picking the same file again still fires a change.
-            e.target.value = "";
-            if (!file) return;
-            try {
-              onChange(await toSquareDataUrl(file));
-            } catch {
-              toast.error("That image could not be read. Try a PNG or JPEG.");
-            }
-          }}
-        />
-      </div>
+      <ImagePicker id={id} value={value} onChange={onChange} />
     </Field>
   );
 }
@@ -385,11 +430,13 @@ export function Onboarding({
   variant,
   user,
   workspace,
+  workspaceReadOnly = false,
   note,
   onComplete,
   onStepComplete,
 }: OnboardingProps) {
   const copy = COPY[variant];
+  const sharedName = workspace.name?.trim() || READ_ONLY_COPY.fallbackName;
   const form = useRef<HTMLFormElement>(null);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -412,7 +459,8 @@ export function Onboarding({
   const missing = {
     name: step === 0 && !answers.name.trim(),
     role: step === 0 && !answers.role,
-    workspaceName: step === 1 && !answers.workspaceName.trim(),
+    workspaceName:
+      step === 1 && !workspaceReadOnly && !answers.workspaceName.trim(),
     useCases: step === 2 && answers.useCases.length === 0,
     source: step === 3 && !answers.source,
   };
@@ -427,7 +475,7 @@ export function Onboarding({
 
   const advance = async (final: OnboardingAnswers, skipped = false) => {
     onStepComplete?.(step, final, skipped);
-    if (step === 0 && !final.workspaceName.trim()) {
+    if (step === 0 && !workspaceReadOnly && !final.workspaceName.trim()) {
       set({
         workspaceName: copy.defaultName(final.name.trim().split(/\s+/)[0]),
       });
@@ -483,7 +531,9 @@ export function Onboarding({
 
   const [title, subtitle] = [
     ["Introduce yourself", "So the dashboard knows what to call you."],
-    [copy.workspaceTitle, copy.workspaceSubtitle],
+    workspaceReadOnly
+      ? [READ_ONLY_COPY.workspaceTitle, READ_ONLY_COPY.workspaceSubtitle]
+      : [copy.workspaceTitle, copy.workspaceSubtitle],
     [
       "What are you building?",
       "Pick everything you'd use Openinary for. You can change this later.",
@@ -609,7 +659,31 @@ export function Onboarding({
                         </>
                       )}
 
-                      {step === 1 && (
+                      {step === 1 && workspaceReadOnly && (
+                        <div className="flex items-center gap-3 rounded-[10px] bg-ds-hover px-3 py-3 inset-ring inset-ring-ds-border">
+                          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ds-panel inset-ring inset-ring-ds-border">
+                            {workspace.logo ? (
+                              <img
+                                src={workspace.logo}
+                                alt=""
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <OpeninaryMark className="size-4.5 text-ds-text" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-[14px]/5">
+                              {sharedName}
+                            </p>
+                            <p className="text-[12.5px]/[18px] text-ds-muted">
+                              Admins can change it in Settings › Workspace.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {step === 1 && !workspaceReadOnly && (
                         <>
                           {copy.logoLabel && (
                             <ImageField
