@@ -119,7 +119,7 @@ export function TeamTab() {
                 onValueChange={(value) => setRole(value as InviteRole)}
                 disabled={full}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 capitalize">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -216,7 +216,7 @@ export function TeamTab() {
                               )
                           }
                         >
-                          <SelectTrigger className="h-8 w-28 text-xs">
+                          <SelectTrigger className="h-8 w-28 text-xs capitalize">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
