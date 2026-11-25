@@ -165,10 +165,10 @@
     // worker/lib/auth.ts). Set to anything but "true" - or remove - to close
     // signups again; existing accounts keep working either way.
     "ALLOW_PUBLIC_SIGNUP": "true",
-    // Teams (worker/rpc/team.ts). "true" turns them on; the beta audience is
-    // TEAMS_ALLOWLIST, a Worker secret (comma-separated account ids, kept out
-    // of this public repo like ADMIN_USER_ID). Unset allowlist = everyone, so
-    // set the secret before this flag ever goes to "true" on a fresh Worker.
+    // Teams (worker/rpc/team.ts), open to every account: the TEAMS_ALLOWLIST
+    // Worker secret is unset in prod. Setting it again (comma-separated
+    // account ids) narrows teams back to those accounts; "false" here turns
+    // them off for everyone.
     "TEAMS_ENABLED": "true"
   },
   // Hourly, NOT every 5 minutes: meterCompletedVideoJobs opens a Postgres
