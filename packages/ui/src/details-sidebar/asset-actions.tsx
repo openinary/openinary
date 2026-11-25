@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Spinner } from "../ui/spinner";
+import { useOpeninary } from "../provider/openinary-provider";
 import type { MediaFile } from "../types";
 
 /** The asset's own actions, under its name. */
@@ -42,6 +43,8 @@ export function AssetActions({
   onDelete: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  // Read-only: Download alone, full width, and no menu of changes.
+  const { readOnly } = useOpeninary();
   const dir = asset.path.includes("/")
     ? asset.path.slice(0, asset.path.lastIndexOf("/"))
     : "";
@@ -55,6 +58,7 @@ export function AssetActions({
           <Download />
           Download
         </Button>
+        {!readOnly && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -91,6 +95,7 @@ export function AssetActions({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
 
       <DefaultDialog

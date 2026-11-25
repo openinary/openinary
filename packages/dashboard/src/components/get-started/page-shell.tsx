@@ -1,5 +1,6 @@
 "use client";
 
+import { useOpeninary } from "@openinary/ui";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Skeleton } from "skullet/react";
 
@@ -48,9 +49,15 @@ export function GetStartedPage({
 function Shortcuts() {
   const { Link, docsUrl } = useDashboard();
   const canManageKeys = useCanManageApiKeys();
+  const { readOnly } = useOpeninary();
   const rows = [
-    { label: "Upload files", href: "/?upload=true", icon: SolarUploader },
-    { label: "Connect your app", href: "/get-started/integrate", icon: SolarIntegrate },
+    // A read-only account (a self-hosted viewer) can't upload or hold a key.
+    ...(readOnly
+      ? []
+      : [
+          { label: "Upload files", href: "/?upload=true", icon: SolarUploader },
+          { label: "Connect your app", href: "/get-started/integrate", icon: SolarIntegrate },
+        ]),
     { label: "Try image transformations", href: "/get-started/images", icon: SolarImages },
     { label: "Try video transformations", href: "/get-started/videos", icon: SolarVideos },
     // Not every role may open the keys page (Cloud team members can't).
@@ -97,6 +104,8 @@ export function GetStartedHome({
 }) {
   const firstName = userName?.trim().split(" ")[0];
   const { isComplete } = useOnboarding();
+  // Its pitch is wiring an app up with an API key, which they can't make.
+  const { readOnly } = useOpeninary();
   return (
     <GetStartedPage
       title={rootTitle}
@@ -112,7 +121,7 @@ export function GetStartedHome({
       <div className="grid items-start gap-x-5 gap-y-5 lg:grid-cols-2">
         {isComplete ? null : <Checklist />}
         <Shortcuts />
-        <UploaderCard />
+        {readOnly ? null : <UploaderCard />}
       </div>
     </GetStartedPage>
   );

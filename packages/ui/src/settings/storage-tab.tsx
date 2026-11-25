@@ -9,6 +9,7 @@ import { DeleteConfirmDialog } from "../components/delete-confirm-dialog";
 import { useClearCache, useRecalculateStorageStats, useStorageStats } from "../hooks/use-storage-stats";
 import { formatFileSize } from "../details-sidebar/utils";
 import { cn } from "../lib/utils";
+import { useOpeninary } from "../provider/openinary-provider";
 import { SettingsList, SettingsRow, SettingsSection } from "./settings-section";
 
 function formatUpdatedAt(iso: string): string {
@@ -26,6 +27,8 @@ export function StorageTab() {
   const clearCache = useClearCache();
   const recalculate = useRecalculateStorageStats();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Read-only: the figures, without Recalculate or Clear cache.
+  const { readOnly } = useOpeninary();
 
   // While loading, the same markup over sample figures is measured into the skeleton.
   const stat = (size?: number, count?: number, noun = "file") => (
@@ -44,8 +47,13 @@ export function StorageTab() {
     <div className="space-y-6">
       <SettingsSection
         title="Usage"
-        description="View your storage usage and manage cached transformations."
+        description={
+          readOnly
+            ? "Storage used by files and by cached transformations."
+            : "View your storage usage and manage cached transformations."
+        }
         action={
+          !readOnly && (
           <Button
             variant="outline"
             size="sm"
@@ -67,6 +75,7 @@ export function StorageTab() {
             />
             Recalculate
           </Button>
+          )
         }
       >
         {isError ? (
@@ -112,6 +121,7 @@ export function StorageTab() {
       </SettingsSection>
 
 
+      {!readOnly && (
       <SettingsSection
         danger
         title="Cache"
@@ -134,6 +144,7 @@ export function StorageTab() {
           </SettingsRow>
         </SettingsList>
       </SettingsSection>
+      )}
 
       <DeleteConfirmDialog
         isOpen={confirmOpen}

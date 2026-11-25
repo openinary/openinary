@@ -63,6 +63,28 @@ services:
       - OPENINARY_ADMIN_EMAIL=${OPENINARY_ADMIN_EMAIL}
       - OPENINARY_ADMIN_PASSWORD=${OPENINARY_ADMIN_PASSWORD}
       - OPENINARY_GENERATE_API_KEY=${OPENINARY_GENERATE_API_KEY:-true}
+      # Users & single sign-on (optional), see docs/configuration/authentication.
+      # Provider variables are named after ids you choose (AUTH_<ID>_*), so
+      # only two ids are forwarded here: "google", and "sso" for any other
+      # provider (set AUTH_SSO_TYPE to keycloak, okta, microsoft, ... or oidc).
+      # For other ids or the advanced AUTH_<ID>_* options, add lines here or,
+      # better, in a docker-compose.override.yml (Compose merges it, and it
+      # survives updates to this file).
+      - AUTH_PROVIDERS=${AUTH_PROVIDERS:-}
+      - AUTH_ALLOWED_EMAIL_DOMAINS=${AUTH_ALLOWED_EMAIL_DOMAINS:-}
+      - AUTH_DEFAULT_ROLE=${AUTH_DEFAULT_ROLE:-}
+      - AUTH_ADMIN_EMAILS=${AUTH_ADMIN_EMAILS:-}
+      - AUTH_PASSWORD_LOGIN=${AUTH_PASSWORD_LOGIN:-}
+      - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
+      - AUTH_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET:-}
+      - AUTH_SSO_TYPE=${AUTH_SSO_TYPE:-}
+      - AUTH_SSO_NAME=${AUTH_SSO_NAME:-}
+      - AUTH_SSO_CLIENT_ID=${AUTH_SSO_CLIENT_ID:-}
+      - AUTH_SSO_CLIENT_SECRET=${AUTH_SSO_CLIENT_SECRET:-}
+      - AUTH_SSO_ISSUER=${AUTH_SSO_ISSUER:-}
+      - AUTH_SSO_DISCOVERY_URL=${AUTH_SSO_DISCOVERY_URL:-}
+      - AUTH_SSO_TENANT_ID=${AUTH_SSO_TENANT_ID:-}
+      - AUTH_SSO_DOMAIN=${AUTH_SSO_DOMAIN:-}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server
@@ -151,6 +173,28 @@ services:
       - OPENINARY_ADMIN_EMAIL=${OPENINARY_ADMIN_EMAIL}
       - OPENINARY_ADMIN_PASSWORD=${OPENINARY_ADMIN_PASSWORD}
       - OPENINARY_GENERATE_API_KEY=${OPENINARY_GENERATE_API_KEY:-false}
+      # Users & single sign-on (optional), see docs/configuration/authentication.
+      # Provider variables are named after ids you choose (AUTH_<ID>_*), so
+      # only two ids are forwarded here: "google", and "sso" for any other
+      # provider (set AUTH_SSO_TYPE to keycloak, okta, microsoft, ... or oidc).
+      # For other ids or the advanced AUTH_<ID>_* options, add lines here or,
+      # better, in a docker-compose.override.yml (Compose merges it, and it
+      # survives updates to this file).
+      - AUTH_PROVIDERS=${AUTH_PROVIDERS:-}
+      - AUTH_ALLOWED_EMAIL_DOMAINS=${AUTH_ALLOWED_EMAIL_DOMAINS:-}
+      - AUTH_DEFAULT_ROLE=${AUTH_DEFAULT_ROLE:-}
+      - AUTH_ADMIN_EMAILS=${AUTH_ADMIN_EMAILS:-}
+      - AUTH_PASSWORD_LOGIN=${AUTH_PASSWORD_LOGIN:-}
+      - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
+      - AUTH_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET:-}
+      - AUTH_SSO_TYPE=${AUTH_SSO_TYPE:-}
+      - AUTH_SSO_NAME=${AUTH_SSO_NAME:-}
+      - AUTH_SSO_CLIENT_ID=${AUTH_SSO_CLIENT_ID:-}
+      - AUTH_SSO_CLIENT_SECRET=${AUTH_SSO_CLIENT_SECRET:-}
+      - AUTH_SSO_ISSUER=${AUTH_SSO_ISSUER:-}
+      - AUTH_SSO_DISCOVERY_URL=${AUTH_SSO_DISCOVERY_URL:-}
+      - AUTH_SSO_TENANT_ID=${AUTH_SSO_TENANT_ID:-}
+      - AUTH_SSO_DOMAIN=${AUTH_SSO_DOMAIN:-}
     networks:
       - openinary-network
     # Resource limits to prevent video processing from crashing the server

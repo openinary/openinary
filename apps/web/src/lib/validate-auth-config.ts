@@ -3,11 +3,34 @@
  * Checks if BETTER_AUTH_URL matches the current URL
  */
 
+import type { PublicAuthOptions } from "shared";
+
+export type AuthOptions = PublicAuthOptions;
+
 export interface AuthConfigValidation {
   isValid: boolean;
   error?: string;
   currentUrl: string;
   betterAuthUrl?: string;
+  /**
+   * The sign-in methods this instance offers, from the same request. Missing
+   * when the config couldn't be fetched (an older server): callers fall back
+   * to the password form alone, which is what every instance had before SSO.
+   */
+  authOptions?: AuthOptions;
+}
+
+/** What the sign-in pages draw when the server didn't say: password only. */
+export const PASSWORD_ONLY: AuthOptions = { providers: [], passwordLogin: true };
+
+function readAuthOptions(config: Record<string, unknown>): AuthOptions | undefined {
+  if (!Array.isArray(config.providers) || typeof config.passwordLogin !== "boolean") {
+    return undefined;
+  }
+  return {
+    providers: config.providers as AuthOptions["providers"],
+    passwordLogin: config.passwordLogin,
+  };
 }
 
 /**
@@ -39,12 +62,25 @@ export async function validateAuthConfig(): Promise<AuthConfigValidation> {
 
     const config = await response.json();
     const { betterAuthUrl, nodeEnv } = config;
+    const authOptions = readAuthOptions(config);
+
+    // AUTH_* doesn't parse: nobody can sign in until it's fixed, so it blocks
+    // like a URL mismatch does, with the server's own explanation.
+    if (typeof config.authConfigError === "string") {
+      return {
+        isValid: false,
+        error: formatPolicyError(config.authConfigError),
+        currentUrl,
+        betterAuthUrl,
+        authOptions,
+      };
+    }
 
     // In development, be more lenient with localhost variations
     if (nodeEnv === "development") {
       // If BETTER_AUTH_URL is not set at all in dev, skip validation (fail open)
       if (!betterAuthUrl) {
-        return { isValid: true, currentUrl };
+        return { isValid: true, currentUrl, authOptions };
       }
 
       const isLocalhost = currentUrl.includes("localhost") || currentUrl.includes("127.0.0.1");
@@ -53,7 +89,7 @@ export async function validateAuthConfig(): Promise<AuthConfigValidation> {
       
       if (isLocalhost && configIsLocalhost) {
         // In dev, localhost with different ports is OK
-        return { isValid: true, currentUrl, betterAuthUrl };
+        return { isValid: true, currentUrl, betterAuthUrl, authOptions };
       }
     }
 
@@ -67,10 +103,11 @@ export async function validateAuthConfig(): Promise<AuthConfigValidation> {
         error,
         currentUrl,
         betterAuthUrl,
+        authOptions,
       };
     }
 
-    return { isValid: true, currentUrl, betterAuthUrl };
+    return { isValid: true, currentUrl, betterAuthUrl, authOptions };
   } catch (error) {
     console.error("Error validating auth config:", error);
     // Fail open - allow to proceed if validation fails
@@ -116,6 +153,17 @@ function formatConfigError(
   }
 
   return lines.join("\n");
+}
+
+/** The server's AUTH_* complaint, framed like the URL mismatch above. */
+function formatPolicyError(message: string): string {
+  return [
+    "⚠️ Configuration Error: Sign-in",
+    "",
+    message,
+    "",
+    "Fix the AUTH_* environment variables, then restart the application.",
+  ].join("\n");
 }
 
 /**

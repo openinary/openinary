@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { hasAdmin } from "shared";
-import { getAuth } from "shared/auth";
+import { claimSetup, hasAdmin } from "shared";
+import { getAuth, getAuthPolicy } from "shared/auth";
 import logger from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,19 @@ export async function POST(request: Request) {
     if (hasAdmin()) {
       return NextResponse.json(
         { error: "Setup already completed. Account creation is disabled." },
+        { status: 403 },
+      );
+    }
+
+    // SSO-only instances are set up by signing in: the first account is made
+    // admin whichever way it arrives. This calls Better Auth server-side, past
+    // the hook that closes the password routes, so it checks for itself.
+    if (!getAuthPolicy().passwordLogin) {
+      return NextResponse.json(
+        {
+          error:
+            "Password sign-in is turned off on this instance. Sign in with single sign-on to finish setup.",
+        },
         { status: 403 },
       );
     }
@@ -52,6 +65,15 @@ export async function POST(request: Request) {
             "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
         },
         { status: 400 },
+      );
+    }
+
+    // Atomic, so two setups racing on a fresh instance can't both create an
+    // account (this call goes past the HTTP sign-up hook that claims it too).
+    if (!claimSetup()) {
+      return NextResponse.json(
+        { error: "Setup is already in progress or completed. Reload the page." },
+        { status: 409 },
       );
     }
 

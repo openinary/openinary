@@ -2,7 +2,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import app from "./index";
 import { getSharedStorage } from "./config/storage";
-import { getDb, hasAdmin } from "shared";
+import { claimSetup, getDb, hasAdmin } from "shared";
 import { getAuth } from "shared/auth";
 import { randomUUID } from "crypto";
 import { clearAllCache, logger } from "@openinary/core";
@@ -53,6 +53,10 @@ async function initializeAuth() {
       throw new Error(
         "In fullstack mode you have to also configure admin credentials for generating an API key on initialization.",
       );
+
+    // /setup may be running in the dashboard at the same moment.
+    if (!claimSetup())
+      return logger.info(`Setup is already in progress or completed (${modeLabel})`);
 
     logger.info("Creating admin user...");
 

@@ -12,6 +12,7 @@ export function DefaultDialog({
   onClose,
   ref,
   contentClassName,
+  onEscapeKeyDown,
 }: {
   title: string | ReactNode;
   isOpen?: boolean;
@@ -20,6 +21,12 @@ export function DefaultDialog({
   onClose?: () => void;
   ref?: Ref<{ close: () => void }>;
   contentClassName?: string;
+  /**
+   * Radix hears Escape first (capture phase), so a popup open inside the
+   * dialog (a Base UI select, say) can't keep it to itself: call
+   * `event.preventDefault()` here while one is open, and only the popup closes.
+   */
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -38,7 +45,10 @@ export function DefaultDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className={cn("max-w-2xl", contentClassName)}>
+      <DialogContent
+        className={cn("max-w-2xl", contentClassName)}
+        onEscapeKeyDown={onEscapeKeyDown}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
