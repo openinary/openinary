@@ -279,6 +279,12 @@ test("f_auto derivatives are cached per negotiated format", async () => {
     // Safari 15 cannot decode AVIF, so it must not get Chrome's cached derivative
     const safari = await service.transform({ path: "/t/f_auto/logo.png", ...safari15 });
     assert.notEqual(safari.contentType, "image/avif");
+    assert.equal(first.headers.Vary, "Accept");
+    assert.equal(safari.headers.Vary, "Accept");
+
+    // a named format is the same for every client
+    const png = await service.transform({ path: "/t/f_png/logo.png", ...chrome });
+    assert.equal(png.headers.Vary, undefined);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

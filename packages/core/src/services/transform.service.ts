@@ -119,9 +119,15 @@ export class TransformService {
       const cached =
         (await checkCloudCache(this.storage, filePath, effectiveParams)) ??
         (await checkLocalCache(cachePath));
-      if (cached) return this.cachedResult(cached, effectiveParams, ext);
-
-      return await this.processFile(pathname, filePath, ext, effectiveParams, cachePath, request);
+      const result = cached
+        ? this.cachedResult(cached, effectiveParams, ext)
+        : await this.processFile(pathname, filePath, ext, effectiveParams, cachePath, request);
+      // The format was picked from this client's Accept: shared caches in front
+      // must not hand it to a client that cannot decode it.
+      if (effectiveParams.format !== params.format) {
+        result.headers = { ...result.headers, Vary: "Accept" };
+      }
+      return result;
     } catch (error) {
       return this.errorResult(error, request);
     }
