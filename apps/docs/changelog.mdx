@@ -3,7 +3,7 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
-<Update label="Unreleased" description="Unreleased" tags={["Feature"]}>
+<Update label="November 25, 2026" description="v0.10.0" tags={["Feature", "Improvement", "Fix"]}>
   ## New features
 
 **Your whole team on one self-hosted instance**, A self-hosted instance is no longer limited to one account. Everyone gets a role: viewers browse, download and read stats and logs, members also upload, organise files, manage the cache and video jobs and create their own API keys, and admins also manage users from **Settings › Users**. The workspace name and logo are shared by everyone and only admins set them, in their first-run setup or in the new **Settings › Workspace**; members and viewers see them read-only. An API key acts with its owner's current role, and a viewer's keys don't work. See [users & single sign-on](/configuration/authentication).
@@ -14,7 +14,25 @@ description: "New features, improvements, and fixes shipped in Openinary"
 
 **Avatars from your provider**, An account without an avatar takes the picture its SSO provider sends, including a password account that later signs in with Google. An avatar you've already set is kept.
 
+**Send your deliveries to OpenTelemetry**, Set `OTEL_EXPORTER_OTLP_ENDPOINT` and the API exports request counts, durations and rendered transformations as OTLP metrics, plus one log record per delivery, to a Collector, Grafana, Datadog, ClickHouse or anything else that speaks OTLP. Export is off until you set it, and `OPENINARY_OTEL_DELIVERY_LOGS=false` keeps the metrics without the paths. See [OpenTelemetry](/configuration/opentelemetry).
+
+Users, roles, single sign-on and the OpenTelemetry export are thanks to [pankajmyt](https://github.com/pankajmyt).
+
+## Improvements
+
+**Tabs that say where you are**, Every dashboard screen names itself in the browser tab, like `Settings · my-bucket`, so open tabs and bookmarks tell folders, assets and settings apart.
+
+**Faster asset deletion with a bucket**, Deleting an asset checks its cached derivatives in parallel instead of one by one, and reports a failure instead of leaving derivatives behind.
+
 **Upgrading**, Your existing account becomes the admin and nothing else changes until you set the new variables. Once an instance is set up, nobody can sign up with a password: people join through SSO or an admin adds them. Under Docker Compose, the general settings and the `google` and `sso` provider ids are forwarded from `.env`; other ids go in a `docker-compose.override.yml`. Going back to an earlier release isn't safe once you have several accounts: earlier releases don't know roles, so every account would get full access. Remove the extra accounts first.
+
+## Bug fixes
+
+- **`f_auto` serves each browser a format it can read**, The cache used to keep one `f_auto` result for everyone, so a browser without AVIF could get an AVIF it can't decode. Each negotiated format is now cached on its own. Thanks to [jayhemnani9910](https://github.com/jayhemnani9910).
+- **Transparent images get the right background as JPEG**, Converting a transparent image to JPEG gave it a black background, whatever `b_` said. It's now flattened onto the `b_` color, white by default. Thanks to [jayhemnani9910](https://github.com/jayhemnani9910).
+- **Overlay offsets follow the gravity**, On images, `lx_` and `ly_` are measured from the `lg_` position, as on videos and in the docs, instead of from the top left. Thanks to [pankajmyt](https://github.com/pankajmyt).
+- **Thumbnails of videos with sound**, Resized thumbnails from MP4 and MOV files with an audio track failed. They work now. Thanks to [benjaminstary](https://github.com/benjaminstary).
+- **Security updates**, Dependencies flagged as critical were upgraded.
 </Update>
 
 <Update label="November 16, 2026" description="v0.9.0" tags={["Feature", "Improvement", "Fix"]}>
