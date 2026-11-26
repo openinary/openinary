@@ -15,6 +15,7 @@ import { useDocumentTitle } from "@openinary/dashboard";
 import { can } from "shared/permissions";
 
 import { authClient, useRole, useSession } from "@/lib/auth-client";
+import { useAuthOptions } from "@/lib/use-auth-options";
 
 export interface OnboardingState {
   completed: boolean;
@@ -53,6 +54,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const role = useRole();
+  const authOptions = useAuthOptions();
 
   const data = state.data;
   const completed = data?.completed;
@@ -68,8 +70,9 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   if (data.completed) return null;
 
   // The workspace is the instance's: only someone who may change its settings
-  // names it here. Everyone else is shown it (or "Openinary" until an admin
-  // names it) and the API ignores theirs.
+  // names it here, and sets up who else gets in. Everyone else joins it: they
+  // are shown it (or "Openinary" until an admin names it) and the API ignores
+  // theirs.
   const managesWorkspace = can(role, "settings:manage");
 
   return (
@@ -77,13 +80,22 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
       variant="self-hosted"
       user={session.user}
       workspace={{ name: data.workspace?.name, logo: data.workspace?.logo }}
-      workspaceReadOnly={!managesWorkspace}
+      joining={
+        managesWorkspace
+          ? undefined
+          : {
+              name: data.workspace?.name ?? "Openinary",
+              logo: data.workspace?.logo,
+              detail: `You join as ${role === "member" ? "a member" : "a viewer"}. Admins manage the workspace in Settings.`,
+            }
+      }
+      providers={authOptions?.providers}
       note={
         data.telemetry ? (
           <>
             Your role, use cases and this answer are sent anonymously to help
             shape Openinary. Set <code>OPENINARY_TELEMETRY=false</code> to keep
-            them on this server.
+            them on this instance.
           </>
         ) : undefined
       }
@@ -95,7 +107,10 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
         if (updated.error) throw new Error(updated.error.message);
 
         const workspace = managesWorkspace
-          ? { name: answers.workspaceName, logo: answers.workspaceLogo }
+          ? {
+              name: answers.team ? answers.teamName : answers.workspaceName,
+              logo: answers.workspaceLogo,
+            }
           : data.workspace;
         const res = await fetch(`${apiBaseUrl}/onboarding`, {
           method: "POST",
@@ -109,7 +124,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
         });
         if (!res.ok) throw new Error("Could not save your answers");
 
-        router.push("/get-started");
+        router.push(answers.thenAddPeople ? "/settings/users" : "/get-started");
         queryClient.setQueryData<OnboardingState>(
           ["openinary", "onboarding-state", apiBaseUrl],
           { ...data, completed: true, workspace },

@@ -1,4 +1,5 @@
 import type { DashboardAnalytics } from "@openinary/dashboard";
+import type { OnboardingStepId } from "@openinary/ui";
 import posthog from "posthog-js";
 
 /**
@@ -48,16 +49,16 @@ export function trackOnboardingStarted() {
 /**
  * One per questionnaire step left forwards, so answers are kept even for
  * users who never reach onboarding_completed, and drop-off reads per step.
- * `step` is the number funnels filter on; `step_name` is for humans.
+ * Steps vary with the path (solo, team, invited), so funnels filter on
+ * `step_name`; `step` is the position on that person's path.
  */
 export function trackOnboardingStepCompleted(props: {
-  step: 0 | 1 | 2 | 3;
-  step_name: "profile" | "bucket" | "use_cases" | "source";
+  step: number;
+  step_name: OnboardingStepId;
   skipped: boolean;
+  team?: boolean;
   role?: string;
   has_avatar?: boolean;
-  bucket_renamed?: boolean;
-  has_description?: boolean;
   use_cases?: string[];
   source?: string | null;
 }) {
