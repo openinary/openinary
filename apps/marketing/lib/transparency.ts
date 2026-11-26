@@ -4,14 +4,18 @@
  * revenue) and Railway (the self-host template's deploys and kickbacks). Each source fails on its own: a missing key or a slow API leaves
  * its section without numbers, never the page down.
  *
- * GitHub is read without a token, from its public API. Worker secrets
- * (`npx wrangler secret put … --name marketing`), each optional:
+ * Worker secrets (`npx wrangler secret put … --name marketing`), each optional:
+ *   GITHUB_TOKEN              a fine-grained token, public repositories read-only.
+ *                             Without it GitHub's per-IP quota (60/h, search
+ *                             10/min) is shared with every other Worker and runs out.
  *   POSTHOG_PERSONAL_API_KEY  a personal key with query:read on the project
  *   POSTHOG_PROJECT_ID        the project's numeric id (EU cloud)
  *   AUTUMN_SECRET_KEY         the live secret key (am_sk_live_…)
  *   RAILWAY_TOKEN             a workspace token: reads the Railway template's
  *                             kickbacks and deploys (it can do more, keep it secret)
  */
+
+import { after } from "next/server";
 
 const REPO = "openinary/openinary";
 const HOUR = 3600;
@@ -51,24 +55,45 @@ export type Transparency = {
 };
 
 /**
- * Cloudflare's edge cache in front of a slow call: the page renders on every
- * request, but GitHub, PostHog and Autumn are asked at most once an hour per
- * location. Outside a Worker (next dev) there is no cache and it just runs.
+ * Cloudflare's edge cache in front of a slow call, stale-while-revalidate:
+ * past `ttl` seconds the last value is still served at once and refreshed
+ * after the response (so no visitor waits on GitHub, PostHog or Autumn once a
+ * location has a value), and a failed refresh (null) keeps the last good
+ * value instead of turning it into "n/a". Only a location's very first visit
+ * waits. Entries live `ttl * 24` so a long-unvisited location doesn't serve
+ * something ancient. Outside a Worker (next dev) there is no cache and it just runs.
  */
 export async function cached<T>(key: string, ttl: number, load: () => Promise<T>): Promise<T> {
   const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
-  const url = `https://transparency.openinary.internal/${key}`;
-  if (cache) {
-    const hit = await cache.match(url);
-    if (hit) return (await hit.json()) as T;
+  if (!cache) return load();
+  const url = `https://transparency.openinary.internal/swr/${key}`;
+  const put = (at: number, value: T) =>
+    cache.put(url, new Response(JSON.stringify({ at, value }), { headers: { "Cache-Control": `max-age=${ttl * 24}` } }));
+  // An entry stamped this way is considered fresh for `seconds` more, then retried.
+  const retryIn = (seconds: number) => Date.now() - (ttl - Math.min(ttl, seconds)) * 1000;
+
+  const hit = await cache.match(url);
+  const entry = hit ? ((await hit.json()) as { at: number; value: T }) : null;
+
+  const refresh = async (): Promise<T> => {
+    const value = await load();
+    if (value === null && entry && entry.value !== null) {
+      // The source failed: keep what we had, ask again in 5 minutes.
+      await put(retryIn(300), entry.value);
+      return entry.value;
+    }
+    // A source that has never answered is asked again in 5 minutes, not on every visit.
+    await put(value === null ? retryIn(300) : Date.now(), value);
+    return value;
+  };
+
+  if (!entry) return refresh();
+  if (Date.now() - entry.at > ttl * 1000) {
+    // Claim the refresh for a minute so concurrent visitors don't all start one.
+    await put(retryIn(60), entry.value);
+    after(refresh);
   }
-  const value = await load();
-  if (cache) {
-    // A failed source (null) is kept 5 minutes, so a broken API isn't asked again on every visit.
-    const maxAge = value === null ? Math.min(ttl, 300) : ttl;
-    await cache.put(url, new Response(JSON.stringify(value), { headers: { "Cache-Control": `max-age=${maxAge}` } }));
-  }
-  return value;
+  return entry.value;
 }
 
 /** Thrown when a source has no credentials: expected, so not logged. */
@@ -111,8 +136,13 @@ function series(values: Map<string, number>, months: string[], cumulative = fals
 // ---- GitHub ----
 
 async function gh(path: string): Promise<Response> {
+  const token = process.env.GITHUB_TOKEN;
   const res = await fetch(`https://api.github.com${path}`, {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "openinary-transparency" },
+    headers: {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "openinary-transparency",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
   if (!res.ok) throw new Error(`GitHub ${path}: ${res.status}`);
   return res;
