@@ -5,19 +5,34 @@ import { getSharedStorage } from "./config/storage";
 import { claimSetup, getDatabase, hasAdmin } from "shared";
 import { getAuth } from "shared/auth";
 import { randomUUID } from "crypto";
-import { clearAllCache, logger } from "@openinary/core";
+import { clearAllCache, logger, serializeError } from "@openinary/core";
 import { enginePaths, videoJobQueue } from "./config/queue";
 import { initTelemetry } from "./utils/telemetry";
 import { initOtel, recordVideoTranscode, shutdownOtel } from "./utils/otel";
 import { deploymentMode } from "./config/mode";
 import { onboardingSince } from "./routes/onboarding";
 
+// A promise rejected with nobody listening is a bug (a missing await or
+// .catch). Node exits on one by default, as it did before this handler; this
+// keeps that (state after an unknown failure can't be trusted, and the
+// supervisor restarts us) but logs it through the structured logger first,
+// with the stack, instead of Node's bare dump.
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.fatal(
+    { error: serializeError(reason) },
+    "Unhandled promise rejection, exiting",
+  );
+  process.exit(1);
+});
+
 // In cloud mode the bucket is the cache: local files from a previous run go.
 if (getSharedStorage()) await clearAllCache(enginePaths.cache);
 
 // Not awaited, so the server (and its healthcheck) comes up while Postgres is
-// still being reached. Without a database there is nothing to run: exit, and
-// let the supervisor restart us, as a failed open at import did before.
+// still being reached. start() rejects when the database can't be opened
+// (a failed orphan-reset query alone is logged and the worker starts anyway).
+// Without a database there is nothing to run: exit, and let the supervisor
+// restart us, as a failed open at import did before.
 videoJobQueue.start().catch((error: unknown) => {
   logger.error(
     { error: error instanceof Error ? error.message : String(error) },

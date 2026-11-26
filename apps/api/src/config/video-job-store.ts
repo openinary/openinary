@@ -516,10 +516,15 @@ export class DbVideoJobStore implements VideoJobStore {
    *   TODO(stage 3): leases with heartbeats (claimed_by, lease_expires_at
    *   renewed with progress) so a dead node's jobs are reclaimed in seconds
    *   and live ones never are.
+   *
+   * Rejects when the database can't be opened, so the worker's start()
+   * rejects and server.ts exits (as a failed open at import did before the
+   * database layer went async). A failing reset query alone is logged and
+   * counts as nothing reset, as it always did: the worker still starts.
    */
   async resetOrphanedProcessingJobs(): Promise<number> {
+    const db = await this.resolveDb();
     try {
-      const db = await this.resolveDb();
       const staleBefore =
         db.dialect === "postgres" ? Date.now() - this.orphanAfterMs : undefined;
       const result = await db

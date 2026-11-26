@@ -29,11 +29,37 @@ const types = {
   }) as typeof pg.types.getTypeParser,
 };
 
-/** "postgres://user:secret@host/db" without the secret, for logs. */
+/**
+ * Query parameters that may carry a secret. pg-connection-string copies
+ * every parameter into the client config, so `?password=` works as well as
+ * the userinfo one; `sslpassword` (libpq's, for an encrypted key) and any
+ * other pass/secret/token-like name are hidden too. `sslkey`, `sslcert` and
+ * `sslrootcert` are file paths, not secrets, and stay readable.
+ */
+const SECRET_PARAM = /pass|secret|token/i;
+
+/** The secret values in a Postgres URL (userinfo password, secret-looking parameters). */
+export function urlSecrets(url: string): string[] {
+  try {
+    const parsed = new URL(url);
+    const secrets = parsed.password ? [decodeURIComponent(parsed.password)] : [];
+    for (const [name, value] of parsed.searchParams) {
+      if (SECRET_PARAM.test(name) && value) secrets.push(value);
+    }
+    return secrets;
+  } catch {
+    return [];
+  }
+}
+
+/** "postgres://user:secret@host/db?password=..." without the secrets, for logs. */
 export function redactUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.password) parsed.password = "***";
+    for (const name of new Set(parsed.searchParams.keys())) {
+      if (SECRET_PARAM.test(name)) parsed.searchParams.set(name, "***");
+    }
     return parsed.toString();
   } catch {
     return "postgres://(unparseable URL)";

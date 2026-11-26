@@ -8,8 +8,8 @@ import { migrateSqliteHandle } from "./migrate-sqlite";
 import type { Schema } from "./schema";
 
 /**
- * The SQLite dialect: one better-sqlite3 connection, wrapped in Kysely for
- * the shared async API. The only module (with migrate-sqlite.ts) that loads
+ * The SQLite dialect: one better-sqlite3 connection, wrapped in one Kysely
+ * instance for the shared async API (Better Auth's included). The only module (with migrate-sqlite.ts) that loads
  * better-sqlite3; index.ts imports it lazily, so a Postgres deployment never
  * loads the native module or touches the file.
  */
@@ -25,12 +25,26 @@ export function openSqlite(file: string): DialectHandle {
   return {
     kysely,
     location: file,
-    // Better Auth gets the raw connection, exactly as before Postgres support:
-    // it builds its own Kysely over it (with transactions on). Its own mutex
-    // keeps it from deadlocking against ours, and statements from either run
-    // on the same connection, so the auth hooks see Better Auth's open
-    // transaction just as they did with synchronous better-sqlite3 calls.
-    authDatabase: raw,
+    // Better Auth shares this Kysely instance, not just the connection. Two
+    // Kysely instances over one better-sqlite3 handle each have their own
+    // mutex, so an async transaction of ours (the delivery log, the video
+    // queue) and one of Better Auth's (a sign-up) would interleave on the
+    // one connection: "cannot start a transaction within a transaction",
+    // or one's statements landing in (and rolled back with) the other's.
+    // With one instance, Kysely's single-connection mutex runs every
+    // transaction alone, and a statement from outside it waits for it.
+    // (Before the database layer went async ours were synchronous, so this
+    // could not happen; Better Auth then got the raw handle, which it wraps
+    // in its own Kysely exactly like this, transactions on.)
+    //
+    // The catch: code running inside one of Better Auth's transactions must
+    // not query `db` directly, or it waits on the mutex its own transaction
+    // holds. auth.ts's database hooks read through Better Auth's
+    // transaction-bound adapter (getCurrentAdapter), its after-hooks run once
+    // the transaction has committed, and its request middleware (claimSetup)
+    // runs before the endpoint opens one. Postgres shares our Kysely the
+    // same way, over a pool.
+    authDatabase: { db: kysely, type: "sqlite", transaction: true },
   };
 }
 

@@ -51,7 +51,7 @@ import { parseArgs } from "node:util";
 
 import { type Database, openDatabase, resolveDbPath, sql, type Transaction } from "../db/index.js";
 import { migrateSqliteHandle } from "../db/migrate-sqlite.js";
-import { redactUrl } from "../db/postgres.js";
+import { redactUrl, urlSecrets } from "../db/postgres.js";
 import type { Schema } from "../db/schema.js";
 import { SCHEMA_VERSION_KEY } from "../db/version.js";
 
@@ -519,17 +519,12 @@ Usage: sqlite-to-postgres [--from <sqlite file>] [--to <postgres url>] [options]
   -h, --help        This help.
 `;
 
-/** Replaces the URL's password anywhere in a message. */
+/** Replaces the URL, and each secret in it (password, ?password=...), anywhere in a message. */
 function redactIn(message: string, url: string | undefined): string {
   if (!url) return message;
-  try {
-    const password = decodeURIComponent(new URL(url).password);
-    let out = message.split(url).join(redactUrl(url));
-    if (password) out = out.split(password).join("***");
-    return out;
-  } catch {
-    return message;
-  }
+  let out = message.split(url).join(redactUrl(url));
+  for (const secret of urlSecrets(url)) out = out.split(secret).join("***");
+  return out;
 }
 
 export async function main(argv: string[], env: Record<string, string | undefined> = process.env): Promise<number> {

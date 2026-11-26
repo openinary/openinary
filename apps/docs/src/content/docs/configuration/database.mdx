@@ -27,8 +27,8 @@ Several nodes on one Postgres database share accounts, API keys, sessions, setti
 Every node runs its own video worker, all pulling from the one queue:
 
 - **A job is never claimed twice.** Claiming is a single atomic statement (`FOR UPDATE SKIP LOCKED`), so two nodes asking at once get different jobs.
-- **`VIDEO_MAX_CONCURRENT` becomes a cluster-wide cap.** It's compared with the number of jobs `processing` in the shared database, not on this node, so with `VIDEO_MAX_CONCURRENT=4` the whole cluster encodes four videos at once, however many nodes there are.
-- **A job whose node crashed waits up to about two hours.** On SQLite, every job left `processing` is reset at boot, since nothing else can be running it. On Postgres another node may be, so boot only resets jobs that started more than two hours ago, and the periodic cleanup (every ten minutes) resets those stale ones too.
+- **`VIDEO_MAX_CONCURRENT` stays per node.** Each node counts only the jobs it is encoding itself, so with `VIDEO_MAX_CONCURRENT=4` and three nodes the cluster encodes up to twelve videos at once. Jobs `processing` on other nodes, or left behind by a crash, never take a node's slots.
+- **A job whose node crashed waits up to about two hours.** On SQLite, every job left `processing` is reset at boot, since nothing else can be running it. On Postgres another node may be, so boot only resets jobs that started more than two hours ago, and the periodic cleanup (every ten minutes) resets those stale ones too. Only that job waits: the restarted node goes on with the rest of the queue at once.
 - **An encode that runs longer than two hours may be started a second time**, because it then looks stale.
 
 <Warning>

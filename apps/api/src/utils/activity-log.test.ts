@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { describe, test } from "node:test";
 import { migrate } from "shared";
+import { createAuth } from "shared/auth";
 import { openSqliteTestDatabase, testDialects } from "shared/testing";
 
 import {
@@ -44,6 +46,34 @@ for (const dialect of testDialects()) {
       );
       assert.equal((await log.deliveries()).length, 30);
       assert.deepEqual(await log.counts(0), [{ t: 3_600_000, k: "image", d: 30, f: 0 }]);
+    });
+
+    // Delivery writes are a transaction; so is every Better Auth sign-up. On
+    // SQLite both share one connection, and two Kysely instances over it
+    // interleaved their BEGINs ("cannot start a transaction within a
+    // transaction": failed sign-ups, lost deliveries). A deadlock would show
+    // as the timeout.
+    test("deliveries and sign-ups at the same time all land", { timeout: 30_000 }, async () => {
+      const db = await dialect.open();
+      const log = new ActivityLog(db);
+      const ctx = await createAuth(db, randomBytes(32).toString("hex")).$context;
+      const results = await Promise.allSettled([
+        ...Array.from({ length: 100 }, (_, i) =>
+          log.recordDelivery({ p: `mix-${i}.png`, s: 200, t: 3_600_000 + i }, `v${i}`),
+        ),
+        ...Array.from({ length: 5 }, (_, i) =>
+          ctx.internalAdapter.createOAuthUser(
+            { email: `sso${i}@example.com`, name: `sso${i}`, emailVerified: true },
+            { providerId: "oidc", accountId: `sso-${i}` },
+          ),
+        ),
+      ]);
+      const failures = results.flatMap((r) => (r.status === "rejected" ? [String(r.reason)] : []));
+      assert.deepEqual(failures, []);
+      assert.equal((await log.deliveries()).length, 100);
+      const users = await db.selectFrom("user").select("role").execute();
+      assert.equal(users.length, 5);
+      assert.equal(users.filter((u) => u.role === "admin").length, 1);
     });
 
     test("a failed delivery is logged but does not tick the checklist", async () => {

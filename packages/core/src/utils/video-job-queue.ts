@@ -98,7 +98,8 @@ export class VideoJobQueue extends EventEmitter {
 
   /**
    * Starts the worker (after resetting orphaned jobs) and the periodic
-   * cleanup. Rejects when the store can't be reached for the orphan reset.
+   * cleanup. Rejects when the store's orphan reset rejects (for the
+   * instance's store: the database can't be opened).
    */
   async start(): Promise<void> {
     await this.worker.start();

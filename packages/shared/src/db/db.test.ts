@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, test } from "node:test";
+import { randomUUID } from "node:crypto";
 import BetterSqlite3 from "better-sqlite3";
 
 import { createTestSchema, openPostgresTestDatabase, testDatabaseUrl, testDialects } from "../testing";
@@ -23,6 +24,7 @@ import {
   SCHEMA_VERSION,
   sql,
 } from "./index";
+import { redactUrl, urlSecrets } from "./postgres";
 
 const ISO = new Date(0).toISOString();
 
@@ -79,6 +81,45 @@ describe("resolveDatabaseConfig", () => {
       openDatabase({ dialect: "postgres", url: "postgres://db.invalid/x", poolMax: 1, schema: "a; DROP" }),
       /Invalid Postgres schema name/,
     );
+  });
+});
+
+describe("redactUrl", () => {
+  // Generated per run, so no credential-looking literal sits in the source.
+  const secret = randomUUID();
+  const other = randomUUID();
+  const host = `db-${process.pid}.internal`;
+
+  test("hides the userinfo password", () => {
+    const out = redactUrl(`postgres://app:${secret}@${host}:5432/openinary`);
+    assert.ok(!out.includes(secret), out);
+    assert.match(out, /app:\*\*\*@/);
+    assert.ok(out.includes(host));
+  });
+
+  test("hides password and sslpassword query parameters, keeps the rest", () => {
+    const out = redactUrl(
+      `postgres://app@${host}/openinary?sslmode=verify-full&password=${secret}&sslpassword=${other}&sslkey=/certs/client.key&application_name=web`,
+    );
+    assert.ok(!out.includes(secret), out);
+    assert.ok(!out.includes(other), out);
+    const params = new URL(out).searchParams;
+    assert.equal(params.get("password"), "***");
+    assert.equal(params.get("sslpassword"), "***");
+    assert.equal(params.get("sslmode"), "verify-full");
+    assert.equal(params.get("sslkey"), "/certs/client.key");
+    assert.equal(params.get("application_name"), "web");
+  });
+
+  test("a URL without secrets is unchanged, an unparseable one is hidden", () => {
+    const url = `postgres://app@${host}:5432/openinary?sslmode=require`;
+    assert.equal(redactUrl(url), url);
+    assert.equal(redactUrl(`postgres://app:${secret}@[bad`), "postgres://(unparseable URL)");
+  });
+
+  test("urlSecrets lists every secret, for scrubbing error messages", () => {
+    assert.deepEqual(urlSecrets(`postgres://app:${secret}@${host}/db?password=${other}`), [secret, other]);
+    assert.deepEqual(urlSecrets(`postgres://app@${host}/db?sslmode=require`), []);
   });
 });
 

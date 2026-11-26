@@ -15,7 +15,7 @@ VIDEO_JOB_CLEANUP_HOURS=24
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `VIDEO_MAX_CONCURRENT` | auto | Jobs processed at once. See [auto-detection](#auto-detection). On [Postgres](/configuration/database#video-processing-across-nodes), a cap for all nodes together |
+| `VIDEO_MAX_CONCURRENT` | auto | Jobs processed at once. See [auto-detection](#auto-detection). Per node: on [Postgres](/configuration/database#video-processing-across-nodes) each node runs up to this many |
 | `VIDEO_JOB_RETRY_MAX` | `3` | Attempts before a job is marked permanently failed |
 | `VIDEO_JOB_CLEANUP_HOURS` | `24` | Age at which completed and failed jobs are purged from the database |
 | `VIDEO_WORKER_POLL_INTERVAL_MS` | `1000` | How often the worker checks for new jobs. Lower picks up faster and costs CPU |

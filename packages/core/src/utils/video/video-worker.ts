@@ -36,6 +36,13 @@ export class VideoWorker extends EventEmitter {
   private maxConcurrent: number;
   private pollInterval: number;
   private isAcquiring: boolean = false;
+  /**
+   * Jobs this worker is running right now. VIDEO_MAX_CONCURRENT caps this,
+   * not the store's count of "processing" rows: on a shared Postgres those
+   * include other nodes' jobs and orphans of a crashed run (reset only after
+   * hours), which must not use up this node's slots.
+   */
+  private inFlight = 0;
   /** Set by start() before its first await, cleared by stop(). */
   private running = false;
   private timingSamples: VideoTimingSample[] = [];
@@ -53,8 +60,11 @@ export class VideoWorker extends EventEmitter {
 
   /**
    * Resets orphaned jobs, then starts polling. Resolves once polling has
-   * begun; rejects (without polling) when the orphan reset fails, so a job
-   * this worker claims can never be reset by its own late reset.
+   * begun. Rejects (without polling) when the store's reset rejects, which
+   * the instance's store does only when the database can't be opened; a
+   * reset query that fails is logged by the store and counts as nothing
+   * reset. Either way the reset has finished before this worker claims a
+   * job, so it can never put one of this worker's own jobs back.
    */
   async start(): Promise<void> {
     if (this.running) {
@@ -168,10 +178,9 @@ export class VideoWorker extends EventEmitter {
       this.isAcquiring = true;
 
       while (true) {
-        const processingCount = await this.store.countProcessingJobs();
-        if (processingCount >= this.maxConcurrent) {
+        if (this.inFlight >= this.maxConcurrent) {
           logger.debug(
-            { processingCount, maxConcurrent: this.maxConcurrent },
+            { inFlight: this.inFlight, maxConcurrent: this.maxConcurrent },
             "Max concurrent jobs reached, waiting...",
           );
           break;
@@ -188,19 +197,26 @@ export class VideoWorker extends EventEmitter {
             jobId: job.id,
             filePath: job.file_path,
             priority: job.priority,
-            processingCount: processingCount + 1,
+            inFlight: this.inFlight + 1,
             maxConcurrent: this.maxConcurrent,
           },
           "Dispatching video job",
         );
 
-        // Fire and forget; errors are handled inside processJob
-        this.processJob(job).catch((error) => {
-          logger.error(
-            { error: serializeError(error), jobId: job.id },
-            "Unhandled error in job processing",
-          );
-        });
+        // Fire and forget; errors are handled inside processJob. The slot is
+        // taken before the next loop turn and freed once the job is done
+        // with, whatever its outcome.
+        this.inFlight++;
+        this.processJob(job)
+          .catch((error) => {
+            logger.error(
+              { error: serializeError(error), jobId: job.id },
+              "Unhandled error in job processing",
+            );
+          })
+          .finally(() => {
+            this.inFlight--;
+          });
       }
     } finally {
       this.isAcquiring = false;
@@ -330,12 +346,20 @@ export class VideoWorker extends EventEmitter {
     return this.maxConcurrent;
   }
 
+  /** Jobs this worker is running right now (what VIDEO_MAX_CONCURRENT caps). */
+  getInFlightCount(): number {
+    return this.inFlight;
+  }
+
   async getStats() {
     return {
       maxConcurrent: this.maxConcurrent,
       pollInterval: this.pollInterval,
       isRunning: !!this.intervalId,
+      /** Every job in "processing" in the store, other nodes' included. */
       processingCount: await this.store.countProcessingJobs(),
+      /** This worker's own running jobs. */
+      inFlightCount: this.inFlight,
     };
   }
 }

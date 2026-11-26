@@ -11,7 +11,7 @@ import { handleOAuthUserInfo } from "better-auth/oauth2";
 import { createAuth, getAuth, oauthRedirectURI, oidcConfig, openSignUpProviders, pictureFromIdToken } from "./auth";
 import { readAuthPolicy } from "./auth-config";
 import { closeDatabase, type Database, getDatabase, getUserAccess, kvSet } from "./db";
-import { type TestDialect, testDialects } from "./testing";
+import { openTestDatabases, type TestDialect, testDatabaseUrl, testDialects } from "./testing";
 
 const SECRET = "x".repeat(32);
 const ORIGIN = "http://localhost:3000";
@@ -264,7 +264,10 @@ for (const dialect of testDialects()) {
       const first = await signUp(auth, "owner@acme.com");
       assert.equal(first.status, 200);
       const body = (await first.json()) as { user: { role: string } };
-      assert.equal(body.user.role, "admin");
+      // On Postgres the trigger promotes the row after the hook ran, so the
+      // user Better Auth returns still shows the default role; the database
+      // (what every session reads) says admin on both.
+      assert.equal(body.user.role, dialect.name === "sqlite" ? "admin" : readAuthPolicy({}).defaultRole);
       assert.equal(await roleOf(db, "owner@acme.com"), "admin");
 
       const second = await signUp(auth, "someone@acme.com");
@@ -325,7 +328,12 @@ for (const dialect of testDialects()) {
       await assert.rejects(before(user("stranger@gmail.com"), sso), /email domain isn't allowed/);
       const allowed = await before(user("owner@acme.com"), sso);
       assert.ok(allowed && typeof allowed === "object");
-      assert.equal((allowed.data as { role: string }).role, "admin");
+      // On Postgres the first_user_is_admin trigger makes the first account
+      // admin, not this hook (two racing sign-ups would both see no users).
+      assert.equal(
+        (allowed.data as { role: string }).role,
+        dialect.name === "sqlite" ? "admin" : readAuthPolicy({}).defaultRole,
+      );
     });
 
     test("an account outside a newer allowlist can't sign in, an admin can", async () => {
@@ -746,3 +754,28 @@ for (const dialect of testDialects()) {
     });
   });
 }
+
+describe("postgres: racing first sign-ups", { skip: testDatabaseUrl() ? undefined : "TEST_DATABASE_URL is not set" }, () => {
+  // Two nodes (two pools) on a fresh instance, each signing someone in over
+  // SSO at the same moment. Under READ COMMITTED both sign-up transactions
+  // count no users in the create hook, so the hook can't be what picks the
+  // admin; the advisory-locked trigger must promote exactly one.
+  test("concurrent SSO sign-ups on two nodes: exactly one admin", async () => {
+    for (let round = 0; round < 3; round++) {
+      const dbs = await openTestDatabases("postgres", 2);
+      const auths = dbs.map((db) => createAuth(db, SECRET, readAuthPolicy({})));
+      const results = await Promise.all(
+        [0, 1, 2, 3].map((i) =>
+          googleSignIn(auths[i % 2]!, `racer${i}@acme.com`, true, `google-race-${round}-${i}`),
+        ),
+      );
+      assert.deepEqual(
+        results.map((r) => r.error),
+        [null, null, null, null],
+      );
+      const roles = (await dbs[0]!.selectFrom("user").select("role").execute()).map((u) => u.role);
+      assert.equal(roles.length, 4);
+      assert.equal(roles.filter((r) => r === "admin").length, 1, `round ${round}: ${roles.join(", ")}`);
+    }
+  });
+});

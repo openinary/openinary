@@ -208,10 +208,13 @@ export function createAuth(db: Database, secret: string, policy: AuthPolicy = re
 
   // The database hooks below run inside Better Auth's transactions (sign-up,
   // account linking). They read through Better Auth's adapter for the
-  // current transaction, not through `db`: on SQLite that sees the rows the
-  // transaction just wrote, and on Postgres a hook never waits for a second
-  // pool connection while its transaction holds the first (a full pool would
-  // deadlock). Outside a transaction it's Better Auth's main adapter.
+  // current transaction, and must never query `db` directly: Better Auth
+  // shares our Kysely instance, so on SQLite (one connection, one mutex) a
+  // query on `db` would wait for the very transaction it runs in, and on
+  // Postgres it would wait for a second pool connection while its
+  // transaction holds the first (a full pool would deadlock). After-hooks
+  // run once the transaction has committed, so they may use `db`.
+  // Outside a transaction it's Better Auth's main adapter.
   type Adapter = Parameters<typeof getCurrentAdapter>[0];
   let authContext: (() => Promise<{ adapter: unknown }>) | undefined;
   const adapter = async () => {
@@ -341,14 +344,23 @@ export function createAuth(db: Database, secret: string, policy: AuthPolicy = re
                 "EMAIL_NOT_VERIFIED",
               );
             }
-            // The first_user_is_admin trigger is what guarantees one admin when
-            // two sign-ups race; setting it here too makes the created user
-            // Better Auth returns (and the first session) say admin already.
+            // The first account is admin. On SQLite this hook decides it: its
+            // count runs inside Better Auth's transaction, and SQLite runs one
+            // write transaction at a time (one connection, one mutex), so
+            // exactly one sign-up ever sees no users; the first_user_is_admin
+            // trigger agrees. On Postgres two sign-ups in overlapping
+            // transactions both count 0 under READ COMMITTED, and the trigger
+            // only ever promotes, so admin here would make both admins. There
+            // the hook leaves the first account's role as any other's and the
+            // trigger, serialized by an advisory lock, promotes exactly one.
+            // The user Better Auth returns from that sign-up then shows the
+            // pre-promotion role; nothing reads it (sessions read the role
+            // from the database on every request, cookieCache is off).
             // An admin who picks a role in /admin/create-user (the plugin has
             // already checked they may set roles) gets that one.
             const body = ctx?.path === "/admin/create-user" ? ctx.body : undefined;
             const chosen = body?.role !== undefined || body?.data?.role !== undefined;
-            const role = isFirst
+            const role = isFirst && db.dialect === "sqlite"
               ? "admin"
               : chosen && typeof user.role === "string"
                 ? user.role

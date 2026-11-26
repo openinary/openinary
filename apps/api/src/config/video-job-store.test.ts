@@ -252,5 +252,17 @@ for (const dialect of testDialects()) {
       await store.countProcessingJobs();
       assert.equal(opened, 1);
     });
+
+    // server.ts exits when the worker can't start: a database that can't be
+    // opened is fatal (as a failed open at import was), a failing reset
+    // query alone is logged and the worker starts anyway.
+    test("the orphan reset rejects when the database can't be opened, not when its query fails", async () => {
+      const unopenable = new DbVideoJobStore(() => Promise.reject(new Error("connection refused")));
+      await assert.rejects(unopenable.resetOrphanedProcessingJobs(), /connection refused/);
+
+      const { db } = await fresh();
+      await db.schema.dropTable("video_jobs").execute();
+      assert.equal(await new DbVideoJobStore(db).resetOrphanedProcessingJobs(), 0);
+    });
   });
 }
