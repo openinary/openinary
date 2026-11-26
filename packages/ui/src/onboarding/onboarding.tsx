@@ -876,7 +876,8 @@ export function Onboarding({
   };
 
   const submit = () => {
-    if (saving || upgrading) return;
+    // The plan step moves on through its cards, never a bare Enter.
+    if (saving || upgrading || step === "plan") return;
     if (canContinue) return void advance(answers);
     setTried(step);
     // After the render that marks what is missing.
@@ -884,6 +885,42 @@ export function Onboarding({
       shake(form.current?.querySelector<HTMLElement>("[data-missing]")),
     );
   };
+
+  // Enter continues wherever focus is, as the key on Continue promises: on a
+  // picked option, on nothing at all, or in a field (where the form would
+  // submit on its own, so the default is stopped to avoid a double submit).
+  // Links, selects and the other buttons (Back, Skip, Add another...) keep
+  // their own Enter.
+  const submitRef = useRef(submit);
+  submitRef.current = submit;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key !== "Enter" ||
+        e.isComposing ||
+        e.repeat ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        e.shiftKey
+      ) {
+        return;
+      }
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest("a, select, textarea")) return;
+      if (
+        target instanceof HTMLButtonElement &&
+        target.type === "button" &&
+        !target.closest('[role="radiogroup"], [role="group"]')
+      ) {
+        return;
+      }
+      e.preventDefault();
+      submitRef.current();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const skip = () => {
     const patch: Partial<OnboardingAnswers> =
