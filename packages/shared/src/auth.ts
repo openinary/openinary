@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, getCurrentAdapter } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
@@ -18,7 +18,16 @@ import {
   readAuthPolicy,
   roleForNewUser,
 } from "./auth-config";
-import { claimSetup, type Db, getDb, getUserAccess, hasAdmin, kvInit, resolveDbPath } from "./db";
+import {
+  betterAuthDatabase,
+  claimSetup,
+  type Database,
+  getDatabase,
+  kvInit,
+  type UserAccess,
+  type UserAccessRow,
+  userAccessFrom,
+} from "./db";
 import { allowedOrigins, isPlaceholderSecret } from "./env";
 import { can, isRole } from "./permissions";
 
@@ -65,9 +74,9 @@ export function requireSecret(): string {
  * Refuses a secret that differs from the one the database was first used
  * with: every existing session would silently stop working.
  */
-function assertSameSecret(db: Db, secret: string): void {
+async function assertSameSecret(db: Database, secret: string): Promise<void> {
   const hash = crypto.createHash("sha256").update(secret).digest("hex");
-  if (kvInit(db, "secret_hash", hash) !== hash) {
+  if ((await kvInit(db, "secret_hash", hash)) !== hash) {
     throw new Error(
       "BETTER_AUTH_SECRET mismatch: the secret has changed since the database was created.\n" +
         "All existing sessions will be invalid. If this is intentional, delete the app_state row with key='secret_hash' and restart.",
@@ -165,14 +174,20 @@ export function pictureFromIdToken(idToken: unknown): string | undefined {
  * touches name or email (which `updateUserInfoOnLink` would), and never fails
  * the sign-in.
  */
-function fillEmptyImage(db: Db, account: { providerId?: unknown; userId?: unknown; idToken?: unknown }): void {
+async function fillEmptyImage(
+  db: Database,
+  account: { providerId?: unknown; userId?: unknown; idToken?: unknown },
+): Promise<void> {
   try {
     if (account.providerId === "credential" || typeof account.userId !== "string") return;
     const picture = pictureFromIdToken(account.idToken);
     if (!picture) return;
-    db.prepare(
-      "UPDATE user SET image = ?, updatedAt = ? WHERE id = ? AND (image IS NULL OR TRIM(image) = '')",
-    ).run(picture, new Date().toISOString(), account.userId);
+    await db
+      .updateTable("user")
+      .set({ image: picture, updatedAt: new Date().toISOString() })
+      .where("id", "=", account.userId)
+      .where((eb) => eb.or([eb("image", "is", null), eb(eb.fn("trim", ["image"]), "=", "")]))
+      .execute();
   } catch (error) {
     console.warn(
       "Could not copy the SSO avatar to the user:",
@@ -181,13 +196,39 @@ function fillEmptyImage(db: Db, account: { providerId?: unknown; userId?: unknow
   }
 }
 
-export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuthPolicy()) {
+/**
+ * Better Auth for this database. Synchronous: Better Auth connects lazily.
+ * `db` is any open {@link Database}; Better Auth gets what its dialect needs
+ * (see betterAuthDatabase in db/index.ts).
+ */
+export function createAuth(db: Database, secret: string, policy: AuthPolicy = readAuthPolicy()) {
   const publicAuthUrl = process.env.BETTER_AUTH_URL;
   const baseURL =
     process.env.BETTER_AUTH_INTERNAL_URL || publicAuthUrl || "http://localhost:3000";
 
-  return betterAuth({
-    database: db,
+  // The database hooks below run inside Better Auth's transactions (sign-up,
+  // account linking). They read through Better Auth's adapter for the
+  // current transaction, not through `db`: on SQLite that sees the rows the
+  // transaction just wrote, and on Postgres a hook never waits for a second
+  // pool connection while its transaction holds the first (a full pool would
+  // deadlock). Outside a transaction it's Better Auth's main adapter.
+  type Adapter = Parameters<typeof getCurrentAdapter>[0];
+  let authContext: (() => Promise<{ adapter: unknown }>) | undefined;
+  const adapter = async () => {
+    if (!authContext) throw new Error("Better Auth is not initialised yet");
+    return getCurrentAdapter((await authContext()).adapter as Adapter);
+  };
+  const isFirstUser = async () => (await (await adapter()).count({ model: "user" })) === 0;
+  const accessOf = async (userId: string): Promise<UserAccess | undefined> => {
+    const row = await (await adapter()).findOne<UserAccessRow>({
+      model: "user",
+      where: [{ field: "id", value: userId }],
+    });
+    return row ? userAccessFrom(row) : undefined;
+  };
+
+  const auth = betterAuth({
+    database: betterAuthDatabase(db),
     // Kept on even when AUTH_PASSWORD_LOGIN=false: /setup and OPENINARY_ADMIN_*
     // create the first account through it server-side. The hook below closes
     // the HTTP routes instead.
@@ -218,7 +259,7 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
         // Nobody signs up with a password once setup is done: new people come
         // in through SSO, or an admin adds them. The claim is atomic, so
         // sign-ups racing on a fresh instance can't all get through.
-        if (ctx.path === "/sign-up/email" && !claimSetup(db)) {
+        if (ctx.path === "/sign-up/email" && !(await claimSetup(db))) {
           throw forbidden(
             "Setup is already completed. Ask an admin to add you, or sign in with single sign-on.",
             "SIGN_UP_CLOSED",
@@ -227,7 +268,7 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
 
         if (ctx.path === "/api-key/create" || ctx.path === "/api-key/update") {
           const session = await getSessionFromCtx(ctx);
-          const role = session && getUserAccess(session.user.id, db)?.role;
+          const role = session && (await accessOf(session.user.id))?.role;
           if (session && !can(role, "apiKeys:manage")) {
             throw forbidden("Your role can't manage API keys.", "FORBIDDEN_ROLE");
           }
@@ -273,7 +314,7 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
         create: {
           before: async (user, ctx) => {
             const email = String(user.email ?? "");
-            const isFirst = !hasAdmin(db);
+            const isFirst = await isFirstUser();
             // Anything but a known password route counts as SSO, a route we
             // can't see included: that side never vouches for an address.
             const viaSso = !PASSWORD_CREATE_PATHS.has(ctx?.path ?? "");
@@ -332,7 +373,7 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
           // shouldn't leave a link that works once they're allowed back.
           before: async (account) => {
             if (account.providerId === "credential") return;
-            const access = getUserAccess(account.userId, db);
+            const access = await accessOf(account.userId);
             if (access?.banned) throw forbidden(BANNED_MESSAGE, "BANNED_USER");
             if (access && !mayAccess(policy, access)) {
               throw forbidden("Your account doesn't have access to this instance.", "ACCESS_REVOKED");
@@ -352,7 +393,7 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
           // Every sign-in, every method: an account outside the allowlist
           // (added before it, or the list changed since) no longer gets in.
           before: async (session) => {
-            const access = getUserAccess(session.userId, db);
+            const access = await accessOf(session.userId);
             if (access && !mayAccess(policy, access)) {
               throw forbidden("Your account doesn't have access to this instance.", "ACCESS_REVOKED");
             }
@@ -402,6 +443,8 @@ export function createAuth(db: Db, secret: string, policy: AuthPolicy = readAuth
       }),
     ],
   });
+  authContext = () => auth.$context;
+  return auth;
 }
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -424,17 +467,29 @@ export function getAuthPolicy(): AuthPolicy {
   return (sharedPolicy ??= readAuthPolicy());
 }
 
-let shared: Auth | undefined;
+let shared: Promise<Auth> | undefined;
 
-/** The process-wide Better Auth instance, built on first use. */
-export function getAuth(): Auth {
-  if (shared) return shared;
+/**
+ * The process-wide Better Auth instance on the process-wide database, built
+ * on first use. Async because opening the database is: callers write
+ * `(await getAuth()).handler(request)` or `const auth = await getAuth()`.
+ * Concurrent first calls share one build; a failed build (bad secret, the
+ * database unreachable) is retried by the next call.
+ */
+export function getAuth(): Promise<Auth> {
+  shared ??= buildAuth().catch((error: unknown) => {
+    shared = undefined;
+    throw error;
+  });
+  return shared;
+}
+
+async function buildAuth(): Promise<Auth> {
   const secret = requireSecret();
-  const db = getDb();
-  assertSameSecret(db, secret);
+  const db = await getDatabase();
+  await assertSameSecret(db, secret);
   const policy = getAuthPolicy();
-  shared = createAuth(db, secret, policy);
-
+  const auth = createAuth(db, secret, policy);
   console.log("Better Auth configuration:");
   console.log(
     `  - Sign-in: ${[
@@ -449,7 +504,7 @@ export function getAuth(): Auth {
   console.log(`  - Public URL: ${process.env.BETTER_AUTH_URL || "(not set)"}`);
   console.log(`  - Internal URL: ${process.env.BETTER_AUTH_INTERNAL_URL || "(not set)"}`);
   console.log(`  - Trusted origins: ${allowedOrigins().join(", ")}`);
-  console.log(`  - Database: ${resolveDbPath()}`);
+  console.log(`  - Database: ${db.dialect} ${db.location}`);
   for (const p of openSignUpProviders(policy)) {
     console.warn(
       `WARNING: anyone who can sign in to ${p.name} gets an account here as "${policy.defaultRole}", ` +
@@ -462,5 +517,5 @@ export function getAuth(): Auth {
       "WARNING: BETTER_AUTH_URL is not set in production. Set it to your app's URL or sign-in and CORS may fail.",
     );
   }
-  return shared;
+  return auth;
 }
