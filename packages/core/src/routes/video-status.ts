@@ -19,7 +19,7 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     const { filePath, params } = deliveryTarget(pathBelowMount(c).replace(/\/size$/, ""));
 
     // Get job status first - if job is completed, we know the cache exists
-    const job = videoJobQueue.getJobByPath(filePath, params);
+    const job = await videoJobQueue.getJobByPath(filePath, params);
     const cachePath = job?.cachePath ?? derivativeCachePath(paths.cache, filePath, params);
 
     logger.info(
@@ -123,7 +123,7 @@ export function createVideoStatusRoute(deps: RouteDeps) {
     const { filePath, params } = deliveryTarget(pathBelowMount(c));
 
     // Get job status
-    const job = videoJobQueue.getJobByPath(filePath, params);
+    const job = await videoJobQueue.getJobByPath(filePath, params);
 
     if (!job) {
       if (await existsInCache(derivativeCachePath(paths.cache, filePath, params))) {

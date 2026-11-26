@@ -32,9 +32,10 @@ export interface JobStats {
 }
 
 /**
- * Persistence contract for the video transformation queue: SQLite when
- * self-hosted (apps/api/src/config/video-job-store.ts), Postgres on Openinary Cloud
- * (apps/cloud/server/container/video-job-store.ts).
+ * Persistence contract for the video transformation queue: the instance's
+ * database (SQLite or Postgres) when self-hosted
+ * (apps/api/src/config/video-job-store.ts), Postgres on Openinary Cloud
+ * (apps/cloud/server/container/video-job-store.ts). Every method is async.
  */
 export interface VideoJobStore {
   createJob(
@@ -42,43 +43,43 @@ export interface VideoJobStore {
     params: VideoTransformParams,
     cachePath: string,
     priority?: number,
-  ): string;
+  ): Promise<string>;
 
   /** Atomically claims and returns the next pending job, or null if none. */
-  getNextPendingJob(): VideoJob | null;
+  getNextPendingJob(): Promise<VideoJob | null>;
 
   updateJobStatus(
     jobId: string,
     status: JobStatus,
     progress?: number,
     error?: string,
-  ): void;
+  ): Promise<void>;
 
   getJobByFileAndParams(
     filePath: string,
     params: VideoTransformParams,
-  ): VideoJob | null;
+  ): Promise<VideoJob | null>;
 
-  getJobById(jobId: string): VideoJob | null;
+  getJobById(jobId: string): Promise<VideoJob | null>;
 
-  getJobStats(): JobStats;
+  getJobStats(): Promise<JobStats>;
 
-  getRecentJobs(limit?: number, offset?: number): VideoJob[];
+  getRecentJobs(limit?: number, offset?: number): Promise<VideoJob[]>;
 
-  getJobsByStatus(status: JobStatus, limit?: number): VideoJob[];
+  getJobsByStatus(status: JobStatus, limit?: number): Promise<VideoJob[]>;
 
-  countProcessingJobs(): number;
+  countProcessingJobs(): Promise<number>;
 
-  cleanupOldJobs(olderThanHours?: number): number;
+  cleanupOldJobs(olderThanHours?: number): Promise<number>;
 
-  retryFailedJob(jobId: string): boolean;
+  retryFailedJob(jobId: string): Promise<boolean>;
 
-  cancelJob(jobId: string): boolean;
+  cancelJob(jobId: string): Promise<boolean>;
 
-  deleteJob(jobId: string): boolean;
+  deleteJob(jobId: string): Promise<boolean>;
 
   /** Resets jobs orphaned by a crash/restart (stuck in "processing") back to "pending". */
-  resetOrphanedProcessingJobs(): number;
+  resetOrphanedProcessingJobs(): Promise<number>;
 
-  deleteJobsByFilePath(filePath: string): number;
+  deleteJobsByFilePath(filePath: string): Promise<number>;
 }

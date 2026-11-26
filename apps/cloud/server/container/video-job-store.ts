@@ -50,12 +50,14 @@ function fromRow(row: typeof videoJob.$inferSelect): VideoJobRecord {
  * VideoJobStore backed by an in-memory Map, mirrored in the background to
  * the `video_job` Postgres table so jobs survive a restart/redeploy.
  *
- * @openinary/core calls every VideoJobStore method synchronously (see
- * VideoWorker's polling loop and VideoJobQueue.addJob/getJob/getJobByPath -
- * none of those call sites `await` the store), so a network-backed store
- * can't implement this interface directly: every read has to return
- * immediately. The Map is therefore the actual source of truth for every
- * method below; Postgres writes are fire-and-forget background mirrors.
+ * The VideoJobStore interface is async, but this store still answers from
+ * the Map: the container's VideoWorker polls the store every few seconds and
+ * every video request looks its job up, and over neon-http each of those
+ * would be an HTTPS round trip to Neon (and would keep Neon's compute from
+ * ever suspending). The Map is therefore the actual source of truth for
+ * every method below (each one resolves without awaiting anything, so its
+ * read-modify-write stays atomic); Postgres writes are fire-and-forget
+ * background mirrors, so a slow or failing write never fails a job.
  * Call `hydrate()` once at startup, before wiring this into
  * `new VideoJobQueue(store)`, to repopulate the Map from Postgres.
  *
@@ -95,12 +97,12 @@ export class PgVideoJobStore implements VideoJobStore {
       });
   }
 
-  createJob(
+  async createJob(
     filePath: string,
     params: Record<string, string>,
     cachePath: string,
     priority = 2,
-  ): string {
+  ): Promise<string> {
     // Verbatim JSON.stringify of core's params, in the parser's insertion
     // order: the Worker finds this row for /video-status and the 202 estimate
     // by serializing its own deliveryTarget parse of the same URL the same way
@@ -137,7 +139,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return job.id;
   }
 
-  getNextPendingJob(): VideoJobRecord | null {
+  async getNextPendingJob(): Promise<VideoJobRecord | null> {
     const pending = [...this.jobs.values()]
       .filter((job) => job.status === "pending")
       .sort((a, b) => a.priority - b.priority || a.created_at - b.created_at);
@@ -151,12 +153,12 @@ export class PgVideoJobStore implements VideoJobStore {
     return { ...job };
   }
 
-  updateJobStatus(
+  async updateJobStatus(
     jobId: string,
     status: JobStatus,
     progress?: number,
     error?: string,
-  ): void {
+  ): Promise<void> {
     const job = this.jobs.get(jobId);
     if (!job) {
       return;
@@ -187,8 +189,8 @@ export class PgVideoJobStore implements VideoJobStore {
    * crash before the claim, a job closed by an older build); meterJob's claim
    * is what keeps the two from billing the same job twice.
    *
-   * Fire-and-forget like every other write in this class - @openinary/core
-   * calls updateJobStatus synchronously and never awaits it.
+   * Fire-and-forget like every other write in this class, so billing never
+   * delays or fails the job's own status update.
    */
   private meter(job: VideoJobRecord): void {
     meterJob(this.db, {
@@ -201,10 +203,10 @@ export class PgVideoJobStore implements VideoJobStore {
     });
   }
 
-  getJobByFileAndParams(
+  async getJobByFileAndParams(
     filePath: string,
     params: Record<string, string>,
-  ): VideoJobRecord | null {
+  ): Promise<VideoJobRecord | null> {
     const paramsJson = JSON.stringify(params);
     const matches = [...this.jobs.values()]
       .filter(
@@ -214,12 +216,12 @@ export class PgVideoJobStore implements VideoJobStore {
     return matches[0] ? { ...matches[0] } : null;
   }
 
-  getJobById(jobId: string): VideoJobRecord | null {
+  async getJobById(jobId: string): Promise<VideoJobRecord | null> {
     const job = this.jobs.get(jobId);
     return job ? { ...job } : null;
   }
 
-  getJobStats(): JobStats {
+  async getJobStats(): Promise<JobStats> {
     const stats: JobStats = {
       total: 0,
       pending: 0,
@@ -237,20 +239,20 @@ export class PgVideoJobStore implements VideoJobStore {
     return stats;
   }
 
-  getRecentJobs(limit = 50, offset = 0): VideoJobRecord[] {
+  async getRecentJobs(limit = 50, offset = 0): Promise<VideoJobRecord[]> {
     return [...this.jobs.values()]
       .sort((a, b) => b.created_at - a.created_at)
       .slice(offset, offset + limit);
   }
 
-  getJobsByStatus(status: JobStatus, limit = 50): VideoJobRecord[] {
+  async getJobsByStatus(status: JobStatus, limit = 50): Promise<VideoJobRecord[]> {
     return [...this.jobs.values()]
       .filter((job) => job.status === status)
       .sort((a, b) => b.created_at - a.created_at)
       .slice(0, limit);
   }
 
-  countProcessingJobs(): number {
+  async countProcessingJobs(): Promise<number> {
     let count = 0;
     for (const job of this.jobs.values()) {
       if (job.status === "processing") count++;
@@ -258,7 +260,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return count;
   }
 
-  cleanupOldJobs(olderThanHours = 24): number {
+  async cleanupOldJobs(olderThanHours = 24): Promise<number> {
     const cutoff = Date.now() - olderThanHours * 60 * 60 * 1000;
     let count = 0;
     for (const job of [...this.jobs.values()]) {
@@ -279,7 +281,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return count;
   }
 
-  retryFailedJob(jobId: string): boolean {
+  async retryFailedJob(jobId: string): Promise<boolean> {
     const job = this.jobs.get(jobId);
     if (!job || job.status !== "error" || job.retry_count >= job.max_retries) {
       return false;
@@ -293,7 +295,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return true;
   }
 
-  cancelJob(jobId: string): boolean {
+  async cancelJob(jobId: string): Promise<boolean> {
     const job = this.jobs.get(jobId);
     if (!job || job.status !== "pending") {
       return false;
@@ -304,7 +306,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return true;
   }
 
-  deleteJob(jobId: string): boolean {
+  async deleteJob(jobId: string): Promise<boolean> {
     if (!this.jobs.has(jobId)) {
       return false;
     }
@@ -313,7 +315,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return true;
   }
 
-  resetOrphanedProcessingJobs(): number {
+  async resetOrphanedProcessingJobs(): Promise<number> {
     let count = 0;
     for (const job of this.jobs.values()) {
       if (job.status === "processing") {
@@ -326,7 +328,7 @@ export class PgVideoJobStore implements VideoJobStore {
     return count;
   }
 
-  deleteJobsByFilePath(filePath: string): number {
+  async deleteJobsByFilePath(filePath: string): Promise<number> {
     let count = 0;
     for (const job of [...this.jobs.values()]) {
       if (job.file_path === filePath) {

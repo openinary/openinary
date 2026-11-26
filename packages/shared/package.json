@@ -40,7 +40,8 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/add-js-extensions.cjs",
     "type-check": "tsc --noEmit",
-    "test": "node --import tsx --test $(find src -name '*.test.ts')"
+    "test": "node --import tsx --test $(find src -name '*.test.ts')",
+    "db:copy-to-postgres": "node --import tsx src/scripts/sqlite-to-postgres.ts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.25",

@@ -14,7 +14,7 @@ export const storage = createStorageClient({
 
 // TransformService needs a video job queue even for image-only usage.
 // PgVideoJobStore mirrors jobs to Neon in the background so they survive a
-// restart while staying synchronous on the hot path (see video-job-store.ts).
+// restart while the hot path stays in memory (see video-job-store.ts).
 // The Worker (worker/routes/video.ts) reads these same video_job rows to serve
 // status/SSE without ever waking this container.
 const videoJobStore = new PgVideoJobStore(db);
@@ -22,4 +22,9 @@ await videoJobStore.hydrate();
 // public/ goes unused: storage is always configured here.
 export const paths = enginePathsIn(process.cwd());
 export const queue = new VideoJobQueue(videoJobStore, storage, { paths });
-queue.start();
+// Resets orphans, then polls. A failure here is a failed in-memory reset,
+// which can't happen short of a bug: log it rather than take the container
+// down with image transforms.
+queue.start().catch((error: unknown) => {
+  console.error("%s", "Failed to start the video job queue", error);
+});

@@ -39,12 +39,12 @@ function auditLog(c: Context, event: string, data: Record<string, unknown> = {})
  * role). Returns the rejection to send, or null after putting the user on the
  * context.
  */
-function admitUser(
+async function admitUser(
   c: Context<AuthVariables>,
   userId: string,
   via: "api_key" | "session",
-): Response | null {
-  const access = getUserAccess(userId);
+): Promise<Response | null> {
+  const access = await getUserAccess(userId);
   if (!access) {
     // Belt and braces against a key or session outliving its user.
     auditLog(c, `auth.${via}.rejected`, { reason: "user_not_found_in_db", userId });
@@ -108,11 +108,11 @@ export async function authenticateRequest(
 
   if (token) {
     try {
-      const result = await getAuth().api.verifyApiKey({ body: { key: token } });
+      const result = await (await getAuth()).api.verifyApiKey({ body: { key: token } });
 
       if (result.valid && result.key) {
         const userId = result.key.referenceId;
-        const denied = admitUser(c, userId, "api_key");
+        const denied = await admitUser(c, userId, "api_key");
         if (denied) return denied;
         c.set("apiKey", { id: result.key.id, name: result.key.name, userId });
         auditLog(c, "auth.api_key.success", {
@@ -135,12 +135,12 @@ export async function authenticateRequest(
 
   try {
     if (cookieHeader) {
-      const sessionResult = await getAuth().api.getSession({
+      const sessionResult = await (await getAuth()).api.getSession({
         headers: new Headers({ cookie: cookieHeader }),
       });
 
       if (sessionResult?.session && sessionResult.user) {
-        const denied = admitUser(c, sessionResult.user.id, "session");
+        const denied = await admitUser(c, sessionResult.user.id, "session");
         if (denied) return denied;
         c.set("apiKey", null);
         auditLog(c, "auth.session.success", {

@@ -3,6 +3,12 @@ title: "Changelog"
 description: "New features, improvements, and fixes shipped in Openinary"
 ---
 
+<Update label="Unreleased" description="Unreleased" tags={["Feature"]}>
+  ## New features
+
+**Postgres for several nodes, opt-in**, Set `DATABASE_URL=postgres://...` and several Openinary nodes share one database: accounts, roles, sessions, API keys, settings and the delivery log. Without it nothing changes: SQLite stays the default, in the same single container, with nothing to migrate. The schema is created at startup, safely when several nodes start together, and `DATABASE_POOL_MAX` sizes the connection pool. A copy script moves an existing SQLite instance over, passwords and API keys included, and leaves the SQLite file untouched so you can go back. Nodes never claim the same video job twice, and `VIDEO_MAX_CONCURRENT` caps the whole cluster, but there are no leases yet: a job left by a crashed node waits up to two hours, and every node needs the same S3/R2 bucket. See [database](/configuration/database). Thanks to [pankajmyt](https://github.com/pankajmyt), building on the proposal by [tolstenko](https://github.com/tolstenko).
+</Update>
+
 <Update label="November 25, 2026" description="v0.10.0" tags={["Feature", "Improvement", "Fix"]}>
   ## New features
 

@@ -34,16 +34,16 @@ const fakeEstimate = {
 };
 
 const fakeQueue = (job?: unknown): any => ({
-  getJobByPath: () => job,
+  getJobByPath: async () => job,
   estimate: async () => fakeEstimate,
-  enqueueTransform: () => "job-1",
-  resetJob: () => {},
+  enqueueTransform: async () => "job-1",
+  resetJob: async () => {},
 });
 
 test("a bare video URL serves the original and queues nothing", async () => {
   const queue = fakeQueue();
   let queued = false;
-  queue.enqueueTransform = () => {
+  queue.enqueueTransform = async () => {
     queued = true;
     return "job-1";
   };
@@ -134,7 +134,7 @@ test("a pending video transform answers 202 instead of the original", async () =
 test("the 202 status URL resolves to the job the transform queued", async () => {
   const lookups: Array<{ filePath: string; params: any }> = [];
   const queue = fakeQueue({ id: "j1", status: "processing" });
-  queue.getJobByPath = (filePath: string, params: any) => {
+  queue.getJobByPath = async (filePath: string, params: any) => {
     lookups.push({ filePath, params });
     return { id: "j1", status: "processing", progress: 42 };
   };

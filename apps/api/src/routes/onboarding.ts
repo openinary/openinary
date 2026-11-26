@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { can, getDb, kvGet, kvInit, kvSet, MAX_USE_CASES, SLUG } from "shared";
+import { can, getDatabase, kvGet, kvInit, kvSet, MAX_USE_CASES, SLUG } from "shared";
 
 import type { AuthVariables } from "../middleware/auth";
 import { telemetryEnabled, trackOnboardingCompleted } from "../utils/telemetry";
@@ -39,32 +39,49 @@ function parseWorkspace(value: unknown): Workspace | null {
 
 const answersKey = (userId: string) => `onboarding:${userId}`;
 
-const readJson = <T>(key: string) => {
-  const value = kvGet(getDb(), key);
+const readJson = async <T>(key: string) => {
+  const value = await kvGet(await getDatabase(), key);
   return value === undefined ? undefined : (JSON.parse(value) as T);
 };
 
-// Accounts that existed before this instance first ran a version with the
-// questionnaire never see it: Cloud's rule, but per instance, since each one
-// upgrades on its own day. The minute of slack keeps a fresh install's first
-// admin in, even one created from OPENINARY_ADMIN_* while the server boots.
-const onboardingSince =
-  Number(kvInit(getDb(), "onboarding_since", String(Date.now()))) - 60_000;
+let since: Promise<number> | undefined;
 
-function predatesOnboarding(userId: string): boolean {
-  const row = getDb()
-    .prepare("SELECT createdAt FROM user WHERE id = ?")
-    .get(userId) as { createdAt: string | number } | undefined;
-  return !!row && new Date(row.createdAt).getTime() < onboardingSince;
+/**
+ * Accounts that existed before this instance first ran a version with the
+ * questionnaire never see it: Cloud's rule, but per instance, since each one
+ * upgrades on its own day. The minute of slack keeps a fresh install's first
+ * admin in, even one created from OPENINARY_ADMIN_* while the server boots.
+ *
+ * Stored on first call; server.ts calls this at boot, before it creates that
+ * admin, so the mark is the boot time rather than the first request's. A
+ * failed read isn't cached.
+ */
+export function onboardingSince(): Promise<number> {
+  since ??= getDatabase()
+    .then((db) => kvInit(db, "onboarding_since", String(Date.now())))
+    .then((value) => Number(value) - 60_000)
+    .catch((error: unknown) => {
+      since = undefined;
+      throw error;
+    });
+  return since;
 }
 
-onboarding.get("/", (c) => {
+async function predatesOnboarding(userId: string): Promise<boolean> {
+  const row = await (await getDatabase())
+    .selectFrom("user")
+    .select("createdAt")
+    .where("id", "=", userId)
+    .executeTakeFirst();
+  return !!row && new Date(row.createdAt).getTime() < (await onboardingSince());
+}
+
+onboarding.get("/", async (c) => {
   const userId = c.get("user")?.id ?? "";
+  const answers = await kvGet(await getDatabase(), answersKey(userId));
   return c.json({
-    completed:
-      kvGet(getDb(), answersKey(userId)) !== undefined ||
-      predatesOnboarding(userId),
-    workspace: readJson<Workspace>("workspace") ?? null,
+    completed: answers !== undefined || (await predatesOnboarding(userId)),
+    workspace: (await readJson<Workspace>("workspace")) ?? null,
     telemetry: telemetryEnabled,
   });
 });
@@ -97,9 +114,10 @@ onboarding.post("/", async (c) => {
     return c.json({ error: "Invalid onboarding answers" }, 400);
   }
 
-  if (workspace) kvSet(getDb(), "workspace", JSON.stringify(workspace));
-  kvSet(
-    getDb(),
+  const db = await getDatabase();
+  if (workspace) await kvSet(db, "workspace", JSON.stringify(workspace));
+  await kvSet(
+    db,
     answersKey(userId),
     JSON.stringify({ role, useCases, source, completedAt: Date.now() }),
   );
@@ -113,7 +131,7 @@ onboarding.post("/", async (c) => {
 onboarding.put("/workspace", async (c) => {
   const workspace = parseWorkspace(await c.req.json().catch(() => null));
   if (!workspace) return c.json({ error: "Invalid workspace" }, 400);
-  kvSet(getDb(), "workspace", JSON.stringify(workspace));
+  await kvSet(await getDatabase(), "workspace", JSON.stringify(workspace));
   return c.json({ workspace });
 });
 

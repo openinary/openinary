@@ -24,6 +24,8 @@ API_SECRET=$(openssl rand -hex 32)
 | `CORS_ORIGIN` | | Extra allowed origins, comma-separated. `http://localhost:3001` and `http://localhost:3000` are always allowed. Avoid `*` |
 | `API_SECRET` | | Signs [signed URLs](/media-transformations/signed-urls) and presigned uploads. At least 16 characters; `openssl rand -hex 32` gives a strong one. Required for `/authenticated/*` and [presigned uploads](/guides/file-uploader) |
 | `DB_PATH` | `/app/data/auth.db` | SQLite database path. Only needed for a non-standard mount |
+| `DATABASE_URL` | | Opt-in Postgres, for several nodes sharing one database: `postgres://...`. Unset or empty keeps SQLite at `DB_PATH`. See [database](/configuration/database) |
+| `DATABASE_POOL_MAX` | `5` | Postgres connections per process. Ignored on SQLite |
 
 ## Upload and rate limiting
 
@@ -83,6 +85,9 @@ The key is printed once and cannot be retrieved afterwards. Capture it on first 
   </Card>
   <Card title="Storage" icon="cloud" href="/configuration/storage">
     Connect S3-compatible cloud storage.
+  </Card>
+  <Card title="Database" icon="database" href="/configuration/database">
+    SQLite by default, Postgres for several nodes.
   </Card>
   <Card
     title="Signed URLs"

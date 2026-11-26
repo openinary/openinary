@@ -54,7 +54,7 @@ describe("resolveDatabaseConfig", () => {
       assert.deepEqual(resolveDatabaseConfig({ DATABASE_URL: url, DB_PATH: "/ignored.db" }), {
         dialect: "postgres",
         url,
-        poolMax: 10,
+        poolMax: 5,
       });
     }
     const url = `postgres://app@${host}/openinary`;
@@ -86,8 +86,19 @@ test("only the SQLite dialect modules load better-sqlite3", () => {
   const src = path.resolve(import.meta.dirname, "..");
   const files = fs.readdirSync(src, { recursive: true, encoding: "utf8" }).filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f));
   const importers = files.filter((f) => /from "better-sqlite3"|import\("better-sqlite3"\)/.test(fs.readFileSync(path.join(src, f), "utf8")));
-  assert.deepEqual(importers.map((f) => f.split(path.sep).join("/")).sort(), ["db/migrate-sqlite.ts", "db/sqlite.ts"]);
-  // And index.ts reaches them only through a dynamic import.
+  // The copy script reads a SQLite file by nature. It's a standalone CLI that
+  // nothing in the app imports (checked below), so a Postgres deployment still
+  // never loads better-sqlite3.
+  assert.deepEqual(importers.map((f) => f.split(path.sep).join("/")).sort(), [
+    "db/migrate-sqlite.ts",
+    "db/sqlite.ts",
+    "scripts/sqlite-to-postgres.ts",
+  ]);
+  const scriptImporters = files.filter(
+    (f) => !f.startsWith(`scripts${path.sep}`) && /from "\.{1,2}\/(\.\.\/)*scripts\//.test(fs.readFileSync(path.join(src, f), "utf8")),
+  );
+  assert.deepEqual(scriptImporters, [], "app code must not import the scripts");
+  // And index.ts reaches the dialect modules only through a dynamic import.
   assert.doesNotMatch(fs.readFileSync(path.join(src, "db/index.ts"), "utf8"), /^import [^\n]*"\.\/(sqlite|migrate-sqlite)"/m);
 });
 

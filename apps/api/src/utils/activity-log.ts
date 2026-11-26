@@ -8,7 +8,7 @@ import {
   isVideoExt,
   seenRecently,
 } from "@openinary/core/url";
-import { type Db, kvGet, kvInit } from "shared";
+import { type Database, kvGet, kvInit, sql } from "shared";
 
 // Shared with the Cloud, which bills on the same rules.
 export { isOpeningRange, seenRecently } from "@openinary/core/url";
@@ -67,27 +67,32 @@ export function isDashboardTraffic(cookie: string | undefined): boolean {
 }
 
 export class ActivityLog {
-  #db: Db;
+  readonly #resolveDb: () => Promise<Database>;
   #seen = new Map<string, number>();
   #prunedHour = 0;
 
-  /** `db` must already be migrated, as shared's openDb leaves it. */
-  constructor(db: Db) {
-    this.#db = db;
+  /**
+   * `db` is a migrated database (as openDatabase leaves it), or a function
+   * returning one (shared's getDatabase), so the log can be built at import
+   * time before the database is open.
+   */
+  constructor(db: Database | (() => Promise<Database>)) {
+    this.#resolveDb = typeof db === "function" ? db : () => Promise.resolve(db);
   }
 
   /**
    * Records one delivery unless it is a repeat of one just recorded: a line
    * in the log and one more in its hour's count. `viewer` tells visitors
-   * apart, so two people opening the same asset are two lines.
+   * apart, so two people opening the same asset are two lines. Resolves once
+   * written; callers serving an image don't wait for it (see logDelivery).
    */
-  // ponytail: one synchronous transaction per public delivery. Batch the
-  // counts in memory behind a timer if an instance ever serves enough traffic
-  // for that to show.
-  recordDelivery(
+  // ponytail: one transaction per public delivery. Batch the counts in
+  // memory behind a timer if an instance ever serves enough traffic for that
+  // to show.
+  async recordDelivery(
     event: Omit<DeliveryEvent, "k" | "t"> & { t?: number },
     viewer: string,
-  ): void {
+  ): Promise<void> {
     const t = event.t ?? Date.now();
     if (seenRecently(this.#seen, `${viewer}|${event.p}`, t)) return;
 
@@ -95,67 +100,82 @@ export class ActivityLog {
     const kind = deliveryKind(path);
     const hour = Math.floor(t / HOUR_MS) * HOUR_MS;
     const failed = event.s >= 400 ? 1 : 0;
+    // Once per hour is plenty to keep the counts at a year.
+    const prune = hour !== this.#prunedHour;
+    if (prune) this.#prunedHour = hour;
 
-    this.#db.transaction(() => {
-      const { lastInsertRowid } = this.#db
-        .prepare(
-          "INSERT INTO delivery_log (t, path, kind, status) VALUES (?, ?, ?, ?)",
+    const db = await this.#resolveDb();
+    await db.transaction().execute(async (trx) => {
+      const { id } = await trx
+        .insertInto("delivery_log")
+        .values({ t, path, kind, status: event.s })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await trx
+        .deleteFrom("delivery_log")
+        .where("id", "<=", Number(id) - LOG_LIMIT)
+        .execute();
+      await trx
+        .insertInto("delivery_counts")
+        .values({ hour, kind, delivered: 1 - failed, failed })
+        .onConflict((oc) =>
+          oc.columns(["hour", "kind"]).doUpdateSet((eb) => ({
+            delivered: eb("delivery_counts.delivered", "+", eb.ref("excluded.delivered")),
+            failed: eb("delivery_counts.failed", "+", eb.ref("excluded.failed")),
+          })),
         )
-        .run(t, path, kind, event.s);
-      this.#db
-        .prepare("DELETE FROM delivery_log WHERE id <= ?")
-        .run(Number(lastInsertRowid) - LOG_LIMIT);
-      this.#db
-        .prepare(
-          `INSERT INTO delivery_counts (hour, kind, delivered, failed) VALUES (?, ?, ?, ?)
-           ON CONFLICT(hour, kind) DO UPDATE SET
-             delivered = delivered + excluded.delivered,
-             failed = failed + excluded.failed`,
-        )
-        .run(hour, kind, 1 - failed, failed);
-      // Once per hour is plenty to keep the table at a year.
-      if (hour !== this.#prunedHour) {
-        this.#prunedHour = hour;
-        this.#db
-          .prepare("DELETE FROM delivery_counts WHERE hour < ?")
-          .run(hour - COUNTS_RETENTION_MS);
+        .execute();
+      if (prune) {
+        await trx
+          .deleteFrom("delivery_counts")
+          .where("hour", "<", hour - COUNTS_RETENTION_MS)
+          .execute();
       }
-    })();
+    });
   }
 
   /** Hourly counts from `since` (epoch ms) on, oldest first. */
-  counts(since: number): DeliveryCount[] {
-    return this.#db
-      .prepare(
-        "SELECT hour AS t, kind AS k, delivered AS d, failed AS f FROM delivery_counts WHERE hour >= ? ORDER BY hour",
-      )
-      .all(Math.floor(since / HOUR_MS) * HOUR_MS) as DeliveryCount[];
+  async counts(since: number): Promise<DeliveryCount[]> {
+    const db = await this.#resolveDb();
+    const rows = await db
+      .selectFrom("delivery_counts")
+      .select(["hour as t", "kind as k", "delivered as d", "failed as f"])
+      .where("hour", ">=", Math.floor(since / HOUR_MS) * HOUR_MS)
+      .orderBy("hour")
+      .execute();
+    return rows as DeliveryCount[];
   }
 
   /** Newest first. */
-  deliveries(): DeliveryEvent[] {
-    return this.#db
-      .prepare(
-        "SELECT t, path AS p, kind AS k, status AS s FROM delivery_log ORDER BY id DESC LIMIT ?",
-      )
-      .all(LOG_LIMIT) as DeliveryEvent[];
+  async deliveries(): Promise<DeliveryEvent[]> {
+    const db = await this.#resolveDb();
+    const rows = await db
+      .selectFrom("delivery_log")
+      .select(["t", "path as p", "kind as k", "status as s"])
+      .orderBy("id", "desc")
+      .limit(LOG_LIMIT)
+      .execute();
+    return rows as DeliveryEvent[];
   }
 
   /** True once anything was served to the public with a 2xx. */
-  hasDelivered(): boolean {
-    return !!this.#db
-      .prepare(
-        "SELECT 1 FROM delivery_log WHERE status BETWEEN 200 AND 299 LIMIT 1",
-      )
-      .get();
+  async hasDelivered(): Promise<boolean> {
+    const db = await this.#resolveDb();
+    return !!(await db
+      .selectFrom("delivery_log")
+      .select(sql<number>`1`.as("one"))
+      .where("status", ">=", 200)
+      .where("status", "<=", 299)
+      .limit(1)
+      .executeTakeFirst());
   }
 
   /** An upload that came from an app (API key or signature), not from here. */
-  markApiUpload(): void {
-    kvInit(this.#db, "api_upload_seen", "1");
+  async markApiUpload(): Promise<void> {
+    await kvInit(await this.#resolveDb(), "api_upload_seen", "1");
   }
 
-  apiUploadSeen(): boolean {
-    return kvGet(this.#db, "api_upload_seen") !== undefined;
+  async apiUploadSeen(): Promise<boolean> {
+    return (await kvGet(await this.#resolveDb(), "api_upload_seen")) !== undefined;
   }
 }

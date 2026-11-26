@@ -17,8 +17,10 @@ import type { Schema } from "./schema";
  *   file at `DB_PATH`, else `data/auth.db` at the repo root, exactly as
  *   before. better-sqlite3 is the driver.
  * - `DATABASE_URL=postgres://...` (or `postgresql://`): Postgres through a
- *   node-postgres pool of `DATABASE_POOL_MAX` connections (default 10), for
- *   several nodes sharing one database. SSL comes from the URL's `sslmode`.
+ *   node-postgres pool of `DATABASE_POOL_MAX` connections (default 5; the
+ *   full image runs the API and the web app, so two pools per container),
+ *   for several nodes sharing one database. SSL comes from the URL's
+ *   `sslmode`.
  * - Anything else in `DATABASE_URL` is a startup error.
  *
  * Each dialect module (sqlite.ts, postgres.ts) is imported lazily, so a
@@ -131,7 +133,7 @@ export function resolveDbPath(env: Env = process.env): string {
   return env.DB_PATH || path.join(repoRoot, "data", "auth.db");
 }
 
-const DEFAULT_POOL_MAX = 10;
+const DEFAULT_POOL_MAX = 5;
 
 /**
  * The database the environment asks for. Throws on a DATABASE_URL that isn't
@@ -231,9 +233,6 @@ export function getDatabase(): Promise<Database> {
   });
   return shared;
 }
-
-/** Same as {@link getDatabase}: the old name, now async. */
-export const getDb = getDatabase;
 
 /** Closes the process-wide database (shutdown, tests). The next getDatabase() opens a new one. */
 export async function closeDatabase(): Promise<void> {

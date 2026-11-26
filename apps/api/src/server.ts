@@ -2,7 +2,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import app from "./index";
 import { getSharedStorage } from "./config/storage";
-import { claimSetup, getDb, hasAdmin } from "shared";
+import { claimSetup, getDatabase, hasAdmin } from "shared";
 import { getAuth } from "shared/auth";
 import { randomUUID } from "crypto";
 import { clearAllCache, logger } from "@openinary/core";
@@ -10,11 +10,21 @@ import { enginePaths, videoJobQueue } from "./config/queue";
 import { initTelemetry } from "./utils/telemetry";
 import { initOtel, recordVideoTranscode, shutdownOtel } from "./utils/otel";
 import { deploymentMode } from "./config/mode";
+import { onboardingSince } from "./routes/onboarding";
 
 // In cloud mode the bucket is the cache: local files from a previous run go.
 if (getSharedStorage()) await clearAllCache(enginePaths.cache);
 
-videoJobQueue.start();
+// Not awaited, so the server (and its healthcheck) comes up while Postgres is
+// still being reached. Without a database there is nothing to run: exit, and
+// let the supervisor restart us, as a failed open at import did before.
+videoJobQueue.start().catch((error: unknown) => {
+  logger.error(
+    { error: error instanceof Error ? error.message : String(error) },
+    "Could not start the video job queue",
+  );
+  process.exit(1);
+});
 
 // Opt-in OpenTelemetry export (OTEL_EXPORTER_OTLP_ENDPOINT); a no-op otherwise.
 await initOtel();
@@ -30,8 +40,11 @@ async function initializeAuth() {
     const mode = deploymentMode();
     const modeLabel = mode === "api" ? "API STANDALONE mode" : "FULLSTACK mode";
     // Fails fast on a missing or changed BETTER_AUTH_SECRET.
-    const auth = getAuth();
-    if (hasAdmin()) return logger.info(`Database initialized (${modeLabel})`);
+    const auth = await getAuth();
+    // Before any account can be created here, so a first admin created from
+    // OPENINARY_ADMIN_* doesn't predate the questionnaire.
+    await onboardingSince();
+    if (await hasAdmin()) return logger.info(`Database initialized (${modeLabel})`);
 
     const accName = process.env.OPENINARY_ADMIN_NAME?.trim();
     const accEmail = process.env.OPENINARY_ADMIN_EMAIL?.trim();
@@ -55,7 +68,7 @@ async function initializeAuth() {
       );
 
     // /setup may be running in the dashboard at the same moment.
-    if (!claimSetup())
+    if (!(await claimSetup()))
       return logger.info(`Setup is already in progress or completed (${modeLabel})`);
 
     logger.info("Creating admin user...");
@@ -86,11 +99,12 @@ async function initializeAuth() {
 
     if (!apiKeyResult || !("key" in apiKeyResult)) {
       // Removed so the next boot can try again with the same credentials.
-      const { changes } = getDb()
-        .prepare("DELETE FROM user WHERE id = ?")
-        .run(signUpResult.user.id);
+      const { numDeletedRows } = await (await getDatabase())
+        .deleteFrom("user")
+        .where("id", "=", signUpResult.user.id)
+        .executeTakeFirst();
 
-      if (changes === 0)
+      if (Number(numDeletedRows) === 0)
         throw new Error(
           "Initial API Key could not be generated. Deleting user for cleanup failed.",
         );
@@ -124,11 +138,11 @@ serve({
 logger.info({ port }, "Server running");
 
 // Anonymous usage telemetry (non-blocking, opt-out via OPENINARY_TELEMETRY=false)
-initTelemetry();
+void initTelemetry();
 
 // Initialize auth in background (non-blocking)
 // This allows the server to respond to healthchecks immediately
-initializeAuth();
+void initializeAuth();
 
 // Graceful shutdown
 // Flushes buffered metrics and delivery logs first, within a few seconds.
