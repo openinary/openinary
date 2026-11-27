@@ -785,10 +785,15 @@ export function Onboarding({
     team: answers.team,
     joining: !!joining,
     plans: !!plans?.length,
+    canInvite: seatLimit === undefined || seatLimit > 1,
   });
-  const [index, setIndex] = useState(() =>
-    Math.max(0, resume ? steps.indexOf(resume.step) : 0),
-  );
+  // Back from a checkout: the step it left for, or the plan step again when
+  // that step isn't there (the checkout was abandoned, so still on Free).
+  const [index, setIndex] = useState(() => {
+    if (!resume) return 0;
+    const at = steps.indexOf(resume.step);
+    return at >= 0 ? at : Math.max(0, steps.indexOf("plan"));
+  });
   const step = steps[index] ?? steps[0];
   const last = index === steps.length - 1;
   // Rows being typed on the invite step, blanks included.
@@ -943,10 +948,11 @@ export function Onboarding({
     onStepComplete?.(step, index, answers, false);
     setUpgrading(true);
     try {
-      await onUpgrade(
-        finalAnswers(answers),
-        last ? null : (steps[index + 1] ?? null),
-      );
+      // On Free a team has no invite step yet; paying adds the seats for it.
+      const next =
+        steps[index + 1] ??
+        (answers.team && variant === "cloud" ? "invite" : null);
+      await onUpgrade(finalAnswers(answers), next);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Could not open the checkout",
@@ -1356,6 +1362,13 @@ export function Onboarding({
                               onPick={() => void pickPlan(plan)}
                             />
                           ))}
+                          {answers.team && seatLimit === 1 && (
+                            <p className="text-center text-[12.5px]/[18px] text-ds-muted text-pretty sm:col-span-2">
+                              On Free it's just you. Enable pay as you go to
+                              invite your team, now or later from Settings ›
+                              Team.
+                            </p>
+                          )}
                         </div>
                       )}
 
