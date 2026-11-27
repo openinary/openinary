@@ -672,6 +672,72 @@
   }
 }
 
+/* A state swapping in place: a short fade up, no blur. */
+.ds-enter {
+  animation: ds-enter 200ms ease-out both;
+}
+
+/* Home's copy prompt button: a gradient edge that slowly circles it, and
+   turns all green once copied. Registered so they animate. */
+@property --ds-edge-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@property --ds-edge {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgb(59 123 255);
+}
+@property --ds-edge-fade {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 18%;
+}
+.ds-edge {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--ds-card), var(--ds-card)) padding-box,
+    conic-gradient(
+        from var(--ds-edge-angle),
+        var(--ds-edge),
+        color-mix(in srgb, var(--ds-edge) var(--ds-edge-fade), transparent) 30%,
+        color-mix(in srgb, var(--ds-edge) var(--ds-edge-fade), transparent) 50%,
+        var(--ds-edge) 80%,
+        var(--ds-edge)
+      )
+      border-box;
+  box-shadow: 0 6px 18px -8px
+    color-mix(in srgb, var(--ds-edge) 50%, transparent);
+  animation: ds-edge-spin 6s linear infinite;
+  transition:
+    --ds-edge 300ms ease-out,
+    --ds-edge-fade 300ms ease-out,
+    box-shadow 200ms ease-out,
+    scale 200ms ease-out;
+}
+.ds-edge:hover {
+  box-shadow: 0 8px 22px -8px
+    color-mix(in srgb, var(--ds-edge) 65%, transparent);
+}
+.ds-edge[data-done] {
+  --ds-edge: var(--ds-green);
+  --ds-edge-fade: 100%;
+}
+
+@keyframes ds-edge-spin {
+  to {
+    --ds-edge-angle: 360deg;
+  }
+}
+
+@keyframes ds-enter {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
 /* Wrong or missing answer: the field shakes, then takes focus. */
 .ds-shake {
   animation: ds-shake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
@@ -767,6 +833,8 @@
   .mi-pop,
   .mi-spin,
   .ds-rise,
+  .ds-enter,
+  .ds-edge,
   .ds-shake,
   .text-shimmer,
   .shimmer::after {

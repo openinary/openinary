@@ -111,7 +111,13 @@ export function GetStartedHome({
   // and uploader below are what self-hosted keeps.
   const { agentSetupPrompt } = useDashboard();
   if (agentSetupPrompt && !readOnly) {
-    return <AgentWelcome firstName={firstName} prompt={agentSetupPrompt} />;
+    return (
+      <AgentWelcome
+        firstName={firstName}
+        loading={loading}
+        prompt={agentSetupPrompt}
+      />
+    );
   }
   return (
     <GetStartedPage

@@ -6,6 +6,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../shared/db/index.js";
 import {
+  oauthAccessToken,
   oauthClient,
   oauthConsent,
   oauthRefreshToken,
@@ -21,7 +22,8 @@ type Session = {
 const onActiveAccount = (
   column:
     | typeof oauthConsent.referenceId
-    | typeof oauthRefreshToken.referenceId,
+    | typeof oauthRefreshToken.referenceId
+    | typeof oauthAccessToken.referenceId,
   session: Session,
 ) => {
   const org = session.session.activeOrganizationId;
@@ -53,9 +55,9 @@ export const agentRouter = {
   }),
 
   /**
-   * Forgets the consent and revokes the refresh tokens, so the agent has to
-   * ask again. An access token already issued stays valid until it expires
-   * (an hour at most): they are signed JWTs, checked without a lookup.
+   * Forgets the consent and revokes the agent's tokens, so it has to ask
+   * again. The JWT access tokens it holds are not stored anywhere: /mcp
+   * refuses them because the consent is gone (mcp/token.ts).
    */
   disconnect: protectedProcedure
     .input(z.object({ clientId: z.string().min(1) }))
@@ -70,6 +72,17 @@ export const agentRouter = {
             eq(oauthRefreshToken.clientId, input.clientId),
             onActiveAccount(oauthRefreshToken.referenceId, context.session),
             isNull(oauthRefreshToken.revoked),
+          ),
+        );
+      await db
+        .update(oauthAccessToken)
+        .set({ revoked: new Date() })
+        .where(
+          and(
+            eq(oauthAccessToken.userId, userId),
+            eq(oauthAccessToken.clientId, input.clientId),
+            onActiveAccount(oauthAccessToken.referenceId, context.session),
+            isNull(oauthAccessToken.revoked),
           ),
         );
       await db
