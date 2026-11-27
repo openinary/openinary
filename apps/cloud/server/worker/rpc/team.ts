@@ -51,6 +51,33 @@ async function rethrow<T>(call: Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * The team behind an account, created on first use: the first invite, or
+ * naming the team while onboarding. Only the owner gets here on a solo
+ * account, since admins exist only in a team.
+ */
+async function ensureOrg(accountId: string, name?: string) {
+  const existing = await orgOf(accountId);
+  if (existing) return existing;
+  const [owner] = await db
+    .select({ name: user.name, email: user.email })
+    .from(user)
+    .where(eq(user.id, accountId));
+  const created = await rethrow(
+    auth.api.createOrganization({
+      body: {
+        userId: accountId,
+        name: name || owner?.name || owner?.email || "My team",
+        slug: accountId.toLowerCase(),
+        ownerUserId: accountId,
+        keepCurrentActiveOrganization: true,
+      },
+    }),
+  );
+  if (!created) throw new ORPCError("INTERNAL_SERVER_ERROR");
+  return { id: created.id, name: created.name };
+}
+
 export const teamRouter = {
   /** Everything the switcher and the Team tab need to decide what to show. */
   overview: protectedProcedure.handler(async ({ context }) => {
@@ -154,28 +181,7 @@ export const teamRouter = {
       if (input.email === context.session.user.email.toLowerCase()) {
         throw new ORPCError("BAD_REQUEST", { message: "That's you." });
       }
-      let org = await orgOf(accountId);
-      if (!org) {
-        // First invite from a solo account: create its team, owned by the
-        // account. Only the owner can get here (admins exist only in a team).
-        const [owner] = await db
-          .select({ name: user.name, email: user.email })
-          .from(user)
-          .where(eq(user.id, accountId));
-        const created = await rethrow(
-          auth.api.createOrganization({
-            body: {
-              userId: accountId,
-              name: owner?.name || owner?.email || "My team",
-              slug: accountId.toLowerCase(),
-              ownerUserId: accountId,
-              keepCurrentActiveOrganization: true,
-            },
-          }),
-        );
-        if (!created) throw new ORPCError("INTERNAL_SERVER_ERROR");
-        org = { id: created.id, name: created.name };
-      }
+      const org = await ensureOrg(accountId);
       await rethrow(
         auth.api.createInvitation({
           headers: context.headers,
@@ -187,6 +193,19 @@ export const teamRouter = {
           },
         }),
       );
+      return { success: true };
+    }),
+
+  /** Names the team, creating it if the account has none yet (onboarding). */
+  rename: accountProcedure("member.manage")
+    .input(z.object({ name: z.string().trim().min(1).max(60) }))
+    .handler(async ({ context, input }) => {
+      const { accountId } = context.account;
+      if (!teamsEnabledFor(accountId)) throw new ORPCError("FORBIDDEN");
+      const org = await ensureOrg(accountId, input.name);
+      if (org.name !== input.name) {
+        await db.update(organization).set({ name: input.name }).where(eq(organization.id, org.id));
+      }
       return { success: true };
     }),
 

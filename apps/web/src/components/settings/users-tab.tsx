@@ -26,7 +26,8 @@ import { toast } from "sonner";
 
 import { authClient, useRole, useSession } from "@/lib/auth-client";
 import { describeAuthError } from "@/lib/auth-errors";
-import { PASSWORD_ONLY, type AuthOptions } from "@/lib/validate-auth-config";
+import { useAuthOptions } from "@/lib/use-auth-options";
+import { PASSWORD_ONLY } from "@/lib/validate-auth-config";
 
 const USERS_KEY = ["openinary", "admin", "users"] as const;
 
@@ -79,22 +80,6 @@ function useUsers(enabled: boolean) {
       return result.data.users as UserRow[];
     },
   });
-}
-
-/** Whether the Add user form asks for a password (SSO-only instances don't). */
-function useAuthOptions() {
-  return useQuery({
-    queryKey: ["openinary", "auth-options"],
-    queryFn: async (): Promise<AuthOptions> => {
-      const res = await fetch("/api/auth/config");
-      if (!res.ok) return PASSWORD_ONLY;
-      const config = await res.json();
-      return typeof config.passwordLogin === "boolean"
-        ? { providers: config.providers ?? [], passwordLogin: config.passwordLogin }
-        : PASSWORD_ONLY;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-  }).data;
 }
 
 /**

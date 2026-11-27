@@ -1,7 +1,20 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { Check, ImageIcon, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Check,
+  CornerDownLeft,
+  ImageIcon,
+  KeyRound,
+  Plus,
+  Upload,
+  User,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,56 +25,116 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Spinner } from "../ui/spinner";
 
-export type OnboardingVariant = "cloud" | "self-hosted";
+import {
+  type OnboardingStepId,
+  type OnboardingVariant,
+  onboardingSteps,
+} from "./steps";
+
+export { onboardingSteps, type OnboardingStepId, type OnboardingVariant };
+
+export type OnboardingInviteRole = "member" | "admin";
+
+export interface OnboardingInvite {
+  email: string;
+  role: OnboardingInviteRole;
+}
 
 export interface OnboardingAnswers {
+  /** "My team" on the first step. Always false for someone joining. */
+  team: boolean;
+  /** Who they are (solo) or how big the team is: a slug, "invited" when joining. */
+  role: string;
   /** 128px square data URL, or null for none. */
   image: string | null;
   name: string;
-  role: string;
+  /** The team's name, asked when `team`. */
+  teamName: string;
+  /** Solo: cloud's bucket, or the self-hosted workspace. */
   workspaceName: string;
   /** Self-hosted only: 128px square data URL, or null for the default mark. */
   workspaceLogo: string | null;
-  /** Cloud only, free text. */
-  workspaceDescription: string;
   useCases: string[];
-  /** Null when the last step was skipped. */
+  /** Null when the step was skipped. */
   source: string | null;
+  /** Cloud, team: filled rows only once onComplete gets them. */
+  invites: OnboardingInvite[];
+  /** Self-hosted, team: open Settings › Users once done. */
+  thenAddPeople: boolean;
+}
+
+/** One card on cloud's plan step. Built by the caller from @openinary/plans. */
+export interface OnboardingPlan {
+  id: string;
+  name: string;
+  badge?: string;
+  price: string;
+  priceNote: string;
+  note: string;
+  features: ReactNode[];
+  /** Picking it goes through onUpgrade (a checkout) rather than straight on. */
+  paid: boolean;
+  /** The account is on it already. */
+  current: boolean;
+  cta: string;
 }
 
 export interface OnboardingProps {
   variant: OnboardingVariant;
   user: { name?: string | null; image?: string | null };
-  /** Current workspace (cloud: the active bucket). No name derives one from the user's. */
+  /** The solo workspace (cloud: the active bucket). No name derives one from the user's. */
   workspace: { name?: string; logo?: string | null };
   /**
-   * Shows the workspace step without letting this user change it, for a
-   * workspace someone else manages (self-hosted: only admins do). No name
-   * then reads "Openinary" rather than one derived from the user's, and
-   * onComplete gets the workspace back as it was passed.
+   * Set when this person joins a workspace someone else runs (cloud: a team
+   * they were invited to; self-hosted: anyone but an admin). They are shown
+   * it and only asked about themselves.
    */
-  workspaceReadOnly?: boolean;
-  /** Shown under the last step's buttons, e.g. where the answers go. */
+  joining?: { name: string; logo?: string | null; detail: string };
+  /** Cloud: the plan step's cards. Without them there is no plan step. */
+  plans?: OnboardingPlan[];
+  /** Cloud: people the current plan allows, owner included. */
+  seatLimit?: number;
+  /** Self-hosted: the single sign-on providers this instance has set up. */
+  providers?: { id: string; name: string }[];
+  /** Picks up where a checkout left off. */
+  resume?: { answers: OnboardingAnswers; step: OnboardingStepId };
+  /** Shown under the source step, e.g. where the answers go. */
   note?: ReactNode;
+  /**
+   * A paid plan was picked. `next` is the step to come back to, or null when
+   * the plan step was the last one and the answers are final. A throw keeps
+   * the user on the step with a toast.
+   */
+  onUpgrade?: (
+    answers: OnboardingAnswers,
+    next: OnboardingStepId | null,
+  ) => Promise<void>;
   /** Persists the answers. A throw keeps the user on the last step with a toast. */
   onComplete: (answers: OnboardingAnswers) => Promise<void>;
-  /** Fires each time a step is left forwards, for analytics. Steps are 0-3. */
+  /** Fires each time a step is left forwards, for analytics. */
   onStepComplete?: (
-    step: number,
+    step: OnboardingStepId,
+    index: number,
     answers: OnboardingAnswers,
     skipped: boolean,
   ) => void;
 }
 
 // Values are what gets stored and tracked, so they stay stable slugs even when
-// a label is reworded.
-export const ONBOARDING_ROLES = [
+// a label is reworded. The team sizes keep the slugs the single role question
+// used before "Just me" and "My team" split it.
+export const ONBOARDING_SOLO_ROLES = [
   { value: "student", label: "Student" },
   { value: "solo", label: "Solo developer" },
-  { value: "agency", label: "Agency or freelancer" },
-  { value: "startup", label: "Small team (2-10)" },
-  { value: "growing", label: "Company (11-50)" },
-  { value: "enterprise", label: "Organization (51+)" },
+  { value: "freelancer", label: "Freelancer" },
+  { value: "exploring", label: "Just exploring" },
+];
+
+export const ONBOARDING_TEAM_SIZES = [
+  { value: "startup", label: "2 to 10" },
+  { value: "growing", label: "11 to 50" },
+  { value: "enterprise", label: "51 or more" },
+  { value: "agency", label: "Agency for clients" },
 ];
 
 export const ONBOARDING_USE_CASES = [
@@ -92,33 +165,34 @@ export const ONBOARDING_SOURCES = [
   { value: "other", label: "Other" },
 ];
 
+/** The role an invited person's answers are filed under. */
+export const ONBOARDING_JOINING_ROLE = "invited";
+
+const AUTH_DOCS_URL = "https://openinary.dev/docs/configuration/authentication";
+
 const COPY = {
   cloud: {
-    workspaceTitle: "Let's set up your bucket",
-    workspaceSubtitle:
-      "Buckets keep projects apart. This is how this one appears across Openinary.",
-    logoLabel: null,
-    nameLabel: "Bucket name",
-    descriptionLabel: "What will it hold? (optional)",
+    noun: "Openinary",
+    soloDescription: "Your media, your keys",
+    teamDescription: "Shared buckets, files and keys",
+    workspaceLabel: "Bucket name",
+    workspaceHint: "Buckets keep projects apart. You can add more later.",
+    teamHint: "Your team sees this name in the account switcher and in invitation emails.",
     defaultName: (first: string) => `${first}'s bucket`,
   },
   "self-hosted": {
-    workspaceTitle: "Let's set up your workspace",
-    workspaceSubtitle: "This is how your dashboard appears in the sidebar.",
-    logoLabel: "Workspace logo",
-    nameLabel: "Workspace name",
-    descriptionLabel: null,
-    defaultName: (first: string) => `${first}'s Team`,
+    noun: "this instance",
+    soloDescription: "One account, your media",
+    teamDescription: "Accounts, roles and single sign-on",
+    workspaceLabel: "Workspace name",
+    workspaceHint: "Shown in the sidebar. Change it anytime in Settings › Workspace.",
+    teamHint: "The name and logo show in the sidebar for everyone on this instance.",
+    defaultName: (first: string) => `${first}'s workspace`,
   },
 } satisfies Record<OnboardingVariant, unknown>;
 
-/** The workspace step when workspaceReadOnly is set. */
-const READ_ONLY_COPY = {
-  workspaceTitle: "Your team's workspace",
-  workspaceSubtitle:
-    "Everyone here shares this workspace. Its name and logo are managed by your admins.",
-  fallbackName: "Openinary",
-};
+// Deliberately loose: the server checks the address, this only catches typos.
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Night sky over a blue horizon, fading into the page so the bottom stays plain. */
 const SKY =
@@ -163,7 +237,6 @@ function OpeninaryMark({ className }: { className?: string }) {
   );
 }
 
-const STEPS = 4;
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
@@ -204,6 +277,12 @@ function shake(element: HTMLElement | null | undefined) {
   // Reading a layout property restarts the animation on the next add.
   void element.offsetWidth;
   element.classList.add("ds-shake");
+  // Off again once played, so a field fixed since doesn't keep the look.
+  element.addEventListener(
+    "animationend",
+    () => element.classList.remove("ds-shake"),
+    { once: true },
+  );
   (element.matches("input, textarea, button")
     ? element
     : element.querySelector<HTMLElement>("button, input")
@@ -318,65 +397,63 @@ export function ImagePicker({
   );
 }
 
-function ImageField({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string | null;
-  onChange: (value: string | null) => void;
-}) {
-  return (
-    <Field label={label} htmlFor={id}>
-      <ImagePicker id={id} value={value} onChange={onChange} />
-    </Field>
-  );
-}
-
-const choiceClass =
-  "flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-[9px] bg-(--ds-raised) px-3 py-2 text-left text-[13px]/4 text-ds-secondary shadow-(--ds-raised-shadow) outline-none transition-[color,background-color,box-shadow,scale] duration-150 hover:text-ds-text focus-visible:outline-2 focus-visible:outline-ds-ring focus-visible:outline-offset-2 active:scale-[0.985] motion-reduce:active:scale-100";
+const raisedClass =
+  "cursor-pointer bg-(--ds-raised) shadow-(--ds-raised-shadow) outline-none transition-[color,background-color,box-shadow,scale] duration-150 focus-visible:outline-2 focus-visible:outline-ds-ring focus-visible:outline-offset-2 active:scale-[0.985] motion-reduce:active:scale-100";
+const choiceClass = cn(
+  raisedClass,
+  "flex min-h-9 items-center justify-between gap-2 rounded-[9px] px-3 py-2 text-left text-[13px]/4 text-ds-secondary hover:text-ds-text",
+);
 const choiceOnClass =
   "bg-ds-subtle text-ds-text shadow-[inset_0_1px_2px_rgb(0_0_0/0.08),0_0_0_1px_var(--ds-ring)]";
 
-/** One answer out of a few: a grid of raised rows, the picked one ringed. */
+/**
+ * A few raised options, the picked ones ringed: radios by default, toggles
+ * with `multiple`. A grid of rows, or pills that wrap.
+ */
 function Choices({
   label,
-  value,
   options,
-  onChange,
+  isOn,
+  onPick,
   invalid,
+  multiple = false,
+  wrap = false,
 }: {
   label: string;
-  value: string | null;
   options: { value: string; label: string }[];
-  onChange: (value: string) => void;
+  isOn: (value: string) => boolean;
+  onPick: (value: string) => void;
   invalid?: boolean;
+  multiple?: boolean;
+  wrap?: boolean;
 }) {
   return (
     <div
-      role="radiogroup"
+      role={multiple ? "group" : "radiogroup"}
       aria-label={label}
       aria-invalid={invalid || undefined}
       data-missing={invalid || undefined}
-      className="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+      className={
+        wrap
+          ? "flex flex-wrap gap-1.5"
+          : "grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+      }
     >
       {options.map((option) => {
-        const on = option.value === value;
+        const on = isOn(option.value);
         return (
-          // biome-ignore lint/a11y/useSemanticElements: a styled radio row
+          // biome-ignore lint/a11y/useSemanticElements: a styled radio or toggle
           <button
             key={option.value}
             type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => onChange(option.value)}
-            className={cn(choiceClass, on && choiceOnClass)}
+            role={multiple ? undefined : "radio"}
+            aria-checked={multiple ? undefined : on}
+            aria-pressed={multiple ? on : undefined}
+            onClick={() => onPick(option.value)}
+            className={cn(choiceClass, wrap && "min-h-8", on && choiceOnClass)}
           >
             {option.label}
-            {on && (
+            {on && !wrap && (
               <Check
                 className="mi-pop size-3.5 shrink-0 text-ds-blue"
                 strokeWidth={2.4}
@@ -385,6 +462,244 @@ function Choices({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** "Just me" or "My team": two big cards with an icon and a radio dot. */
+function WhoOption({
+  on,
+  title,
+  description,
+  icon,
+  onClick,
+}: {
+  on: boolean;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a styled radio card
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      aria-label={`${title}: ${description}`}
+      onClick={onClick}
+      className={cn(
+        raisedClass,
+        "relative flex flex-col items-start gap-2.5 rounded-[12px] p-3.5 text-left",
+        on && "bg-ds-subtle shadow-[0_0_0_1.5px_var(--ds-ring)]",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-7 items-center justify-center rounded-[8px] bg-ds-hover text-ds-secondary inset-ring inset-ring-ds-border [&_svg]:size-3.5",
+          on && "bg-(--ds-raised) text-ds-blue",
+        )}
+      >
+        {icon}
+      </span>
+      <span>
+        <span className="block font-semibold text-[13.5px]/[18px] text-ds-text">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-[12.5px]/[17px] text-ds-muted">
+          {description}
+        </span>
+      </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute top-3.5 right-3.5 size-4 rounded-full border-[1.5px] border-ds-border-hover bg-(--ds-raised) transition-[border-width,border-color] duration-150",
+          on && "border-[5px] border-ds-blue",
+        )}
+      />
+    </button>
+  );
+}
+
+/** A square image with a small upload badge, opening a file picker. */
+function AvatarPicker({
+  id,
+  label,
+  value,
+  fallback,
+  round,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string | null;
+  fallback: ReactNode;
+  round?: boolean;
+  onChange: (value: string | null) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={() => input.current?.click()}
+        className={cn(
+          "flex size-12 cursor-pointer items-center justify-center overflow-hidden bg-ds-avatar font-semibold text-[18px] text-ds-secondary outline-none inset-ring inset-ring-ds-border focus-visible:outline-2 focus-visible:outline-ds-ring focus-visible:outline-offset-2",
+          round ? "rounded-full" : "rounded-[12px]",
+        )}
+      >
+        {value ? (
+          <img src={value} alt="" className="size-full object-cover" />
+        ) : (
+          fallback
+        )}
+      </button>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-[7px] bg-(--ds-raised) text-ds-secondary shadow-(--ds-raised-shadow)"
+      >
+        <Upload className="size-2.5" strokeWidth={2.4} />
+      </span>
+      <input
+        ref={input}
+        id={id}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="sr-only"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          try {
+            onChange(await toSquareDataUrl(file));
+          } catch {
+            toast.error("That image could not be read. Try a PNG or JPEG.");
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+const initial = (name: string) => name.trim().charAt(0).toUpperCase() || "?";
+
+/** The workspace someone joins: its logo, name and what they join as. */
+function JoiningCard({
+  joining,
+}: {
+  joining: NonNullable<OnboardingProps["joining"]>;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-[12px] bg-ds-hover px-3 py-3 inset-ring inset-ring-ds-border">
+      <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-ds-panel font-semibold text-[14px] text-ds-secondary inset-ring inset-ring-ds-border">
+        {joining.logo ? (
+          <img src={joining.logo} alt="" className="size-full object-cover" />
+        ) : (
+          initial(joining.name)
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate font-medium text-[14px]/5">{joining.name}</p>
+        <p className="text-[12.5px]/[18px] text-ds-muted">{joining.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function PlanCard({
+  plan,
+  highlighted,
+  busy,
+  disabled,
+  onPick,
+}: {
+  plan: OnboardingPlan;
+  highlighted: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col overflow-hidden rounded-[14px] bg-(--ds-raised) shadow-(--ds-raised-shadow)",
+        highlighted && "shadow-[0_0_0_1.5px_var(--ds-ring)]",
+      )}
+    >
+      <div className="border-ds-divider border-b px-4.5 pt-4.5 pb-4">
+        <p className="flex items-center gap-2 font-semibold text-[13px] text-ds-secondary">
+          {plan.name}
+          {plan.badge && (
+            <span className="rounded-full bg-ds-blue/10 px-1.5 font-medium text-[11.5px]/[18px] text-ds-blue">
+              {plan.badge}
+            </span>
+          )}
+          {plan.current && (
+            <span className="rounded-full bg-ds-hover px-1.5 font-medium text-[11.5px]/[18px] text-ds-muted">
+              Current
+            </span>
+          )}
+        </p>
+        <p className="mt-2.5 font-semibold text-[28px]/8 tracking-[-0.02em]">
+          {plan.price}{" "}
+          <span className="font-normal text-[13px] text-ds-muted tracking-normal">
+            {plan.priceNote}
+          </span>
+        </p>
+        <p className="mt-1 text-[12.5px]/[18px] text-ds-muted">{plan.note}</p>
+      </div>
+      <ul className="flex flex-1 flex-col gap-2 px-4.5 py-3.5 text-[13px]/[18px] text-ds-secondary">
+        {plan.features.map((feature, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed list
+          <li key={i} className="flex gap-2">
+            <Check className="mt-0.5 size-3.5 shrink-0 text-ds-muted" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="px-4.5 pb-4.5">
+        <Button
+          type="button"
+          variant={highlighted ? "default" : "outline"}
+          className="w-full"
+          disabled={disabled}
+          onClick={onPick}
+        >
+          {busy && <Spinner className="size-3.5" />}
+          {plan.cta}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** A row on the self-hosted team step: icon, what it is, one action. */
+function AccessRow({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: ReactNode;
+  description: string;
+  action: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 border-ds-divider border-t px-3.5 py-3 first:border-t-0">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-ds-hover text-ds-secondary inset-ring inset-ring-ds-border [&_svg]:size-3.5">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-2 font-medium text-[13.5px]/[18px]">
+          {title}
+        </p>
+        <p className="mt-0.5 text-[12.5px]/[17px] text-ds-muted">
+          {description}
+        </p>
+      </div>
+      {action}
     </div>
   );
 }
@@ -419,79 +734,128 @@ function StepFrame({ children }: { children: ReactNode }) {
   );
 }
 
+const BLANK_INVITE: OnboardingInvite = { email: "", role: "member" };
+
 /**
- * First-run questionnaire, shared by cloud and self-hosted: one card, four
- * short steps, a segmented progress bar. Continue stays clickable when an
- * answer is missing, so the click can point at it. Persisting and tracking
- * the answers is the caller's job (onComplete), since the two products store
- * them in different places.
+ * First-run questionnaire, shared by cloud and self-hosted: one card, a few
+ * short steps, a segmented progress bar. The first step asks whether this is
+ * for one person or a team, and the last ones set the team up (cloud: the
+ * plan and invitations; self-hosted: how people sign in). Someone joining a
+ * workspace another person runs only answers the questions about themselves.
+ *
+ * Continue stays clickable when an answer is missing, so the click can point
+ * at it. Persisting and tracking the answers is the caller's job
+ * (onComplete), since the two products store them in different places.
  */
 export function Onboarding({
   variant,
   user,
   workspace,
-  workspaceReadOnly = false,
+  joining,
+  plans,
+  seatLimit,
+  providers,
+  resume,
   note,
+  onUpgrade,
   onComplete,
   onStepComplete,
 }: OnboardingProps) {
   const copy = COPY[variant];
-  const sharedName = workspace.name?.trim() || READ_ONLY_COPY.fallbackName;
   const form = useRef<HTMLFormElement>(null);
-  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<OnboardingAnswers>(
+    () =>
+      resume?.answers ?? {
+        team: false,
+        role: joining ? ONBOARDING_JOINING_ROLE : "",
+        image: user.image ?? null,
+        name: user.name ?? "",
+        teamName: "",
+        workspaceName:
+          workspace.name ??
+          (user.name?.trim() ? copy.defaultName(user.name.trim().split(/\s+/)[0]) : ""),
+        workspaceLogo: workspace.logo ?? null,
+        useCases: [],
+        source: null,
+        invites: [],
+        thenAddPeople: false,
+      },
+  );
+  const steps = onboardingSteps(variant, {
+    team: answers.team,
+    joining: !!joining,
+    plans: !!plans?.length,
+  });
+  const [index, setIndex] = useState(() =>
+    Math.max(0, resume ? steps.indexOf(resume.step) : 0),
+  );
+  const step = steps[index] ?? steps[0];
+  const last = index === steps.length - 1;
+  // Rows being typed on the invite step, blanks included.
+  const [inviteRows, setInviteRows] = useState<OnboardingInvite[]>(() =>
+    resume?.answers.invites.length
+      ? resume.answers.invites
+      : [{ ...BLANK_INVITE }, { ...BLANK_INVITE }],
+  );
   const [direction, setDirection] = useState(1);
   // The step Continue was last pressed on with something missing.
-  const [tried, setTried] = useState(-1);
+  const [tried, setTried] = useState<OnboardingStepId | null>(null);
   const [saving, setSaving] = useState(false);
-  const [answers, setAnswers] = useState<OnboardingAnswers>(() => ({
-    image: user.image ?? null,
-    name: user.name ?? "",
-    role: "",
-    workspaceName: workspace.name ?? "",
-    workspaceLogo: workspace.logo ?? null,
-    workspaceDescription: "",
-    useCases: [],
-    source: null,
-  }));
+  const [upgrading, setUpgrading] = useState(false);
   const set = (patch: Partial<OnboardingAnswers>) =>
     setAnswers((current) => ({ ...current, ...patch }));
 
+  const filledInvites = inviteRows.filter((row) => row.email.trim());
+  // Seats left once the owner (and anyone already there) is counted.
+  const freeSeats = seatLimit === undefined ? Infinity : seatLimit - 1;
   const missing = {
-    name: step === 0 && !answers.name.trim(),
-    role: step === 0 && !answers.role,
+    role: step === "who" && !answers.role,
+    teamName:
+      (step === "who" || step === "profile") &&
+      answers.team &&
+      !answers.teamName.trim(),
+    name: step === "profile" && !answers.name.trim(),
     workspaceName:
-      step === 1 && !workspaceReadOnly && !answers.workspaceName.trim(),
-    useCases: step === 2 && answers.useCases.length === 0,
-    source: step === 3 && !answers.source,
+      step === "profile" &&
+      !joining &&
+      !answers.team &&
+      !answers.workspaceName.trim(),
+    useCases: step === "use_cases" && answers.useCases.length === 0,
+    source: step === "source" && !answers.source,
+    invites:
+      step === "invite" &&
+      (filledInvites.some((row) => !EMAIL.test(row.email.trim())) ||
+        filledInvites.length > freeSeats),
   };
   const canContinue = !Object.values(missing).some(Boolean);
   const flagged = (field: keyof typeof missing) =>
     tried === step && missing[field];
 
   const go = (next: number) => {
-    setDirection(next > step ? 1 : -1);
-    setStep(next);
+    setDirection(next > index ? 1 : -1);
+    setIndex(next);
   };
 
-  const advance = async (final: OnboardingAnswers, skipped = false) => {
-    onStepComplete?.(step, final, skipped);
-    if (step === 0 && !workspaceReadOnly && !final.workspaceName.trim()) {
-      set({
-        workspaceName: copy.defaultName(final.name.trim().split(/\s+/)[0]),
-      });
-    }
-    if (step < STEPS - 1) {
-      go(step + 1);
-      return;
-    }
+  const finalAnswers = (
+    current: OnboardingAnswers,
+    invites = filledInvites,
+  ): OnboardingAnswers => ({
+    ...current,
+    name: current.name.trim(),
+    teamName: current.teamName.trim(),
+    workspaceName: current.workspaceName.trim(),
+    invites: current.team
+      ? invites.map((row) => ({ ...row, email: row.email.trim() }))
+      : [],
+  });
+
+  const finish = async (
+    final: OnboardingAnswers,
+    invites = filledInvites,
+  ) => {
     setSaving(true);
     try {
-      await onComplete({
-        ...final,
-        name: final.name.trim(),
-        workspaceName: final.workspaceName.trim(),
-        workspaceDescription: final.workspaceDescription.trim(),
-      });
+      await onComplete(finalAnswers(final, invites));
       // The dashboard is opening behind the card: mark the moment once.
       setTimeout(() => {
         celebrate();
@@ -505,8 +869,15 @@ export function Onboarding({
     }
   };
 
+  const advance = (final: OnboardingAnswers, skipped = false) => {
+    onStepComplete?.(step, index, final, skipped);
+    if (last) return void finish(final);
+    go(index + 1);
+  };
+
   const submit = () => {
-    if (saving) return;
+    // The plan step moves on through its cards, never a bare Enter.
+    if (saving || upgrading || step === "plan") return;
     if (canContinue) return void advance(answers);
     setTried(step);
     // After the render that marks what is missing.
@@ -515,11 +886,73 @@ export function Onboarding({
     );
   };
 
+  // Enter continues wherever focus is, as the key on Continue promises: on a
+  // picked option, on nothing at all, or in a field (where the form would
+  // submit on its own, so the default is stopped to avoid a double submit).
+  // Links, selects and the other buttons (Back, Skip, Add another...) keep
+  // their own Enter.
+  const submitRef = useRef(submit);
+  submitRef.current = submit;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key !== "Enter" ||
+        e.isComposing ||
+        e.repeat ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        e.shiftKey
+      ) {
+        return;
+      }
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest("a, select, textarea")) return;
+      if (
+        target instanceof HTMLButtonElement &&
+        target.type === "button" &&
+        !target.closest('[role="radiogroup"], [role="group"]')
+      ) {
+        return;
+      }
+      e.preventDefault();
+      submitRef.current();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const skip = () => {
-    const skipped =
-      step === 2 ? { useCases: [] } : { source: null as string | null };
-    set(skipped);
-    void advance({ ...answers, ...skipped }, true);
+    const patch: Partial<OnboardingAnswers> =
+      step === "use_cases"
+        ? { useCases: [] }
+        : step === "source"
+          ? { source: null }
+          : {};
+    const final = { ...answers, ...patch };
+    set(patch);
+    if (step === "invite") {
+      onStepComplete?.(step, index, final, true);
+      return void finish(final, []);
+    }
+    advance(final, true);
+  };
+
+  const pickPlan = async (plan: OnboardingPlan) => {
+    if (!plan.paid || plan.current || !onUpgrade) return advance(answers);
+    onStepComplete?.(step, index, answers, false);
+    setUpgrading(true);
+    try {
+      await onUpgrade(
+        finalAnswers(answers),
+        last ? null : (steps[index + 1] ?? null),
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not open the checkout",
+      );
+      setUpgrading(false);
+    }
   };
 
   const toggleUseCase = (value: string) =>
@@ -529,22 +962,83 @@ export function Onboarding({
         : [...answers.useCases, value],
     });
 
-  const [title, subtitle] = [
-    ["Introduce yourself", "So the dashboard knows what to call you."],
-    workspaceReadOnly
-      ? [READ_ONLY_COPY.workspaceTitle, READ_ONLY_COPY.workspaceSubtitle]
-      : [copy.workspaceTitle, copy.workspaceSubtitle],
-    [
-      "What are you building?",
-      "Pick everything you'd use Openinary for. You can change this later.",
-    ],
-    ["One last thing", "Where did you hear about us?"],
-  ][step];
+  const setInvite = (i: number, patch: Partial<OnboardingInvite>) =>
+    setInviteRows((rows) =>
+      rows.map((row, j) => (j === i ? { ...row, ...patch } : row)),
+    );
+
+  const teamLabel = answers.teamName.trim() || "your team";
+  const [title, subtitle] = (
+    {
+      who: [
+        `Who is ${copy.noun} for?`,
+        "You can invite people later either way.",
+      ],
+      profile: joining
+        ? [
+            `Welcome to ${joining.name}`,
+            "Tell your teammates who you are.",
+          ]
+        : [
+            "What should we call you?",
+            answers.team
+              ? "Your team sees this next to what you upload."
+              : "So the dashboard knows what to call you.",
+          ],
+      use_cases: [
+        joining
+          ? "What will you use Openinary for?"
+          : answers.team
+            ? `What is ${teamLabel} building?`
+            : "What are you building?",
+        "Pick everything you'd use Openinary for. You can change this later.",
+      ],
+      source: [
+        "Where did you hear about us?",
+        "One click, and it helps a solo founder a lot.",
+      ],
+      plan: [
+        answers.team ? `Pick a plan for ${teamLabel}` : "Pick a plan",
+        "Both start at $0. Pay as you go only bills what you use past the included amounts.",
+      ],
+      invite: [
+        `Invite your team to ${teamLabel}`,
+        "They get an email and join with the role you pick. Admins manage people and settings, members upload and organise media.",
+      ],
+      team_access: [
+        `Bring ${teamLabel} onto this instance`,
+        "Everyone signs in to your instance. Pick how they get in, you can do the rest later from Settings › Users.",
+      ],
+    } satisfies Record<OnboardingStepId, [string, string]>
+  )[step];
+
+  const primaryLabel =
+    step === "invite" && filledInvites.length > 0
+      ? `Send ${filledInvites.length} ${filledInvites.length === 1 ? "invite" : "invites"}`
+      : last
+        ? "Open the dashboard"
+        : "Continue";
+  const skippable =
+    step === "use_cases" || step === "source" || step === "invite";
+  const busy = saving || upgrading;
+  const paidPlan = plans?.find((p) => p.paid);
+  const highlightedPlan =
+    plans?.find((p) => p.current && p.paid)?.id ??
+    (answers.team ? paidPlan?.id : plans?.find((p) => !p.paid)?.id);
 
   return (
     <MotionConfig reducedMotion="user">
       <div className={BACKDROP_CLASS} style={{ backgroundImage: SKY }}>
-        <div className="ds-rise mx-auto flex w-full max-w-[460px] flex-1 flex-col justify-center px-4 py-10">
+        <div
+          className={cn(
+            "ds-rise mx-auto flex w-full flex-1 flex-col justify-center px-4 py-10 transition-[max-width] duration-300 ease-swap",
+            step === "plan"
+              ? "max-w-[720px]"
+              : step === "invite" || step === "team_access"
+                ? "max-w-[520px]"
+                : "max-w-[460px]",
+          )}
+        >
           <div className="mb-6 flex items-center justify-center gap-2 text-white">
             <OpeninaryMark className="size-5" />
             <span className="font-semibold text-[17px]/6 tracking-[-0.02em]">
@@ -566,23 +1060,22 @@ export function Onboarding({
                 role="progressbar"
                 aria-label="Setup progress"
                 aria-valuemin={1}
-                aria-valuemax={STEPS}
-                aria-valuenow={step + 1}
+                aria-valuemax={steps.length}
+                aria-valuenow={index + 1}
                 className="flex flex-1 gap-1.5"
               >
-                {Array.from({ length: STEPS }, (_, i) => (
+                {steps.map((id, i) => (
                   <div
-                    // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length list
-                    key={i}
+                    key={id}
                     className={cn(
                       "h-[3px] flex-1 rounded-full transition-colors duration-300",
-                      i <= step ? "bg-ds-blue" : "bg-ds-border-strong",
+                      i <= index ? "bg-ds-blue" : "bg-ds-border-strong",
                     )}
                   />
                 ))}
               </div>
               <span className="shrink-0 text-[12.5px]/4 text-ds-muted tabular-nums">
-                Step {step + 1} of {STEPS}
+                Step {index + 1} of {steps.length}
               </span>
             </div>
 
@@ -619,177 +1112,420 @@ export function Onboarding({
                     </p>
 
                     <div className="mt-6 flex flex-col gap-4">
-                      {step === 0 && (
+                      {step === "who" && (
                         <>
-                          <ImageField
-                            id="onboarding-avatar"
-                            label="Profile picture"
-                            value={answers.image}
-                            onChange={(image) => set({ image })}
-                          />
-                          <Field
-                            label="Your name"
-                            htmlFor="onboarding-name"
-                            error={flagged("name") && "Tell us your name."}
+                          <div
+                            role="radiogroup"
+                            aria-label={`Who is ${copy.noun} for?`}
+                            className="grid grid-cols-2 gap-2"
                           >
-                            <Input
-                              id="onboarding-name"
-                              autoFocus
-                              autoComplete="name"
-                              maxLength={60}
-                              placeholder="Ada Lovelace"
-                              value={answers.name}
-                              data-missing={flagged("name") || undefined}
-                              data-invalid={flagged("name") || undefined}
-                              onChange={(e) => set({ name: e.target.value })}
+                            <WhoOption
+                              on={!answers.team}
+                              title="Just me"
+                              description={copy.soloDescription}
+                              icon={<User />}
+                              onClick={() =>
+                                answers.team && set({ team: false, role: "" })
+                              }
                             />
-                          </Field>
+                            <WhoOption
+                              on={answers.team}
+                              title="My team"
+                              description={copy.teamDescription}
+                              icon={<Users />}
+                              onClick={() =>
+                                !answers.team && set({ team: true, role: "" })
+                              }
+                            />
+                          </div>
+                          {answers.team && (
+                            <Field
+                              label="Team name"
+                              htmlFor="onboarding-team"
+                              error={flagged("teamName") && "Give it a name."}
+                            >
+                              <Input
+                                id="onboarding-team"
+                                autoFocus
+                                maxLength={60}
+                                placeholder="Acme"
+                                value={answers.teamName}
+                                data-missing={flagged("teamName") || undefined}
+                                data-invalid={flagged("teamName") || undefined}
+                                onChange={(e) =>
+                                  set({ teamName: e.target.value })
+                                }
+                              />
+                            </Field>
+                          )}
                           <Field
-                            label="What best describes you?"
+                            label={
+                              answers.team
+                                ? "How many people?"
+                                : "What best describes you?"
+                            }
                             error={flagged("role") && "Choose one."}
                           >
                             <Choices
-                              label="What best describes you?"
-                              value={answers.role || null}
-                              options={ONBOARDING_ROLES}
-                              onChange={(role) => set({ role })}
+                              wrap
+                              label={
+                                answers.team
+                                  ? "How many people?"
+                                  : "What best describes you?"
+                              }
+                              options={
+                                answers.team
+                                  ? ONBOARDING_TEAM_SIZES
+                                  : ONBOARDING_SOLO_ROLES
+                              }
+                              isOn={(value) => answers.role === value}
+                              onPick={(role) => set({ role })}
                               invalid={flagged("role")}
                             />
                           </Field>
                         </>
                       )}
 
-                      {step === 1 && workspaceReadOnly && (
-                        <div className="flex items-center gap-3 rounded-[10px] bg-ds-hover px-3 py-3 inset-ring inset-ring-ds-border">
-                          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ds-panel inset-ring inset-ring-ds-border">
-                            {workspace.logo ? (
-                              <img
-                                src={workspace.logo}
-                                alt=""
-                                className="size-full object-cover"
-                              />
-                            ) : (
-                              <OpeninaryMark className="size-4.5 text-ds-text" />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-[14px]/5">
-                              {sharedName}
-                            </p>
-                            <p className="text-[12.5px]/[18px] text-ds-muted">
-                              Admins can change it in Settings › Workspace.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {step === 1 && !workspaceReadOnly && (
+                      {step === "profile" && (
                         <>
-                          {copy.logoLabel && (
-                            <ImageField
-                              id="onboarding-logo"
-                              label={copy.logoLabel}
-                              value={answers.workspaceLogo}
-                              onChange={(workspaceLogo) =>
-                                set({ workspaceLogo })
-                              }
+                          {joining && <JoiningCard joining={joining} />}
+                          <div className="flex items-end gap-3">
+                            <AvatarPicker
+                              id="onboarding-avatar"
+                              label="Change profile picture"
+                              round
+                              value={answers.image}
+                              fallback={initial(answers.name)}
+                              onChange={(image) => set({ image })}
                             />
-                          )}
-                          <Field
-                            label={copy.nameLabel}
-                            htmlFor="onboarding-workspace"
-                            error={
-                              flagged("workspaceName") && "Give it a name."
-                            }
-                          >
-                            <Input
-                              id="onboarding-workspace"
-                              autoFocus
-                              maxLength={60}
-                              value={answers.workspaceName}
-                              data-missing={
-                                flagged("workspaceName") || undefined
-                              }
-                              data-invalid={
-                                flagged("workspaceName") || undefined
-                              }
-                              onChange={(e) =>
-                                set({ workspaceName: e.target.value })
-                              }
-                            />
-                          </Field>
-                          {copy.descriptionLabel && (
-                            <Field
-                              label={copy.descriptionLabel}
-                              htmlFor="onboarding-description"
-                            >
-                              <textarea
-                                id="onboarding-description"
-                                rows={3}
-                                maxLength={280}
-                                placeholder="Product photos, user avatars, course videos..."
-                                value={answers.workspaceDescription}
-                                onChange={(e) =>
-                                  set({ workspaceDescription: e.target.value })
-                                }
-                                className="w-full resize-none rounded-[8px] border border-ds-border-strong bg-ds-field px-2.5 py-2 text-base text-ds-text outline-none transition-[border-color,box-shadow] placeholder:text-ds-faint hover:border-ds-border-hover focus-visible:border-ds-ring focus-visible:ring-[3px] focus-visible:ring-ds-ring/20 md:text-[13px]/5"
-                              />
-                            </Field>
+                            <div className="min-w-0 flex-1">
+                              <Field
+                                label="Your name"
+                                htmlFor="onboarding-name"
+                                error={flagged("name") && "Tell us your name."}
+                              >
+                                <Input
+                                  id="onboarding-name"
+                                  autoFocus
+                                  autoComplete="name"
+                                  maxLength={60}
+                                  placeholder="Ada Lovelace"
+                                  value={answers.name}
+                                  data-missing={flagged("name") || undefined}
+                                  data-invalid={flagged("name") || undefined}
+                                  onChange={(e) =>
+                                    set({ name: e.target.value })
+                                  }
+                                />
+                              </Field>
+                            </div>
+                          </div>
+                          {!joining && (
+                            <>
+                              <div className="flex items-end gap-3">
+                                {variant === "self-hosted" ? (
+                                  <AvatarPicker
+                                    id="onboarding-logo"
+                                    label="Change logo"
+                                    value={answers.workspaceLogo}
+                                    fallback={initial(
+                                      answers.team
+                                        ? answers.teamName
+                                        : answers.workspaceName,
+                                    )}
+                                    onChange={(workspaceLogo) =>
+                                      set({ workspaceLogo })
+                                    }
+                                  />
+                                ) : (
+                                  <span className="flex size-12 shrink-0 items-center justify-center rounded-[12px] bg-ds-hover font-semibold text-[18px] text-ds-secondary inset-ring inset-ring-ds-border">
+                                    {answers.team ? (
+                                      initial(answers.teamName)
+                                    ) : (
+                                      <ImageIcon className="size-5" />
+                                    )}
+                                  </span>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  {answers.team ? (
+                                    <Field
+                                      label="Team name"
+                                      htmlFor="onboarding-team"
+                                      error={
+                                        flagged("teamName") && "Give it a name."
+                                      }
+                                    >
+                                      <Input
+                                        id="onboarding-team"
+                                        maxLength={60}
+                                        value={answers.teamName}
+                                        data-missing={
+                                          flagged("teamName") || undefined
+                                        }
+                                        data-invalid={
+                                          flagged("teamName") || undefined
+                                        }
+                                        onChange={(e) =>
+                                          set({ teamName: e.target.value })
+                                        }
+                                      />
+                                    </Field>
+                                  ) : (
+                                    <Field
+                                      label={copy.workspaceLabel}
+                                      htmlFor="onboarding-workspace"
+                                      error={
+                                        flagged("workspaceName") &&
+                                        "Give it a name."
+                                      }
+                                    >
+                                      <Input
+                                        id="onboarding-workspace"
+                                        maxLength={60}
+                                        value={answers.workspaceName}
+                                        data-missing={
+                                          flagged("workspaceName") || undefined
+                                        }
+                                        data-invalid={
+                                          flagged("workspaceName") || undefined
+                                        }
+                                        onChange={(e) =>
+                                          set({ workspaceName: e.target.value })
+                                        }
+                                      />
+                                    </Field>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-[12.5px]/[18px] text-ds-muted text-pretty">
+                                {answers.team ? copy.teamHint : copy.workspaceHint}
+                              </p>
+                            </>
                           )}
                         </>
                       )}
 
-                      {step === 2 && (
+                      {step === "use_cases" && (
                         <Field
                           error={
                             flagged("useCases") &&
                             "Pick at least one, or skip this step."
                           }
                         >
-                          {/* biome-ignore lint/a11y/useSemanticElements: a group of toggles */}
-                          <div
-                            role="group"
-                            aria-label="Use cases"
-                            data-missing={flagged("useCases") || undefined}
-                            className="flex flex-wrap gap-1.5"
-                          >
-                            {ONBOARDING_USE_CASES.map((option) => {
-                              const on = answers.useCases.includes(
-                                option.value,
-                              );
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  aria-pressed={on}
-                                  onClick={() => toggleUseCase(option.value)}
-                                  className={cn(
-                                    "h-7 cursor-pointer rounded-full border px-2.5 text-[13px]/4 outline-none transition-[color,background-color,border-color,scale] duration-150 focus-visible:outline-2 focus-visible:outline-ds-ring focus-visible:outline-offset-2 active:scale-[0.97] motion-reduce:active:scale-100",
-                                    on
-                                      ? "border-transparent bg-ds-inverse text-ds-inverse-text"
-                                      : "border-ds-border-strong text-ds-secondary hover:border-ds-border-hover hover:text-ds-text",
-                                  )}
-                                >
-                                  {option.label}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <Choices
+                            multiple
+                            label="Use cases"
+                            options={ONBOARDING_USE_CASES}
+                            isOn={(value) => answers.useCases.includes(value)}
+                            onPick={toggleUseCase}
+                            invalid={flagged("useCases")}
+                          />
                         </Field>
                       )}
 
-                      {step === 3 && (
-                        <Field
-                          error={flagged("source") && "Choose one, or skip."}
-                        >
-                          <Choices
-                            label="Where did you hear about us?"
-                            value={answers.source}
-                            options={ONBOARDING_SOURCES}
-                            onChange={(source) => set({ source })}
-                            invalid={flagged("source")}
+                      {step === "source" && (
+                        <>
+                          <Field
+                            error={flagged("source") && "Choose one, or skip."}
+                          >
+                            <Choices
+                              label="Where did you hear about us?"
+                              options={ONBOARDING_SOURCES}
+                              isOn={(value) => answers.source === value}
+                              onPick={(source) => set({ source })}
+                              invalid={flagged("source")}
+                            />
+                          </Field>
+                          {note && (
+                            <p className="text-[12.5px]/[18px] text-ds-muted text-pretty">
+                              {note}
+                            </p>
+                          )}
+                        </>
+                      )}
+
+                      {step === "plan" && plans && (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {plans.map((plan) => (
+                            <PlanCard
+                              key={plan.id}
+                              plan={plan}
+                              highlighted={plan.id === highlightedPlan}
+                              busy={upgrading && plan.paid}
+                              disabled={busy}
+                              onPick={() => void pickPlan(plan)}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {step === "invite" && (
+                        <>
+                          <div className="flex flex-col gap-1.5">
+                            {inviteRows.map((row, i) => {
+                              const bad =
+                                tried === "invite" &&
+                                !!row.email.trim() &&
+                                !EMAIL.test(row.email.trim());
+                              return (
+                                <div
+                                  // biome-ignore lint/suspicious/noArrayIndexKey: rows have no id until sent
+                                  key={i}
+                                  className="grid grid-cols-[minmax(0,1fr)_112px_28px] items-center gap-1.5"
+                                >
+                                  <Input
+                                    type="email"
+                                    aria-label={`Email ${i + 1}`}
+                                    // The first row on arrival, then each row "Add another" adds.
+                                    autoFocus={i === 0 || i > 1}
+                                    placeholder="teammate@company.com"
+                                    value={row.email}
+                                    data-missing={bad || undefined}
+                                    data-invalid={bad || undefined}
+                                    onChange={(e) =>
+                                      setInvite(i, { email: e.target.value })
+                                    }
+                                  />
+                                  <select
+                                    aria-label={`Role ${i + 1}`}
+                                    value={row.role}
+                                    onChange={(e) =>
+                                      setInvite(i, {
+                                        role: e.target
+                                          .value as OnboardingInviteRole,
+                                      })
+                                    }
+                                    className="h-8 w-full cursor-pointer rounded-[8px] border border-ds-border-strong bg-ds-field px-2 text-[13px] text-ds-text outline-none focus-visible:border-ds-ring focus-visible:ring-[3px] focus-visible:ring-ds-ring/20"
+                                  >
+                                    <option value="member">Member</option>
+                                    <option value="admin">Admin</option>
+                                  </select>
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove row ${i + 1}`}
+                                    disabled={inviteRows.length === 1}
+                                    onClick={() =>
+                                      setInviteRows((rows) =>
+                                        rows.filter((_, j) => j !== i),
+                                      )
+                                    }
+                                    className="flex size-7 cursor-pointer items-center justify-center rounded-[8px] text-ds-muted outline-none hover:bg-ds-hover hover:text-ds-text focus-visible:outline-2 focus-visible:outline-ds-ring disabled:pointer-events-none disabled:opacity-40"
+                                  >
+                                    <X className="size-3.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInviteRows((rows) => [
+                                  ...rows,
+                                  { ...BLANK_INVITE },
+                                ])
+                              }
+                              className="inline-flex h-7.5 cursor-pointer items-center gap-1.5 self-start rounded-[8px] px-2 font-medium text-[13px] text-ds-blue outline-none hover:bg-ds-hover focus-visible:outline-2 focus-visible:outline-ds-ring"
+                            >
+                              <Plus className="size-3.5" />
+                              Add another
+                            </button>
+                          </div>
+                          {seatLimit !== undefined && (
+                            <div
+                              className={cn(
+                                "flex items-center justify-between gap-3 rounded-[10px] bg-ds-hover px-3 py-2.5 text-[12.5px]/[18px] inset-ring inset-ring-ds-border",
+                                filledInvites.length > freeSeats
+                                  ? "text-ds-red"
+                                  : "text-ds-secondary",
+                              )}
+                              role={
+                                filledInvites.length > freeSeats
+                                  ? "alert"
+                                  : undefined
+                              }
+                            >
+                              <span>
+                                {filledInvites.length > freeSeats
+                                  ? seatLimit === 1
+                                    ? "Your plan has one seat, yours. Enable pay as you go to invite people."
+                                    : `Your plan has ${seatLimit} seats, you included. Remove ${filledInvites.length - freeSeats} to continue.`
+                                  : `${1 + filledInvites.length} of ${seatLimit} seats, you included`}
+                              </span>
+                              <span aria-hidden="true" className="flex gap-[3px]">
+                                {Array.from({ length: seatLimit }, (_, i) => (
+                                  <i
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: fixed length
+                                    key={i}
+                                    className={cn(
+                                      "block h-1.5 w-3.5 rounded-[2px]",
+                                      i < 1 + filledInvites.length
+                                        ? "bg-ds-blue"
+                                        : "bg-ds-border-strong",
+                                    )}
+                                  />
+                                ))}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {step === "team_access" && (
+                        <div className="overflow-hidden rounded-[12px] bg-(--ds-raised) shadow-(--ds-raised-shadow)">
+                          <AccessRow
+                            icon={<KeyRound />}
+                            title={
+                              <>
+                                Single sign-on
+                                <span
+                                  className={cn(
+                                    "rounded-full px-1.5 font-medium text-[11.5px]/[18px]",
+                                    providers?.length
+                                      ? "bg-ds-green/10 text-ds-green"
+                                      : "bg-ds-hover text-ds-muted",
+                                  )}
+                                >
+                                  {providers?.length
+                                    ? providers.map((p) => p.name).join(", ")
+                                    : "Not set up"}
+                                </span>
+                              </>
+                            }
+                            description="Google Workspace, Entra, Okta or any OIDC provider"
+                            action={
+                              <Button asChild variant="outline" size="sm">
+                                <a
+                                  href={AUTH_DOCS_URL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Guide
+                                  <ArrowUpRight />
+                                </a>
+                              </Button>
+                            }
                           />
-                        </Field>
+                          <AccessRow
+                            icon={<UserPlus />}
+                            title="Add people"
+                            description="Create accounts and pick each one's role"
+                            action={
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => {
+                                  const final = { ...answers, thenAddPeople: true };
+                                  set({ thenAddPeople: true });
+                                  onStepComplete?.(step, index, final, false);
+                                  void finish(final);
+                                }}
+                              >
+                                Add
+                              </Button>
+                            }
+                          />
+                        </div>
                       )}
                     </div>
                   </motion.div>
@@ -797,44 +1533,51 @@ export function Onboarding({
               </StepFrame>
             </div>
 
-            <div className="mt-6 flex gap-2">
-              {step > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={saving}
-                  onClick={() => go(step - 1)}
-                >
-                  Back
-                </Button>
-              )}
-              {step >= 2 && (
+            <div className="mt-7 flex items-center justify-between gap-2">
+              {index > 0 ? (
                 <Button
                   type="button"
                   variant="ghost"
-                  disabled={saving}
-                  onClick={skip}
+                  className="text-ds-muted"
+                  disabled={busy}
+                  onClick={() => go(index - 1)}
                 >
-                  Skip
+                  <ArrowLeft />
+                  Back
                 </Button>
+              ) : (
+                <span />
               )}
-              {/* aria-disabled, not disabled: a click on an incomplete step
-                  points at what is missing instead of doing nothing. */}
-              <Button
-                type="submit"
-                className="pointer-events-auto! flex-1"
-                aria-disabled={!canContinue || saving}
-              >
-                {saving && <Spinner className="size-3.5" />}
-                {step === STEPS - 1 ? "Open the dashboard" : "Continue"}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {(skippable || step === "plan") && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={step === "plan" ? () => advance(answers, true) : skip}
+                  >
+                    {step === "use_cases" || step === "source"
+                      ? "Skip"
+                      : "Skip for now"}
+                  </Button>
+                )}
+                {step !== "plan" && (
+                  // aria-disabled, not disabled: a click on an incomplete step
+                  // points at what is missing instead of doing nothing.
+                  <Button
+                    type="submit"
+                    className="pointer-events-auto! pr-2"
+                    aria-disabled={!canContinue || busy}
+                  >
+                    {saving && <Spinner className="size-3.5" />}
+                    {primaryLabel}
+                    <kbd className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] bg-current/15 px-1 font-sans">
+                      <CornerDownLeft className="size-3" />
+                    </kbd>
+                  </Button>
+                )}
+              </div>
             </div>
-
-            {step === STEPS - 1 && note && (
-              <p className="mt-4 text-[12.5px]/[18px] text-ds-faint text-pretty">
-                {note}
-              </p>
-            )}
           </form>
         </div>
 

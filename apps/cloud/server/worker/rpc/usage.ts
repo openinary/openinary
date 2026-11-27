@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { planSettingsUrl } from "../config.js";
+import { DASHBOARD_ORIGIN, planSettingsUrl } from "../config.js";
 import { captureEvent } from "../lib/analytics.js";
 import {
   getPaymentMethod,
@@ -93,7 +93,9 @@ export const usageRouter = {
         role: slug,
         useCases: z.array(slug).max(20),
         source: slug.nullable(),
-        bucketDescription: z.string().trim().max(280),
+        team: z.boolean().optional(),
+        // Older clients still send it; the questionnaire no longer asks.
+        bucketDescription: z.string().trim().max(280).optional(),
       }),
     )
     .handler(async ({ context, input }) => {
@@ -102,6 +104,7 @@ export const usageRouter = {
         role: input.role,
         use_cases: input.useCases,
         source: input.source ?? "skipped",
+        ...(input.team !== undefined && { team: input.team }),
       };
       await captureEvent("onboarding_completed", userId, {
         ...answers,
@@ -130,13 +133,20 @@ export const usageRouter = {
 };
 
 export const billingRouter = {
-  checkout: accountProcedure("billing").handler(async ({ context }) => {
-    const paymentUrl = await startUpgradeCheckout(
-      context.account.accountId,
-      planSettingsUrl,
-    );
-    return { paymentUrl };
-  }),
+  /**
+   * `returnTo: "get-started"` brings the onboarding's checkout back to the
+   * dashboard, where an unfinished questionnaire picks up again; a fixed
+   * choice rather than a URL, so this can't be made into an open redirect.
+   */
+  checkout: accountProcedure("billing")
+    .input(z.object({ returnTo: z.enum(["get-started"]).optional() }).optional())
+    .handler(async ({ context, input }) => {
+      const paymentUrl = await startUpgradeCheckout(
+        context.account.accountId,
+        input?.returnTo && DASHBOARD_ORIGIN ? `${DASHBOARD_ORIGIN}/get-started` : planSettingsUrl,
+      );
+      return { paymentUrl };
+    }),
 
   /** Card brand and last four, or null without one on file. */
   paymentMethod: accountProcedure("billing").handler(({ context }) =>
