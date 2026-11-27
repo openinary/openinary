@@ -9,6 +9,11 @@ import type { AppRouter } from "cloud-server/router";
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
+      // A read the role can't make (a member's API keys, the payment method)
+      // is a page detail, not news: the page shows what it can. These mostly
+      // race an account switch, firing with the previous account's role
+      // before the new one is known. Actions (mutations) still say it.
+      if ((error as { code?: unknown }).code === "FORBIDDEN") return;
       toast.error(`Error: ${error.message}`, {
         action: {
           label: "retry",
