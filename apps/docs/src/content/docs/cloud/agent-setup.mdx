@@ -1,0 +1,100 @@
+---
+title: "Connect your AI agent"
+sidebar:
+  label: "Connect your AI agent"
+description: "Connect Claude Code, Cursor, Codex or any MCP client to Openinary Cloud: the MCP server for your files, the openinary skill for integrations and migrations."
+---
+
+These are the official instructions to connect an AI agent to Openinary Cloud. They are written for the agent: paste this to yours.
+
+```text
+Connect Openinary to my coding agent by following https://openinary.dev/docs/cloud/agent-setup/index.md
+```
+
+## For the agent: what this setup does
+
+Connect Openinary, then stop and ask the user what they want. Connecting is not a request to change their project: some people want Openinary integrated into their code, others only a place to store files. Do not edit the project during this setup.
+
+It sets up two things:
+
+- **The Openinary MCP server**, `https://cdn.openinary.dev/mcp`. Tools that act on the user's bucket: list, upload, move, rename, delete, get delivery URLs. Streamable HTTP, OAuth 2.0 with dynamic client registration and PKCE. The user signs in and approves the agent in their browser; there is no API key to handle.
+- **The openinary skill**: how to integrate Openinary into a project and migrate from Cloudinary, loaded only when needed.
+
+## First: can you edit files on this machine?
+
+**No, you are a hosted assistant** (Claude.ai, ChatGPT). You cannot connect yourself: adding a connector is a settings screen only the user can open. Tell them, as a numbered list:
+
+1. Claude: Settings, then Connectors, then **Add custom connector**. ChatGPT: Settings, then Apps and connectors, then **Create** (developer mode).
+2. Paste `https://cdn.openinary.dev/mcp` and approve the Openinary sign-in that opens.
+3. Start a new conversation so the Openinary tools load, and say what you want to do with your files.
+
+Then stop. The rest of this page is for coding agents.
+
+**Yes, you are a coding agent** (Claude Code, Cursor, Codex, VS Code, Windsurf...). Do the steps below yourself. The user only completes the sign-in in their browser.
+
+## 1. Add the MCP server
+
+Claude Code:
+
+```bash
+claude mcp add --transport http --scope user openinary https://cdn.openinary.dev/mcp
+```
+
+Codex:
+
+```bash
+codex mcp add openinary --url https://cdn.openinary.dev/mcp
+```
+
+Cursor: add this to `~/.cursor/mcp.json` (merge it with any servers already there):
+
+```json
+{ "mcpServers": { "openinary": { "url": "https://cdn.openinary.dev/mcp" } } }
+```
+
+Any other client: add `https://cdn.openinary.dev/mcp` as a remote HTTP MCP server named `openinary`.
+
+## 2. Install the openinary skill
+
+```bash
+npx skills add openinary/openinary --skill openinary --global --agent <agent> -y
+```
+
+Replace `<agent>` with your agent id, for example `claude-code`, `cursor` or `codex`. It needs Node.js. If skills are not supported by your agent, skip this step: the docs at https://openinary.dev/docs/llms.txt cover the same ground.
+
+## 3. Sign in
+
+Tell the user a browser tab will open for them to sign in to Openinary (or sign up, it is the same form) and approve this agent. Never ask for an API key or a password in the chat.
+
+Most agents only load a new MCP server and skill after a reload:
+
+- Claude Code: the user runs `/mcp`, picks `openinary` and signs in.
+- Codex: run `codex mcp login openinary` yourself, then start a new session.
+- Cursor and others: restart, or start a new session; the sign-in opens on first use.
+
+Say exactly what the user has to do, then wait for them.
+
+## 4. Verify
+
+Call the Openinary tool `get_account`. It answers with the account's API host and bucket id. If it fails, the sign-in did not complete: ask the user to retry it.
+
+## 5. Report, then ask
+
+Only once `get_account` answered, tell the user:
+
+```text
+Openinary connected
+-------------------------------------------
+✓ MCP server: openinary
+✓ Skill: openinary (or: skipped)
+✓ Signed in, bucket <bucket id>
+```
+
+Then ask what they want to do, for example:
+
+- integrate Openinary into this project, or one part of it first
+- migrate from Cloudinary
+- upload, organize or share files from this chat
+- something else
+
+Do only what they pick. For an integration or a migration, follow the openinary skill, or without it, the docs: [Cloud file uploader](/cloud/file-uploader) and [Migrate from Cloudinary](/migrate-from-cloudinary).

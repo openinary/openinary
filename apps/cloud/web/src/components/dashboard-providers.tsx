@@ -11,11 +11,11 @@ import {
   agentSetupPrompt,
   aiPrompt,
 } from "@/components/get-started/integration-snippets";
+import { useAccount } from "@/hooks/use-account";
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { dashboardAnalytics } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
-import { useAccount } from "@/hooks/use-account";
 
 export const FILE_UPLOADER_DOCS =
   "https://docs.openinary.dev/cloud/file-uploader";
@@ -148,7 +148,7 @@ const adapter: DashboardAdapter = {
     deliveryBase: "https://api.openinary.dev/b/bucket",
     bucketId: "bucket",
   }),
-  agentSetupPrompt: agentSetupPrompt(`${SERVER_URL}/mcp`),
+  agentSetupPrompt,
   useConnectedAgents,
   analytics: dashboardAnalytics,
 };

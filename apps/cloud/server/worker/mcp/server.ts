@@ -9,7 +9,6 @@
 
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { aiPrompt } from "../../shared/ai-prompt.js";
 import { AUTH_URL, DASHBOARD_ORIGIN } from "../config.js";
 import { activeBucketFor, resolveAccount } from "../lib/account.js";
 import type { App, Ctx } from "../routes/tenant.js";
@@ -83,57 +82,33 @@ export async function handleMcp(c: Ctx, app: App): Promise<Response> {
   };
 
   const factory = () => {
-    const server = new McpServer({ name: "openinary", version: "1.0.0" });
-
-    server.registerTool(
-      "setup_project",
+    const server = new McpServer(
+      { name: "openinary", version: "1.0.0" },
       {
-        title: "Set up Openinary in this project",
-        description:
-          "Step-by-step instructions to add Openinary uploads and media delivery to the project you are working in, prefilled with this account's bucket and URLs. Call this first when the user asks to set up or integrate Openinary, then follow what it returns.",
-        annotations: { readOnlyHint: true },
+        // Connecting is not a request to change the project: some people
+        // only want somewhere to put files.
+        instructions: `Openinary is media storage and delivery: files in the user's bucket, served with on-the-fly transformations. Connecting this server is not a request to change the project. Unless the user already said what they want, ask them first: integrate Openinary into the project or one part of it, migrate from Cloudinary, or just store and manage files (list_files, create_upload_url, create_folder, move, rename, delete, get_file). Do only what they pick. For integrating or migrating, use the openinary skill if it is installed (npx skills add openinary/openinary --skill openinary), otherwise the docs at ${DOCS}/llms.txt, with this account's values from get_account.`,
       },
-      async () =>
-        text(
-          `${aiPrompt({ apiBaseUrl: AUTH_URL, deliveryBase, bucketId })}
-## Keys
-
-The user creates OPENINARY_API_KEY at ${DASHBOARD_ORIGIN}/settings/api-keys
-and writes it into the backend environment themselves. Never ask for it in
-this chat, and never create one through any tool.`,
-        ),
     );
 
     server.registerTool(
-      "migrate_from_cloudinary",
+      "get_account",
       {
-        title: "Migrate this project from Cloudinary",
+        title: "This account's Openinary values",
         description:
-          "Instructions to move a project that uses Cloudinary over to Openinary: how URLs and transformations map, and how to copy existing assets. Call this instead of setup_project when the project already uses Cloudinary.",
+          "The API host, bucket id and public delivery base of the account this agent is connected to. Call it before writing any Openinary URL or config, and fill the placeholders of the Openinary skill's guides with it.",
         annotations: { readOnlyHint: true },
       },
       async () =>
-        text(`# Migrate from Cloudinary to Openinary
-
-Read the full guide first: ${DOCS}/migrate-from-cloudinary.md
-(page index: ${DOCS}/llms.txt)
-
-This account's values:
-- API host:  ${AUTH_URL}
-- Delivery:  ${deliveryBase}/t/{transformations}/{path}
-- Bucket id: ${bucketId}
-
-1. Inventory: find every Cloudinary URL builder, SDK call and upload widget in
-   the repository, and report them to the user before changing anything.
-2. Copy assets: for each original the project needs, upload it with
-   create_upload_url (one signature per folder), keeping the same path so the
-   rewritten URLs line up. Check the result with list_files.
-3. Rewrite delivery URLs with the mapping in the guide. Transformations go in
-   the /t/ segment; a bare /t/<path> serves the original.
-4. Replace the upload flow with the one setup_project describes.
-5. Remove the Cloudinary SDK and its environment variables only once every
-   reference is gone, and tell the user which ones to delete from their
-   hosting provider.`),
+        text({
+          apiHost: AUTH_URL,
+          bucketId,
+          deliveryBase,
+          deliveryUrl: `${deliveryBase}/t/{transformations}/{path}`,
+          originalUrl: `${deliveryBase}/t/{path}`,
+          apiKeys: `${DASHBOARD_ORIGIN}/settings/api-keys`,
+          note: "OPENINARY_API_KEY is created by the user in the dashboard and written into the backend environment by them. Never ask for it in chat.",
+        }),
     );
 
     server.registerTool(
