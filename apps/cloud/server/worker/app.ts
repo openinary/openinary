@@ -144,6 +144,33 @@ app.use("/admin/*", requireAdmin);
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
+// MCP: agents are not browsers on the dashboard's origin, and nothing here
+// rides on cookies (the bearer token is the whole credential), so any origin
+// may call these. WWW-Authenticate is exposed because it is how an MCP client
+// finds the OAuth server on its first, unauthenticated request.
+const mcpCors = cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+  allowHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Mcp-Protocol-Version",
+    "Mcp-Session-Id",
+    "Last-Event-ID",
+  ],
+  exposeHeaders: ["WWW-Authenticate", "Mcp-Session-Id"],
+});
+app.use("/mcp", mcpCors);
+app.use("/.well-known/*", mcpCors);
+// OAuth discovery (authorization server and protected resource metadata):
+// served by the mcp() plugin in the auth instance, at the root paths the
+// specs fix rather than under /api/auth.
+app.get("/.well-known/*", (c) => auth.handler(c.req.raw));
+app.all("/mcp", async (c) => {
+  const { handleMcp } = await import("./mcp/server.js");
+  return handleMcp(c, app);
+});
+
 const orpcHandler = new RPCHandler(appRouter);
 app.use("/api/rpc/*", async (c, next) => {
   const headers = c.req.raw.headers;

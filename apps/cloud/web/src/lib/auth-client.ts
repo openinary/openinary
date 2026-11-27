@@ -1,3 +1,4 @@
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import {
   adminClient,
   emailOTPClient,
@@ -19,5 +20,9 @@ export const authClient = createAuthClient({
     lastLoginMethodClient(),
     adminClient(),
     organizationClient(),
+    // The MCP OAuth flow (see the server's mcp() plugin): sends the signed
+    // authorization request back with sign-in and consent calls, so signing
+    // in on "/" mid-flow carries on to the consent page.
+    oauthProviderClient(),
   ],
 });

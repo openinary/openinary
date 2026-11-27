@@ -7,7 +7,10 @@ import Link from "next/link";
 import { notFound, usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
-import { aiPrompt } from "@/components/get-started/integration-snippets";
+import {
+  agentSetupPrompt,
+  aiPrompt,
+} from "@/components/get-started/integration-snippets";
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { dashboardAnalytics } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
@@ -124,6 +127,7 @@ const adapter: DashboardAdapter = {
     deliveryBase: "https://api.openinary.dev/b/bucket",
     bucketId: "bucket",
   }),
+  agentSetupPrompt: agentSetupPrompt(`${SERVER_URL}/mcp`),
   analytics: dashboardAnalytics,
 };
 

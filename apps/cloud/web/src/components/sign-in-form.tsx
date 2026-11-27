@@ -244,6 +244,13 @@ export default function SignInForm({
           // and the "/" gate swaps this form for the dashboard. Signing *up*
           // does - a brand new account has nothing to show in the library.
           onSuccess: ({ data }) => {
+            // Mid MCP OAuth flow, the server answers with where to go next
+            // (the consent page, or straight back to the agent).
+            const next = data as { redirect?: boolean; url?: string };
+            if (next.redirect && next.url) {
+              window.location.assign(next.url);
+              return;
+            }
             toast.success("Sign in successful");
             if (isFreshAccount(data.user.createdAt)) {
               router.push(ONBOARDING_ROUTE);

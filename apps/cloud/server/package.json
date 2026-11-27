@@ -3,7 +3,8 @@
   "private": true,
   "license": "SEE LICENSE IN ../LICENSE",
   "exports": {
-    "./router": "./worker/rpc/index.ts"
+    "./router": "./worker/rpc/index.ts",
+    "./ai-prompt": "./shared/ai-prompt.ts"
   },
   "type": "module",
   "scripts": {
@@ -20,16 +21,19 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.7.25",
+    "@better-auth/api-key": "1.7.28",
+    "@better-auth/mcp": "1.7.28",
+    "@better-auth/oauth-provider": "1.7.28",
     "@cloudflare/containers": "^0.3.7",
     "@hono/node-server": "^1.14.4",
+    "@modelcontextprotocol/server": "2.4.0",
     "@neondatabase/serverless": "^1.1.0",
     "@openinary/core": "workspace:*",
     "@openinary/plans": "workspace:*",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.14.8",
     "autumn-js": "1.2.43",
-    "better-auth": "^1.7.25",
+    "better-auth": "^1.7.28",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.12.30",

@@ -20,7 +20,7 @@ export interface DashboardAnalytics {
     op: string;
     asset: PlaygroundAssetKind;
   }) => void;
-  integrationPromptCopied: (variant: "ai") => void;
+  integrationPromptCopied: (variant: "ai" | "agent") => void;
   integrationDocsOpened: (variant: "nextjs" | "react") => void;
 }
 
@@ -65,6 +65,12 @@ export interface DashboardAdapter {
   useAiPrompt: () => string | null;
   /** The same prompt over placeholder values, the shape its skeleton draws. */
   aiPromptSample: string;
+  /**
+   * The welcome screen's prompt: connect the MCP server, then let it set the
+   * project up. Cloud only (it hosts the MCP server); omitted, Home goes
+   * straight to the checklist as before.
+   */
+  agentSetupPrompt?: string;
   analytics?: DashboardAnalytics;
 }
 
