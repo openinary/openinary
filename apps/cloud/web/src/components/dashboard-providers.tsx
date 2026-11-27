@@ -2,16 +2,19 @@
 
 import { type DashboardAdapter, DashboardProvider } from "@openinary/dashboard";
 import { OpeninaryProvider } from "@openinary/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { notFound, usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
-import { aiPrompt } from "@/components/get-started/integration-snippets";
+import {
+  agentSetupPrompt,
+  aiPrompt,
+} from "@/components/get-started/integration-snippets";
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { dashboardAnalytics } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useAccount } from "@/hooks/use-account";
 
 export const FILE_UPLOADER_DOCS =
@@ -95,6 +98,27 @@ function useOnboardingSignals() {
   };
 }
 
+/**
+ * The agents connected through the MCP server. Polled while there are none,
+ * so the Home switches to "connected" the moment the person clicks Allow.
+ */
+function useConnectedAgents() {
+  const queryClient = useQueryClient();
+  const agents = useQuery({
+    ...orpc.agent.list.queryOptions(),
+    refetchInterval: ({ state }) => (state.data?.length ? false : 4000),
+  });
+  return {
+    agents: agents.data,
+    disconnect: async (clientId: string) => {
+      await client.agent.disconnect({ clientId });
+      await queryClient.invalidateQueries({
+        queryKey: orpc.agent.list.key(),
+      });
+    },
+  };
+}
+
 function useAiPrompt() {
   const { bucket } = useActiveBucket();
   return bucket
@@ -124,6 +148,8 @@ const adapter: DashboardAdapter = {
     deliveryBase: "https://api.openinary.dev/b/bucket",
     bucketId: "bucket",
   }),
+  agentSetupPrompt: agentSetupPrompt(`${SERVER_URL}/mcp`),
+  useConnectedAgents,
   analytics: dashboardAnalytics,
 };
 

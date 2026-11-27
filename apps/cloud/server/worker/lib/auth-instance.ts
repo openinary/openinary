@@ -1,12 +1,14 @@
 // The better-auth instance. Loaded lazily by auth.ts on the first request
 // that needs auth, never at Worker startup: see the note at the top of auth.ts.
 import { apiKey } from "@better-auth/api-key";
+import { mcp } from "@better-auth/mcp";
 import { APIError, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import {
   admin,
   captcha,
   emailOTP,
+  jwt,
   lastLoginMethod,
   magicLink,
   organization,
@@ -19,11 +21,13 @@ import {
   ADMIN_USER_ID,
   DASHBOARD_ORIGIN,
   DASHBOARD_ORIGINS,
+  MCP_RESOURCE,
+  MCP_SCOPE,
 } from "../config.js";
 import { captureEvent, signupAttribution } from "./analytics.js";
+import { currentSessionKv, invitationEmail, sendEmail } from "./auth.js";
 import { identifyContact } from "./loops.js";
 import { notify } from "./push.js";
-import { currentSessionKv, invitationEmail, sendEmail } from "./auth.js";
 
 // The ".openinary.dev" cookie domain is only valid when actually serving on
 // that domain (cdn.openinary.dev in prod). Applying it to a local
@@ -370,6 +374,50 @@ export const authInstance = betterAuth({
         },
       },
     }),
+    // Signs the OAuth access tokens below. No set-auth-jwt header: a session
+    // JWT shares the signing key, so none is handed out to be mistaken for
+    // an access token (the plugin's own /token is disabled further down).
+    jwt({ disableSettingJwtHeader: true }),
+    /**
+     * OAuth for the MCP server (worker/mcp/): an agent registers itself, the
+     * person signs in on the dashboard and approves it there, and the agent
+     * gets a JWT bound to MCP_RESOURCE. No API key ever goes through a chat.
+     *
+     * Registration is open because that is how MCP clients (Claude Code,
+     * Cursor, Codex) connect today; a registered client can do nothing until
+     * a signed-in person consents. The consent is tied to the account the
+     * dashboard has active, and that id rides in the token as `org` so /mcp
+     * acts on the same account (re-checked against membership every call).
+     */
+    mcp({
+      resource: MCP_RESOURCE,
+      loginPage: DASHBOARD_ORIGIN,
+      consentPage: `${DASHBOARD_ORIGIN}/oauth/consent`,
+      scopes: ["openid", "profile", "email", "offline_access", MCP_SCOPE],
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      // CLI agents register without an application_type and redirect to a
+      // loopback port: "infer" makes those native clients instead of
+      // refusing them as web clients without https.
+      clientRegistrationDefaultApplicationType: "infer",
+      clientRegistrationDefaultScopes: [
+        "openid",
+        "profile",
+        "email",
+        "offline_access",
+        MCP_SCOPE,
+      ],
+      postLogin: {
+        page: `${DASHBOARD_ORIGIN}/oauth/consent`,
+        shouldRedirect: () => false,
+        consentReferenceId: ({ session }) =>
+          (session.activeOrganizationId as string | null | undefined) ??
+          undefined,
+      },
+      customAccessTokenClaims: ({ referenceId }) => ({
+        org: referenceId ?? null,
+      }),
+    }),
     // Cookie-only (no storeInDatabase): the sign-in form just needs a hint of
     // which button to highlight, and the cookie is readable client-side.
     lastLoginMethod({
@@ -406,6 +454,9 @@ export const authInstance = betterAuth({
   ],
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  // The jwt plugin's session-to-JWT endpoint: nothing here uses it, and its
+  // tokens are signed with the access-token key.
+  disabledPaths: ["/token"],
   advanced: isOpeninaryDomain
     ? {
         crossSubDomainCookies: {

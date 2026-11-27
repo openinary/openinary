@@ -12,6 +12,7 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "1.7.28",
     "@cossistant/next": "^0.2.0",
     "@openinary/dashboard": "workspace:*",
     "@openinary/plans": "workspace:*",
@@ -23,7 +24,7 @@
     "@outpacelabs/avatars": "^0.4.0",
     "@tanstack/react-form": "^1.33.2",
     "@tanstack/react-query": "^5.101.2",
-    "better-auth": "^1.7.25",
+    "better-auth": "^1.7.28",
     "env.style": "^1.0.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.24.0",

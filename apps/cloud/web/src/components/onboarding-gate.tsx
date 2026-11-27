@@ -110,7 +110,13 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   // An invitation link waits for its answer first: accepting makes the team
   // the active account, and the questionnaire then only asks about the
   // person, rather than having them set up an account of their own first.
-  const onInvitation = usePathname().startsWith("/invite/");
+  //
+  // So does an agent's consent page: its signed request expires in ten
+  // minutes, and the person is mid-flow in their editor. The questionnaire
+  // waits for their next visit to the dashboard.
+  const pathname = usePathname();
+  const onInvitation =
+    pathname.startsWith("/invite/") || pathname === "/oauth/consent";
 
   const onboarded = state.data?.onboarded;
   const joining =

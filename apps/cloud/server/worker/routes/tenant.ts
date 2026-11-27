@@ -3,10 +3,11 @@
 import type { Context, Hono, Next } from "hono";
 import type { CustomerData } from "../../shared/autumn.js";
 import { tenantRootFor } from "../../shared/tenant.js";
-import { auth } from "../lib/auth.js";
 import { activeBucketFor, resolveAccount } from "../lib/account.js";
+import { auth } from "../lib/auth.js";
 import { getActiveBucketId } from "../lib/bucket.js";
 import { meterFor } from "../lib/meter.js";
+import { looksLikeJwt } from "../mcp/token.js";
 
 type TenantVars = {
   tenantRoot: string;
@@ -74,6 +75,20 @@ export function meterStorage(c: Ctx, bytes: number): void {
  */
 export async function applySessionTenant(c: Ctx): Promise<boolean> {
   const key = apiKeyFrom(c);
+  // An MCP agent's OAuth access token (see worker/mcp/). It acts as the
+  // person who approved it, on the account they approved it for, with the
+  // same membership check a dashboard session gets on every request.
+  if (key && looksLikeJwt(key)) {
+    const { verifyMcpRequest } = await import("../mcp/token.js");
+    const verified = await verifyMcpRequest(c.req.raw);
+    if (!("claims" in verified)) return false;
+    const account = await resolveAccount({
+      user: { id: verified.claims.sub },
+      session: { activeOrganizationId: verified.claims.org },
+    });
+    setTenant(c, account.accountId, await activeBucketFor(account), {});
+    return true;
+  }
   if (key) {
     const { valid, key: verified } = await auth.api.verifyApiKey({
       body: { key },

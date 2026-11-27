@@ -1,5 +1,6 @@
 import { publicProcedure } from "./orpc.js";
 import { adminRouter } from "./admin.js";
+import { agentRouter } from "./agent.js";
 import { apiKeyRouter } from "./api-key.js";
 import { bucketRouter } from "./bucket.js";
 import { teamRouter } from "./team.js";
@@ -14,6 +15,7 @@ export const appRouter = {
   usage: usageRouter,
   billing: billingRouter,
   team: teamRouter,
+  agent: agentRouter,
   // Only reachable by ADMIN_USER_ID (see adminProcedure); apps/cloud/admin is
   // its only client.
   admin: adminRouter,

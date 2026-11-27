@@ -12,6 +12,15 @@ export const ADMIN_ORIGIN = env.ADMIN_ORIGIN ?? "";
 /** This Worker's own public URL (better-auth's baseURL). */
 export const AUTH_URL = env.BETTER_AUTH_URL ?? "";
 
+/**
+ * The MCP server's resource identifier: every OAuth access token it accepts
+ * is audience-bound to exactly this URL (see worker/mcp/).
+ */
+export const MCP_RESOURCE = `${AUTH_URL}/mcp`;
+
+/** The MCP OAuth scope that grants media access. */
+export const MCP_SCOPE = "media";
+
 /** Origins allowed to call /api/* with credentials. */
 export const DASHBOARD_ORIGINS = [DASHBOARD_ORIGIN, ADMIN_ORIGIN].filter(Boolean);
 

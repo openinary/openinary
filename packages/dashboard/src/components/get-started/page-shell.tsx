@@ -6,6 +6,7 @@ import { Skeleton } from "skullet/react";
 
 import { useCanManageApiKeys, useDashboard } from "../../adapter";
 import { useDocumentTitle } from "../../hooks/use-document-title";
+import { AgentWelcome } from "./agent-welcome";
 import {
   SolarImages,
   SolarIntegrate,
@@ -106,6 +107,12 @@ export function GetStartedHome({
   const { isComplete } = useOnboarding();
   // Its pitch is wiring an app up with an API key, which they can't make.
   const { readOnly } = useOpeninary();
+  // Cloud's Home is the agent screen, full stop; the checklist, shortcuts
+  // and uploader below are what self-hosted keeps.
+  const { agentSetupPrompt } = useDashboard();
+  if (agentSetupPrompt && !readOnly) {
+    return <AgentWelcome firstName={firstName} prompt={agentSetupPrompt} />;
+  }
   return (
     <GetStartedPage
       title={rootTitle}

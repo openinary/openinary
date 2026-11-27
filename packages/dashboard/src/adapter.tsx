@@ -20,7 +20,7 @@ export interface DashboardAnalytics {
     op: string;
     asset: PlaygroundAssetKind;
   }) => void;
-  integrationPromptCopied: (variant: "ai") => void;
+  integrationPromptCopied: (variant: "ai" | "agent") => void;
   integrationDocsOpened: (variant: "nextjs" | "react") => void;
 }
 
@@ -32,6 +32,12 @@ export interface DashboardAnalytics {
  * package resolving its own `next` or `nuqs` would hand each app a router or
  * adapter context from the wrong copy.
  */
+export interface ConnectedAgent {
+  clientId: string;
+  name: string;
+  connectedAt: string;
+}
+
 export interface DashboardAdapter {
   Link: React.ComponentType<React.ComponentProps<"a"> & { href: string }>;
   useRouter: () => { push: (href: string) => void; back: () => void; forward: () => void };
@@ -65,6 +71,20 @@ export interface DashboardAdapter {
   useAiPrompt: () => string | null;
   /** The same prompt over placeholder values, the shape its skeleton draws. */
   aiPromptSample: string;
+  /**
+   * The welcome screen's prompt: connect the MCP server, then let it set the
+   * project up. Cloud only (it hosts the MCP server); omitted, Home goes
+   * straight to the checklist as before.
+   */
+  agentSetupPrompt?: string;
+  /**
+   * The agents this person connected through the MCP server, on the active
+   * account (undefined while loading), and how to disconnect one. Cloud only.
+   */
+  useConnectedAgents?: () => {
+    agents: ConnectedAgent[] | undefined;
+    disconnect: (clientId: string) => Promise<void>;
+  };
   analytics?: DashboardAnalytics;
 }
 
