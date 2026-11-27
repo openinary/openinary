@@ -12,12 +12,18 @@ import type { authInstance } from "./auth-instance.js";
 
 type Auth = typeof authInstance;
 
-let loading: Promise<Auth> | undefined;
+let instance: Auth | undefined;
 
-/** The better-auth instance, built once per isolate on first use. */
-export function loadAuth(): Promise<Auth> {
-  loading ??= import("./auth-instance.js").then((m) => m.authInstance);
-  return loading;
+/**
+ * The better-auth instance, built once per isolate on first use. Caches the
+ * instance, never the loading promise: a promise belongs to the request that
+ * created it, and if that request ends first (a client hanging up), every
+ * later request awaiting it fails with "This promise was created by a
+ * request that has since ended". That locked everyone out of sign-in.
+ */
+export async function loadAuth(): Promise<Auth> {
+  instance ??= (await import("./auth-instance.js")).authInstance;
+  return instance;
 }
 
 export const auth: Pick<Auth, "api" | "handler"> = {
