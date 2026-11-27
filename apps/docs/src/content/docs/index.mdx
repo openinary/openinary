@@ -3,15 +3,17 @@ title: "Openinary"
 description: "Open-source alternative to Cloudinary. Resize, crop, convert and deliver images and video on the fly, from a URL. Hosted or self-hosted."
 ---
 
-Upload a file once, then change the URL to change the file.
+Upload a file once, then change the URL to change the file. Each variant renders on first request and is cached from then on: `/t/w_400,h_400,c_fill,f_avif/photos/portrait.jpg` is a 400x400 AVIF crop, nothing pre-processed.
 
-```http
-GET /t/photos/portrait.jpg                              the original
-GET /t/w_400,h_400,c_fill/photos/portrait.jpg           a 400x400 crop
-GET /t/w_400,h_400,c_fill,f_avif/photos/portrait.jpg    the same, as AVIF
-```
+## Set up with your AI agent
 
-Each variant renders on first request and is cached from then on. Nothing is pre-processed, and you never write a resizing pipeline.
+Paste this to Claude Code, Cursor, Codex or any AI agent. It asks whether you want Cloud or self-hosted, sets Openinary up, then asks what you want to build.
+
+<AgentPrompt prompt="Set up Openinary for me. Follow the instructions at https://openinary.dev/docs/agent-setup/index.md" />
+
+[What the agent does](/agent-setup).
+
+## Cloud or self-hosted
 
 Two ways to run it, one API. [Openinary Cloud](/cloud/overview) is the hosted version: create an account and start uploading, nothing to operate. Sign-up is open at [app.openinary.dev](https://app.openinary.dev). Or [self-host](/quickstart) it with Docker and keep your infrastructure and data entirely yours.
 

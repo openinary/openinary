@@ -1,0 +1,59 @@
+---
+title: "Set up with your AI agent"
+sidebar:
+  label: "Set up with your agent"
+description: "Let Claude Code, Cursor, Codex or any AI agent set Openinary up for you, on Openinary Cloud or self-hosted."
+---
+
+These are the official instructions to set Openinary up with an AI agent. They are written for the agent: paste this to yours.
+
+```text
+Set up Openinary for me. Follow the instructions at https://openinary.dev/docs/agent-setup/index.md
+```
+
+## For the agent
+
+Openinary stores images and video and serves them from a URL, transformed on the fly (resize, crop, format, quality). It runs two ways:
+
+- **Openinary Cloud**: hosted at [app.openinary.dev](https://app.openinary.dev), free plan, no card required. Nothing to run. Comes with an MCP server, so you can manage the user's files from this chat.
+- **Self-hosted**: open source, one Docker deployment on the user's own machine or server, with their own storage (local disk or any S3-compatible bucket).
+
+### 1. Ask which one
+
+Unless the user already said, ask them, in one short message:
+
+> Do you want Openinary Cloud (hosted, nothing to run, free plan) or to self-host it with Docker?
+
+Wait for the answer. Do not edit their project during this setup: once Openinary is ready, you ask what they want to do with it.
+
+### 2a. Cloud
+
+Follow [Connect your AI agent to Cloud](https://openinary.dev/docs/cloud/agent-setup/index.md). New users sign up in the same browser sign-in: there is no separate account step.
+
+### 2b. Self-hosted
+
+1. **Check the prerequisites**: Docker 20+ running (`docker info`) and Node.js 20+ (`node --version`). If one is missing, tell the user what to install and stop there.
+2. **Ask where it goes**, if they have not said: on this machine to try it out, or on a server. For a server, the [Coolify](https://openinary.dev/docs/guides/coolify-deployment/index.md), [Dokploy](https://openinary.dev/docs/guides/dokploy-deployment/index.md) and [Railway](https://openinary.dev/docs/guides/railway-deployment/index.md) guides cover it; follow the one that matches their setup.
+3. **Install on this machine**, in a folder the user agrees on (not inside their app's repository unless they ask):
+
+   ```bash
+   npx create-openinary -y
+   ```
+
+   `-y` takes the defaults: full stack (API and dashboard) on local disk, at http://localhost:3000. Add `--api-only` for the API without a dashboard, `--port <port>` for another port. S3-compatible storage is configured afterwards: [storage](https://openinary.dev/docs/configuration/storage/index.md).
+4. **Check it runs**: `GET http://localhost:3000/t/w_400/example-loan.jpg` returns an image (sample files ship with the image).
+5. **Hand the account over**: the user opens http://localhost:3000, creates the admin account on `/setup`, then creates an API key under their profile, **API Keys**. The key is theirs: they write it into their backend environment themselves. Never ask for it, or for a password, in the chat.
+6. **Install the openinary skill** (optional, needs Node.js): `npx skills add openinary/openinary --skill openinary --global --agent <agent> -y`, with `<agent>` your agent id (`claude-code`, `cursor`, `codex`...). On self-hosted, the API host and the delivery base are both the server URL, for example `http://localhost:3000`, and there is no bucket id.
+
+Self-hosted has no Openinary MCP server for files. For answers about Openinary itself, the docs have one: `https://openinary.dev/docs/mcp`.
+
+### 3. Report, then ask
+
+Tell the user what is set up (Cloud or self-hosted, where, what was installed), then ask what they want to do, for example:
+
+- integrate Openinary into their project, or one part of it first
+- migrate from Cloudinary
+- upload and organize files
+- something else
+
+Do only what they pick. Guides: [file uploader](https://openinary.dev/docs/guides/file-uploader/index.md), [migrate from Cloudinary](https://openinary.dev/docs/migrate-from-cloudinary/index.md), [media transformations](https://openinary.dev/docs/media-transformations/overview/index.md), and the full index at https://openinary.dev/docs/llms.txt.

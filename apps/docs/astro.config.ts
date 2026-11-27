@@ -60,7 +60,7 @@ const nimbusConfig = defineNimbusConfig({
       {
         label: "Documentation",
         items: [
-          group("Get started", "rocket", ["index", "cloud/quickstart", "quickstart", "migrate-from-cloudinary"]),
+          group("Get started", "rocket", ["index", "agent-setup", "cloud/quickstart", "quickstart", "migrate-from-cloudinary"]),
           group("Transformations", "wand-magic-sparkles", [
             "media-transformations/overview",
             "media-transformations/image-transformations",
@@ -76,7 +76,7 @@ const nimbusConfig = defineNimbusConfig({
             "guides/integrate/nextjs",
             "guides/integrate/react",
           ]),
-          group("Cloud", "cloud", ["cloud/overview", "cloud/teams", "cloud/api"]),
+          group("Cloud", "cloud", ["cloud/overview", "cloud/agent-setup", "cloud/teams", "cloud/api"]),
           group("Self-hosting", "server", [
             "configuration/server",
             "configuration/authentication",
