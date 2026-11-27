@@ -47,10 +47,30 @@ services:
 | `STORAGE_ENDPOINT` | | Endpoint for non-AWS providers. Omit for AWS S3 |
 | `STORAGE_PUBLIC_URL` | | Base URL used to build file URLs. Point it at your CDN or custom domain to avoid exposing raw S3 URLs |
 | `STORAGE_PREFIX` | `public` | Key prefix media is stored under. Set it to serve a bucket whose layout you do not own: an uploader already writing `photos/2024/sunset.jpg` is then delivered at `/t/photos/2024/sunset.jpg` with no object moved. **In a dotenv file `STORAGE_PREFIX=` is not the same as omitting the line** — an empty value is a deliberate choice and means the bucket root, while an absent one keeps the `public/` default. `cache/` and `.openinary/` are reserved: rejected as a prefix at startup, and with an empty prefix they are left out of listings and stats and cannot be read or written as media |
+| `STORAGE_STATS_PATH` | unset | Optional private local JSON file for aggregate bucket statistics. Unset keeps S3 persistence. In Docker, use `/app/data/stats.json` for the existing persistent data volume |
 | `STORAGE_MAX_SOCKETS` | `50` | Simultaneous connections to the provider. Raise it if you hit connection pool exhaustion |
 | `STORAGE_CONNECTION_TIMEOUT` | `0` | Connection timeout in ms. `0` means no timeout |
 | `STORAGE_REQUEST_TIMEOUT` | `0` | Request timeout in ms. Use `300000` or more for large uploads |
 | `STORAGE_SOCKET_TIMEOUT` | `0` | TCP socket timeout in ms |
+
+## Local bucket statistics
+
+For a single self-hosted instance using S3-compatible storage, set:
+
+```bash
+STORAGE_STATS_PATH=/app/data/stats.json
+```
+
+The API stores its aggregate media and cache counters locally instead of reading or writing
+`.openinary/stats.json` in S3. Media and derivatives remain in the bucket.
+The bundled Docker Compose services forward this variable and mount `/app/data`
+as a persistent volume. For a source deployment, choose a writable, private path outside the media directory.
+
+The first use, a missing or corrupt snapshot, or a change to the bucket, endpoint,
+region or media prefix triggers a fresh bucket listing to rebuild the statistics.
+The existing S3 stats object is left untouched. If switching back to S3 persistence,
+recalculate the storage statistics to avoid using an old snapshot. Do not use
+independent local stats files for multiple instances sharing a bucket.
 
 ## Endpoints by provider
 

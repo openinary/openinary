@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CloudStorage } from "./cloud-storage";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { StorageConfig } from "./types";
+import type { BucketStats } from "./stats-tracker";
 
 const storageWith = (exists: () => boolean) => {
   const storage = new CloudStorage({
@@ -127,4 +132,79 @@ test("a partially failed bulk delete is an error, not a success", async () => {
     return {};
   });
   await assert.rejects(storage.clearAllCache(), /cache\/1\.jpg: AccessDenied/);
+});
+
+
+const sampleStats: BucketStats = {
+  storage: { size: 100, fileCount: 2 },
+  cache: { size: 20, fileCount: 1 },
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
+
+const statsStorage = (overrides: Partial<StorageConfig> = {}) =>
+  new CloudStorage({
+    region: "us-east-1",
+    accessKeyId: "k",
+    secretAccessKey: "s",
+    bucketName: "b",
+    ...overrides,
+  });
+
+test("local stats persist across storage instances without S3 stats operations", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "openinary-stats-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const statsPath = join(dir, "nested", "stats.json");
+  const local = (overrides: Partial<StorageConfig> = {}) => {
+    const storage = statsStorage({ statsPath, ...overrides });
+    (storage as any).s3Client = {
+      objectExists: async () => assert.fail("unexpected S3 HEAD"),
+      downloadObject: async () => assert.fail("unexpected S3 GET"),
+      uploadObject: async () => assert.fail("unexpected S3 PUT"),
+    };
+    return storage;
+  };
+
+  const storage = local();
+  assert.equal(await storage.loadPersistedStats(), null);
+  await storage.persistStats(sampleStats);
+  assert.deepEqual(await local().loadPersistedStats(), sampleStats);
+  assert.equal(JSON.parse(await readFile(statsPath, "utf8")).storage.size, 100);
+
+  const updated = { ...sampleStats, storage: { size: 200, fileCount: 3 } };
+  await Promise.all([storage.persistStats(sampleStats), storage.persistStats(updated)]);
+  assert.deepEqual(await local().loadPersistedStats(), updated);
+
+  assert.equal(await local({ bucketName: "other" }).loadPersistedStats(), null);
+  assert.equal(await local({ endpoint: "https://example.com" }).loadPersistedStats(), null);
+  assert.equal(await local({ region: "us-west-2" }).loadPersistedStats(), null);
+  assert.equal(await local({ prefix: "" }).loadPersistedStats(), null);
+  assert.deepEqual(await local({ prefix: "public/" }).loadPersistedStats(), updated);
+
+  await writeFile(statsPath, "{broken");
+  assert.equal(await storage.loadPersistedStats(), null);
+  await storage.persistStats(sampleStats);
+  assert.deepEqual(await storage.loadPersistedStats(), sampleStats);
+});
+
+test("S3 stats persistence remains the default", async () => {
+  const storage = statsStorage();
+  let persisted: Buffer | undefined;
+  (storage as any).s3Client = {
+    objectExists: async (key: string) => {
+      assert.equal(key, ".openinary/stats.json");
+      return persisted !== undefined;
+    },
+    downloadObject: async (key: string) => {
+      assert.equal(key, ".openinary/stats.json");
+      return persisted;
+    },
+    uploadObject: async (key: string, body: Buffer, contentType: string) => {
+      assert.equal(key, ".openinary/stats.json");
+      assert.equal(contentType, "application/json");
+      persisted = body;
+    },
+  };
+  assert.equal(await storage.loadPersistedStats(), null);
+  await storage.persistStats(sampleStats);
+  assert.deepEqual(await storage.loadPersistedStats(), sampleStats);
 });
