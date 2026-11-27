@@ -32,6 +32,12 @@ export interface DashboardAnalytics {
  * package resolving its own `next` or `nuqs` would hand each app a router or
  * adapter context from the wrong copy.
  */
+export interface ConnectedAgent {
+  clientId: string;
+  name: string;
+  connectedAt: string;
+}
+
 export interface DashboardAdapter {
   Link: React.ComponentType<React.ComponentProps<"a"> & { href: string }>;
   useRouter: () => { push: (href: string) => void; back: () => void; forward: () => void };
@@ -71,6 +77,14 @@ export interface DashboardAdapter {
    * straight to the checklist as before.
    */
   agentSetupPrompt?: string;
+  /**
+   * The agents this person connected through the MCP server, on the active
+   * account (undefined while loading), and how to disconnect one. Cloud only.
+   */
+  useConnectedAgents?: () => {
+    agents: ConnectedAgent[] | undefined;
+    disconnect: (clientId: string) => Promise<void>;
+  };
   analytics?: DashboardAnalytics;
 }
 
