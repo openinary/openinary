@@ -4,6 +4,7 @@ import { PageHeader, Sheet, useDocumentTitle } from "@openinary/dashboard";
 import { Button } from "@openinary/dashboard/ui/button";
 import { Spinner } from "@openinary/ui";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ import { authClient } from "@/lib/auth-client";
  */
 export function ConsentView() {
   const [busy, setBusy] = useState<"allow" | "deny" | null>(null);
+  const [answered, setAnswered] = useState<"allowed" | "denied" | null>(null);
   const clientId =
     typeof window === "undefined"
       ? null
@@ -52,7 +54,10 @@ export function ConsentView() {
       setBusy(null);
       return;
     }
-    // Back to the agent: its redirect page finishes the connection.
+    // Answered: say so here first. The redirect below hands the code to the
+    // agent's local callback, and some agents answer it without a page of
+    // their own, which leaves the browser on this one.
+    setAnswered(accept ? "allowed" : "denied");
     const url = (data as { url?: string } | null)?.url;
     if (url) window.location.assign(url);
   };
@@ -65,13 +70,53 @@ export function ConsentView() {
       <div className="@container/main min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="flex justify-center px-4 pt-16 pb-12 sm:px-8 md:pt-32">
           <div className="flex w-full max-w-[560px] flex-col">
-            <p className="mb-2.5 text-[13px]/5 text-ds-muted">
-              Connect an agent
-            </p>
-            {client.isLoading ? (
+            {answered === "allowed" ? (
+              <>
+                <p className="mb-2.5 flex items-center gap-2 font-medium text-[13px]/5 text-ds-green">
+                  <span className="size-[7px] rounded-full bg-ds-green shadow-[0_0_0_3px_rgb(21_128_61/0.15)]" />
+                  Connected to {account}
+                </p>
+                <h1 className="font-semibold text-[28px]/9 tracking-[-0.01em]">
+                  {name} is connected.
+                  <br />
+                  <span className="font-medium text-ds-muted">
+                    Head back to your editor.
+                  </span>
+                </h1>
+                <p className="mt-3.5 text-pretty text-[14px]/5 text-ds-muted">
+                  You can close this tab. Your agent can now set Openinary up in
+                  your project, and you'll find it on Home, where you can
+                  disconnect it whenever you want.
+                </p>
+                <div className="mt-7">
+                  <Button asChild variant="outline">
+                    <Link href="/get-started">Go to Home</Link>
+                  </Button>
+                </div>
+              </>
+            ) : answered === "denied" ? (
+              <>
+                <p className="mb-2.5 text-[13px]/5 text-ds-muted">
+                  Connect an agent
+                </p>
+                <h1 className="font-semibold text-[28px]/9 tracking-[-0.01em]">
+                  Denied.
+                  <br />
+                  <span className="font-medium text-ds-muted">
+                    Nothing was shared with {name}.
+                  </span>
+                </h1>
+                <p className="mt-3.5 text-pretty text-[14px]/5 text-ds-muted">
+                  You can close this tab.
+                </p>
+              </>
+            ) : client.isLoading ? (
               <Spinner className="size-4" />
             ) : unavailable ? (
               <>
+                <p className="mb-2.5 text-[13px]/5 text-ds-muted">
+                  Connect an agent
+                </p>
                 <h1 className="font-semibold text-[28px]/9 tracking-[-0.01em]">
                   This request expired.
                 </h1>
@@ -82,6 +127,9 @@ export function ConsentView() {
               </>
             ) : (
               <>
+                <p className="mb-2.5 text-[13px]/5 text-ds-muted">
+                  Connect an agent
+                </p>
                 <h1 className="font-semibold text-[28px]/9 tracking-[-0.01em]">
                   {name}
                   <br />
