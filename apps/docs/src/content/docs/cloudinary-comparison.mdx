@@ -24,7 +24,7 @@ The tables below are the detail behind that summary. Ready to move? [Migrate fro
 | Resize (`w`, `h`)            | ✓                                                               | ✓                                                   |
 | Aspect ratio (`ar`)          | ✓                                                               | ✓                                                   |
 | Crop modes                   | ✓ 14 modes (`fill`, `pad`, `thumb`, `lfill`, `imagga_crop`, …)  | ✓ 9 modes (`fill`, `fit`, `scale`, `crop`, `pad`, `lfill`, `lpad`, `mfit`, `mpad`) |
-| Gravity / focal point        | ✓ Face, body, object, custom coordinates, auto (entropy)        | ✓ Face, compass directions, auto (entropy), center  |
+| Gravity / focal point        | ✓ Face, body, object, custom coordinates, auto (entropy)        | ✓ Face, compass directions, auto (salience), center |
 | Rotation (`a`)               | ✓ Degrees + `vflip`, `hflip`, `auto_right`, `auto_left`, EXIF   | ✓ Degrees, `vflip`, `hflip`, combined with `.`      |
 | Background color (`b`)       | ✓ Colors, `auto`, blurred, `gen_fill` (AI-generated)            | ✓ Hex, `rgb:`, CSS names, `transparent`, `auto` (all modes, palettes), blurred |
 | Round corners (`r`)          | ✓                                                               | ✓ Uniform, per-corner, or `max` (circle/oval)       |
@@ -72,7 +72,7 @@ The tables below are the detail behind that summary. Ready to move? [Migrate fro
 | OCR (text extraction)                  | ✓          | ✗                              |
 | AI content moderation                  | ✓          | ✗                              |
 | AI auto-tagging                        | ✓          | ✗                              |
-| Smart thumbnails via AI                | ✓          | ~ (entropy-based gravity only) |
+| Smart thumbnails via AI                | ✓          | ~ (salience-based gravity only) |
 
 ## Overlays & composition
 
