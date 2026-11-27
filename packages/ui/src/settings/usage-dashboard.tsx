@@ -318,38 +318,40 @@ function UsageTableBody<Row, Item>({
   cell: (column: UsageColumn<Row>, row: Item) => React.ReactNode;
 }) {
   return (
-    <div className="ds-tile max-h-[32rem] overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-muted text-left">
-          <tr>
-            {columns.map((column) => (
-              <th
-                className={cn(
-                  "h-9 whitespace-nowrap px-4 text-[13px] font-medium text-muted-foreground shadow-[inset_0_-1px_0_var(--border)]",
-                  column.className,
-                )}
-                key={column.header}
-              >
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr className="border-b last:border-0" key={rowKey(row)}>
+    <div className="ds-tile">
+      <div className="max-h-[32rem] overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10 bg-muted text-left">
+            <tr>
               {columns.map((column) => (
-                <td
-                  className={cn("px-4 py-2.5 align-middle", column.className)}
+                <th
+                  className={cn(
+                    "h-9 whitespace-nowrap px-4 text-[13px] font-medium text-muted-foreground shadow-[inset_0_-1px_0_var(--border)]",
+                    column.className,
+                  )}
                   key={column.header}
                 >
-                  {cell(column, row)}
-                </td>
+                  {column.header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr className="border-b last:border-0" key={rowKey(row)}>
+                {columns.map((column) => (
+                  <td
+                    className={cn("px-4 py-2.5 align-middle", column.className)}
+                    key={column.header}
+                  >
+                    {cell(column, row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

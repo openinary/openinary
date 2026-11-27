@@ -37,6 +37,7 @@ type VideoJob = {
   file_path: string;
   params_json: string;
   status: string;
+  progress: number;
   error: string | null;
   created_at: number;
   started_at: number | null;
@@ -67,7 +68,11 @@ const JOB_COLUMNS: UsageColumn<VideoJob>[] = [
       <UsageCell
         className={cn(job.status === "error" && "text-destructive")}
         detail={job.error ?? undefined}
-        value={job.status}
+        value={
+          job.status === "processing" && Number.isFinite(job.progress)
+            ? `processing · ${job.progress}%`
+            : job.status
+        }
       />
     ),
   },
@@ -111,7 +116,12 @@ export function ActivityTab() {
   const jobs = useQuery({
     queryKey: ["openinary", "activity-jobs", apiBaseUrl],
     queryFn: () => get<{ jobs: VideoJob[] }>("/queue/jobs?limit=100"),
-    refetchInterval: 10_000,
+    refetchInterval: (query) =>
+      query.state.data?.jobs.some(
+        (job) => job.status === "pending" || job.status === "processing",
+      )
+        ? 2_000
+        : 10_000,
   });
 
   const events: UsageEvent[] = (deliveries.data?.deliveries ?? []).map(
