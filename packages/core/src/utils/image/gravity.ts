@@ -17,8 +17,12 @@ export const getSharpPosition = (gravity: GravityMode): string => {
       return 'left';
     case 'face':
       return 'attention'; // Sharp's attention strategy focuses on interesting features
+    // Cloudinary's g_auto finds the subject. Sharp's attention strategy
+    // (skin tones, saturation, luminance) is the closer match: entropy picks
+    // the busiest region, so texture such as water or foliage wins at some
+    // output sizes and the same image crops differently from size to size.
     case 'auto':
-      return 'entropy'; // Sharp's entropy strategy focuses on high-contrast areas
+      return 'attention';
     default:
       return 'center';
   }
