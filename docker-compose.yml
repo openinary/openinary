@@ -54,6 +54,7 @@ services:
       # No value on purpose: unset keeps the public/ default, while an empty
       # STORAGE_PREFIX= in .env means the bucket root.
       - STORAGE_PREFIX
+      - STORAGE_STATS_PATH=${STORAGE_STATS_PATH:-}
       - STORAGE_MAX_SOCKETS=${STORAGE_MAX_SOCKETS:-}
       - STORAGE_CONNECTION_TIMEOUT=${STORAGE_CONNECTION_TIMEOUT:-}
       - STORAGE_REQUEST_TIMEOUT=${STORAGE_REQUEST_TIMEOUT:-}
@@ -164,6 +165,7 @@ services:
       # No value on purpose: unset keeps the public/ default, while an empty
       # STORAGE_PREFIX= in .env means the bucket root.
       - STORAGE_PREFIX
+      - STORAGE_STATS_PATH=${STORAGE_STATS_PATH:-}
       - STORAGE_MAX_SOCKETS=${STORAGE_MAX_SOCKETS:-}
       - STORAGE_CONNECTION_TIMEOUT=${STORAGE_CONNECTION_TIMEOUT:-}
       - STORAGE_REQUEST_TIMEOUT=${STORAGE_REQUEST_TIMEOUT:-}

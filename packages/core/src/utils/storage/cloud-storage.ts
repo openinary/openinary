@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { StorageConfig, StorageClientOptions } from "./types";
 import { StorageCache } from "./cache";
 import { sortedKey, type CacheKeyFn } from "../../url/cache-key";
@@ -38,12 +41,18 @@ export class CloudStorage implements StatsBackend {
   /** Normalized media prefix, e.g. "public/" or "" for the bucket root. */
   readonly mediaPrefix: string;
   private keyFor: CacheKeyFn;
+  private readonly statsPath?: string;
+  private readonly statsScope: string;
 
   constructor(config: StorageConfig, clientOptions?: StorageClientOptions) {
     this.s3Client = new S3ClientWrapper(config, clientOptions);
     this.cache = new StorageCache();
     this.mediaPrefix = normalizeMediaPrefix(config.prefix);
     this.keyFor = config.keyFor ?? sortedKey;
+    this.statsPath = config.statsPath;
+    this.statsScope = createHash("sha256")
+      .update(JSON.stringify([config.endpoint || "", config.region, config.bucketName, this.mediaPrefix]))
+      .digest("hex");
   }
 
   /** In-memory existence entry of a derivative, grouped by its original. */
@@ -485,23 +494,35 @@ export class CloudStorage implements StatsBackend {
    * exist yet or is unreadable (triggering a recomputation)
    */
   async loadPersistedStats(): Promise<BucketStats | null> {
-    if (!(await this.s3Client.objectExists(STATS_OBJECT_KEY))) {
+    if (!this.statsPath && !(await this.s3Client.objectExists(STATS_OBJECT_KEY))) {
       return null;
     }
 
     try {
-      const buffer = await this.s3Client.downloadObject(STATS_OBJECT_KEY);
+      const buffer = this.statsPath
+        ? readFileSync(this.statsPath)
+        : await this.s3Client.downloadObject(STATS_OBJECT_KEY);
       const parsed = JSON.parse(buffer.toString("utf-8"));
+      if (this.statsPath && parsed?.scope !== this.statsScope) {
+        return null;
+      }
       if (
         isAggregateStats(parsed?.storage) &&
         isAggregateStats(parsed?.cache) &&
         typeof parsed.updatedAt === "string"
       ) {
-        return parsed as BucketStats;
+        return {
+          storage: parsed.storage,
+          cache: parsed.cache,
+          updatedAt: parsed.updatedAt,
+        };
       }
       logger.warn("Persisted bucket stats have an unexpected shape, recomputing");
       return null;
     } catch (error) {
+      if (this.statsPath && (error as NodeJS.ErrnoException).code === "ENOENT") {
+        return null;
+      }
       logger.warn(
         { error: serializeError(error) },
         "Failed to load persisted bucket stats, recomputing",
@@ -511,9 +532,20 @@ export class CloudStorage implements StatsBackend {
   }
 
   /**
-   * Persists the aggregate stats object to the bucket
+   * Persists aggregate stats locally when configured, otherwise to the bucket.
    */
   async persistStats(stats: BucketStats): Promise<void> {
+    if (this.statsPath) {
+      // The tracker writes a tiny JSON file at most once per throttle window.
+      // Synchronous write + rename serializes local writes within the process
+      // and prevents readers from seeing a partially written snapshot.
+      mkdirSync(dirname(this.statsPath), { recursive: true });
+      const tempPath = `${this.statsPath}.${process.pid}.tmp`;
+      writeFileSync(tempPath, JSON.stringify({ ...stats, scope: this.statsScope }), { mode: 0o600 });
+      renameSync(tempPath, this.statsPath);
+      return;
+    }
+
     await this.s3Client.uploadObject(
       STATS_OBJECT_KEY,
       Buffer.from(JSON.stringify(stats)),

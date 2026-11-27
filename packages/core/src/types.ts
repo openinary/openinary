@@ -116,6 +116,8 @@ export interface StorageConfig {
    * /t/photos/2024/sunset.jpg without moving a single object.
    */
   prefix?: string;
+  /** Optional private local file for aggregate stats; unset keeps S3 persistence. */
+  statsPath?: string;
   /** How derivative keys are derived. Defaults to sortedKey. */
   keyFor?: CacheKeyFn;
 }
