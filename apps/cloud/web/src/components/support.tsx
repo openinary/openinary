@@ -4,9 +4,11 @@ import {
   IdentifySupportVisitor,
   Support,
   SupportProvider,
+  useSupportConfig,
   useVisitor,
 } from "@cossistant/next";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { authClient } from "@/lib/auth-client";
@@ -90,6 +92,26 @@ function IdentifyAccount() {
   );
 }
 
+const OPEN_EVENT = "openinary:open-support";
+
+/**
+ * Opens the support chat from anywhere in the dashboard. The widget lives in
+ * its own provider (below), out of reach of the pages, so they ask it through
+ * a window event. Does nothing where the widget isn't mounted (no key).
+ */
+export function openSupport() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
+function OpenOnRequest() {
+  const { open } = useSupportConfig();
+  useEffect(() => {
+    window.addEventListener(OPEN_EVENT, open);
+    return () => window.removeEventListener(OPEN_EVENT, open);
+  }, [open]);
+  return null;
+}
+
 export function SupportWidget() {
   // With no key the SDK still renders the bubble and hides a configuration
   // error behind it. Local dev and any deploy that hasn't been given the key
@@ -99,6 +121,7 @@ export function SupportWidget() {
   return (
     <SupportProvider publicKey={PUBLIC_KEY}>
       <IdentifyAccount />
+      <OpenOnRequest />
       {/* The widget's own root is `relative`: it does not place itself, so
           left unstyled it lands inline at the end of the page and stretches
           it. Pinning the root is all the positioning needed - the panel

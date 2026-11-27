@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useSettingsPage } from "@/components/settings/use-settings-page";
 import { useAccount } from "@/hooks/use-account";
 import { authClient } from "@/lib/auth-client";
+import { openSupport } from "@/components/support";
 import { orpc } from "@/utils/orpc";
 
 type InviteRole = "admin" | "member";
@@ -133,7 +134,9 @@ export function TeamTab() {
                 {seats?.used ?? 1} of {seats?.limit ?? 3} seat
                 {seats?.limit === 1 ? "" : "s"} used on your plan, invitations
                 included.
-                {full && account.can("billing") && (
+                {/* Free (one seat) upgrades; a paid plan already has every
+                    seat it can, so more is a chat with support for now. */}
+                {full && seats.limit === 1 && account.can("billing") && (
                   <>
                     {" "}
                     <button
@@ -142,6 +145,20 @@ export function TeamTab() {
                       onClick={() => setSettingsTab("billing")}
                     >
                       Upgrade for more
+                    </button>
+                    .
+                  </>
+                )}
+                {full && seats.limit > 1 && (
+                  <>
+                    {" "}
+                    Need more?{" "}
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      onClick={openSupport}
+                    >
+                      Contact us
                     </button>
                     .
                   </>

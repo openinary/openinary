@@ -22,6 +22,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { openSupport } from "@/components/support";
 import { useAccount } from "@/hooks/use-account";
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import {
@@ -196,6 +197,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
       }
       plans={onFreePlan && !joining ? PLAN_CARDS : undefined}
       seatLimit={planOf(planId).seats}
+      onMoreSeats={openSupport}
       resume={resume}
       onStepComplete={(step, index, answers, skipped) => {
         trackOnboardingStepCompleted({

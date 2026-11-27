@@ -94,6 +94,8 @@ export interface OnboardingProps {
   plans?: OnboardingPlan[];
   /** Cloud: people the current plan allows, owner included. */
   seatLimit?: number;
+  /** Cloud: asks for more seats than the plan has (opens the support chat). */
+  onMoreSeats?: () => void;
   /** Self-hosted: the single sign-on providers this instance has set up. */
   providers?: { id: string; name: string }[];
   /** Picks up where a checkout left off. */
@@ -754,6 +756,7 @@ export function Onboarding({
   joining,
   plans,
   seatLimit,
+  onMoreSeats,
   providers,
   resume,
   note,
@@ -1486,6 +1489,21 @@ export function Onboarding({
                               </span>
                             </div>
                           )}
+                          {onMoreSeats &&
+                            seatLimit !== undefined &&
+                            inviteRows.length >= freeSeats && (
+                              <p className="text-[12.5px]/[18px] text-ds-muted">
+                                Need more seats?{" "}
+                                <button
+                                  type="button"
+                                  onClick={onMoreSeats}
+                                  className="cursor-pointer text-ds-text underline underline-offset-2"
+                                >
+                                  Contact us
+                                </button>
+                                .
+                              </p>
+                            )}
                         </>
                       )}
 
