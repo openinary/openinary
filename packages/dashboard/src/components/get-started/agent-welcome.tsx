@@ -13,18 +13,15 @@ const STEPS = [
 ] as const;
 
 /**
- * Home's first screen on Cloud: one prompt that has the user's coding agent
- * connect the Openinary MCP server and set the project up through it. Shown
- * until the checklist is done or the user skips to the dashboard.
+ * Cloud's Home: one prompt that has the user's coding agent connect the
+ * Openinary MCP server and set the project up through it.
  */
 export function AgentWelcome({
   firstName,
   prompt,
-  onSkip,
 }: {
   firstName: string | undefined;
   prompt: string;
-  onSkip: () => void;
 }) {
   const { Link, analytics } = useDashboard();
   const [copied, setCopied] = useState(false);
@@ -128,14 +125,13 @@ export function AgentWelcome({
               Integration guide
             </Link>
           </span>
-          <button
-            type="button"
-            onClick={onSkip}
+          <Link
+            href="/"
             className="inline-flex items-center gap-1.5 text-ds-secondary hover:text-ds-text"
           >
-            Skip to dashboard
+            Go to your assets
             <ArrowRight className="size-3.5" />
-          </button>
+          </Link>
         </div>
       </div>
     </div>

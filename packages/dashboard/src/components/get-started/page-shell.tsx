@@ -2,12 +2,10 @@
 
 import { useOpeninary } from "@openinary/ui";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Skeleton } from "skullet/react";
 
 import { useCanManageApiKeys, useDashboard } from "../../adapter";
 import { useDocumentTitle } from "../../hooks/use-document-title";
-import { useHydrated } from "../../hooks/use-hydrated";
 import { AgentWelcome } from "./agent-welcome";
 import {
   SolarImages,
@@ -94,33 +92,6 @@ function Shortcuts() {
   );
 }
 
-const WELCOME_DONE_KEY = "openinary.agent-welcome-done";
-
-/**
- * Whether the agent welcome screen is behind this browser: skipped, or the
- * checklist finished (remembered, so a set-up account never flashes it again
- * while its signals load). False on the server and until hydration.
- */
-function useWelcomeDone(checklistDone: boolean) {
-  const hydrated = useHydrated();
-  const [skipped, setSkipped] = useState(false);
-  useEffect(() => {
-    if (checklistDone) localStorage.setItem(WELCOME_DONE_KEY, "1");
-  }, [checklistDone]);
-  const value =
-    !hydrated ||
-    skipped ||
-    checklistDone ||
-    localStorage.getItem(WELCOME_DONE_KEY) === "1";
-  return {
-    value,
-    set: () => {
-      localStorage.setItem(WELCOME_DONE_KEY, "1");
-      setSkipped(true);
-    },
-  };
-}
-
 /** /get-started: the greeting, setup and shortcuts, the uploader. */
 export function GetStartedHome({
   userName,
@@ -133,19 +104,14 @@ export function GetStartedHome({
   description: string;
 }) {
   const firstName = userName?.trim().split(" ")[0];
-  const { isComplete, isReady } = useOnboarding();
+  const { isComplete } = useOnboarding();
   // Its pitch is wiring an app up with an API key, which they can't make.
   const { readOnly } = useOpeninary();
+  // Cloud's Home is the agent screen, full stop; the checklist, shortcuts
+  // and uploader below are what self-hosted keeps.
   const { agentSetupPrompt } = useDashboard();
-  const welcomeDone = useWelcomeDone(isReady && isComplete);
-  if (agentSetupPrompt && !readOnly && !welcomeDone.value) {
-    return (
-      <AgentWelcome
-        firstName={firstName}
-        prompt={agentSetupPrompt}
-        onSkip={welcomeDone.set}
-      />
-    );
+  if (agentSetupPrompt && !readOnly) {
+    return <AgentWelcome firstName={firstName} prompt={agentSetupPrompt} />;
   }
   return (
     <GetStartedPage
