@@ -679,55 +679,55 @@
 
 /* Home's copy prompt button: a gradient edge that slowly circles it, and
    turns all green once copied. Registered so they animate. */
-@property --ds-edge-angle {
+@property --ds-glow-angle {
   syntax: "<angle>";
   inherits: false;
   initial-value: 0deg;
 }
-@property --ds-edge {
+@property --ds-glow {
   syntax: "<color>";
   inherits: false;
   initial-value: rgb(59 123 255);
 }
-@property --ds-edge-fade {
+@property --ds-glow-fade {
   syntax: "<percentage>";
   inherits: false;
   initial-value: 18%;
 }
-.ds-edge {
+.ds-glow-edge {
   border: 1px solid transparent;
   background:
     linear-gradient(var(--ds-card), var(--ds-card)) padding-box,
     conic-gradient(
-        from var(--ds-edge-angle),
-        var(--ds-edge),
-        color-mix(in srgb, var(--ds-edge) var(--ds-edge-fade), transparent) 30%,
-        color-mix(in srgb, var(--ds-edge) var(--ds-edge-fade), transparent) 50%,
-        var(--ds-edge) 80%,
-        var(--ds-edge)
+        from var(--ds-glow-angle),
+        var(--ds-glow),
+        color-mix(in srgb, var(--ds-glow) var(--ds-glow-fade), transparent) 30%,
+        color-mix(in srgb, var(--ds-glow) var(--ds-glow-fade), transparent) 50%,
+        var(--ds-glow) 80%,
+        var(--ds-glow)
       )
       border-box;
   box-shadow: 0 6px 18px -8px
-    color-mix(in srgb, var(--ds-edge) 50%, transparent);
-  animation: ds-edge-spin 6s linear infinite;
+    color-mix(in srgb, var(--ds-glow) 50%, transparent);
+  animation: ds-glow-spin 6s linear infinite;
   transition:
-    --ds-edge 300ms ease-out,
-    --ds-edge-fade 300ms ease-out,
+    --ds-glow 300ms ease-out,
+    --ds-glow-fade 300ms ease-out,
     box-shadow 200ms ease-out,
     scale 200ms ease-out;
 }
-.ds-edge:hover {
+.ds-glow-edge:hover {
   box-shadow: 0 8px 22px -8px
-    color-mix(in srgb, var(--ds-edge) 65%, transparent);
+    color-mix(in srgb, var(--ds-glow) 65%, transparent);
 }
-.ds-edge[data-done] {
-  --ds-edge: var(--ds-green);
-  --ds-edge-fade: 100%;
+.ds-glow-edge[data-done] {
+  --ds-glow: var(--ds-green);
+  --ds-glow-fade: 100%;
 }
 
-@keyframes ds-edge-spin {
+@keyframes ds-glow-spin {
   to {
-    --ds-edge-angle: 360deg;
+    --ds-glow-angle: 360deg;
   }
 }
 
@@ -834,7 +834,7 @@
   .mi-spin,
   .ds-rise,
   .ds-enter,
-  .ds-edge,
+  .ds-glow-edge,
   .ds-shake,
   .text-shimmer,
   .shimmer::after {

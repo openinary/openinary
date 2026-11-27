@@ -59,6 +59,24 @@ function Enter({
   );
 }
 
+type Shape = { agents: number; uploaded: boolean };
+const SHAPE_KEY = "openinary:home-shape";
+
+function readLastShape(): Shape {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SHAPE_KEY) ?? "null");
+    if (typeof raw?.agents === "number" && typeof raw?.uploaded === "boolean")
+      return raw;
+  } catch {}
+  return { agents: 0, uploaded: false };
+}
+
+function writeLastShape(shape: Shape) {
+  try {
+    localStorage.setItem(SHAPE_KEY, JSON.stringify(shape));
+  } catch {}
+}
+
 /**
  * Cloud's Home: one prompt that has the user's coding agent connect the
  * Openinary MCP server and set the project up through it. Once an agent is
@@ -82,15 +100,29 @@ export function AgentWelcome({
   const { hasUploaded } = useOnboardingSignals();
   useDocumentTitle("Home");
 
-  const hello = firstName ? `Hey ${firstName} 👋` : "Hey there 👋";
-  const connected = agents && agents.length > 0;
   // Greeting and state both depend on data: wait under a skeleton rather
   // than guess and swap.
   const ready = !loading && agents !== undefined && hasUploaded !== undefined;
   const revealed = useRef(false);
+  // The skeleton takes the shape of what it covers: draw the layout seen
+  // last time, so the real one lands without moving the page.
+  const [last] = useState(readLastShape);
   useEffect(() => {
-    if (ready) revealed.current = true;
-  }, [ready]);
+    if (!ready) return;
+    revealed.current = true;
+    writeLastShape({ agents: agents?.length ?? 0, uploaded: !!hasUploaded });
+  }, [ready, agents, hasUploaded]);
+
+  const shown = ready
+    ? (agents ?? [])
+    : Array.from({ length: last.agents }, (_, i) => ({
+        clientId: `placeholder-${i}`,
+        name: "Claude Code",
+        connectedAt: new Date().toISOString(),
+      }));
+  const uploaded = ready ? !!hasUploaded : last.uploaded;
+  const hello = firstName ? `Hey ${firstName} 👋` : "Hey there 👋";
+  const connected = shown.length > 0;
 
   return (
     <Sheet>
@@ -108,8 +140,8 @@ export function AgentWelcome({
                   {connected ? (
                     <Connected
                       hello={hello}
-                      agents={agents}
-                      uploaded={!!hasUploaded}
+                      agents={shown}
+                      uploaded={uploaded}
                       prompt={prompt}
                       disconnect={disconnect}
                     />
@@ -335,7 +367,7 @@ function CopyPromptField({ prompt }: { prompt: string }) {
       // Outlined to stand out, but with a circling gradient edge and a glow
       // below rather than the solid even ring of a focused field.
       data-done={copied || undefined}
-      className="ds-edge flex h-11 flex-1 items-center justify-between rounded-[10px] pr-1.5 pl-3.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-ring active:scale-[0.99]"
+      className="ds-glow-edge flex h-11 flex-1 items-center justify-between rounded-[10px] pr-1.5 pl-3.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-ring active:scale-[0.99]"
     >
       <span className="grid font-medium text-[13.5px]/5">
         <Swap on={!copied}>Copy agent setup prompt</Swap>
@@ -375,7 +407,7 @@ function CopyPromptLink({ prompt }: { prompt: string }) {
           <Check className="size-3.5 text-ds-green" />
         </Swap>
       </span>
-      <span className="grid">
+      <span className="grid text-left">
         <Swap on={!copied}>Copy the prompt</Swap>
         <Swap on={copied}>Copied</Swap>
       </span>
