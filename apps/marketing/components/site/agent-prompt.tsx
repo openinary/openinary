@@ -17,10 +17,11 @@ export const AGENT_PROMPT =
   "Set up Openinary for me. Follow the instructions at https://openinary.dev/docs/agent-setup/index.md";
 
 export function AgentPrompt({
-  location,
+  surface,
   className,
 }: {
-  location: string;
+  /** Where the prompt was copied from, e.g. "marketing_hero". */
+  surface: string;
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -37,7 +38,8 @@ export function AgentPrompt({
       type="button"
       onClick={copy}
       data-track-event="agent_prompt_copied"
-      data-track-prop-location={location}
+      data-track-prop-surface={surface}
+      data-track-prop-prompt="generic"
       className={cn(
         "group relative inline-flex cursor-pointer items-center gap-1.5 rounded-[3px] text-left text-[13px] font-medium text-ink-12",
         focusRing,
