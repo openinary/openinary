@@ -14,6 +14,14 @@ export const queryClient = new QueryClient({
       // race an account switch, firing with the previous account's role
       // before the new one is known. Actions (mutations) still say it.
       if ((error as { code?: unknown }).code === "FORBIDDEN") return;
+      // No session (signed out, or not known yet on a first paint): the shell
+      // shows the sign-in form, and a retry could only 401 again. oRPC says
+      // UNAUTHORIZED; the plain fetchers say "Request failed with status 401".
+      if (
+        (error as { code?: unknown }).code === "UNAUTHORIZED" ||
+        error.message.endsWith("status 401")
+      )
+        return;
       toast.error(`Error: ${error.message}`, {
         action: {
           label: "retry",
