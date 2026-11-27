@@ -1,0 +1,36 @@
+---
+// The one-line prompt that has an AI agent set Openinary up, in a box that
+// wraps (code blocks scroll) with a copy button. Same pattern as ConnectMcp.
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+
+interface Props {
+  prompt: string;
+}
+
+const { prompt } = Astro.props;
+---
+
+<div
+  data-nb-agent-prompt
+  data-pagefind-ignore
+  class="not-prose my-6 rounded-lg border border-border bg-muted/40"
+>
+  <div class="flex items-center justify-between border-b border-border px-4 py-2">
+    <span class="text-[0.8125rem] font-medium text-foreground">Agent prompt</span>
+    <button
+      type="button"
+      data-nb-agent-prompt-copy
+      data-copy={prompt}
+      class="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-transparent px-2 py-1 text-[0.8125rem] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+    >
+      <Icon name="lucide:copy" class="w-3.5 h-3.5" />
+      <span data-nb-agent-prompt-label>Copy prompt</span>
+    </button>
+  </div>
+  <p class="px-4 py-3.5 font-mono text-[0.8125rem] leading-6 text-foreground">{prompt}</p>
+  <span class="sr-only" role="status" data-nb-agent-prompt-status></span>
+</div>
+
+<script>
+  import "./agent-prompt.client";
+</script>

@@ -9,6 +9,7 @@
 
 import { Aside } from "./components/ui/aside";
 import Render from "./components/Render.astro";
+import AgentPrompt from "./components/AgentPrompt.astro";
 import { AccordionGroup } from "./components/ui/accordion";
 import { CardGrid } from "./components/ui/card-grid";
 import { Frame } from "./components/ui/frame";
@@ -24,6 +25,7 @@ import Warning from "./components/mdx/Warning.astro";
 
 export const components = {
   Accordion,
+  AgentPrompt,
   AccordionGroup,
   Aside,
   Card,

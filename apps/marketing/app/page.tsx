@@ -1,7 +1,7 @@
 import { DOCKER_COMPOSE_YML } from "@/lib/generated/sources";
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { AgentPrompt } from "@/components/site/agent-prompt";
 import { homeFaqs } from "@/components/site/faqs";
 import { SITE_URL } from "@/lib/site";
 import {
@@ -31,7 +31,6 @@ import {
 } from "@/components/site/ui";
 import { ProductFilm } from "@/components/site/film";
 import { GitHubMark } from "@/components/site/header";
-import { OpenAlternativeMark } from "@/components/site/open-alternative-mark";
 import { freeLines } from "@/components/site/plans";
 import pricing from "@/data/pricing.json";
 
@@ -120,19 +119,7 @@ export default function Home() {
           </>
         }
         location="hero"
-        eyebrow={
-          <Link
-            href="https://openalternative.co/openinary"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-track-event="open_alternative_clicked"
-            data-track-prop-location="hero"
-            className="inline-flex items-center gap-2 transition-colors hover:text-ink-12"
-          >
-            <OpenAlternativeMark />
-            Featured on Open Alternative
-          </Link>
-        }
+        eyebrow={<AgentPrompt location="hero" />}
       />
 
       <Container>

@@ -10,26 +10,37 @@
  */
 
 /**
- * Home's welcome prompt. It carries no account values at all: the MCP server
- * knows them once the user signs in, and setup_project hands them over.
+ * Where the agent setup lives: a docs page, so the steps can change without
+ * a dashboard deploy (apps/docs/src/content/docs/cloud/agent-setup.mdx).
  */
-export function agentSetupPrompt(mcpUrl: string) {
-  return `# Set up Openinary in this project
+export const AGENT_SETUP_URL =
+  "https://openinary.dev/docs/cloud/agent-setup/index.md";
 
-1. Add the Openinary MCP server to your MCP config:
-   ${mcpUrl}
-   Claude Code: claude mcp add --transport http openinary ${mcpUrl}
-   Cursor, Codex, VS Code: add it as a remote (HTTP) MCP server.
+/**
+ * Home's welcome prompt, one line like Neon's or Mintlify's: the page it
+ * points to connects the MCP server and installs the skill, then asks what
+ * the user wants. It never assumes they want their project changed.
+ */
+export const agentSetupPrompt = `Connect Openinary to my coding agent by following ${AGENT_SETUP_URL}`;
 
-2. Connect to it. A browser tab opens for the user to sign in to Openinary
-   and approve this agent. Never ask for an API key in this chat.
-   If your client needs a restart or a command to load the server (in
-   Claude Code, the user runs /mcp to sign in), say so and wait.
+/**
+ * aiPrompt with placeholders instead of an account's values: the openinary
+ * skill's integration guide (skills/openinary/references/integrate.md), where
+ * the agent fills them from the MCP tool get_account. Regenerate the file
+ * with `tsx shared/skill-guide.test.ts --write`.
+ */
+export const skillIntegrateGuide = () =>
+  `<!-- Generated from apps/cloud/server/shared/ai-prompt.ts. Do not edit. -->
 
-3. Call the Openinary tool \`setup_project\` and follow what it returns.
-   Already on Cloudinary? Call \`migrate_from_cloudinary\` instead.
-`;
-}
+Replace the placeholders with this account's values from the Openinary MCP
+tool \`get_account\` (or the dashboard's Integrate page): <API_HOST>,
+<DELIVERY_BASE>, <BUCKET_ID>.
+
+${aiPrompt({
+  apiBaseUrl: "<API_HOST>",
+  deliveryBase: "<DELIVERY_BASE>",
+  bucketId: "<BUCKET_ID>",
+})}`;
 
 export function aiPrompt({
   apiBaseUrl,

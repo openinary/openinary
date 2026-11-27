@@ -18,7 +18,7 @@ import { PageHeader, Sheet } from "../page";
 const STEPS = [
   ["Connect the MCP", "Your agent adds Openinary to its tools."],
   ["Sign in once", "No API key in the chat."],
-  ["Your project is wired", "Uploads and delivery, in your code."],
+  ["Tell it what you want", "Integrate, migrate, or just store files."],
 ] as const;
 
 /** "Claude Code", "Claude Code and Cursor", "Claude Code, Cursor and Codex". */
@@ -187,14 +187,13 @@ function NotConnected({ hello, prompt }: { hello: string; prompt: string }) {
       <h1 className="font-semibold text-[28px]/9 tracking-[-0.01em]">
         {hello}
         <br />
-        <span className="font-medium text-ds-muted">
-          Let your agent do the setup.
-        </span>
+        <span className="font-medium text-ds-muted">Connect your agent.</span>
       </h1>
       <p className="mt-3.5 text-pretty text-[14px]/5 text-ds-muted">
         Paste one prompt into Claude Code, Cursor, Codex or any MCP client. It
-        connects to Openinary, you sign in once, and it wires uploads and
-        delivery into the project you have open.
+        connects to Openinary, you sign in once, then it asks what you want:
+        integrate uploads into your project, migrate from Cloudinary, or just
+        store files.
       </p>
 
       <div className="mt-7 flex items-center gap-4">
@@ -266,13 +265,13 @@ function Connected({
         {hello}
         <br />
         <span className="font-medium text-ds-muted">
-          {uploaded ? "Your project is wired." : "Your agent is on it."}
+          {uploaded ? "Your first file is in." : "What's next is up to you."}
         </span>
       </h1>
       <p className="mt-3.5 text-pretty text-[14px]/5 text-ds-muted">
         {uploaded
-          ? "The first file from your app just landed. From here, everything it uploads shows up in your assets."
-          : "If it hasn't started yet, ask it to set up Openinary in your project. This page moves on as soon as the first file from your app lands."}
+          ? "From here, everything you or your agent upload shows up in your assets."
+          : "Ask your agent to integrate Openinary into your project, migrate from Cloudinary, or upload files right from the chat. This page moves on when your first file lands."}
       </p>
 
       <ul className="ds-tile ds-tile-rows mt-7">
@@ -337,7 +336,7 @@ function Steps({ done }: { done: [boolean, boolean, boolean] }) {
           <span className="font-medium text-[13px]/5">{title}</span>
           <span className="text-[12.5px]/5 text-ds-muted">
             {current === i && done.some(Boolean)
-              ? "Waiting for the first upload from your app."
+              ? "Waiting for your first file."
               : body}
           </span>
         </div>
