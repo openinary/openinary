@@ -1,8 +1,9 @@
 import os from "os";
 import {
   bucketCount,
-  getDb,
+  getDatabase,
   kvGet,
+  kvInit,
   kvSet,
   readVersion,
   type TelemetryEvent,
@@ -35,23 +36,25 @@ const HEARTBEAT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const HEARTBEAT_JITTER_MS = 60 * 60 * 1000;
 const SEND_TIMEOUT_MS = 3000;
 
-function getOrCreateInstanceId(): string {
-  const existing = kvGet(getDb(), "instance_id");
+async function getOrCreateInstanceId(): Promise<string> {
+  const db = await getDatabase();
+  const existing = await kvGet(db, "instance_id");
   if (existing) return existing;
   // Derived from BETTER_AUTH_SECRET when possible: the secret lives in the
   // deployment env, so the id survives DB wipes and volume-less redeploys.
   const secret = process.env.BETTER_AUTH_SECRET;
   const id = canDeriveFrom(secret) ? deriveInstanceId(secret) : crypto.randomUUID();
-  kvSet(getDb(), "instance_id", id);
-  return id;
+  // Nodes sharing a Postgres may race here: the first id stored wins.
+  return kvInit(db, "instance_id", id);
 }
 
-function getVideoJobCount(): number {
+async function getVideoJobCount(): Promise<number> {
   try {
-    const row = getDb().prepare("SELECT COUNT(*) as count FROM video_jobs").get() as
-      | { count: number }
-      | undefined;
-    return row?.count ?? 0;
+    const row = await (await getDatabase())
+      .selectFrom("video_jobs")
+      .select((eb) => eb.fn.countAll<number>().as("count"))
+      .executeTakeFirst();
+    return Number(row?.count ?? 0);
   } catch {
     return 0;
   }
@@ -98,10 +101,10 @@ async function sendHeartbeat(instanceId: string) {
     event: "daily_heartbeat",
     properties: {
       ...buildBaseProperties(),
-      video_jobs_bucket: bucketCount(getVideoJobCount()),
+      video_jobs_bucket: bucketCount(await getVideoJobCount()),
     },
   });
-  kvSet(getDb(), "last_heartbeat_at", Date.now().toString());
+  await kvSet(await getDatabase(), "last_heartbeat_at", Date.now().toString());
 }
 
 /**
@@ -116,7 +119,7 @@ export async function trackOnboardingCompleted(properties: {
 }) {
   if (!telemetryEnabled) return;
   try {
-    await send(getOrCreateInstanceId(), {
+    await send(await getOrCreateInstanceId(), {
       event: "onboarding_completed",
       properties: { ...properties, source: properties.source ?? "skipped" },
     });
@@ -129,18 +132,21 @@ export async function trackOnboardingCompleted(properties: {
  * Fires `instance_started` once ever, then a `daily_heartbeat` roughly every
  * 24h for the lifetime of the process.
  */
-export function initTelemetry() {
+export async function initTelemetry(): Promise<void> {
   if (!telemetryEnabled) {
     logger.info("Telemetry disabled (OPENINARY_TELEMETRY=false)");
     return;
   }
 
   try {
-    const instanceId = getOrCreateInstanceId();
+    const db = await getDatabase();
+    const instanceId = await getOrCreateInstanceId();
 
-    if (!kvGet(getDb(), "first_started_at")) {
-      kvSet(getDb(), "first_started_at", Date.now().toString());
-      send(instanceId, {
+    // Stored only if absent, so of several nodes booting on one Postgres
+    // only the one whose value stuck reports the first start.
+    const startedAt = Date.now().toString();
+    if ((await kvInit(db, "first_started_at", startedAt)) === startedAt) {
+      void send(instanceId, {
         event: "instance_started",
         properties: {
           ...buildBaseProperties(),
@@ -153,18 +159,21 @@ export function initTelemetry() {
 
     // Only the first send is jittered; the steady-state period stays exact so
     // a live instance never drifts out of a rolling 24h "active" window.
-    const lastHeartbeatAt = Number(kvGet(getDb(), "last_heartbeat_at") || 0);
+    const lastHeartbeatAt = Number((await kvGet(db, "last_heartbeat_at")) || 0);
     const dueIn = Math.max(
       0,
       HEARTBEAT_INTERVAL_MS - (Date.now() - lastHeartbeatAt),
     );
     const jitter = Math.floor(Math.random() * HEARTBEAT_JITTER_MS);
 
+    const heartbeat = () => {
+      sendHeartbeat(instanceId).catch((error) => {
+        logger.debug({ error }, "Telemetry heartbeat failed (ignored)");
+      });
+    };
     setTimeout(() => {
-      sendHeartbeat(instanceId);
-      setInterval(() => {
-        sendHeartbeat(instanceId);
-      }, HEARTBEAT_INTERVAL_MS).unref();
+      heartbeat();
+      setInterval(heartbeat, HEARTBEAT_INTERVAL_MS).unref();
     }, dueIn + jitter).unref();
 
     logger.info({ instanceId }, "Telemetry initialized");

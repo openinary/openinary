@@ -36,6 +36,15 @@ export class VideoWorker extends EventEmitter {
   private maxConcurrent: number;
   private pollInterval: number;
   private isAcquiring: boolean = false;
+  /**
+   * Jobs this worker is running right now. VIDEO_MAX_CONCURRENT caps this,
+   * not the store's count of "processing" rows: on a shared Postgres those
+   * include other nodes' jobs and orphans of a crashed run (reset only after
+   * hours), which must not use up this node's slots.
+   */
+  private inFlight = 0;
+  /** Set by start() before its first await, cleared by stop(). */
+  private running = false;
   private timingSamples: VideoTimingSample[] = [];
 
   constructor(
@@ -49,11 +58,20 @@ export class VideoWorker extends EventEmitter {
     this.pollInterval = video.settings.pollIntervalMs;
   }
 
-  start(): void {
-    if (this.intervalId) {
+  /**
+   * Resets orphaned jobs, then starts polling. Resolves once polling has
+   * begun. Rejects (without polling) when the store's reset rejects, which
+   * the instance's store does only when the database can't be opened; a
+   * reset query that fails is logged by the store and counts as nothing
+   * reset. Either way the reset has finished before this worker claims a
+   * job, so it can never put one of this worker's own jobs back.
+   */
+  async start(): Promise<void> {
+    if (this.running) {
       logger.warn("Worker already started");
       return;
     }
+    this.running = true;
 
     logger.info(
       {
@@ -67,7 +85,13 @@ export class VideoWorker extends EventEmitter {
     );
 
     // Jobs left "processing" by a crash or restart, which nothing is running.
-    const resetCount = this.store.resetOrphanedProcessingJobs();
+    let resetCount: number;
+    try {
+      resetCount = await this.store.resetOrphanedProcessingJobs();
+    } catch (error) {
+      this.running = false;
+      throw error;
+    }
     if (resetCount > 0) {
       logger.info(
         { resetCount },
@@ -75,7 +99,9 @@ export class VideoWorker extends EventEmitter {
       );
     }
 
-    this.seedTimingSamples();
+    await this.seedTimingSamples();
+    // stop() was called while the reset or the seeding ran
+    if (!this.running) return;
 
     this.intervalId = setInterval(() => {
       this.fillAvailableSlots().catch((error) => {
@@ -99,9 +125,9 @@ export class VideoWorker extends EventEmitter {
    * output duration was never recorded, so they only inform the whole-job
    * figure; the per-codec speed is relearned from the first jobs this run.
    */
-  private seedTimingSamples(): void {
+  private async seedTimingSamples(): Promise<void> {
     try {
-      for (const job of this.store.getJobsByStatus("completed", MAX_TIMING_SAMPLES)) {
+      for (const job of await this.store.getJobsByStatus("completed", MAX_TIMING_SAMPLES)) {
         if (!job.started_at || !job.completed_at) continue;
         this.timingSamples.push({
           codec: videoCodecFamily(JSON.parse(job.params_json)),
@@ -131,6 +157,7 @@ export class VideoWorker extends EventEmitter {
   }
 
   stop(): void {
+    this.running = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -151,17 +178,16 @@ export class VideoWorker extends EventEmitter {
       this.isAcquiring = true;
 
       while (true) {
-        const processingCount = this.store.countProcessingJobs();
-        if (processingCount >= this.maxConcurrent) {
+        if (this.inFlight >= this.maxConcurrent) {
           logger.debug(
-            { processingCount, maxConcurrent: this.maxConcurrent },
+            { inFlight: this.inFlight, maxConcurrent: this.maxConcurrent },
             "Max concurrent jobs reached, waiting...",
           );
           break;
         }
 
         // Atomically marks it as processing
-        const job = this.store.getNextPendingJob();
+        const job = await this.store.getNextPendingJob();
         if (!job) {
           break; // No more pending jobs
         }
@@ -171,19 +197,26 @@ export class VideoWorker extends EventEmitter {
             jobId: job.id,
             filePath: job.file_path,
             priority: job.priority,
-            processingCount: processingCount + 1,
+            inFlight: this.inFlight + 1,
             maxConcurrent: this.maxConcurrent,
           },
           "Dispatching video job",
         );
 
-        // Fire and forget; errors are handled inside processJob
-        this.processJob(job).catch((error) => {
-          logger.error(
-            { error: serializeError(error), jobId: job.id },
-            "Unhandled error in job processing",
-          );
-        });
+        // Fire and forget; errors are handled inside processJob. The slot is
+        // taken before the next loop turn and freed once the job is done
+        // with, whatever its outcome.
+        this.inFlight++;
+        this.processJob(job)
+          .catch((error) => {
+            logger.error(
+              { error: serializeError(error), jobId: job.id },
+              "Unhandled error in job processing",
+            );
+          })
+          .finally(() => {
+            this.inFlight--;
+          });
       }
     } finally {
       this.isAcquiring = false;
@@ -194,6 +227,9 @@ export class VideoWorker extends EventEmitter {
     this.emit("job:started", job);
 
     let source: StagedSource | undefined;
+    // The latest progress write (it never rejects), awaited before the final
+    // status so a slow progress write can't land after it and flip it back.
+    let progressWrite: Promise<void> = Promise.resolve();
     try {
       const params = JSON.parse(job.params_json);
       source = await stageSource(this.storage, this.paths, job.file_path);
@@ -220,18 +256,22 @@ export class VideoWorker extends EventEmitter {
         }
         lastPercent = percent;
         lastWriteAt = now;
-        try {
-          this.store.updateJobStatus(job.id, "processing", percent);
-          this.emit("job:progress", { ...job, progress: percent }, percent);
-        } catch (error) {
-          // Progress is advisory: losing one update must not fail the encode
-          logger.warn(
-            { error: serializeError(error), jobId: job.id },
-            "Failed to record video job progress",
-          );
-        }
+        // Not awaited: ffmpeg reports progress synchronously, and progress
+        // is advisory, so losing one update must not fail (or slow) the encode
+        progressWrite = progressWrite
+          .then(() => this.store.updateJobStatus(job.id, "processing", percent))
+          .then(() => {
+            this.emit("job:progress", { ...job, progress: percent }, percent);
+          })
+          .catch((error) => {
+            logger.warn(
+              { error: serializeError(error), jobId: job.id },
+              "Failed to record video job progress",
+            );
+          });
       });
 
+      await progressWrite;
       await saveToCache(job.cache_path, buffer);
 
       if (this.storage) {
@@ -241,7 +281,7 @@ export class VideoWorker extends EventEmitter {
         await this.storage.upload(job.file_path, params, buffer, contentType);
       }
 
-      this.store.updateJobStatus(job.id, "completed", 100);
+      await this.store.updateJobStatus(job.id, "completed", 100);
 
       if (job.started_at) {
         this.recordTimingSample({
@@ -273,6 +313,7 @@ export class VideoWorker extends EventEmitter {
         },
         "Video job processing failed",
       );
+      await progressWrite;
 
       if (job.retry_count < job.max_retries) {
         logger.info(
@@ -285,10 +326,10 @@ export class VideoWorker extends EventEmitter {
         );
 
         // IMPORTANT: Mark as error first, then retry will reset it to pending
-        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
-        this.store.retryFailedJob(job.id);
+        await this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        await this.store.retryFailedJob(job.id);
       } else {
-        this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
+        await this.store.updateJobStatus(job.id, "error", job.progress, errorMessage);
         this.emit(
           "job:error",
           { ...job, status: "error", error: errorMessage },
@@ -300,12 +341,25 @@ export class VideoWorker extends EventEmitter {
     }
   }
 
-  getStats() {
+  /** How many jobs this worker runs at once. */
+  getMaxConcurrent(): number {
+    return this.maxConcurrent;
+  }
+
+  /** Jobs this worker is running right now (what VIDEO_MAX_CONCURRENT caps). */
+  getInFlightCount(): number {
+    return this.inFlight;
+  }
+
+  async getStats() {
     return {
       maxConcurrent: this.maxConcurrent,
       pollInterval: this.pollInterval,
       isRunning: !!this.intervalId,
-      processingCount: this.store.countProcessingJobs(),
+      /** Every job in "processing" in the store, other nodes' included. */
+      processingCount: await this.store.countProcessingJobs(),
+      /** This worker's own running jobs. */
+      inFlightCount: this.inFlight,
     };
   }
 }

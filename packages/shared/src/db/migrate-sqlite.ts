@@ -1,39 +1,14 @@
-import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import type BetterSqlite3 from "better-sqlite3";
+
+import { SCHEMA_VERSION, SCHEMA_VERSION_KEY } from "./version";
 
 /**
- * The self-hosted instance's single SQLite file: accounts and API keys, the
- * video queue, the delivery log, and the key/value settings. Every table is
- * created here, so the schema has one owner and one place to read.
+ * The SQLite schema and every upgrade an older volume needs. This is the
+ * migrate() of releases before Postgres support, unchanged step for step;
+ * only the schema_version marker at the end is new. Part of the SQLite
+ * dialect module: nothing else may import better-sqlite3.
  */
-export type Db = Database.Database;
-
-const repoRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../..",
-);
-
-/** DB_PATH, else data/auth.db at the repo root (Docker images set DB_PATH). */
-export function resolveDbPath(): string {
-  return process.env.DB_PATH || path.join(repoRoot, "data", "auth.db");
-}
-
-/** Opens (creating if needed) and migrates. Pass ":memory:" in tests. */
-export function openDb(file = resolveDbPath()): Db {
-  if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
-  const db = new Database(file);
-  migrate(db);
-  return db;
-}
-
-let shared: Db | undefined;
-
-/** The process-wide connection, opened on first use. */
-export function getDb(): Db {
-  return (shared ??= openDb());
-}
+type RawDb = BetterSqlite3.Database;
 
 const API_KEY_COLUMNS = `
   id TEXT PRIMARY KEY,
@@ -65,17 +40,35 @@ const HOUR_MS = 3_600_000;
 /** app_state marker: the one-time backfill of verified password emails ran. */
 const CREDENTIAL_EMAILS_VERIFIED = "credential_emails_verified";
 
-const tableExists = (db: Db, name: string) =>
+const tableExists = (db: RawDb, name: string) =>
   !!db
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
     .get(name);
+
+const kvGetSync = (db: RawDb, key: string) =>
+  (db.prepare("SELECT value FROM app_state WHERE key = ?").get(key) as { value: string } | undefined)?.value;
+
+const kvSetSync = (db: RawDb, key: string, value: string) =>
+  db
+    .prepare(
+      "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .run(key, value);
+
+/**
+ * Steps after the base schema, by the version they bring the schema to. Add
+ * one here (and the same version in migrate-postgres.ts) for every change.
+ * Each runs once, inside the migration transaction, and should still be
+ * written idempotently.
+ */
+const STEPS: { version: number; up: (db: RawDb) => void }[] = [];
 
 /**
  * Idempotent: safe on a fresh file and on every volume an older release left
  * behind. IMMEDIATE because the API and the dashboard open the same file at
  * the same time in the full image.
  */
-export function migrate(db: Db): void {
+export function migrateSqliteHandle(db: RawDb): void {
   db.transaction(() => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS user (
@@ -237,13 +230,13 @@ export function migrate(db: Db): void {
     // the instance (/setup, OPENINARY_ADMIN_* or an admin), so it vouches for
     // them once; new ones are marked verified when created. Accounts that
     // only have SSO keep what their provider said.
-    if (!kvGet(db, CREDENTIAL_EMAILS_VERIFIED)) {
+    if (!kvGetSync(db, CREDENTIAL_EMAILS_VERIFIED)) {
       db.exec(`
         UPDATE user SET emailVerified = 1
         WHERE emailVerified = 0
           AND id IN (SELECT userId FROM account WHERE providerId = 'credential')
       `);
-      kvSet(db, CREDENTIAL_EMAILS_VERIFIED, "1");
+      kvSetSync(db, CREDENTIAL_EMAILS_VERIFIED, "1");
     }
 
     // An instance upgrading to counts starts them from the lines it already
@@ -256,77 +249,14 @@ export function migrate(db: Db): void {
         FROM delivery_log GROUP BY 1, 2
       `);
     }
+
+    // Everything above is the base schema, version 1. Later changes are
+    // numbered steps; a volume from before versions counts as 1 once the
+    // idempotent steps above have run.
+    const current = Number(kvGetSync(db, SCHEMA_VERSION_KEY) ?? 1);
+    for (const step of STEPS) if (step.version > current) step.up(db);
+    if (current < SCHEMA_VERSION || kvGetSync(db, SCHEMA_VERSION_KEY) === undefined) {
+      kvSetSync(db, SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
+    }
   }).immediate();
-}
-
-/**
- * True once setup is done, that is once any account exists (the first one is
- * always made admin). Kept under this name for the routes that already call it.
- */
-export function hasAdmin(db: Db = getDb()): boolean {
-  return !!db.prepare("SELECT 1 FROM user LIMIT 1").get();
-}
-
-const SETUP_CLAIM = "setup_claim";
-const SETUP_CLAIM_TTL_MS = 60_000;
-
-/**
- * Reserves the one password account setup may create, in a single statement
- * so it holds across concurrent requests and both processes: of N sign-ups
- * racing on an empty instance, exactly one gets true. False once any account
- * exists. A claim whose sign-up failed frees itself after a minute.
- */
-export function claimSetup(db: Db = getDb(), now = Date.now()): boolean {
-  const { changes } = db
-    .prepare(
-      `INSERT INTO app_state (key, value)
-       SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM user)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-       WHERE CAST(app_state.value AS INTEGER) < ?`,
-    )
-    .run(SETUP_CLAIM, String(now), now - SETUP_CLAIM_TTL_MS);
-  return changes === 1;
-}
-
-export interface UserAccess {
-  id: string;
-  email: string;
-  name: string;
-  role: string | null;
-  banned: boolean;
-}
-
-/** The fields every request's permission check needs, read fresh from the database. */
-export function getUserAccess(userId: string, db: Db = getDb()): UserAccess | undefined {
-  const row = db
-    .prepare("SELECT id, email, name, role, banned, banExpires FROM user WHERE id = ?")
-    .get(userId) as
-    | (Omit<UserAccess, "banned"> & { banned: number | null; banExpires: number | string | null })
-    | undefined;
-  if (!row) return undefined;
-  // A ban with an expiry ends on its own, like Better Auth's own check.
-  const banEnded = row.banExpires != null && new Date(row.banExpires).getTime() < Date.now();
-  return { id: row.id, email: row.email, name: row.name, role: row.role, banned: !!row.banned && !banEnded };
-}
-
-export function kvGet(db: Db, key: string): string | undefined {
-  const row = db.prepare("SELECT value FROM app_state WHERE key = ?").get(key) as
-    | { value: string }
-    | undefined;
-  return row?.value;
-}
-
-export function kvSet(db: Db, key: string, value: string): void {
-  db.prepare(
-    "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-  ).run(key, value);
-}
-
-/** Stores `value` unless `key` already has one, and returns what is stored. */
-export function kvInit(db: Db, key: string, value: string): string {
-  db.prepare("INSERT OR IGNORE INTO app_state (key, value) VALUES (?, ?)").run(
-    key,
-    value,
-  );
-  return kvGet(db, key) ?? value;
 }

@@ -13,6 +13,21 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # A throwaway Postgres for the suites that run on both databases (shared,
+    # api). Trust auth: it only listens on the runner, and there's no secret to
+    # keep. Each test file works in a schema of its own (see shared/testing).
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,6 +52,17 @@ jobs:
       # docs (Astro) needs Node 22.12+, so it runs in the Node 22 step below.
       - name: Test and type-check
         run: pnpm exec turbo run test type-check --continue --filter=!docs
+
+      # The step above runs every suite on SQLite; its Postgres tests skip,
+      # since turbo hands tasks only the env vars turbo.json declares. These
+      # run shared's and the API's suites again with Postgres too, on the
+      # builds the step above made.
+      - name: Test shared and api against Postgres
+        env:
+          TEST_DATABASE_URL: postgres://postgres@localhost:5432/postgres
+        run: |
+          pnpm --filter shared test
+          pnpm --filter api test
 
       # The Worker must never bundle sharp, ffmpeg or the filesystem (core's
       # main entrypoint pulls all three). Bundled by wrangler itself, dry run,

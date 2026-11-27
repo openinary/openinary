@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return NextResponse.json({ setupComplete: hasAdmin() });
+    return NextResponse.json({ setupComplete: await hasAdmin() });
   } catch (error) {
     logger.error("Error checking setup status", { error });
     return NextResponse.json(

@@ -30,22 +30,31 @@
       "types": "./src/auth-client.ts",
       "import": "./dist/auth-client.js",
       "default": "./dist/auth-client.js"
+    },
+    "./testing": {
+      "types": "./src/testing.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     }
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/add-js-extensions.cjs",
     "type-check": "tsc --noEmit",
-    "test": "node --import tsx --test $(find src -name '*.test.ts')"
+    "test": "node --import tsx --test $(find src -name '*.test.ts')",
+    "db:copy-to-postgres": "node --import tsx src/scripts/sqlite-to-postgres.ts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.25",
     "@openinary/telemetry-schema": "workspace:*",
     "better-auth": "^1.7.25",
-    "better-sqlite3": "^12.6.2"
+    "better-sqlite3": "^12.6.2",
+    "kysely": "0.29.5",
+    "pg": "8.19.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
+    "@types/pg": "8.18.0",
     "tsx": "^4.23.15",
     "typescript": "^5.0.0"
   }

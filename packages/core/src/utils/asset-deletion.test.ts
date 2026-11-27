@@ -16,7 +16,7 @@ test("deleting a local folder clears the jobs of the files inside it", async () 
     await writeFile(join(paths.public, "clips", "a.mp4"), "x");
     const cleared: string[] = [];
     const jobStore = {
-      deleteJobsByFilePath: (filePath: string) => (cleared.push(filePath), 0),
+      deleteJobsByFilePath: async (filePath: string) => (cleared.push(filePath), 0),
     } as any;
 
     await deleteAssetCompletely("clips", null, jobStore, paths);

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     })();
 
   try {
-    if (hasAdmin()) {
+    if (await hasAdmin()) {
       return NextResponse.json(
         { error: "Setup already completed. Account creation is disabled." },
         { status: 403 },
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     // Atomic, so two setups racing on a fresh instance can't both create an
     // account (this call goes past the HTTP sign-up hook that claims it too).
-    if (!claimSetup()) {
+    if (!(await claimSetup())) {
       return NextResponse.json(
         { error: "Setup is already in progress or completed. Reload the page." },
         { status: 409 },
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     // instead of JSON and cause "Unexpected token '<'" parse errors.
     logger.info("[Setup] Creating admin account", { email, betterAuthUrl });
 
-    const authResponse = await getAuth().api.signUpEmail({
+    const authResponse = await (await getAuth()).api.signUpEmail({
       body: { email, password, name },
     });
 

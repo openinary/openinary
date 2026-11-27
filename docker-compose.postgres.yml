@@ -1,0 +1,54 @@
+# Opt-in Postgres, layered on docker-compose.yml. The default compose file
+# (SQLite on the db-data volume) is unchanged; use this overlay only to try or
+# run Openinary on Postgres. See docs/configuration/database.
+#
+#   # first add POSTGRES_PASSWORD to .env (generate one with: openssl rand -hex 24)
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml --profile full up -d
+#
+# Moving an existing SQLite instance: start the database alone first
+# (`... up -d postgres`), copy with the script from the docs, then start the app.
+#
+# One Postgres container has no failover or backups of its own. For several
+# nodes in production, point DATABASE_URL in .env at a managed Postgres (or an
+# operator such as CloudNativePG) and skip this overlay.
+
+services:
+  postgres:
+    profiles: ["full", "api"]
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=openinary
+      - POSTGRES_DB=openinary
+      # From .env. Unset, the container refuses to start (no superuser password).
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openinary -d openinary"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - openinary-network
+
+  openinary:
+    environment:
+      # No password in the URL: node-postgres reads it from PGPASSWORD.
+      - DATABASE_URL=postgres://openinary@postgres:5432/openinary?sslmode=disable
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    environment:
+      # No password in the URL: node-postgres reads it from PGPASSWORD.
+      - DATABASE_URL=postgres://openinary@postgres:5432/openinary?sslmode=disable
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg-data:

@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
   // them (not treat them as opaque node_modules code) to respect "use client",
   // and @openinary/dashboard ships TypeScript source only.
   transpilePackages: ["@openinary/ui", "@openinary/dashboard"],
+  webpack: (config) => {
+    // shared is compiled from its TypeScript source (tsconfig paths), and its
+    // lazy dialect imports name the emitted files (import("./sqlite.js")), as
+    // Node's ESM resolution needs at runtime: map them back to the sources.
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+      ".js": [".ts", ".tsx", ".js"],
+    };
+    return config;
+  },
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
     NEXT_PUBLIC_IMAGE_TAG: process.env.IMAGE_TAG || "latest",

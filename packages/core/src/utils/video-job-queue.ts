@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import path from "path";
 import type { CloudStorage } from "./storage/index";
-import logger from "./logger";
+import logger, { serializeError } from "./logger";
 import { VideoWorker } from "./video/video-worker";
 import type {
   VideoJob as DBVideoJob,
@@ -96,35 +96,47 @@ export class VideoJobQueue extends EventEmitter {
     }
   }
 
-  start(): void {
-    this.worker.start();
-    this.cleanupInterval ??= setInterval(() => this.cleanup(), 10 * 60 * 1000);
+  /**
+   * Starts the worker (after resetting orphaned jobs) and the periodic
+   * cleanup. Rejects when the store's orphan reset rejects (for the
+   * instance's store: the database can't be opened).
+   */
+  async start(): Promise<void> {
+    await this.worker.start();
+    this.cleanupInterval ??= setInterval(() => {
+      this.cleanup().catch((error) => {
+        logger.error(
+          { error: serializeError(error) },
+          "Failed to clean up old video jobs",
+        );
+      });
+    }, 10 * 60 * 1000);
     logger.info("Video job queue started");
   }
 
   /** Queues a transform of `filePath`; throws when the store cannot. */
-  enqueueTransform(
+  async enqueueTransform(
     filePath: string,
     params: VideoTransformParams,
     priority: number = TRANSFORMATION_PRIORITY,
-  ): string {
+  ): Promise<string> {
     const cachePath = derivativeCachePath(this.paths.cache, filePath, params);
-    const jobId = this.store.createJob(filePath, params, cachePath, priority);
-    const job = this.store.getJobById(jobId);
+    const jobId = await this.store.createJob(filePath, params, cachePath, priority);
+    const job = await this.store.getJobById(jobId);
     if (job) this.emit("job:created", convertDBJob(job));
     return jobId;
   }
 
   /** Puts a job back to pending, e.g. completed but its output is gone. */
-  resetJob(jobId: string): void {
-    this.store.updateJobStatus(jobId, "pending", 0);
+  async resetJob(jobId: string): Promise<void> {
+    await this.store.updateJobStatus(jobId, "pending", 0);
   }
 
-  getJobByPath(
+  async getJobByPath(
     filePath: string,
     params: VideoTransformParams,
-  ): VideoJob | null {
-    const dbJob = this.store.getJobByFileAndParams(filePath, params);
+  ): Promise<VideoJob | null> {
+    const dbJob = await this.store.getJobByFileAndParams(filePath, params);
     return dbJob ? convertDBJob(dbJob) : null;
   }
 
@@ -138,7 +150,7 @@ export class VideoJobQueue extends EventEmitter {
     filePath: string,
     params: CombindedTransformParams,
   ): Promise<ProcessingEstimate> {
-    const job = this.store.getJobByFileAndParams(filePath, params);
+    const job = await this.store.getJobByFileAndParams(filePath, params);
     const sourceSeconds = this.storage
       ? null
       : await this.probeDuration(path.join(this.paths.public, filePath));
@@ -149,7 +161,7 @@ export class VideoJobQueue extends EventEmitter {
     );
 
     // Same order getNextPendingJob claims in
-    const pending = this.store.getJobsByStatus("pending", 1000);
+    const pending = await this.store.getJobsByStatus("pending", 1000);
     const jobsAhead = job
       ? pending.filter(
           (other) =>
@@ -172,8 +184,8 @@ export class VideoJobQueue extends EventEmitter {
       expectedJob,
       queue: queueWait({
         jobsAhead,
-        running: this.store.countProcessingJobs(),
-        concurrency: this.worker.getStats().maxConcurrent,
+        running: await this.store.countProcessingJobs(),
+        concurrency: this.worker.getMaxConcurrent(),
         typicalJob: this.worker.getTimingStats().job,
       }),
     });
@@ -197,8 +209,8 @@ export class VideoJobQueue extends EventEmitter {
     return seconds;
   }
 
-  cleanup(): void {
-    this.store.cleanupOldJobs(this.videoSettings.cleanupHours);
+  async cleanup(): Promise<void> {
+    await this.store.cleanupOldJobs(this.videoSettings.cleanupHours);
   }
 
   getStats() {

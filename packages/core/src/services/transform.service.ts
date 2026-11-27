@@ -311,7 +311,7 @@ export class TransformService {
     filePath: string,
     params: CombindedTransformParams,
   ): Promise<TransformResult> {
-    let job = this.queue.getJobByPath(filePath, params);
+    let job = await this.queue.getJobByPath(filePath, params);
 
     if (job?.status === "completed") {
       // Where the worker wrote it: jobs from older versions carry a path
@@ -338,13 +338,13 @@ export class TransformService {
           { jobId: job.id, filePath, cachePath: job.cachePath },
           "Job marked as completed but cache missing - resetting to pending",
         );
-        this.queue.resetJob(job.id);
+        await this.queue.resetJob(job.id);
         job = { ...job, status: "pending" };
       }
     }
 
     if (!job || job.status === "error" || job.status === "pending") {
-      this.queue.enqueueTransform(filePath, params, TRANSFORMATION_PRIORITY);
+      await this.queue.enqueueTransform(filePath, params, TRANSFORMATION_PRIORITY);
     }
 
     // Never fall back to the original while the transform is pending: it would

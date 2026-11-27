@@ -208,10 +208,10 @@ export function createUploadRoute(deps: RouteDeps) {
     return fs.existsSync(fullPath);
   }
 
-  function queueVideoTransformations(
+  async function queueVideoTransformations(
     filePath: string,
     transformations: string[],
-  ): { queuedTransformationUrls: string[]; queueErrors: string[] } {
+  ): Promise<{ queuedTransformationUrls: string[]; queueErrors: string[] }> {
     const queuedTransformationUrls: string[] = [];
     const queueErrors: string[] = [];
 
@@ -231,7 +231,11 @@ export function createUploadRoute(deps: RouteDeps) {
         : TRANSFORMATION_PRIORITY;
 
       try {
-        const jobId = videoJobQueue.enqueueTransform(filePath, params, priority);
+        const jobId = await videoJobQueue.enqueueTransform(
+          filePath,
+          params,
+          priority,
+        );
 
         queuedTransformationUrls.push(transformPath);
         logger.info(
@@ -500,7 +504,7 @@ export function createUploadRoute(deps: RouteDeps) {
               normalizedContentType.startsWith("video/") &&
               prewarmTransformations.length > 0
             ) {
-              const queueResult = queueVideoTransformations(
+              const queueResult = await queueVideoTransformations(
                 finalPath,
                 prewarmTransformations,
               );
@@ -561,7 +565,7 @@ export function createUploadRoute(deps: RouteDeps) {
               normalizedContentType.startsWith("video/") &&
               prewarmTransformations.length > 0
             ) {
-              const queueResult = queueVideoTransformations(
+              const queueResult = await queueVideoTransformations(
                 finalPath,
                 prewarmTransformations,
               );

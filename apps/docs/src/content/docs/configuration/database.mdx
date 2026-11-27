@@ -1,0 +1,187 @@
+---
+title: "Database"
+description: "SQLite by default with nothing to set up, or Postgres through DATABASE_URL when several nodes share one instance."
+---
+
+Openinary keeps accounts, API keys, sessions, settings, the video queue and the delivery log in one database. By default that's a SQLite file on the data volume, and there's nothing to configure. Postgres is an opt-in for running several nodes against one shared database.
+
+## SQLite, the default
+
+With no `DATABASE_URL`, Openinary uses a single SQLite file at `DB_PATH` (`/app/data/auth.db` in the Docker images). It's created and kept up to date at startup. Back it up by copying the file while the instance is stopped, or with `sqlite3 /app/data/auth.db ".backup /app/data/backup.db"` while it runs.
+
+This is the right choice for a single container, which is most installs. Existing instances keep using it unchanged.
+
+## When to choose Postgres
+
+Pick Postgres when:
+
+- **You run more than one node**, for example two or more containers behind a load balancer. A SQLite file is local to one machine, so each node would have its own users, sessions and API keys. Sharing one SQLite file over a network volume (NFS, Longhorn RWX and the like) isn't safe either: its locking isn't reliable there and the file can be corrupted.
+- **You want the database to survive the node.** Failover, point-in-time recovery and managed backups come from your Postgres provider (RDS, Cloud SQL, CloudNativePG, Neon and so on).
+
+If neither applies, stay on SQLite.
+
+Several nodes on one Postgres database share accounts, API keys, sessions, settings, the video queue and the delivery log.
+
+### Video processing across nodes
+
+Every node runs its own video worker, all pulling from the one queue:
+
+- **A job is never claimed twice.** Claiming is a single atomic statement (`FOR UPDATE SKIP LOCKED`), so two nodes asking at once get different jobs.
+- **`VIDEO_MAX_CONCURRENT` stays per node.** Each node counts only the jobs it is encoding itself, so with `VIDEO_MAX_CONCURRENT=4` and three nodes the cluster encodes up to twelve videos at once. Jobs `processing` on other nodes, or left behind by a crash, never take a node's slots.
+- **A job whose node crashed waits up to about two hours.** On SQLite, every job left `processing` is reset at boot, since nothing else can be running it. On Postgres another node may be, so boot only resets jobs that started more than two hours ago, and the periodic cleanup (every ten minutes) resets those stale ones too. Only that job waits: the restarted node goes on with the rest of the queue at once.
+- **An encode that runs longer than two hours may be started a second time**, because it then looks stale.
+
+<Warning>
+  Multi-node video processing has no leases yet. Leases with heartbeats, which
+  would reclaim a dead node's jobs in seconds and never a live one's, are
+  planned as a follow-up, together with a startup check that every node uses
+  shared storage. Until then, expect the delays above, or run video processing
+  on one node. Either way, every node must use the same
+  [S3-compatible bucket](/configuration/storage): one node's local disk can't
+  serve the files another stored, and nothing checks this at startup yet.
+</Warning>
+
+## Configure Postgres
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | | `postgres://` or `postgresql://` URL. Unset or empty: SQLite at `DB_PATH`. Any other scheme stops startup with an error |
+| `DATABASE_POOL_MAX` | `5` | Connections each process keeps open. The `full` image runs two processes (API and dashboard), so it opens up to twice this per node |
+| `BETTER_AUTH_SECRET` | **required** | Must be the **same on every node**. Sessions signed by one node are checked by the others, and startup fails if the secret differs from the one the database was first used with |
+
+```bash title=".env"
+DATABASE_URL=postgres://openinary@db.internal:5432/openinary?sslmode=verify-full
+PGPASSWORD=...the database user's password...
+BETTER_AUTH_SECRET=...the same value on every node...
+```
+
+node-postgres reads the password from `PGPASSWORD` when the URL has none, which keeps it out of the URL and out of any tool that prints the URL. You can also put it in the URL after the user name; percent-encode special characters there (`@` is `%40`, `/` is `%2F`). Under Docker Compose, `DATABASE_URL` and `DATABASE_POOL_MAX` are forwarded from `.env`; pass `PGPASSWORD` to the containers too (for example through `env_file`), or use `docker-compose.postgres.yml`, which sets it for you.
+
+Openinary needs one database (or schema) of its own, and a user that may create tables in it. It creates its tables at startup and upgrades them on later releases. That step takes a Postgres advisory lock, so several nodes starting together don't race: the first creates the schema, the others wait and find it ready.
+
+Every node logs the database it uses on startup, without the password:
+
+```text
+  - Database: postgres postgres://openinary@db.internal:5432/openinary?sslmode=verify-full
+```
+
+### SSL
+
+SSL comes from the URL's `sslmode`:
+
+| `sslmode` | What it does |
+| --- | --- |
+| `verify-full` | Encrypted, and the server certificate must be valid for the host. Use this for a managed database reached over a network |
+| `require` | Treated like `verify-full` by the Postgres driver Openinary uses (node-postgres 8), not like libpq's encrypt-only `require`. It logs a warning saying so |
+| `no-verify` | Encrypted, but the certificate isn't checked. Only on a network you trust |
+| `disable` | No SSL. Fine for a database on the same host or private Docker network |
+
+For libpq's meaning of `require` (encrypt, don't verify), add `uselibpqcompat=true`: `?uselibpqcompat=true&sslmode=require`. For a provider with its own CA, `sslrootcert=/path/to/ca.pem` in the URL points the driver at it.
+
+### Try it with Docker Compose
+
+The repository has a Compose overlay that adds a Postgres container next to the `full` profile:
+
+```bash
+POSTGRES_PASSWORD=$(openssl rand -hex 24) \
+  docker compose -f docker-compose.yml -f docker-compose.postgres.yml --profile full up -d
+```
+
+Keep `POSTGRES_PASSWORD` in your `.env` afterwards, since the overlay needs it on every start. For production, a managed Postgres or an operator such as CloudNativePG gives you backups and failover that a single container doesn't.
+
+## Move an existing instance from SQLite
+
+A copy script moves everything (accounts, roles, passwords, SSO links, sessions, API keys, settings, the video queue and the delivery log) from the SQLite file into an empty Postgres database. Your users keep their passwords, and API keys keep working.
+
+<Steps>
+  <Step title="Stop Openinary">
+    ```bash
+    docker compose --profile full stop
+    ```
+
+    The copy reads the database as it was when it started. Anything written after that isn't copied, so nothing should be writing.
+  </Step>
+  <Step title="Back up the SQLite file">
+    ```bash
+    docker compose --profile full run --rm --no-deps openinary \
+      cp /app/data/auth.db /app/data/auth.db.before-postgres
+    ```
+
+    The script never writes to the file, but a backup costs nothing.
+  </Step>
+  <Step title="Note your current secret">
+    The copy includes the fingerprint of `BETTER_AUTH_SECRET`, so Postgres must run with the same secret. If you never set one, the image generated it and keeps it on the data volume:
+
+    ```bash
+    docker compose --profile full run --rm --no-deps openinary cat /app/data/.secret
+    ```
+
+    Set it as `BETTER_AUTH_SECRET` in `.env`, on every node.
+  </Step>
+  <Step title="Do a dry run">
+    Set `DATABASE_URL` in `.env` to the target, an empty database, then:
+
+    ```bash
+    docker compose --profile full run --rm --no-deps openinary \
+      node /app/packages/shared/dist/scripts/sqlite-to-postgres.js --dry-run
+    ```
+
+    `--from` defaults to `DB_PATH` (`/app/data/auth.db`) and `--to` to `DATABASE_URL`. The dry run copies everything inside a transaction, checks the row counts, then rolls back, so it proves the data fits without keeping any of it. It prints a table per table:
+
+    ```text
+    table            source  skipped  target  check
+    ---------------  ------  -------  ------  -----
+    user                 12        0      12     ok
+    session              40        2      38     ok
+    ...
+    ```
+
+    `skipped` counts sessions, accounts and API keys whose user no longer exists. Older releases didn't always remove them with the user, and Postgres won't take them.
+  </Step>
+  <Step title="Copy for real">
+    The same command without `--dry-run`. It runs in one transaction: if anything fails, or the counts don't match at the end, nothing is kept and it exits with an error.
+  </Step>
+  <Step title="Start on Postgres and check">
+    ```bash
+    docker compose --profile full up -d
+    docker compose --profile full logs openinary | grep "Database:"
+    ```
+
+    The log should name Postgres. Sign in with your usual account and check that your API keys still work.
+  </Step>
+</Steps>
+
+With the `api` profile, use `--profile api` and the `api` service in these commands instead of `openinary`. From a source checkout instead of Docker, run `pnpm --filter shared db:copy-to-postgres -- --from data/auth.db --to "$DATABASE_URL" --dry-run`.
+
+### What the copy does, exactly
+
+- The SQLite file is opened **read-only** and copied to a temporary file with `VACUUM INTO`. The usual startup migration runs on that copy, so a data volume from an older release is read at the current schema. The temporary file is deleted afterwards.
+- The target's tables are created if needed, as at a first start.
+- A target that already holds data (any account, session, key, video job, delivery line or setting) is **refused**, and nothing is written. Pass `--truncate` to empty the target's Openinary tables first instead. That happens in the same transaction as the copy, so a failed copy leaves the target as it was. Use it to re-run a copy, never on a database other instances are using.
+- Roles are copied as they are. The rule that makes the first account admin is paused during the copy.
+- Settings come along, including the secret fingerprint. The setup lock and the schema version marker don't: the target has its own.
+- Passwords in the URL never appear in the output.
+
+| Flag | Description |
+| --- | --- |
+| `--from <path>` | The SQLite file. Default: `DB_PATH`, else `data/auth.db` |
+| `--to <url>` | The Postgres URL. Default: `DATABASE_URL` |
+| `--dry-run` | Copy and verify in a transaction, then roll back |
+| `--truncate` | Empty the target's Openinary tables first instead of refusing a non-empty target |
+| `--schema <name>` | Use this Postgres schema instead of the connection's default |
+| `--batch-size <n>` | Rows per insert, 500 by default |
+
+### Going back to SQLite
+
+Remove `DATABASE_URL` and restart. The SQLite file was never modified, so the instance comes back exactly as it was when you copied it. Anything created on Postgres since (new users, keys, settings) stays in Postgres and isn't copied back.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Server configuration" icon="server" href="/configuration/server">
+    Secrets, `DB_PATH` and the other core variables.
+  </Card>
+  <Card title="Storage" icon="cloud" href="/configuration/storage">
+    S3-compatible storage, which every node must share.
+  </Card>
+</CardGroup>

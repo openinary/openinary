@@ -1,7 +1,7 @@
-import { getDb } from "shared";
+import { getDatabase } from "shared";
 import { VideoJobQueue, enginePathsIn } from "@openinary/core";
 import { getSharedStorage } from "./storage";
-import { SqliteVideoJobStore } from "./video-job-store";
+import { DbVideoJobStore } from "./video-job-store";
 
 const intEnv = (name: string): number | undefined => {
   const value = parseInt(process.env[name] ?? "", 10);
@@ -12,7 +12,7 @@ const intEnv = (name: string): number | undefined => {
 export const enginePaths = enginePathsIn(process.cwd());
 
 export const videoJobQueue = new VideoJobQueue(
-  new SqliteVideoJobStore(getDb(), intEnv("VIDEO_JOB_RETRY_MAX")),
+  new DbVideoJobStore(getDatabase, intEnv("VIDEO_JOB_RETRY_MAX")),
   getSharedStorage(),
   {
     paths: enginePaths,

@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { Db } from "shared";
+import { type Database, type Kysely, type Schema, type Updateable, type VideoJobsTable, sql } from "shared";
 import {
   logger,
   serializeError,
@@ -10,6 +10,13 @@ import {
 } from "@openinary/core";
 
 type VideoTransformParams = Parameters<VideoJobStore["createJob"]>[1];
+
+/**
+ * How long a job may sit in "processing" on Postgres before a node treats it
+ * as orphaned (its node died) and puts it back to pending. See
+ * {@link DbVideoJobStore.resetOrphanedProcessingJobs}.
+ */
+export const POSTGRES_ORPHAN_AFTER_MS = 2 * 60 * 60 * 1000;
 
 /**
  * Normalize params to a consistent JSON string. Sorts keys alphabetically so
@@ -30,65 +37,111 @@ function normalizeParamsJson(params: unknown): string {
   return JSON.stringify(normalized);
 }
 
-/** VideoJobStore over the self-hosted SQLite database (video_jobs, see shared/db.ts). */
-export class SqliteVideoJobStore implements VideoJobStore {
-  constructor(
-    private db: Db,
-    private maxRetries = 3,
-  ) {}
+/**
+ * VideoJobStore over the instance's database (the video_jobs table, see
+ * shared's db/index.ts), on SQLite or Postgres alike.
+ *
+ * Several processes, or several nodes sharing one Postgres, may run a worker
+ * against the same table, so:
+ * - {@link getNextPendingJob} claims in one UPDATE ... RETURNING, so two
+ *   workers never get the same job (with `FOR UPDATE SKIP LOCKED` on
+ *   Postgres, so concurrent claims pick different jobs instead of waiting).
+ * - {@link createJob} inserts only when no pending or processing job exists
+ *   for the same file and params, in one statement (atomic on SQLite), and
+ *   on Postgres in a transaction holding an advisory lock per file+params,
+ *   so two requests for the same transform queue one job.
+ * - {@link resetOrphanedProcessingJobs} differs per dialect, see there.
+ */
+export class DbVideoJobStore implements VideoJobStore {
+  private readonly resolveDb: () => Promise<Database>;
 
-  createJob(
+  /**
+   * `db` is a database, or a function returning one (e.g. shared's
+   * getDatabase), so the store can be built at import time before the
+   * database is open.
+   */
+  constructor(
+    db: Database | (() => Promise<Database>),
+    private maxRetries = 3,
+    private orphanAfterMs = POSTGRES_ORPHAN_AFTER_MS,
+  ) {
+    this.resolveDb = typeof db === "function" ? db : () => Promise.resolve(db);
+  }
+
+  async createJob(
     filePath: string,
     params: VideoTransformParams,
     cachePath: string,
     priority: number = 2,
-  ): string {
+  ): Promise<string> {
     const jobId = randomUUID();
     const paramsJson = normalizeParamsJson(params);
     const now = Date.now();
 
     try {
-      // Check if a job with the same file_path and params already exists
-      const existingJob = this.db
-        .prepare(
-          "SELECT id, status FROM video_jobs WHERE file_path = ? AND params_json = ? AND status IN ('pending', 'processing')",
-        )
-        .get(filePath, paramsJson) as
-        | { id: string; status: string }
-        | undefined;
+      const db = await this.resolveDb();
+      // One statement: inserts unless a pending or processing job exists for
+      // the same file and params. Atomic on SQLite, where a write statement
+      // takes the write lock before it reads (a read-then-insert transaction
+      // could fail with SQLITE_BUSY against another connection instead).
+      const insertIfAbsent = async (executor: Kysely<Schema>) => {
+        const inserted = await sql`
+          INSERT INTO video_jobs (
+            id, file_path, params_json, cache_path, status, priority,
+            progress, retry_count, max_retries, created_at
+          )
+          SELECT
+            CAST(${jobId} AS TEXT), CAST(${filePath} AS TEXT), CAST(${paramsJson} AS TEXT),
+            CAST(${cachePath} AS TEXT), 'pending', CAST(${priority} AS INTEGER),
+            0, 0, CAST(${this.maxRetries} AS INTEGER), CAST(${now} AS BIGINT)
+          WHERE NOT EXISTS (
+            SELECT 1 FROM video_jobs
+            WHERE file_path = ${filePath} AND params_json = ${paramsJson}
+              AND status IN ('pending', 'processing')
+          )
+        `.execute(executor);
+        if (Number(inserted.numAffectedRows) === 1) return { inserted: true, existingJob: undefined };
+        // An existing job for the same file and params is reused
+        const existingJob = await executor
+          .selectFrom("video_jobs")
+          .select(["id", "status"])
+          .where("file_path", "=", filePath)
+          .where("params_json", "=", paramsJson)
+          .where("status", "in", ["pending", "processing"])
+          .orderBy("created_at", "desc")
+          .executeTakeFirst();
+        return { inserted: false, existingJob };
+      };
 
-      if (existingJob) {
+      let result: Awaited<ReturnType<typeof insertIfAbsent>> | undefined;
+      // Twice at most: the job that blocked the insert may finish before the
+      // lookup sees it, and then a new one is due.
+      for (let attempt = 0; attempt < 2 && !result; attempt++) {
+        const outcome =
+          db.dialect === "postgres"
+            ? await db.transaction().execute(async (trx) => {
+                // Under READ COMMITTED two such inserts could both find no job
+                // and both insert; this lock (released at commit) makes the
+                // second wait for the first and then see its job.
+                await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`video_job:${filePath}\n${paramsJson}`}, 0))`.execute(trx);
+                return insertIfAbsent(trx);
+              })
+            : await insertIfAbsent(db);
+        if (outcome.inserted || outcome.existingJob) result = outcome;
+      }
+      if (!result) throw new Error("Could not create or find a job for this transform");
+
+      if (result.existingJob) {
         logger.debug(
           {
-            existingJobId: existingJob.id,
-            status: existingJob.status,
+            existingJobId: result.existingJob.id,
+            status: result.existingJob.status,
             filePath,
           },
           "Job already exists, returning existing job ID",
         );
-        return existingJob.id;
+        return result.existingJob.id;
       }
-
-      // Create new job
-      this.db
-        .prepare(
-          `INSERT INTO video_jobs (
-            id, file_path, params_json, cache_path, status, priority,
-            progress, retry_count, max_retries, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          jobId,
-          filePath,
-          paramsJson,
-          cachePath,
-          "pending",
-          priority,
-          0,
-          0,
-          this.maxRetries,
-          now,
-        );
 
       logger.info({ jobId, filePath, priority }, "Created new video job");
       return jobId;
@@ -101,41 +154,36 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getNextPendingJob(): VideoJob | null {
+  async getNextPendingJob(): Promise<VideoJob | null> {
     try {
-      const getAndUpdate = this.db.transaction(() => {
-        const job = this.db
-          .prepare(
-            `SELECT * FROM video_jobs
-             WHERE status = 'pending'
-             ORDER BY priority ASC, created_at ASC
-             LIMIT 1`,
-          )
-          .get() as VideoJob | undefined;
+      const db = await this.resolveDb();
+      const now = Date.now();
+      // One statement, so the claim is atomic across processes and nodes:
+      // the subquery picks the next job, the outer UPDATE takes it only if it
+      // is still pending. On Postgres, SKIP LOCKED makes a concurrent claim
+      // skip the row another transaction is taking and pick the next one.
+      const next = db
+        .selectFrom("video_jobs")
+        .select("id")
+        .where("status", "=", "pending")
+        .orderBy("priority", "asc")
+        .orderBy("created_at", "asc")
+        .limit(1)
+        .$if(db.dialect === "postgres", (qb) => qb.forUpdate().skipLocked());
+      const job = await db
+        .updateTable("video_jobs")
+        .set({ status: "processing", started_at: now })
+        .where("id", "=", next)
+        .where("status", "=", "pending")
+        .returningAll()
+        .executeTakeFirst();
 
-        if (!job) {
-          return null;
-        }
+      if (!job) return null;
 
-        const now = Date.now();
-        this.db
-          .prepare(
-            "UPDATE video_jobs SET status = 'processing', started_at = ? WHERE id = ?",
-          )
-          .run(now, job.id);
-
-        return { ...job, status: "processing" as JobStatus, started_at: now };
-      });
-
-      const job = getAndUpdate();
-
-      if (job) {
-        logger.debug(
-          { jobId: job.id, filePath: job.file_path },
-          "Retrieved next pending job",
-        );
-      }
-
+      logger.debug(
+        { jobId: job.id, filePath: job.file_path },
+        "Retrieved next pending job",
+      );
       return job;
     } catch (error) {
       logger.error(
@@ -146,39 +194,30 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  updateJobStatus(
+  async updateJobStatus(
     jobId: string,
     status: JobStatus,
     progress?: number,
     error?: string,
-  ): void {
+  ): Promise<void> {
     try {
-      const updates: string[] = ["status = ?"];
-      const values: any[] = [status];
-
-      if (progress !== undefined) {
-        updates.push("progress = ?");
-        values.push(progress);
-      }
-
-      if (error !== undefined) {
-        updates.push("error = ?");
-        values.push(error);
-      }
-
+      const updates: Updateable<VideoJobsTable> = { status };
+      if (progress !== undefined) updates.progress = progress;
+      if (error !== undefined) updates.error = error;
       if (
         status === "completed" ||
         status === "error" ||
         status === "cancelled"
       ) {
-        updates.push("completed_at = ?");
-        values.push(Date.now());
+        updates.completed_at = Date.now();
       }
 
-      values.push(jobId);
-
-      const query = `UPDATE video_jobs SET ${updates.join(", ")} WHERE id = ?`;
-      this.db.prepare(query).run(...values);
+      const db = await this.resolveDb();
+      await db
+        .updateTable("video_jobs")
+        .set(updates)
+        .where("id", "=", jobId)
+        .execute();
 
       logger.debug({ jobId, status, progress }, "Updated job status");
     } catch (error) {
@@ -190,19 +229,21 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobByFileAndParams(
+  async getJobByFileAndParams(
     filePath: string,
     params: VideoTransformParams,
-  ): VideoJob | null {
+  ): Promise<VideoJob | null> {
     try {
-      const paramsJson = normalizeParamsJson(params);
-      const job = this.db
-        .prepare(
-          "SELECT * FROM video_jobs WHERE file_path = ? AND params_json = ? ORDER BY created_at DESC LIMIT 1",
-        )
-        .get(filePath, paramsJson) as VideoJob | undefined;
-
-      return job || null;
+      const db = await this.resolveDb();
+      const job = await db
+        .selectFrom("video_jobs")
+        .selectAll()
+        .where("file_path", "=", filePath)
+        .where("params_json", "=", normalizeParamsJson(params))
+        .orderBy("created_at", "desc")
+        .limit(1)
+        .executeTakeFirst();
+      return job ?? null;
     } catch (error) {
       logger.error(
         { error: serializeError(error), filePath },
@@ -212,13 +253,15 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobById(jobId: string): VideoJob | null {
+  async getJobById(jobId: string): Promise<VideoJob | null> {
     try {
-      const job = this.db
-        .prepare("SELECT * FROM video_jobs WHERE id = ?")
-        .get(jobId) as VideoJob | undefined;
-
-      return job || null;
+      const db = await this.resolveDb();
+      const job = await db
+        .selectFrom("video_jobs")
+        .selectAll()
+        .where("id", "=", jobId)
+        .executeTakeFirst();
+      return job ?? null;
     } catch (error) {
       logger.error(
         { error: serializeError(error), jobId },
@@ -228,34 +271,35 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobStats(): JobStats {
+  async getJobStats(): Promise<JobStats> {
     try {
-      const stats = this.db
-        .prepare(
-          `SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-            SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error
-           FROM video_jobs`,
-        )
-        .get() as JobStats;
-
-      return stats;
+      const db = await this.resolveDb();
+      const { rows } = await sql<JobStats>`
+        SELECT
+          COUNT(*) AS total,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
+          COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) AS processing,
+          COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) AS completed,
+          COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END), 0) AS error
+        FROM video_jobs
+      `.execute(db);
+      return rows[0];
     } catch (error) {
       logger.error({ error: serializeError(error) }, "Failed to get job stats");
       return { total: 0, pending: 0, processing: 0, completed: 0, error: 0 };
     }
   }
 
-  getRecentJobs(limit: number = 50, offset: number = 0): VideoJob[] {
+  async getRecentJobs(limit: number = 50, offset: number = 0): Promise<VideoJob[]> {
     try {
-      return this.db
-        .prepare(
-          "SELECT * FROM video_jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        )
-        .all(limit, offset) as VideoJob[];
+      const db = await this.resolveDb();
+      return await db
+        .selectFrom("video_jobs")
+        .selectAll()
+        .orderBy("created_at", "desc")
+        .limit(limit)
+        .offset(offset)
+        .execute();
     } catch (error) {
       logger.error(
         { error: serializeError(error), limit, offset },
@@ -265,13 +309,16 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  getJobsByStatus(status: JobStatus, limit: number = 50): VideoJob[] {
+  async getJobsByStatus(status: JobStatus, limit: number = 50): Promise<VideoJob[]> {
     try {
-      return this.db
-        .prepare(
-          "SELECT * FROM video_jobs WHERE status = ? ORDER BY created_at DESC LIMIT ?",
-        )
-        .all(status, limit) as VideoJob[];
+      const db = await this.resolveDb();
+      return await db
+        .selectFrom("video_jobs")
+        .selectAll()
+        .where("status", "=", status)
+        .orderBy("created_at", "desc")
+        .limit(limit)
+        .execute();
     } catch (error) {
       logger.error(
         { error: serializeError(error), status, limit },
@@ -281,15 +328,15 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  countProcessingJobs(): number {
+  async countProcessingJobs(): Promise<number> {
     try {
-      const result = this.db
-        .prepare(
-          "SELECT COUNT(*) as count FROM video_jobs WHERE status = 'processing'",
-        )
-        .get() as { count: number };
-
-      return result.count;
+      const db = await this.resolveDb();
+      const result = await db
+        .selectFrom("video_jobs")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("status", "=", "processing")
+        .executeTakeFirstOrThrow();
+      return Number(result.count);
     } catch (error) {
       logger.error(
         { error: serializeError(error) },
@@ -299,26 +346,28 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  cleanupOldJobs(olderThanHours: number = 24): number {
+  async cleanupOldJobs(olderThanHours: number = 24): Promise<number> {
     try {
+      const db = await this.resolveDb();
       const cutoffTime = Date.now() - olderThanHours * 60 * 60 * 1000;
+      const result = await db
+        .deleteFrom("video_jobs")
+        .where("status", "in", ["completed", "error", "cancelled"])
+        .where("completed_at", "<", cutoffTime)
+        .executeTakeFirst();
+      const deleted = Number(result.numDeletedRows);
 
-      const result = this.db
-        .prepare(
-          `DELETE FROM video_jobs
-           WHERE status IN ('completed', 'error', 'cancelled')
-           AND completed_at < ?`,
-        )
-        .run(cutoffTime);
-
-      if (result.changes > 0) {
+      if (deleted > 0) {
         logger.info(
-          { deletedCount: result.changes, olderThanHours },
+          { deletedCount: deleted, olderThanHours },
           "Cleaned up old jobs",
         );
       }
-
-      return result.changes;
+      // On Postgres the boot-time reset only takes stale jobs, so a job
+      // orphaned while this node kept running would otherwise wait for the
+      // next boot; this is that reset's periodic half.
+      if (db.dialect === "postgres") await this.resetOrphanedProcessingJobs();
+      return deleted;
     } catch (error) {
       logger.error(
         { error: serializeError(error), olderThanHours },
@@ -328,9 +377,9 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  retryFailedJob(jobId: string): boolean {
+  async retryFailedJob(jobId: string): Promise<boolean> {
     try {
-      const job = this.getJobById(jobId);
+      const job = await this.getJobById(jobId);
 
       if (!job) {
         logger.warn({ jobId }, "Cannot retry: job not found");
@@ -353,17 +402,24 @@ export class SqliteVideoJobStore implements VideoJobStore {
         return false;
       }
 
-      this.db
-        .prepare(
-          `UPDATE video_jobs
-           SET status = 'pending',
-               retry_count = retry_count + 1,
-               error = NULL,
-               started_at = NULL,
-               completed_at = NULL
-           WHERE id = ?`,
-        )
-        .run(jobId);
+      const db = await this.resolveDb();
+      // Still in error: two retries of one job can't both count
+      const result = await db
+        .updateTable("video_jobs")
+        .set((eb) => ({
+          status: "pending",
+          retry_count: eb("retry_count", "+", 1),
+          error: null,
+          started_at: null,
+          completed_at: null,
+        }))
+        .where("id", "=", jobId)
+        .where("status", "=", "error")
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 0) {
+        logger.warn({ jobId }, "Cannot retry: job changed state meanwhile");
+        return false;
+      }
 
       logger.info(
         { jobId, retry_count: job.retry_count + 1 },
@@ -379,9 +435,9 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  cancelJob(jobId: string): boolean {
+  async cancelJob(jobId: string): Promise<boolean> {
     try {
-      const job = this.getJobById(jobId);
+      const job = await this.getJobById(jobId);
 
       if (!job) {
         logger.warn({ jobId }, "Cannot cancel: job not found");
@@ -396,11 +452,18 @@ export class SqliteVideoJobStore implements VideoJobStore {
         return false;
       }
 
-      this.db
-        .prepare(
-          "UPDATE video_jobs SET status = 'cancelled', completed_at = ? WHERE id = ?",
-        )
-        .run(Date.now(), jobId);
+      const db = await this.resolveDb();
+      // Still pending: a worker may have claimed it since the read above
+      const result = await db
+        .updateTable("video_jobs")
+        .set({ status: "cancelled", completed_at: Date.now() })
+        .where("id", "=", jobId)
+        .where("status", "=", "pending")
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 0) {
+        logger.warn({ jobId }, "Cannot cancel: job is no longer pending");
+        return false;
+      }
 
       logger.info({ jobId }, "Job cancelled");
       return true;
@@ -413,13 +476,15 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  deleteJob(jobId: string): boolean {
+  async deleteJob(jobId: string): Promise<boolean> {
     try {
-      const result = this.db
-        .prepare("DELETE FROM video_jobs WHERE id = ?")
-        .run(jobId);
+      const db = await this.resolveDb();
+      const result = await db
+        .deleteFrom("video_jobs")
+        .where("id", "=", jobId)
+        .executeTakeFirst();
 
-      if (result.changes > 0) {
+      if (Number(result.numDeletedRows) > 0) {
         logger.info({ jobId }, "Job deleted");
         return true;
       }
@@ -435,24 +500,59 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  resetOrphanedProcessingJobs(): number {
+  /**
+   * Puts jobs left "processing" by a crash or restart back to pending. Runs
+   * when the worker starts.
+   *
+   * - SQLite: every processing job. One instance owns the file, and at boot
+   *   nothing is running yet, so all of them are orphans.
+   * - Postgres: only jobs that started more than `orphanAfterMs` (2 h by
+   *   default) ago. Other nodes sharing the database may be encoding the
+   *   rest right now; resetting them would make a second node run the same
+   *   job on every boot or rolling deploy. The cost: a job orphaned by a
+   *   crash waits up to that long before it is picked up again (also by
+   *   cleanupOldJobs, which reclaims stale jobs every run on Postgres), and
+   *   an encode running longer than that may be run twice.
+   *   TODO(stage 3): leases with heartbeats (claimed_by, lease_expires_at
+   *   renewed with progress) so a dead node's jobs are reclaimed in seconds
+   *   and live ones never are.
+   *
+   * Rejects when the database can't be opened, so the worker's start()
+   * rejects and server.ts exits (as a failed open at import did before the
+   * database layer went async). A failing reset query alone is logged and
+   * counts as nothing reset, as it always did: the worker still starts.
+   */
+  async resetOrphanedProcessingJobs(): Promise<number> {
+    const db = await this.resolveDb();
     try {
-      const result = this.db
-        .prepare(
-          `UPDATE video_jobs
-           SET status = 'pending', started_at = NULL
-           WHERE status = 'processing'`,
+      const staleBefore =
+        db.dialect === "postgres" ? Date.now() - this.orphanAfterMs : undefined;
+      const result = await db
+        .updateTable("video_jobs")
+        .set({ status: "pending", started_at: null })
+        .where("status", "=", "processing")
+        .$if(staleBefore !== undefined, (qb) =>
+          qb.where((eb) =>
+            eb.or([
+              eb("started_at", "is", null),
+              eb("started_at", "<", staleBefore!),
+            ]),
+          ),
         )
-        .run();
+        .executeTakeFirst();
+      const reset = Number(result.numUpdatedRows);
 
-      if (result.changes > 0) {
+      if (reset > 0) {
         logger.warn(
-          { resetCount: result.changes },
-          "Reset orphaned processing jobs to pending",
+          staleBefore === undefined
+            ? { resetCount: reset }
+            : { resetCount: reset, orphanAfterMs: this.orphanAfterMs },
+          staleBefore === undefined
+            ? "Reset orphaned processing jobs to pending"
+            : "Reset processing jobs older than the orphan threshold to pending (shared Postgres: younger ones may be running on another node)",
         );
       }
-
-      return result.changes;
+      return reset;
     } catch (error) {
       logger.error(
         { error: serializeError(error) },
@@ -462,22 +562,24 @@ export class SqliteVideoJobStore implements VideoJobStore {
     }
   }
 
-  deleteJobsByFilePath(filePath: string): number {
+  async deleteJobsByFilePath(filePath: string): Promise<number> {
     try {
-      const result = this.db
-        .prepare("DELETE FROM video_jobs WHERE file_path = ?")
-        .run(filePath);
+      const db = await this.resolveDb();
+      const result = await db
+        .deleteFrom("video_jobs")
+        .where("file_path", "=", filePath)
+        .executeTakeFirst();
+      const deleted = Number(result.numDeletedRows);
 
-      if (result.changes > 0) {
+      if (deleted > 0) {
         logger.info(
-          { filePath, deletedCount: result.changes },
+          { filePath, deletedCount: deleted },
           "Deleted jobs for file path",
         );
       } else {
         logger.debug({ filePath }, "No jobs found for file path");
       }
-
-      return result.changes;
+      return deleted;
     } catch (error) {
       logger.error(
         { error: serializeError(error), filePath },

@@ -40,7 +40,7 @@ nothing from `apps/cloud/`.
 | `@openinary/plans` | The Cloud plan catalog (plans, metered features, limits), read by the marketing site, the Cloud dashboard, the back office and the Cloud server. |
 | `create-openinary` | The CLI (`npx create-openinary`), published to npm. |
 | `registry` | shadcn/ui registry source. Builds into `apps/marketing/public/r`, which is what serves `openinary.dev/r`. The output is generated, not committed. |
-| `shared` | The self-hosted SQLite database (schema and migrations), auth config and environment helpers, used by `apps/api` and `apps/web`. |
+| `shared` | The self-hosted database layer (SQLite by default, Postgres opt-in; schema and migrations), auth config and environment helpers, used by `apps/api` and `apps/web`. |
 
 The apps consume the packages through `workspace:*`, so nothing has to be
 published between fixing something and shipping it. Both were published to npm up
@@ -64,7 +64,7 @@ packages/core/src/
 ├── services/         # TransformService, the entry point for every delivery request
 └── utils/
     ├── image/        # Sharp-based image pipeline
-    ├── video/        # FFmpeg pipeline and worker settings (the SQLite job store lives in apps/api)
+    ├── video/        # FFmpeg pipeline and worker settings (the database job store lives in apps/api)
     ├── storage/      # S3-compatible client (AWS, R2, MinIO…)
     ├── video-job-queue.ts  # The video queue and its worker
     ├── cache.ts      # Local derivative cache
@@ -121,12 +121,14 @@ that points them at the self-hosted API.
 
 ## packages/shared
 
-Consumed by both `api` and `web`. It owns the one SQLite file a self-hosted
-instance keeps, so both apps always use the same database and schema.
+Consumed by both `api` and `web`. It owns the self-hosted instance's database
+(a SQLite file by default, or Postgres when `DATABASE_URL` is set), so both apps
+always use the same database and schema.
 
 ```bash
 packages/shared/src/
-├── db.ts           # DB path, connection, every table and its migrations
+├── db/             # Kysely over SQLite (default) or Postgres: schema, per-dialect migrations
+├── scripts/        # sqlite-to-postgres.ts, the one-time copy to Postgres
 ├── auth.ts         # Better Auth config and API key plugin (createAuth / getAuth)
 ├── auth-client.ts  # Client-side auth helpers
 ├── env.ts          # Allowed origins, placeholder secrets, version
@@ -141,7 +143,7 @@ Both apps import through the `"shared"` and `"shared/*"` entry points defined in
 
 ```
 api  →  @openinary/core  →  sharp, fluent-ffmpeg, @aws-sdk/client-s3
-api  →  shared           →  better-auth, @better-auth/api-key, better-sqlite3
+api  →  shared           →  better-auth, @better-auth/api-key, kysely, better-sqlite3, pg
 web  →  @openinary/dashboard  →  @openinary/ui
 web  →  shared
 ```

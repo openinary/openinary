@@ -81,6 +81,7 @@ const nimbusConfig = defineNimbusConfig({
             "configuration/server",
             "configuration/authentication",
             "configuration/storage",
+            "configuration/database",
             "configuration/video-processing",
             "configuration/docker-resources",
             "configuration/telemetry",

@@ -4,7 +4,8 @@ description: "Auth model, API keys, upload validation, container users and incid
 ---
 
 Openinary authenticates two ways: Better Auth sessions for the web dashboard, and
-API keys for everything programmatic. Both live in one SQLite file. A key travels
+API keys for everything programmatic. Both live in the instance's database, a SQLite
+file unless you [opt into Postgres](/configuration/database). A key travels
 as a bearer token:
 
 ```bash
@@ -12,7 +13,7 @@ curl -H "Authorization: Bearer sk_your_key_here" \
   http://localhost:3000/upload
 ```
 
-The auth layer is [Better Auth](https://www.better-auth.com) 1.6 on a SQLite backend.
+The auth layer is [Better Auth](https://www.better-auth.com) on that database.
 
 ## API keys
 
@@ -39,10 +40,14 @@ defaults and options.
 
 ## Database
 
-All auth data sits in a single SQLite file at `/app/data/auth.db`, configurable
-via [`DB_PATH`](/configuration/server#core). On startup, `scripts/secure-db.js`
-sets its permissions to `600`, owner read/write only. It runs in both Docker
-images, before the server starts.
+By default all auth data sits in a single SQLite file at `/app/data/auth.db`,
+configurable via [`DB_PATH`](/configuration/server#core). On startup,
+`scripts/secure-db.js` sets its permissions to `600`, owner read/write only. It
+runs in both Docker images, before the server starts. With
+[`DATABASE_URL`](/configuration/database) set, the same tables live in Postgres
+instead, and access to them is your Postgres user's permissions and network
+rules: use a user of its own for Openinary and `sslmode=verify-full` across a
+network.
 
 | Table          | Contents                          |
 | -------------- | --------------------------------- |
@@ -111,7 +116,7 @@ Create a new key and update all services that used the compromised one.
 docker compose exec api sqlite3 /app/data/auth.db "PRAGMA integrity_check;"
 ```
 
-A healthy database returns `ok`. If it reports errors, restore from your most recent backup and restart.
+A healthy database returns `ok`. (SQLite only: on Postgres, use your provider's tools.) If it reports errors, restore from your most recent backup and restart.
 
 </Accordion>
 </AccordionGroup>
