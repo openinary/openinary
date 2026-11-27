@@ -31,6 +31,15 @@ export const dashboardAnalytics: DashboardAnalytics = {
     posthog.capture("playground_url_copied", props);
   },
   integrationPromptCopied: (variant) => {
+    // Home's agent setup prompt counts with the site's and the docs' under
+    // one event (surface, prompt); the Integrate page's prompt keeps its own.
+    if (variant === "agent") {
+      posthog.capture("agent_prompt_copied", {
+        surface: "dashboard_home",
+        prompt: "cloud",
+      });
+      return;
+    }
     posthog.capture("integration_prompt_copied", { variant });
   },
   // The framework guides live in the docs, so their variant can no longer

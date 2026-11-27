@@ -5,13 +5,16 @@ import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 
 interface Props {
   prompt: string;
+  /** Sent with the copy event, e.g. "docs_home". */
+  surface?: string;
 }
 
-const { prompt } = Astro.props;
+const { prompt, surface = "docs" } = Astro.props;
 ---
 
 <div
   data-nb-agent-prompt
+  data-surface={surface}
   data-pagefind-ignore
   class="not-prose my-6 rounded-lg border border-border bg-muted/40"
 >

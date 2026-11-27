@@ -119,7 +119,7 @@ export default function Home() {
           </>
         }
         location="hero"
-        eyebrow={<AgentPrompt location="hero" />}
+        eyebrow={<AgentPrompt surface="marketing_hero" />}
       />
 
       <Container>

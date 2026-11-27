@@ -4,6 +4,7 @@ import { apiKey } from "@better-auth/api-key";
 import { mcp } from "@better-auth/mcp";
 import { APIError, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware } from "better-auth/api";
 import {
   admin,
   captcha,
@@ -151,6 +152,29 @@ export const authInstance = betterAuth({
       // makes it come back from listUsers/getUser instead of being stripped.
       suspended: { type: "boolean", defaultValue: false, input: false },
     },
+  },
+  hooks: {
+    // Funnel step after agent_prompt_copied: someone clicked Allow on
+    // /oauth/consent for a coding agent (Claude Code, Cursor...). Denials and
+    // agents that already had consent never get here.
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/oauth2/consent" || ctx.body?.accept !== true) return;
+      if (ctx.context.returned instanceof APIError) return;
+      const userId = ctx.context.session?.user.id;
+      const clientId = new URLSearchParams(ctx.body?.oauth_query ?? "").get(
+        "client_id",
+      );
+      if (!userId || !clientId) return;
+      const [client] = await db
+        .select({ name: schema.oauthClient.name })
+        .from(schema.oauthClient)
+        .where(eq(schema.oauthClient.clientId, clientId))
+        .limit(1);
+      await captureEvent("agent_connected", userId, {
+        agent: client?.name || "unknown",
+        client_id: clientId,
+      });
+    }),
   },
   // One Telegram ping per new account, self-serve or admin-created, with a
   // link to its admin page. notify() swallows every failure, so a dead bot
