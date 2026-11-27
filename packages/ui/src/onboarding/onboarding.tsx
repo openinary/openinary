@@ -796,12 +796,18 @@ export function Onboarding({
   });
   const step = steps[index] ?? steps[0];
   const last = index === steps.length - 1;
+  // Seats left once the owner is counted: as many invite rows as the plan
+  // can take, so nobody types an address that would be refused.
+  const freeSeats = seatLimit === undefined ? Infinity : seatLimit - 1;
   // Rows being typed on the invite step, blanks included.
   const [inviteRows, setInviteRows] = useState<OnboardingInvite[]>(() =>
     resume?.answers.invites.length
-      ? resume.answers.invites
-      : [{ ...BLANK_INVITE }, { ...BLANK_INVITE }],
+      ? resume.answers.invites.slice(0, Math.max(1, freeSeats))
+      : Array.from({ length: Math.max(1, Math.min(2, freeSeats)) }, () => ({
+          ...BLANK_INVITE,
+        })),
   );
+  const firstRows = useRef(inviteRows.length);
   const [direction, setDirection] = useState(1);
   // The step Continue was last pressed on with something missing.
   const [tried, setTried] = useState<OnboardingStepId | null>(null);
@@ -811,8 +817,6 @@ export function Onboarding({
     setAnswers((current) => ({ ...current, ...patch }));
 
   const filledInvites = inviteRows.filter((row) => row.email.trim());
-  // Seats left once the owner (and anyone already there) is counted.
-  const freeSeats = seatLimit === undefined ? Infinity : seatLimit - 1;
   const missing = {
     role: step === "who" && !answers.role,
     teamName:
@@ -1390,7 +1394,7 @@ export function Onboarding({
                                     type="email"
                                     aria-label={`Email ${i + 1}`}
                                     // The first row on arrival, then each row "Add another" adds.
-                                    autoFocus={i === 0 || i > 1}
+                                    autoFocus={i === 0 || i >= firstRows.current}
                                     placeholder="teammate@company.com"
                                     value={row.email}
                                     data-missing={bad || undefined}
@@ -1429,6 +1433,7 @@ export function Onboarding({
                                 </div>
                               );
                             })}
+                            {inviteRows.length < freeSeats && (
                             <button
                               type="button"
                               onClick={() =>
@@ -1442,6 +1447,7 @@ export function Onboarding({
                               <Plus className="size-3.5" />
                               Add another
                             </button>
+                            )}
                           </div>
                           {seatLimit !== undefined && (
                             <div

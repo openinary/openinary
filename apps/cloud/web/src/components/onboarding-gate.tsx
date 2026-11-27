@@ -19,7 +19,7 @@ import {
   rememberOnboarded,
 } from "@openinary/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { useAccount } from "@/hooks/use-account";
@@ -106,6 +106,10 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   const account = useAccount();
   const queryClient = useQueryClient();
   const router = useRouter();
+  // An invitation link waits for its answer first: accepting makes the team
+  // the active account, and the questionnaire then only asks about the
+  // person, rather than having them set up an account of their own first.
+  const onInvitation = usePathname().startsWith("/invite/");
 
   const onboarded = state.data?.onboarded;
   const joining =
@@ -122,7 +126,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   const planId = usage.isError ? null : usage.data?.planId;
   const ready =
     !!user && !!bucket && account.loaded && (!!joining || planId !== undefined);
-  const shown = ready && onboarded === false;
+  const shown = ready && onboarded === false && !onInvitation;
   useDocumentTitle(shown ? "Welcome" : null);
   useEffect(() => {
     if (shown) trackOnboardingStarted();
@@ -131,6 +135,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
     if (onboarded) rememberOnboarded();
   }, [onboarded]);
   if (!shown) {
+    if (onInvitation) return null;
     const loading =
       state.isPending || (onboarded === false && (!ready || bucketLoading));
     return loading && !onboardedHint ? <OnboardingBackdrop /> : null;
