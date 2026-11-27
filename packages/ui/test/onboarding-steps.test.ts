@@ -16,6 +16,21 @@ test("each path gets its own steps", () => {
     "source",
     "invite",
   ]);
+  // A team staying on Free has nobody to invite.
+  assert.deepEqual(onboardingSteps("cloud", { ...team, canInvite: false }), [
+    "who",
+    "profile",
+    "use_cases",
+    "source",
+    "plan",
+  ]);
+  assert.deepEqual(onboardingSteps("self-hosted", { ...team, canInvite: false }), [
+    "who",
+    "profile",
+    "use_cases",
+    "source",
+    "team_access",
+  ]);
   assert.deepEqual(onboardingSteps("self-hosted", solo), ["who", "profile", "use_cases", "source"]);
   assert.deepEqual(onboardingSteps("self-hosted", team), ["who", "profile", "use_cases", "source", "team_access"]);
   for (const variant of ["cloud", "self-hosted"] as const) {
