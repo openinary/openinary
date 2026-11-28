@@ -92,6 +92,8 @@ export interface OnboardingProps {
   joining?: { name: string; logo?: string | null; detail: string };
   /** Cloud: the plan step's cards. Without them there is no plan step. */
   plans?: OnboardingPlan[];
+  /** Cloud: the plan to put forward on the plan step (picked on the site). */
+  preferredPlan?: string;
   /** Cloud: people the current plan allows, owner included. */
   seatLimit?: number;
   /** Cloud: asks for more seats than the plan has (opens the support chat). */
@@ -755,6 +757,7 @@ export function Onboarding({
   workspace,
   joining,
   plans,
+  preferredPlan,
   seatLimit,
   onMoreSeats,
   providers,
@@ -1037,6 +1040,7 @@ export function Onboarding({
   const paidPlan = plans?.find((p) => p.paid);
   const highlightedPlan =
     plans?.find((p) => p.current && p.paid)?.id ??
+    plans?.find((p) => p.id === preferredPlan)?.id ??
     (answers.team ? paidPlan?.id : plans?.find((p) => !p.paid)?.id);
 
   return (

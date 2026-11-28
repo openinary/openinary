@@ -40,7 +40,7 @@ export type Plan = {
   unit: string;
   sub: string;
   blurb: string;
-  cta: { label: string; href: string; event: string };
+  cta: { label: string; href: string; event: string; plan?: string };
   primary?: boolean;
   lines: string[];
 };
@@ -79,7 +79,14 @@ export const plans: Plan[] = [
     unit: "minimum usage / month",
     sub: "Openinary Cloud",
     blurb: `Your $${paidPlan.monthlyUsd} covers the first $${paidPlan.creditUsd} of usage. Past it, each unit at the price below, and nothing stops.`,
-    cta: { label: "Start free", href: APP_URL, event: "cloud_cta_clicked" },
+    // ?plan=payg: the app keeps it through sign-up and opens the onboarding's
+    // plan step on Pay as you go, one click from the checkout.
+    cta: {
+      label: "Start with pay as you go",
+      href: `${APP_URL}/?plan=payg`,
+      event: "cloud_cta_clicked",
+      plan: "payg",
+    },
     lines: paidLines,
   },
 ];
@@ -108,6 +115,7 @@ export function PlanCard({ plan, location }: { plan: Plan; location: string }) {
           {...(plan.cta.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           data-track-event={plan.cta.event}
           data-track-prop-location={location}
+          {...(plan.cta.plan && { "data-track-prop-plan": plan.cta.plan })}
           className={buttonClass(plan.primary ? "primary" : "secondary", "mt-5 w-full")}
         >
           {plan.cta.label}
