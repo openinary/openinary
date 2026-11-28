@@ -30,6 +30,7 @@ import {
   trackOnboardingStepCompleted,
 } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { clearPlanIntent, wantsPaidPlan } from "@/lib/plan-intent";
 import { client, orpc } from "@/utils/orpc";
 
 /**
@@ -147,7 +148,13 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
   }, [shown]);
   useEffect(() => {
     if (onboarded) rememberOnboarded();
-  }, [onboarded]);
+    // An existing account that clicked the site's Pay as you go button has no
+    // plan step left: take it to the plan settings, where the upgrade is.
+    if (onboarded && wantsPaidPlan()) {
+      clearPlanIntent();
+      router.push("/?settings=plan");
+    }
+  }, [onboarded, router]);
   if (!shown) {
     if (onInvitation) return null;
     const loading =
@@ -193,6 +200,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
       team: joining ? undefined : answers.team,
     });
     localStorage.removeItem(RESUME_KEY);
+    clearPlanIntent();
     queryClient.invalidateQueries({ queryKey: orpc.bucket.list.key() });
     queryClient.invalidateQueries({ queryKey: orpc.team.overview.key() });
   };
@@ -209,6 +217,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
         }
       }
       plans={onFreePlan && !joining ? PLAN_CARDS : undefined}
+      preferredPlan={wantsPaidPlan() ? UPGRADE_PLAN.id : undefined}
       seatLimit={planOf(planId).seats}
       onMoreSeats={openSupport}
       resume={resume}
@@ -232,6 +241,7 @@ export function OnboardingGate({ onboardedHint }: { onboardedHint: boolean }) {
         } else {
           await save(answers);
         }
+        clearPlanIntent();
         const { paymentUrl } = await client.billing.checkout({
           returnTo: "get-started",
         });

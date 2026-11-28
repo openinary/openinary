@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import z from "zod";
 import { useTurnstile } from "@/hooks/use-turnstile";
 import { authClient } from "@/lib/auth-client";
+import { capturePlanIntent, wantsPaidPlan } from "@/lib/plan-intent";
 import { Logo } from "./logo";
 import { AuthSplit } from "@openinary/dashboard/ui/auth-split";
 import { Button } from "@openinary/dashboard/ui/button";
@@ -194,6 +195,13 @@ export default function SignInForm({
   // The address the code went to. Empty = still on the email step; no valid
   // email is ever "", so it doubles as the step flag.
   const [sentTo, setSentTo] = useState("");
+  // Came from the site's Pay as you go button. Captured here too: this
+  // effect runs before AppShell's on the very first render.
+  const [paidIntent, setPaidIntent] = useState(false);
+  useEffect(() => {
+    capturePlanIntent();
+    setPaidIntent(wantsPaidPlan());
+  }, []);
   useTabTitle(`${sentTo ? "Check your email" : "Sign in"} · Openinary Cloud`);
 
   // One form across both steps: same submit button, and the email is still
@@ -303,13 +311,21 @@ export default function SignInForm({
                   ? "Check your email"
                   : lastMethod
                     ? "Welcome back"
-                    : "Welcome to Openinary Cloud"}
+                    : paidIntent
+                      ? "Start pay as you go"
+                      : "Welcome to Openinary Cloud"}
               </h1>
               <p className="mt-2 text-pretty text-[14px]/5 text-ds-muted">
                 {sentTo ? (
                   `We sent a 6-digit code to ${sentTo}`
                 ) : lastMethod ? (
                   "Continue with the method you used last time."
+                ) : paidIntent ? (
+                  <>
+                    Create your account, then confirm Pay as you go.
+                    <br />
+                    $5 minimum usage, $5 of usage included every month.
+                  </>
                 ) : (
                   <>
                     Sign in or create your account.

@@ -14,6 +14,7 @@ import { BucketSwitchProvider } from "@/components/sidebar/bucket-switch-context
 import SignInForm from "@/components/sign-in-form";
 import { SupportWidget } from "@/components/support";
 import { authClient } from "@/lib/auth-client";
+import { capturePlanIntent } from "@/lib/plan-intent";
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL;
 
@@ -98,6 +99,9 @@ export function AppShell({
   // landing on the admin's own id instead.
   const user = session?.user;
   const impersonating = Boolean(session?.session.impersonatedBy);
+  // Before the session is even known: the site's Pay as you go button lands
+  // here signed out, and the sign-up must not lose it.
+  useEffect(capturePlanIntent, []);
   useEffect(() => {
     if (user && !impersonating) {
       posthog.identify(user.id, { email: user.email, name: user.name });
