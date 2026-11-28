@@ -1,40 +1,36 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 
-import pricing from "@/data/pricing.json";
+import { PLANS } from "@openinary/plans";
+
 import { APP_URL, DOCS_URL, Pill, buttonClass } from "@/components/site/ui";
+import { freeQuotas, freeStorageLabel, paidPitch, paidPlan, rateLines } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 /**
  * The plan cards, shared by the homepage teaser and /pricing. Every figure
- * comes from data/pricing.json, the same file the calculator reads, so the two
- * can't quote different rates.
+ * comes from @openinary/plans, the same catalog the calculator and the
+ * dashboard read, so none of them can quote different numbers.
  */
 
-const { free, included, rates } = pricing.openinaryCloud;
+export { rateLines };
 const n = (v: number) => v.toLocaleString("en-US");
+const people = (k: number) => (k === 1 ? "1 team member" : `${k} team members`);
+const buckets = (k: number) => (k === 1 ? "1 bucket" : `${k} buckets`);
 
-export const rateLines = [
-  { label: "Storage", value: `$${rates.storageGbMonthUsd} per GB a month` },
-  { label: "Transformations", value: `$${rates.per1kTransformationsUsd.toFixed(2)} per 1,000` },
-  { label: "Video processing", value: `$${rates.perVideoMinuteUsd} per minute` },
-  { label: "CDN requests", value: `$${(rates.per10kRequestsUsd * 10).toFixed(2)} per 100,000` },
+export const freeLines = [
+  `${freeStorageLabel} of storage`,
+  `${n(freeQuotas.transformations)} image transformations a month`,
+  `${freeQuotas.videoMinutes} minutes of video processing a month`,
+  `${n(freeQuotas.cdnRequests)} CDN requests a month`,
+  `${buckets(PLANS.free.buckets)}, ${people(PLANS.free.seats)}`,
 ];
 
-const quotaLines = (q: typeof free) => [
-  `${q.storageGb} GB of storage`,
-  `${n(q.transformations)} image transformations a month`,
-  `${q.videoMinutes} minutes of video processing a month`,
-  `${n(q.cdnRequests)} CDN requests a month`,
-];
-export const freeLines = quotaLines(free);
-
-/** Cloud: what's included, then what each unit costs past it, as the Autumn plan reads. */
-export const cloudLines = [
-  `${included.storageGb} GB of storage, then $${rates.storageGbMonthUsd} per GB`,
-  `${n(included.transformations)} transformations, then $${rates.per1kTransformationsUsd.toFixed(2)} per 1,000`,
-  `${included.videoMinutes} video minutes, then $${rates.perVideoMinuteUsd} per minute`,
-  `${n(included.cdnRequests)} CDN requests, then $${(rates.per10kRequestsUsd * 10).toFixed(2)} per 100,000`,
+/** Pay as you go: Railway's three lines, then what each unit costs. */
+export const paidLines = [
+  ...paidPitch,
+  ...rateLines.map((r) => `${r.label}: ${r.value}`),
+  `${buckets(paidPlan.buckets)}, ${people(paidPlan.seats)}`,
 ];
 
 export type Plan = {
@@ -77,14 +73,14 @@ export const plans: Plan[] = [
     lines: freeLines,
   },
   {
-    name: "Cloud",
-    badge: "Pay as you go",
-    price: `$${rates.per1kTransformationsUsd.toFixed(2)}`,
-    unit: "per 1,000 transformations",
+    name: paidPlan.name,
+    badge: "Usage based",
+    price: `$${paidPlan.monthlyUsd}`,
+    unit: "minimum usage / month",
     sub: "Openinary Cloud",
-    blurb: "Twice the Free allowance and no monthly fee. Past it, each unit at the rate below.",
+    blurb: `Your $${paidPlan.monthlyUsd} covers the first $${paidPlan.creditUsd} of usage. Past it, each unit at the price below, and nothing stops.`,
     cta: { label: "Start free", href: APP_URL, event: "cloud_cta_clicked" },
-    lines: cloudLines,
+    lines: paidLines,
   },
 ];
 

@@ -1,9 +1,11 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../shared/db/index.js";
+import { user } from "../shared/db/schema/auth.js";
 import { videoJob } from "../shared/db/schema/video-job.js";
 import { meterJob } from "../shared/video-metering.js";
 import { app } from "./app.js";
 import { AUTH_URL, DASHBOARD_ORIGIN } from "./config.js";
+import { meterStorageDay } from "./lib/billing.js";
 import { syncLifecycle } from "./lib/loops.js";
 import { notify } from "./lib/push.js";
 import { probeSignIn } from "./lib/sign-in-probe.js";
@@ -93,6 +95,16 @@ export function scheduled(
 
   if (controller.cron === DAILY_CRON) {
     ctx.waitUntil(syncLifecycle().catch(alert("syncLifecycle")));
+    // One day of storage on every Pay as you go account. Daily, and only
+    // here: each run bills a full day (see meterStorageDay).
+    ctx.waitUntil(
+      db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.suspended, false))
+        .then((rows) => meterStorageDay(rows.map((row) => row.id)))
+        .catch(alert("meterStorageDay")),
+    );
     return;
   }
   ctx.waitUntil(

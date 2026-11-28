@@ -1012,7 +1012,7 @@ export function Onboarding({
       ],
       plan: [
         answers.team ? `Pick a plan for ${teamLabel}` : "Pick a plan",
-        "Both start at $0. Pay as you go only bills what you use past the included amounts.",
+        "Free costs nothing and stops at its limits. Pay as you go is $5 minimum usage, $5 of usage included every month, and you only pay for extra usage.",
       ],
       invite: [
         `Invite your team to ${teamLabel}`,

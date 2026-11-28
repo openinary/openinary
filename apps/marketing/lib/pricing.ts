@@ -1,4 +1,12 @@
-import { FEATURES, rateOf, type FeatureId, type PlanId } from "@openinary/plans";
+import {
+  creditBuys,
+  FEATURES,
+  formatAmount,
+  PLANS,
+  rateOf,
+  type FeatureId,
+  type PlanId,
+} from "@openinary/plans";
 
 import pricing from "@/data/pricing.json";
 
@@ -27,8 +35,9 @@ export interface Cost {
 
 const { cloudinary, selfHosted, assumptions } = pricing;
 
-// The site's "free plan" is Alpha: $0 base, pay as you go past its grants.
-const CLOUD_PLAN: PlanId = "early_access";
+// A workload that fits Free costs nothing; anything past it lands on Pay as
+// you go: every unit at its price, and never less than the $5 minimum.
+const PAID_PLAN: PlanId = "early_access";
 
 // Each calculator dimension in the unit Autumn meters that feature in.
 const METERED: Record<FeatureId, (usage: Usage) => number> = {
@@ -37,8 +46,45 @@ const METERED: Record<FeatureId, (usage: Usage) => number> = {
   video_processing_seconds: (usage) => usage.videoMinutes * 60,
   cdn_requests: (usage) => usage.cdnRequests,
 };
-const grant = (id: FeatureId) =>
-  FEATURES.find((feature) => feature.id === id)!.grants[CLOUD_PLAN];
+const feature = (id: FeatureId) => FEATURES.find((f) => f.id === id)!;
+
+/** Free's allowances in the calculator's units, read off the catalog. */
+export const freeQuotas: Usage = {
+  storageGb: feature("storage_mb").free / 1024,
+  transformations: feature("image_transformations").free,
+  videoMinutes: feature("video_processing_seconds").free / 60,
+  cdnRequests: feature("cdn_requests").free,
+};
+export const paidPlan = PLANS[PAID_PLAN];
+
+/** "512 MB": the catalog's own formatting, so copy and dashboard agree. */
+export const freeStorageLabel = formatAmount(
+  feature("storage_mb"),
+  feature("storage_mb").free,
+);
+
+/** Unit prices on Pay as you go, as the cards and table quote them. */
+export const rateLines = [
+  { label: "Storage", value: `$${feature("storage_mb").price.usd.toFixed(2)} per GB a month` },
+  { label: "Transformations", value: `$${feature("image_transformations").price.usd.toFixed(2)} per 1,000` },
+  { label: "Video processing", value: `$${feature("video_processing_seconds").price.usd.toFixed(2)} per minute` },
+  { label: "CDN requests", value: `$${feature("cdn_requests").price.usd.toFixed(2)} per 100,000` },
+];
+
+/** How Pay as you go is sold, on every surface (Railway's framing). */
+export const paidPitch = [
+  `$${paidPlan.monthlyUsd} minimum usage`,
+  `Includes $${paidPlan.creditUsd} of usage every month`,
+  "After that, you only pay for extra usage",
+];
+
+/** What the included credit buys on one resource alone, for the examples. */
+export const creditBuysLines = [
+  `${Math.round(creditBuys(feature("storage_mb")) / 1024)} GB stored for a month`,
+  `${Math.round(creditBuys(feature("image_transformations"))).toLocaleString("en-US")} image transformations`,
+  `${Math.round(creditBuys(feature("video_processing_seconds")) / 60)} minutes of video processing`,
+  `${Math.round(creditBuys(feature("cdn_requests"))).toLocaleString("en-US")} CDN requests`,
+];
 
 /** Delivery converted to GB, since Cloudinary meters bandwidth and we meter requests. */
 export function bandwidthGb(cdnRequests: number): number {
@@ -80,17 +126,25 @@ export function cloudinaryCost(usage: Usage): Cost {
 }
 
 export function openinaryCloudCost(usage: Usage): Cost {
-  const lines = FEATURES.map((feature) => ({
-    label: feature.label,
-    usd:
-      Math.max(0, METERED[feature.id](usage) - feature.grants[CLOUD_PLAN]) *
-      rateOf(feature),
+  const fitsFree = FEATURES.every((f) => METERED[f.id](usage) <= f.free);
+  if (fitsFree) return { monthlyUsd: 0, planName: "Free plan", lines: [] };
+
+  // Every unit at its price from the first one; storage as held for a month.
+  const lines = FEATURES.map((f) => ({
+    label: f.label,
+    usd: METERED[f.id](usage) * rateOf(f),
   }));
+  const usageUsd = lines.reduce((total, line) => total + line.usd, 0);
+  const unused = Math.max(0, paidPlan.creditUsd - usageUsd);
 
   return {
-    monthlyUsd: lines.reduce((total, line) => total + line.usd, 0),
-    planName: lines.every((line) => line.usd === 0) ? "Free plan" : "Pay as you go",
-    lines: lines.filter((line) => line.usd > 0),
+    monthlyUsd: Math.max(paidPlan.monthlyUsd, usageUsd),
+    planName: paidPlan.name,
+    lines: [
+      ...lines.filter((line) => line.usd > 0),
+      // The minimum, shown as what it is: included usage this workload leaves unspent.
+      ...(unused > 0 ? [{ label: "Included usage left unused", usd: unused }] : []),
+    ].sort((a, b) => b.usd - a.usd),
   };
 }
 
@@ -155,14 +209,15 @@ function roundDown(value: number): number {
  * dimensions, then rounded to something a visitor would recognise as a number
  * rather than the output of a division.
  *
- * A plan can carry its own mix instead. Free does, because an even split puts
- * most of its credits into transformations, the dimension our free quota is
- * tightest on: a workload Cloudinary hosts for nothing came out at $3 a month
- * on Openinary Cloud, which is not the comparison that preset exists to show.
+ * Free is the exception: its preset is our own Free allowance, read off the
+ * catalog, so the two free tiers can never drift apart. It reads "a project
+ * that fits our Free is free on both", not "everything Cloudinary Free covers":
+ * their 25 credits buy far more than our Free, and the preset must not imply
+ * otherwise. pricing-check asserts it costs nothing on either side.
  */
 export function usageForPlan(planId: string): Usage {
   const plan = cloudinary.plans.find((p) => p.id === planId) ?? cloudinary.plans[0];
-  if ("usage" in plan && plan.usage) return plan.usage;
+  if (plan.id === "free") return { ...freeQuotas };
 
   const perDimension = plan.credits / 4;
   const buys = cloudinary.creditBuys;
@@ -180,9 +235,3 @@ export function usageForPlan(planId: string): Usage {
 
 export const plans = cloudinary.plans;
 export const lastCheckedOn = pricing.lastCheckedOn;
-export const freeQuotas = {
-  storageGb: grant("storage_mb") / 1024,
-  transformations: grant("image_transformations"),
-  videoMinutes: grant("video_processing_seconds") / 60,
-  cdnRequests: grant("cdn_requests"),
-};

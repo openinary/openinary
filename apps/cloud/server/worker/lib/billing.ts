@@ -1,8 +1,13 @@
 import {
+  CREDIT_FEATURE_ID,
+  type Credits,
+  CREDITS_PER_USD,
   FEATURE_IDS,
   FEATURES,
   type FeatureId,
   PLANS,
+  type PlanId,
+  STORAGE_DAYS_FEATURE_ID,
   UPGRADE_PLAN,
   planOf,
 } from "@openinary/plans";
@@ -83,8 +88,25 @@ export type UsageSummary = {
    * without a subscription (free) or if Autumn omits it.
    */
   renewsAt: number | null;
+  /**
+   * The base price this account actually pays, read off its subscription
+   * rather than the catalog: an account still on an older plan version (the
+   * $0 Alpha) must not be shown the current $5.
+   */
+  monthlyUsd: number;
+  /**
+   * The usage credit balance in dollars, on plans that spend from one (Pay as
+   * you go). Null on Free and on older plan versions with per-feature grants.
+   */
+  credits: (Credits & { resetsAt: number | null }) | null;
   features: Record<FeatureId, FeatureUsage>;
 };
+
+/** Every consumable that draws on usage_credits, storage held by the day included. */
+const CREDIT_METERED = [
+  ...FEATURE_IDS.filter((id) => id !== "storage_mb"),
+  STORAGE_DAYS_FEATURE_ID,
+];
 
 /** Plan + per-feature balances for the dashboard usage page. */
 export async function getUsage(
@@ -99,6 +121,23 @@ export async function getUsage(
   const subscription =
     customer.subscriptions.find((s) => !s.addOn) ?? customer.subscriptions[0];
 
+  const creditBalance = customer.balances[CREDIT_FEATURE_ID];
+  const credits = creditBalance
+    ? {
+        grantedUsd: creditBalance.granted / CREDITS_PER_USD,
+        usedUsd: Math.max(0, creditBalance.usage) / CREDITS_PER_USD,
+        resetsAt: creditBalance.nextResetAt ?? null,
+      }
+    : null;
+
+  // On a credit plan the consumables have no balance of their own: they draw
+  // on usage_credits. What each one used this period comes from the event
+  // log instead, one call, only for those accounts.
+  const periodUsed =
+    credits && subscription?.currentPeriodStart
+      ? await usedSince(userId, subscription.currentPeriodStart)
+      : {};
+
   const features = {} as Record<FeatureId, FeatureUsage>;
   for (const featureId of FEATURE_IDS) {
     const balance = customer.balances[featureId];
@@ -112,15 +151,26 @@ export async function getUsage(
           unlimited: balance.unlimited,
           resetsAt: balance.nextResetAt ?? null,
         }
-      : {
-          granted: 0,
-          used: 0,
-          remaining: 0,
-          unlimited: false,
-          resetsAt: null,
-        };
+      : credits
+        ? {
+            // Billed from the credit, never capped: reads as unlimited so the
+            // usage meter never blocks it (usage-meter.ts).
+            granted: 0,
+            used: periodUsed[featureId] ?? 0,
+            remaining: 0,
+            unlimited: true,
+            resetsAt: credits.resetsAt,
+          }
+        : {
+            granted: 0,
+            used: 0,
+            remaining: 0,
+            unlimited: false,
+            resetsAt: null,
+          };
   }
 
+  const planPrice = subscription?.plan?.price;
   return {
     planId: subscription?.planId ?? null,
     planName: subscription?.plan?.name ?? null,
@@ -128,8 +178,68 @@ export async function getUsage(
       ? (subscription.expiresAt ?? subscription.currentPeriodEnd)
       : null,
     renewsAt: subscription?.currentPeriodEnd ?? null,
+    // null = the base price was removed for this customer (a comp, grantPlan).
+    monthlyUsd:
+      planPrice === null
+        ? 0
+        : planPrice?.interval === "month"
+          ? planPrice.amount
+          : planOf(subscription?.planId).monthlyUsd,
+    credits,
     features,
   };
+}
+
+/** Units each credit-metered feature used since `start`, from the event log. */
+async function usedSince(
+  userId: string,
+  start: number,
+): Promise<Partial<Record<string, number>>> {
+  try {
+    const { list } = await autumn.events.aggregate({
+      customerId: userId,
+      featureId: CREDIT_METERED,
+      customRange: { start, end: Date.now() },
+      binSize: "day",
+    });
+    const totals: Record<string, number> = {};
+    for (const bin of list) {
+      for (const [id, value] of Object.entries(bin.values)) {
+        totals[id] = (totals[id] ?? 0) + (value ?? 0);
+      }
+    }
+    return totals;
+  } catch (error) {
+    // The credit balance is the bill; the per-feature split is only display.
+    console.error("%s", `Failed to aggregate usage for ${userId}`, error);
+    return {};
+  }
+}
+
+/**
+ * Bills one day of storage to every paid account: its current footprint in
+ * MB, once, under storage_mb_days, which draws on usage_credits. Free is
+ * skipped: it has a hard cap and no credit to bill.
+ *
+ * ponytail: Autumn's track has no idempotency key, so this relies on the
+ * daily cron firing once; a manual re-run the same day double-bills a day of
+ * storage (cents). Add a per-day KV marker if it is ever re-run by hand.
+ */
+export async function meterStorageDay(userIds: string[]): Promise<void> {
+  for (const userId of userIds) {
+    try {
+      const { credits, features } = await getUsage(userId);
+      const mb = features.storage_mb.used;
+      if (!credits || mb <= 0) continue;
+      await autumn.track({
+        customerId: userId,
+        featureId: STORAGE_DAYS_FEATURE_ID,
+        value: mb,
+      });
+    } catch (error) {
+      console.error("%s", `Failed to meter storage for ${userId}`, error);
+    }
+  }
 }
 
 type QuotaError = {
@@ -210,10 +320,9 @@ export async function getSeatLimit(
  * anyone confirming a price. Always sending them to Stripe keeps every
  * activation (and, via the portal, every cancellation) on Stripe's own pages.
  *
- * The plan is deliberately *not* enabled before checkout completes: Early
- * Access costs $0 up front, so enabling it early would hand out the doubled
- * allowance and pay-as-you-go to anyone who opens the page and walks away,
- * with no card to bill the overage to.
+ * The plan is deliberately *not* enabled before checkout completes: enabling
+ * it early would hand out the larger allowance and pay as you go to anyone who
+ * opens the page and walks away, with nothing paid and no card on file.
  */
 export async function startUpgradeCheckout(
   userId: string,
@@ -224,11 +333,10 @@ export async function startUpgradeCheckout(
     planId: UPGRADE_PLAN.id,
     redirectMode: "always",
     successUrl,
-    // Nothing is due today on a $0 base price, and Stripe will happily complete
-    // a subscription checkout without asking for a card when the total is zero.
-    // That would leave the account on pay-as-you-go with nothing to charge when
-    // it goes past the allowance, so demand the card explicitly rather than
-    // relying on Stripe's default.
+    // The $5 base price already makes Stripe collect a card, but Stripe skips
+    // it whenever the total due is zero (a 100% coupon, a comped price). The
+    // card also pays the overage, so demand it explicitly rather than relying
+    // on Stripe's default.
     checkoutSessionParams: { payment_method_collection: "always" },
   });
   return paymentUrl;
@@ -251,18 +359,20 @@ export type AdminBilling = {
 
 /**
  * Daily consumption of the features that reset monthly, from `start` until
- * now: what the billing page draws its spend curve from. Storage is left out
- * on purpose: it is cumulative and goes down on deletes, so its daily sums are
- * net changes, not consumption. Bins are UTC days (autumn-js 1.2.43 has no
+ * now: what the billing page draws its spend curve from. storage_mb is left
+ * out on purpose: it is cumulative and goes down on deletes, so its daily sums
+ * are net changes, not consumption; storage_mb_days, the MB-days billed on Pay
+ * as you go, is in. Bins are UTC days (autumn-js 1.2.43 has no
  * timezone option), and values are units, not money.
  */
 export async function getUsageHistory(
   userId: string,
   start: number,
-): Promise<{ day: number; values: Partial<Record<FeatureId, number>> }[]> {
+): Promise<{ day: number; values: Partial<Record<string, number>> }[]> {
   const { list } = await autumn.events.aggregate({
     customerId: userId,
-    featureId: FEATURE_IDS.filter((id) => id !== "storage_mb"),
+    // storage_mb_days too: on Pay as you go storage is billed by the day.
+    featureId: CREDIT_METERED,
     customRange: { start, end: Date.now() },
     binSize: "day",
   });
@@ -338,9 +448,11 @@ export async function getAdminBilling(userId: string): Promise<AdminBilling> {
  * admin is granting the plan on someone else's behalf. "never" attaches it
  * server-side instead.
  *
- * The consequence is deliberate and worth stating: the account ends up on the
- * plan with no payment method, so any overage it runs up cannot be collected
- * until they add one. That is what comping a plan means.
+ * A plan with a base price ($5 for Pay as you go) would still not start: Autumn
+ * opens a $5 invoice and waits for it to be paid. `customize.price: null` drops
+ * the base price for this one customer, so the plan starts at once, with its
+ * credits and no invoice. Overage past the credits can't be collected either,
+ * since there is no card on file. That is what comping a plan means.
  */
 export async function grantPlan(
   userId: string,
@@ -352,6 +464,7 @@ export async function grantPlan(
     customerId: userId,
     planId,
     redirectMode: "never",
+    ...(PLANS[planId as PlanId]?.monthlyUsd && { customize: { price: null } }),
   });
 }
 

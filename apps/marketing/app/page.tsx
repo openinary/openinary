@@ -209,8 +209,8 @@ export default function Home() {
             {/* On the sky, so white in both themes, like the line under it. */}
             <H2 className="mx-auto">No credits. No ${cld.plus.monthlyUsd} jump.</H2>
             <p className="mx-auto mt-3 max-w-[460px] text-[15px] leading-6 text-ink-11">
-              Free plan, no card required. Past it, each resource at its own published rate and no monthly fee, or run
-              the same engine yourself for nothing.
+              Free plan, no card required. Then $5 minimum usage, every resource at its own
+              published price, or run the same engine yourself for nothing.
             </p>
           </div>
           <div className="mt-10 grid gap-3 md:grid-cols-3">

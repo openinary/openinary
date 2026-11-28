@@ -10,7 +10,8 @@ import {
   useUploaderNudge,
 } from "@/components/sidebar/uploader-nudge";
 import { Button } from "@openinary/dashboard/ui/button";
-import { CLOUD_AVAILABLE, isMeteredPlan, usageRatio } from "@/lib/usage";
+import { isMeteredPlan, usageRatio } from "@/lib/usage";
+import { PLANS, UPGRADE_PLAN } from "@openinary/plans";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -21,11 +22,14 @@ import { orpc } from "@/utils/orpc";
  */
 const UPSELL_AT = 0.35;
 
+const PAID = PLANS[UPGRADE_PLAN.id];
+const UPSELL_COPY = `$${PAID.monthlyUsd} minimum usage, which includes $${PAID.creditUsd} of usage every month. After that, nothing stops: you only pay for extra usage.`;
+
 /**
  * One slot above the user menu, four states in sequence:
  *
  *   1. onboarding incomplete  ->  the checklist
- *   2. past UPSELL_AT         ->  the full Free -> Alpha card
+ *   2. past UPSELL_AT         ->  the full Free -> Pay as you go card
  *   3. nudge not dismissed    ->  the FileUploader card
  *   4. done, usage still low  ->  nothing here, Upgrade sits on the plan row
  *
@@ -44,10 +48,6 @@ const UPSELL_AT = 0.35;
  * own app has uploaded, so almost everyone who reaches (3) has already
  * installed what it pitches - all it still catches is the account that got
  * there with a hand-rolled POST rather than the component.
- *
- * The upsell copy is specific to Alpha ("double the Free allowance"), so it
- * stays hidden while Cloud is on sale - that's a different offer at a
- * different price and needs its own card.
  */
 export function UpgradeCard() {
   const { isReady } = useOnboarding();
@@ -79,29 +79,26 @@ function UpgradeCardContent() {
   // done, and until it can be judged (usage.get answers before isReady).
   if (!isReady || !isComplete) return null;
 
-  // The usage payload, but only when this account is one the Alpha pitch is
-  // for. planId is null without a subscription, "free" with one - both are
-  // Free. Kept as the object rather than a boolean so the reads below stay
-  // narrowed.
-  const free =
-    !CLOUD_AVAILABLE && data && !isMeteredPlan(data.planId) ? data : null;
+  // The usage payload, but only on Free. planId is null without a
+  // subscription, "free" with one - both are Free. Kept as the object rather
+  // than a boolean so the reads below stay narrowed.
+  const free = data && !isMeteredPlan(data.planId) ? data : null;
 
   if (free && usageRatio(free.features) >= UPSELL_AT) {
     return (
       <div
         className="mb-2 rounded-[10px] bg-(--ds-raised) shadow-(--ds-raised-shadow) p-3"
       >
-        <p className="font-medium text-sm">Double your limits</p>
+        <p className="font-medium text-sm">Raise your limits</p>
         <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
-          Alpha includes twice the Free allowance. Past it, nothing stops - you
-          only pay for what you use.
+          {UPSELL_COPY}
         </p>
         <Button
           size="sm"
           className="mt-3 h-7 w-full text-xs"
           onClick={() => setSettingsTab("billing")}
         >
-          Upgrade to Alpha
+          {UPGRADE_PLAN.cta}
         </Button>
       </div>
     );

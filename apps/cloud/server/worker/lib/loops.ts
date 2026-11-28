@@ -74,7 +74,7 @@ async function loops(
  * Creating them in the Loops account is `loops-build.ts --properties`.
  */
 export type ContactProperties = {
-  /** Autumn plan id: "free", "early_access" or "cloud". */
+  /** Autumn plan id: "free" or "early_access" (pay as you go). */
   plan: string;
   bucketCount: number;
   apiKeyCount: number;

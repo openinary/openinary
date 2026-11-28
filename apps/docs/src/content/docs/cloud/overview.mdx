@@ -56,17 +56,28 @@ Manage them in the dashboard under **Settings → Buckets**.
 
 ## Plans and limits
 
-Every account starts on **Free**. **Alpha** doubles the allowances, costs
-nothing per month, and adds pay-as-you-go past them (a card is collected at
-checkout so overage can be billed). Upgrade from **Settings → Plan**.
+Every account starts on **Free**, with no card. **Pay as you go** works like
+this:
 
-| Included per month    | Free   | Alpha  | Past the allowance |
-| --------------------- | ------ | ------ | ------------------ |
-| Storage               | 1 GB   | 2 GB   | $0.03 / extra GB   |
-| Image transformations | 500    | 1,000  | $0.40 / 1,000      |
-| Video processing      | 15 min | 30 min | $0.01 / min        |
-| CDN requests          | 25,000 | 50,000 | $0.50 / 100,000    |
-| Buckets               | 1      | 2      | n/a                |
+- $5 minimum usage per month.
+- Includes $5 of usage every month.
+- After that, you only pay for extra usage.
+
+Every resource is charged at its price below, in dollars, from the first unit.
+Upgrade from **Settings → Plan**.
+
+|                       | Free (included per month) | Pay as you go (price) |
+| --------------------- | ------------------------- | --------------------- |
+| Storage               | 512 MB                    | $0.05 / GB / month    |
+| Image transformations | 100                       | $0.40 / 1,000         |
+| Video processing      | 5 min                     | $0.01 / min           |
+| CDN requests          | 5,000                     | $0.50 / 100,000       |
+| Buckets               | 1                         | 5                     |
+| Team members          | 1                         | 5                     |
+
+Spent on one resource alone, the included $5 covers about 100 GB stored for a
+month, 12,500 image transformations, 500 minutes of video or 1,000,000 CDN
+requests. Storage is charged by the day it is held.
 
 Hitting a limit on Free returns [`402`](/cloud/api#errors) until the monthly allowance resets. Storage is cumulative and does not reset. Video is metered on how long the transform ran, not on the video's length, and cached deliveries never count as transformations.
 

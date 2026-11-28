@@ -4,7 +4,7 @@ import { useDocumentTitle } from "@openinary/dashboard";
 import {
   FEATURES,
   formatAmount,
-  formatOverage,
+  formatPrice,
   PLANS,
   type PlanId,
   planOf,
@@ -60,9 +60,9 @@ function planCard(id: PlanId, paid: boolean): OnboardingPlan {
   return {
     id,
     name: plan.name,
-    badge: plan.metered ? "Pay as you go" : undefined,
+    badge: plan.metered ? "Usage based" : undefined,
     price: `$${plan.monthlyUsd}`,
-    priceNote: plan.metered ? "/ mo, then usage" : "forever",
+    priceNote: plan.metered ? "minimum usage / mo" : "forever",
     note: paid
       ? "Card required. Never blocked at a limit."
       : "No card needed. Stops at the limits.",
@@ -74,11 +74,18 @@ function planCard(id: PlanId, paid: boolean): OnboardingPlan {
         ? "1 seat, just you"
         : `${plan.seats} seats, you and ${plan.seats - 1} teammates`,
       `${plan.buckets} ${plan.buckets === 1 ? "bucket" : "buckets"}`,
-      ...FEATURES.map((feature) => {
-        const amount = `${formatAmount(feature, feature.grants[id])} ${lower(feature.label)}`;
-        if (plan.metered) return `${amount}, then ${formatOverage(feature)}`;
-        return feature.resets ? `${amount} / mo` : amount;
-      }),
+      ...(plan.metered
+        ? [
+            `Includes $${plan.creditUsd} of usage every month`,
+            ...FEATURES.map(
+              (feature) => `${feature.label}: ${formatPrice(feature)}`,
+            ),
+            "After that, you only pay for extra usage",
+          ]
+        : FEATURES.map((feature) => {
+            const amount = `${formatAmount(feature, feature.free)} ${lower(feature.label)}`;
+            return feature.resets ? `${amount} / mo` : amount;
+          })),
     ],
   };
 }

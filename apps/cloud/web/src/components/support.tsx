@@ -12,7 +12,7 @@ import { useEffect } from "react";
 
 import { useActiveBucket } from "@/hooks/use-active-bucket";
 import { authClient } from "@/lib/auth-client";
-import { FEATURES, formatUsd, usageCost } from "@/lib/usage";
+import { FEATURES, formatUsd, overageUsd } from "@/lib/usage";
 import { orpc } from "@/utils/orpc";
 
 // Read here rather than letting the SDK resolve it: Turbopack only substitutes
@@ -82,7 +82,7 @@ function IdentifyAccount() {
         lastLoginMethod: authClient.getLastUsedLoginMethod() ?? null,
         renewsAt: iso(usage?.renewsAt),
         cancelsAt: iso(usage?.cancelsAt),
-        overage: usage ? formatUsd(usageCost(usage.features)) : null,
+        overage: usage ? formatUsd(overageUsd(usage)) : null,
         ...consumption,
         buckets: buckets?.length ?? null,
         activeBucketId: activeBucket?.id ?? null,
