@@ -194,7 +194,7 @@ const deliveries = [
   { path: "/t/w_800,f_auto/hero/hills.jpg", cache: "HIT", ms: 9 },
   { path: "/t/w_320,h_320,c_fill/team/ana.jpg", cache: "HIT", ms: 11 },
   { path: "/t/q_auto/campaigns/spring.mp4", cache: "MISS", ms: 184 },
-  { path: "/t/w_1200,f_avif/blog/harbour.jpg", cache: "HIT", ms: 8 },
+  { path: "/t/audio/podcast.mp3", cache: "HIT", ms: 8 },
 ];
 
 /** Deliveries charted by the hour, with the latest few underneath. */
