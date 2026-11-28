@@ -93,7 +93,9 @@ await upsertPlan("free", {
 const paid = PLANS.early_access;
 await upsertPlan("early_access", {
   name: paid.name,
-  // No longer a variant of the old Cloud plan, which is not sold any more.
+  // The invoice line is the plan's Stripe product name, which Autumn renames
+  // with the plan. A variant bills under its base plan's product instead (the
+  // sandbox had it under Cloud, so invoices read "Cloud"): keep it standalone.
   basePlanId: null,
   price: { amount: paid.monthlyUsd, interval: "month" },
   items: [
@@ -111,14 +113,5 @@ await upsertPlan("early_access", {
     { featureId: "storage_mb", unlimited: true },
   ],
 });
-
-// Pay as you go still bills under the Stripe product of the old Cloud plan it
-// was first made from, and Stripe prints that product's name on the invoice
-// ("Cloud"). Autumn pushes a plan's name to its Stripe product, so naming the
-// retired Cloud plan after Pay as you go is what fixes the invoice line.
-if (plans.some((p) => p.id === "cloud")) {
-  await autumn.plans.update({ planId: "cloud", name: paid.name });
-  console.log(`renamed plan cloud to "${paid.name}" (invoice line name)`);
-}
 
 console.log(`Autumn ${live ? "PRODUCTION" : "sandbox"} catalog is in sync.`);
