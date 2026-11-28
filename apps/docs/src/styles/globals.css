@@ -22,15 +22,16 @@
 
 /* ---- Light mode (default) ---- */
 :root {
-	/* The marketing site's palette (apps/marketing/styles/index.css), so the
-	   docs read as the same site. The --nb-* tokens below are set from it. */
+	/* The marketing site's palette (apps/marketing/styles/index.css), which is the
+	   product's (packages/dashboard/src/theme.css), so the docs, the site and the
+	   app read as one brand. The --nb-* tokens below are set from it. */
 	--page: #ffffff;
 	--ink-12: #151515;
-	--ink-11: #62625d;
-	--ink-10: #7c7c76;
+	--ink-11: #6b6b66;
+	--ink-10: #8e8e88;
 	--ink-9: #8e8e88;
-	--ink-6: #d9d9d6;
-	--ink-4: #e8e8e4;
+	--ink-6: #dededa;
+	--ink-4: #e7e7e4;
 	--ink-3: #efefec;
 	--tile: #f7f7f5;
 	--chip: #efefec;
@@ -43,10 +44,13 @@
 	--field-focus: #3b7bff;
 	--field-placeholder: #8e8e88;
 	--control: #ffffff;
-	--control-hover: #f7f7f5;
-	--raised-ring: #d6d6d1;
-	--raised-drop: rgb(21 21 21 / 0.12);
-	--primary-ring: #151515;
+	--control-hover: #f1f1ef;
+	--raised-ring: rgb(0 0 0 / 0.08);
+	--raised-drop: rgb(0 0 0 / 0.06);
+	--primary-ring: rgb(59 123 255 / 0.6);
+	/* The product's one hue, on the primary CTA (Start free). */
+	--cta: #1c4bb0;
+	--cta-strong: #2257c7;
 	--menu-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.08), 0 12px 32px -8px rgb(0 0 0 / 0.14);
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 	color-scheme: light;
@@ -60,7 +64,7 @@
 
 	--nb-muted: #f3f3f1;
 	/* 4.5:1 or better on every light surface, inline code included. */
-	--nb-muted-foreground: #62625d;
+	--nb-muted-foreground: #6b6b66;
 
 	--nb-accent: #efefec;
 	--nb-accent-foreground: var(--nb-foreground);
@@ -80,8 +84,8 @@
 
 	/* Borders / focus */
 	--nb-border: #e7e7e4;
-	--nb-border-strong: #d6d6d1;
-	--nb-selected: #d9d9d6;
+	--nb-border-strong: #dededa;
+	--nb-selected: #dededa;
 	/* Inline code's tint. */
 	--nb-code-tint: #efefec;
 	--nb-ring: rgb(59 123 255 / 0.5);
@@ -160,12 +164,12 @@
 	/* Corners: surfaces (cards, callouts, code blocks, buttons, sidebar rows)
 	   share one radius; small marks inside them (inline code, badges in a
 	   title bar) use the smaller one. Change these two to re-round the site. */
-	--nb-radius: 0.5rem;
+	--nb-radius: 0.625rem;
 	--nb-radius-sm: 0.25rem;
 
 	/* Shadows */
-	--nb-shadow-sm: 0 0 0 0.5px #d6d6d1, 0 1px 2px 0 rgb(21 21 21 / 0.12);
-	--nb-shadow: 0 0 0 0.5px #d9d9d6, 0 1px 2px 0 rgb(21 21 21 / 0.12), 0 3px 4px -2px rgb(21 21 21 / 0.12);
+	--nb-shadow-sm: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 1px 2px 0 rgb(0 0 0 / 0.06);
+	--nb-shadow: 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 3px 4px -2px rgb(0 0 0 / 0.06);
 	--nb-shadow-lg: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.08), 0 12px 32px -8px rgb(0 0 0 / 0.14);
 }
 
@@ -178,53 +182,55 @@
 
 /* ---- Dark mode ---- */
 [data-mode="dark"] {
-	--page: #161616;
-	--ink-12: #ededed;
-	--ink-11: #aaaaa7;
-	--ink-10: #8d8d8a;
-	--ink-9: #777774;
-	--ink-6: #454545;
-	--ink-4: #323232;
-	--ink-3: #2b2b2b;
-	--tile: #1d1d1d;
-	--chip: #242424;
+	--page: #181818;
+	--ink-12: #eeeeee;
+	--ink-11: #a4a4a4;
+	--ink-10: #8a8a8a;
+	--ink-9: #8a8a8a;
+	--ink-6: #3a3a3a;
+	--ink-4: #2a2a2a;
+	--ink-3: #222222;
+	--tile: #131313;
+	--chip: #222222;
 	--popover: #1c1c1c;
 	--field: #0f0f0f;
 	--field-border: #2a2a2a;
 	--field-border-hover: #3a3a3a;
 	--field-focus: #60a5fa;
 	--field-placeholder: #8a8a8a;
-	--control: #2b2b2b;
-	--control-hover: #323232;
-	--raised-ring: #454545;
+	--control: #151515;
+	--control-hover: #222222;
+	--raised-ring: rgb(255 255 255 / 0.08);
 	--raised-drop: rgb(0 0 0 / 0.5);
-	--primary-ring: #ededed;
-	--menu-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px #2e2e2e, 0 12px 32px -8px rgb(0 0 0 / 0.6);
+	--primary-ring: rgb(143 179 255 / 0.5);
+	--cta: #3b7bff;
+	--cta-strong: #6a9bff;
+	--menu-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -8px rgb(0 0 0 / 0.6);
 	color-scheme: dark;
 
-	--nb-background: #161616;
-	--nb-foreground: #ededed;
+	--nb-background: #181818;
+	--nb-foreground: #eeeeee;
 
-	--nb-card: #1d1d1d;
+	--nb-card: #131313;
 	--nb-card-foreground: var(--nb-foreground);
 
-	--nb-muted: #1f1f1f;
-	--nb-muted-foreground: #aaaaa7;
+	--nb-muted: #141414;
+	--nb-muted-foreground: #a4a4a4;
 
-	--nb-accent: #242424;
+	--nb-accent: #222222;
 	--nb-accent-foreground: var(--nb-foreground);
 
-	--nb-primary: #ededed;
-	--nb-primary-foreground: #161616;
+	--nb-primary: #eeeeec;
+	--nb-primary-foreground: #0a0a0a;
 	--nb-primary-hover: #ffffff;
 
-	--nb-brand: #ededed;
-	--nb-brand-wash: #242424;
+	--nb-brand: #eeeeee;
+	--nb-brand-wash: #222222;
 
-	--nb-border: #2a2a2a;
-	--nb-border-strong: #3a3a3a;
-	--nb-selected: #454545;
-	--nb-code-tint: #242424;
+	--nb-border: #1e1e1e;
+	--nb-border-strong: #2a2a2a;
+	--nb-selected: #3a3a3a;
+	--nb-code-tint: #222222;
 	--nb-ring: rgb(96 165 250 / 0.5);
 
 	--nb-info: #60a5fa;
@@ -249,8 +255,8 @@
 	--nb-m-put-line: oklch(0.645 0.168 50 / 0.25);
 	--nb-m-delete-line: oklch(0.577 0.245 27.325 / 0.25);
  
- 	--nb-shadow-sm: 0 0 0 0.5px #454545, 0 1px 2px 0 rgb(0 0 0 / 0.5);
-	--nb-shadow: 0 0 0 0.5px #3b3b3b, 0 1px 2px 0 rgb(0 0 0 / 0.5), 0 3px 4px -2px rgb(0 0 0 / 0.5);
+ 	--nb-shadow-sm: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 1px 2px 0 rgb(0 0 0 / 0.5);
+	--nb-shadow: 0 0 0 1px #262626, 0 1px 2px 0 rgb(0 0 0 / 0.5), 0 3px 4px -2px rgb(0 0 0 / 0.5);
 	--nb-shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px #2e2e2e, 0 12px 32px -8px rgb(0 0 0 / 0.6);
 }
 
@@ -271,7 +277,9 @@
 	--color-chip: var(--chip);
 	--color-control: var(--control);
 	--color-control-hover: var(--control-hover);
-	--color-mark: #fc1f1c;
+	--color-mark: var(--ink-12); /* the mark is ink, as in the product's sidebar */
+	--color-cta: var(--cta);
+	--color-cta-strong: var(--cta-strong);
 	--color-field: var(--field);
 	--color-field-border: var(--field-border);
 	--color-field-border-hover: var(--field-border-hover);

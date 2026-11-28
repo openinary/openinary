@@ -2,17 +2,16 @@
 /**
  * The marketing site's header, 1:1 (apps/marketing/components/site/header.tsx),
  * so no search here: it sits at the top of the sidebar.
- * the same menus, links and buttons. Resources, which holds the docs' two
- * parts (Documentation and the API reference), is the current item.
+ * the same menus, links and buttons. Like the site, no menu item is marked
+ * as the current one.
  */
 import type { SidebarSection } from "@cloudflare/nimbus-docs/types";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { stripBase } from "@cloudflare/nimbus-docs/runtime";
 import GitHubMark from "./GitHubMark.astro";
 import Mark from "./Mark.astro";
 import MenuLink from "./MenuLink.astro";
-import { productMenu, resourcesMenu, solutionsMenu, type NavItem } from "./nav";
-import { APP_URL, GITHUB_URL, buttonClass, docs, focusRing, linkClass, site } from "./site";
+import { productMenu, resourcesMenu, solutionsMenu } from "./nav";
+import { APP_URL, GITHUB_URL, buttonClass, focusRing, linkClass, site } from "./site";
 
 interface Props {
   /** Astro collection id for the current page, forwarded from DocsLayout. */
@@ -24,12 +23,7 @@ interface Props {
   sections?: SidebarSection[];
 }
 
-const { collection, showSidebar = true } = Astro.props;
-
-const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
-const inReference = currentSlug === "/api-reference" || currentSlug.startsWith("/api-reference/");
-const isCurrent = (item: NavItem) =>
-  collection !== undefined && (item.href === docs("/api-reference") ? inReference : item.href === docs("/") && !inReference);
+const { showSidebar = true } = Astro.props;
 
 const menus = [
   { label: "Product", items: productMenu },
@@ -54,14 +48,12 @@ const menus = [
       <ul class="m-0 hidden list-none items-center p-0 md:flex">
         {menus.map((menu) => (
           <li class="relative" data-site-menu>
-            {/* The docs live under Resources, the current item here. */}
             <button
               type="button"
               aria-expanded="false"
               aria-haspopup="true"
-              aria-current={menu.label === "Resources" ? "page" : undefined}
               data-site-menu-trigger
-              class:list={[linkClass, menu.label === "Resources" && "bg-chip text-ink-12"]}
+              class={linkClass}
             >
               {menu.label}
               <Icon name="lucide:chevron-down" aria-hidden="true" class="size-3 text-ink-10 transition-transform duration-150 ease-(--ease-out) [[aria-expanded=true]>&]:rotate-180" />
@@ -70,7 +62,7 @@ const menus = [
             <div data-state="closed" class="menu-pop absolute top-full -left-2 pt-2.5">
               <ul class="m-0 grid w-[460px] list-none grid-cols-2 gap-0.5 rounded-xl bg-[var(--popover)] p-1.5 shadow-menu">
                 {menu.items.map((item) => (
-                  <li><MenuLink item={item} current={isCurrent(item)} /></li>
+                  <li><MenuLink item={item} /></li>
                 ))}
               </ul>
             </div>

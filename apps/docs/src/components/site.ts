@@ -29,6 +29,6 @@ export const linkClass = `press inline-flex h-8 items-center gap-1 rounded-md px
 const buttonBase = `press inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-medium leading-5 tracking-[-0.01em] no-underline ${focusRing}`;
 
 export const buttonClass = {
-  primary: `${buttonBase} bg-ink-12 text-page ring-raised-light hover:bg-primary-hover`,
+  primary: `${buttonBase} bg-cta text-white shadow-[0_0_0_1px_var(--primary-ring)] hover:bg-cta-strong`,
   secondary: `${buttonBase} bg-control text-ink-12 ring-raised hover:bg-control-hover`,
 };
