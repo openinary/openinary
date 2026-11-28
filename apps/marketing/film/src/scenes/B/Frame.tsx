@@ -86,11 +86,11 @@ export const Selection = ({ r, f, opacity }: { r: Rect; f: number; opacity: numb
   ];
   return (
     <div style={{ position: "absolute", left: 0, top: 0, opacity }}>
-      <div style={{ position: "absolute", left: r.x - 1, top: r.y - 1, width: r.w + 2, height: r.h + 2, boxShadow: `inset 0 0 0 2px ${C.red}` }} />
+      <div style={{ position: "absolute", left: r.x - 1, top: r.y - 1, width: r.w + 2, height: r.h + 2, boxShadow: `inset 0 0 0 2px ${C.accent}` }} />
       {corners.map(([x, y], i) => (
         <div
           key={i}
-          style={{ position: "absolute", left: x - hs / 2, top: y - hs / 2, width: hs, height: hs, borderRadius: 2, background: C.white, boxShadow: `inset 0 0 0 2px ${C.red}` }}
+          style={{ position: "absolute", left: x - hs / 2, top: y - hs / 2, width: hs, height: hs, borderRadius: 2, background: C.white, boxShadow: `inset 0 0 0 2px ${C.accent}` }}
         />
       ))}
     </div>
@@ -178,7 +178,7 @@ export const Badge = ({ r, f, opacity }: { r: Rect; f: number; opacity: number }
         width: w,
         height: BADGE.h,
         borderRadius: BADGE.radius,
-        background: C.red,
+        background: C.accent,
         overflow: "hidden",
         opacity,
       }}

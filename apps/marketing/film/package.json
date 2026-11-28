@@ -23,7 +23,7 @@
     "studio": "remotion studio",
     "assets": "python3 scripts/make-assets.py",
     "cues": "tsx scripts/export-cues.ts",
-    "score": "python3 audio/score.py && python3 audio/music.py",
+    "score": "python3 audio/pack/mix.py",
     "still": "remotion still Film169 out/still.png --frame=345",
     "render": "remotion render Film169 out/Film169.mp4 --crf=14",
     "check": "tsx scripts/check.ts",

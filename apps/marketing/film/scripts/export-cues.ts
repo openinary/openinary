@@ -195,7 +195,7 @@ const music = {
   })),
 };
 
-/** Picture events the score (audio/music.py) writes against, in film frames. */
+/** Picture events the soundtrack (audio/pack/mix.py) places sounds on, in film frames. */
 const MARKS = {
   fling: T.S1.fling.start, cardDrop: T.S2.drop, uploadPress: T.S3.uploadPress, uploaded: T.S3.uploaded[0], push: T.S4.push[0],
   fullBleed: T.S4.fullBleed, snap: T.S6.snapHit, crop: T.S6.crop[0], round: T.S6.round[0], fileWord: K.K2.steps[2].at,
