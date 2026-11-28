@@ -9,10 +9,10 @@ import {
   CodeFile,
   LogsMock,
   SignedUrlMock,
+  StorageMock,
   TerminalMock,
   TransformMock,
   UploadMock,
-  VideoJobsMock,
   createLines,
 } from "@/components/site/mocks";
 import { PlanCard, PlanStrip, plans } from "@/components/site/plans";
@@ -139,21 +139,21 @@ export default function Home() {
         <ul className="mt-12 grid gap-3 lg:grid-cols-3">
           <ShotTile
             tone="clear"
-            shot={<TransformMock />}
-            title="Change the URL, get the file"
-            body="Width, crop, format and quality are parameters in the link. Each version is made on the first request, no thumbnail folder to keep in sync."
+            shot={<StorageMock />}
+            title="Bring your own bucket"
+            body="S3, R2, Google Cloud, Backblaze, Wasabi or anything that speaks S3. Plug in the buckets you already have, as many as you like. Your files never move."
           />
           <ShotTile
             tone="haze"
-            shot={<VideoJobsMock />}
-            title="Video without a pipeline"
-            body="Transcode, resize and grab thumbnails from the same URLs. A pending job tells you when it will be ready instead of leaving you to poll."
+            shot={<TransformMock />}
+            title="Same URLs as Cloudinary"
+            body="Change the domain, keep the path. Width, crop, format and quality stay parameters in the link, so your templates and image components keep working."
           />
           <ShotTile
             tone="ocean"
             shot={<LogsMock />}
-            title="Fast after the first hit"
-            body="Every transformed file is cached at the edge and served like a static asset. Only the first request does the work."
+            title="Built-in caching"
+            body="Images, video, audio and 3D files are cached at the edge after the first request, then served in milliseconds like any static asset. Nothing to set up."
           />
         </ul>
       </Container>
