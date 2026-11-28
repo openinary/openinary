@@ -31,7 +31,7 @@ export const ctaButton = cva(
   {
     variants: {
       variant: {
-        primary: "bg-foreground text-background hover:bg-foreground/90",
+        primary: "border-(--primary-ring) bg-brand text-white hover:bg-brand-strong",
         outline:
           "border border-foreground/10 text-foreground hover:bg-muted hover:border-foreground/20",
       },

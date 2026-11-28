@@ -92,7 +92,7 @@ export function PlanCard({ plan, location }: { plan: Plan; location: string }) {
   return (
     <div
       className={cn(
-        "flex flex-col rounded-[16px] bg-white/[0.12] p-1.5 shadow-[0_0_0_0.5px_rgb(255_255_255/0.18)] backdrop-blur-md",
+        "flex flex-col shot-rim",
         plan.primary && "md:-my-2",
       )}
     >
@@ -131,7 +131,7 @@ export function PlanCard({ plan, location }: { plan: Plan; location: string }) {
 /** The wide strip under the cards: Enterprise, and the way to the calculator. */
 export function PlanStrip({ location }: { location: string }) {
   return (
-    <div className="rounded-[16px] bg-white/[0.12] p-1.5 shadow-[0_0_0_0.5px_rgb(255_255_255/0.18)] backdrop-blur-md">
+    <div className="shot-rim">
       <div className="grid gap-px overflow-hidden rounded-[11px] bg-ink-4 md:grid-cols-2">
         <div className="flex items-center justify-between gap-4 bg-panel p-5">
           <div>

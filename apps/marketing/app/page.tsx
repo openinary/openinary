@@ -207,8 +207,8 @@ export default function Home() {
         <Sky tone="haze" className="rounded-lg px-4 pt-14 pb-10 md:px-12 md:pt-20 md:pb-14">
           <div className="text-center">
             {/* On the sky, so white in both themes, like the line under it. */}
-            <H2 className="mx-auto text-white">No credits. No ${cld.plus.monthlyUsd} jump.</H2>
-            <p className="mx-auto mt-3 max-w-[460px] text-[15px] leading-6 text-white/80">
+            <H2 className="mx-auto">No credits. No ${cld.plus.monthlyUsd} jump.</H2>
+            <p className="mx-auto mt-3 max-w-[460px] text-[15px] leading-6 text-ink-11">
               Free plan, no card required. Past it, each resource at its own published rate and no monthly fee, or run
               the same engine yourself for nothing.
             </p>
