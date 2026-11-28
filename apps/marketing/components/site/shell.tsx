@@ -200,7 +200,7 @@ export function SiteFooter() {
       <Container className="grid gap-10 pt-10 pb-12 md:grid-cols-[1fr_2fr]">
         <div className="flex flex-col justify-between gap-3">
           <Link href="/" aria-label="Openinary home" className="flex items-center gap-2 text-[15px] font-medium tracking-[-0.02em]">
-            <Mark className="size-[17px] text-brand" />
+            <Mark className="size-[17px] text-ink-12" />
             Openinary
           </Link>
           <StatusPill />

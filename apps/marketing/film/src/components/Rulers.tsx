@@ -38,16 +38,16 @@ export const Rulers = ({ camera = IDENTITY, selection = null }: { camera?: Camer
       {/* selection extents */}
       {selection && sx1 > sx0 ? (
         <g shapeRendering="crispEdges">
-          <rect x={sx0} y={0} width={sx1 - sx0} height={RULER} fill={C.redBand} />
-          <rect x={Math.round(selection.x)} y={0} width={1} height={RULER} fill={C.red} />
-          <rect x={Math.round(selection.x + selection.w) - 1} y={0} width={1} height={RULER} fill={C.red} />
+          <rect x={sx0} y={0} width={sx1 - sx0} height={RULER} fill={C.accentBand} />
+          <rect x={Math.round(selection.x)} y={0} width={1} height={RULER} fill={C.accent} />
+          <rect x={Math.round(selection.x + selection.w) - 1} y={0} width={1} height={RULER} fill={C.accent} />
         </g>
       ) : null}
       {selection && sy1 > sy0 ? (
         <g shapeRendering="crispEdges">
-          <rect x={0} y={sy0} width={RULER} height={sy1 - sy0} fill={C.redBand} />
-          <rect x={0} y={Math.round(selection.y)} width={RULER} height={1} fill={C.red} />
-          <rect x={0} y={Math.round(selection.y + selection.h) - 1} width={RULER} height={1} fill={C.red} />
+          <rect x={0} y={sy0} width={RULER} height={sy1 - sy0} fill={C.accentBand} />
+          <rect x={0} y={Math.round(selection.y)} width={RULER} height={1} fill={C.accent} />
+          <rect x={0} y={Math.round(selection.y + selection.h) - 1} width={RULER} height={1} fill={C.accent} />
         </g>
       ) : null}
       {/* ticks */}

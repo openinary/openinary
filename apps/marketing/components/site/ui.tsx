@@ -31,7 +31,7 @@ export function Container({
 const buttonBase = `inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-medium leading-5 tracking-[-0.01em] press ${focusRing}`;
 
 const buttonVariants = {
-  primary: "bg-ink-12 text-page ring-raised-light hover:bg-primary-hover",
+  primary: "bg-brand text-white shadow-[0_0_0_1px_var(--primary-ring)] hover:bg-brand-strong",
   secondary: "bg-control text-ink-12 ring-raised hover:bg-control-hover",
   ghost: "text-ink-11 hover:text-ink-12",
 } as const;
@@ -261,13 +261,13 @@ export function Window({
   return (
     <div
       className={cn(
-        "rounded-[16px] bg-white/[0.12] p-1.5 shadow-[0_0_0_0.5px_rgb(255_255_255/0.18),0_24px_48px_-12px_rgb(0_0_0/0.45)] backdrop-blur-md",
+        "shot-rim",
         className,
       )}
     >
       <div
         className={cn(
-          "overflow-hidden rounded-[11px] bg-frame text-ink-12 shadow-[0_0_0_0.5px_rgb(0_0_0/0.6)]",
+          "overflow-hidden rounded-[16px] bg-frame text-ink-12",
           innerClassName,
         )}
       >

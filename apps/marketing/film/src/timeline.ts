@@ -83,7 +83,7 @@ const remap = <O>(o: O, key = ""): O => {
   return o;
 };
 
-/** public/score.wav (audio/score.py, rendered from public/cues.json) is in sync with this timeline. */
+/** public/score.wav (audio/pack/mix.py, rendered from public/cues.json) is in sync with this timeline. */
 export const AUDIO_READY = true;
 
 /** First frame of bar n (1-based): bar(1) = 0, bar(9) = 960. */

@@ -42,10 +42,10 @@ const Selection = ({ frame }: { frame: number }) => {
     x1 = Math.round(r.x + r.w),
     y1 = Math.round(r.y + r.h);
   const sw = 3; // stroke centred on the box edge: 1 px out, 2 px in
-  const handle = (x: number, y: number) => <rect key={`${x},${y}`} x={x - 6} y={y - 6} width={12} height={12} fill={C.white} stroke={C.red} strokeWidth={2} />;
+  const handle = (x: number, y: number) => <rect key={`${x},${y}`} x={x - 6} y={y - 6} width={12} height={12} fill={C.white} stroke={C.accent} strokeWidth={2} />;
   return (
     <svg width={1920} height={1484} style={{ position: "absolute", left: 0, top: 0 }} shapeRendering="crispEdges">
-      <g fill={C.red}>
+      <g fill={C.accent}>
         {e.left ? <rect x={x0 - 1} y={y0 - 1} width={sw} height={y1 - y0 + 2} /> : null}
         {e.top ? <rect x={x0 - 1} y={y0 - 1} width={x1 - x0 + 2} height={sw} /> : null}
         {e.rightBottom ? <rect x={x1 - 2} y={y0 - 1} width={sw} height={y1 - y0 + 2} /> : null}

@@ -161,7 +161,7 @@ export function TalkToUs({
         aria-labelledby={`talk-${location}`}
         // A click on the backdrop lands on the dialog itself, not its content.
         onClick={(e) => e.target === e.currentTarget && ref.current?.close()}
-        className="m-auto w-[calc(100%-32px)] max-w-[560px] rounded-[16px] bg-white/[0.12] p-1.5 text-left text-ink-12 shadow-[0_0_0_0.5px_rgb(255_255_255/0.18),0_24px_64px_-12px_rgb(0_0_0/0.7)] backdrop-blur-md backdrop:bg-black/60 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[calc(100%-32px)] max-w-[560px] shot-rim text-left text-ink-12 backdrop:bg-black/60 backdrop:backdrop-blur-[2px]"
       >
         <div className="overflow-hidden rounded-[11px] bg-frame">
           <div className="flex items-start justify-between gap-4 border-b-[0.5px] border-rule px-5 pt-5 pb-4 md:px-7">

@@ -114,7 +114,7 @@ export function SiteHeader() {
             data-track-prop-location="header"
             className={cn("flex items-center gap-2 rounded-md text-[15px] font-medium tracking-[-0.02em]", focusRing)}
           >
-            <Mark className="size-[17px] text-brand" />
+            <Mark className="size-[17px] text-ink-12" />
             Openinary
           </Link>
 

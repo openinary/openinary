@@ -124,7 +124,7 @@ export default function FeaturesPage() {
 
       <Container>
         <Sky tone="clear" className="rounded-lg px-4 py-10 md:px-16 md:py-14">
-          <div className="rounded-[16px] bg-white/[0.12] p-1.5 shadow-[0_0_0_0.5px_rgb(255_255_255/0.18)] backdrop-blur-md">
+          <div className="shot-rim">
             <ul className="grid gap-px overflow-hidden rounded-[11px] bg-ink-4 sm:grid-cols-2 lg:grid-cols-4">
               {groups.map((g) => (
                 <li key={g.id}>

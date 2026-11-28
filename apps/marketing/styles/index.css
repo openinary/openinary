@@ -4,10 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * The marketing site's look follows serveros.com 1:1 (dark page, Mona Sans,
- * hairline-ringed controls, 20px tiles over painted skies). Only the look is
- * borrowed: every value here is retyped, the skies are our own gradients and
- * none of their assets ship. The site is dark only, like the reference.
+ * The site wears the product's look: the same warm greys, ink and blue
+ * accent as packages/dashboard/src/theme.css (values copied, keep in sync),
+ * product shots sat on the app's grey panel instead of painted skies, and
+ * tiles drawn as a ring like .ds-tile. Light and dark follow the system.
  */
 @theme inline {
   --color-background: var(--background);
@@ -66,7 +66,8 @@
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
   --color-keyword: var(--keyword);
-  --color-brand: #fc1f1c;
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -76,33 +77,39 @@
 
 :root {
   color-scheme: light;
-  /* Light values follow serveros.com's light theme. */
+  /* Light values: the dashboard's ds scale. */
   --page: #ffffff;
   --ink-12: #151515;
-  --ink-11: #62625d;
-  --ink-10: #7c7c76;
+  --ink-11: #6b6b66;
+  --ink-10: #8e8e88;
   --ink-9: #8e8e88;
-  --ink-6: #d9d9d6;
-  --ink-4: #e8e8e4;
+  --ink-6: #dededa;
+  --ink-4: #e7e7e4;
   --ink-3: #efefec;
   --tile: #f7f7f5;
   --surface: #f3f3f1;
   --surface-top: #ffffff;
   --frame: #ffffff;
-  --line: #d9d9d6;
+  --line: #dededa;
   --hair: rgb(0 0 0 / 0.06);
   --rule: #e7e7e4;
-  --rule-strong: #d6d6d1;
+  --rule-strong: #dededa;
   --well: #f7f7f6;
   --chip: #efefec;
   --panel: #ffffff;
   --control: #ffffff;
-  --control-hover: #f7f7f5;
-  --primary-hover: #2e2e2e;
-  --raised-ring: #d6d6d1;
-  --raised-drop: rgb(21 21 21 / 0.12);
-  --primary-ring: #151515;
+  --control-hover: #f1f1ef;
+  --primary-hover: #2257c7;
+  --raised-ring: rgb(0 0 0 / 0.08);
+  --raised-drop: rgb(0 0 0 / 0.06);
+  --primary-ring: rgb(59 123 255 / 0.6);
   --menu-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.08), 0 12px 32px -8px rgb(0 0 0 / 0.14);
+  /* The app's panel (sidebar backdrop) and its edge: what shots sit on. */
+  --stage: #f3f3f1;
+  --edge: rgb(0 0 0 / 0.08);
+  --shot-shadow: rgb(0 0 0 / 0.08) 0 0 0 1px, rgb(0 0 0 / 0.06) 0 2px 4px -1px, rgb(0 0 0 / 0.12) 0 24px 64px -12px;
+  --brand: #1c4bb0;
+  --brand-strong: #2257c7;
   --ok: #15803d;
   --ok-bg: #e9f8ee;
   --ok-ring: #a9ddbb;
@@ -128,44 +135,49 @@
   --secondary: #efefec;
   --secondary-foreground: #151515;
   --muted: #f3f3f1;
-  --muted-foreground: #62625d;
+  --muted-foreground: #6b6b66;
   --accent: #efefec;
   --accent-foreground: #151515;
   --destructive: #b42318;
   --border: #e7e7e4;
-  --input: #d6d6d1;
+  --input: #dededa;
   --ring: #3b7bff;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 }
 
 .dark {
   color-scheme: dark;
-  --page: #161616;
-  --ink-12: #ededed;
-  --ink-11: #aaaaa7;
-  --ink-10: #8d8d8a;
-  --ink-9: #777774;
-  --ink-6: #454545;
-  --ink-4: #323232;
-  --ink-3: #2b2b2b;
-  --tile: #1d1d1d;
-  --surface: #1f1f1f;
-  --surface-top: #242424;
+  --page: #181818;
+  --ink-12: #eeeeee;
+  --ink-11: #a4a4a4;
+  --ink-10: #8a8a8a;
+  --ink-9: #8a8a8a;
+  --ink-6: #3a3a3a;
+  --ink-4: #2a2a2a;
+  --ink-3: #222222;
+  --tile: #131313;
+  --surface: #141414;
+  --surface-top: #1c1c1c;
   --frame: #181818;
-  --line: #3b3b3b;
-  --hair: rgb(255 255 255 / 0.08);
-  --rule: #2a2a2a;
-  --rule-strong: #3a3a3a;
-  --well: #141414;
-  --chip: #242424;
-  --panel: #232323;
-  --control: #2b2b2b;
-  --control-hover: #323232;
-  --primary-hover: #ffffff;
-  --raised-ring: #454545;
+  --line: #2a2a2a;
+  --hair: rgb(238 238 238 / 0.07);
+  --rule: #1e1e1e;
+  --rule-strong: #2a2a2a;
+  --well: #0d0d0d;
+  --chip: #222222;
+  --panel: #131313;
+  --control: #151515;
+  --control-hover: #222222;
+  --primary-hover: #6a9bff;
+  --raised-ring: rgb(255 255 255 / 0.08);
   --raised-drop: rgb(0 0 0 / 0.5);
-  --primary-ring: #ededed;
-  --menu-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px #2e2e2e, 0 12px 32px -8px rgb(0 0 0 / 0.6);
+  --primary-ring: rgb(143 179 255 / 0.5);
+  --menu-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -8px rgb(0 0 0 / 0.6);
+  --stage: #0f0f0f;
+  --edge: #262626;
+  --shot-shadow: rgb(255 255 255 / 0.07) 0 1px 0 inset, rgb(0 0 0 / 0.5) 0 0 0 1px, rgb(0 0 0 / 0.55) 0 24px 64px -12px;
+  --brand: #3b7bff;
+  --brand-strong: #6a9bff;
   --ok: #4ade80;
   --ok-bg: #12291c;
   --ok-ring: #1f5136;
@@ -180,23 +192,23 @@
   --info-ring: #2b4a7a;
   --keyword: #c4b5fd;
 
-  --background: #161616;
-  --foreground: #ededed;
-  --card: #1d1d1d;
-  --card-foreground: #ededed;
+  --background: #181818;
+  --foreground: #eeeeee;
+  --card: #131313;
+  --card-foreground: #eeeeee;
   --popover: #1c1c1c;
-  --popover-foreground: #ededed;
-  --primary: #ededed;
-  --primary-foreground: #161616;
-  --secondary: #2b2b2b;
-  --secondary-foreground: #ededed;
-  --muted: #262626;
-  --muted-foreground: #aaaaa7;
-  --accent: #2b2b2b;
-  --accent-foreground: #ededed;
+  --popover-foreground: #eeeeee;
+  --primary: #eeeeec;
+  --primary-foreground: #0a0a0a;
+  --secondary: #222222;
+  --secondary-foreground: #eeeeee;
+  --muted: #222222;
+  --muted-foreground: #a4a4a4;
+  --accent: #222222;
+  --accent-foreground: #eeeeee;
   --destructive: #f87171;
-  --border: #2a2a2a;
-  --input: #333333;
+  --border: #1e1e1e;
+  --input: #2a2a2a;
   --ring: #60a5fa;
 }
 
@@ -242,41 +254,24 @@
 }
 
 /*
- * Skies: painted ridgelines (scripts/paint-skies.py, our own, nothing licensed),
- * over the gradient they were painted from so the block reads the same while
- * the image loads. A touch of grain on top keeps flat UI from looking pasted.
+ * Stage: the backdrop a product shot sits on. It is the app's own panel (the
+ * grey the sidebar sits on) with a hairline edge, so a shot on the site looks
+ * like the app it shows. The tone classes are kept so callers don't change.
  */
 .sky {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background-size: cover;
-  background-position: center;
+  background-color: var(--stage);
+  box-shadow: var(--edge) 0 0 0 1px inset;
 }
-.sky::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.06;
-  mix-blend-mode: overlay;
-}
-.sky-dawn {
-  background-image: url("/skies/dawn.webp"), linear-gradient(180deg, #36557a 0%, #7d93ac 55%, #e0a77c 100%);
-}
-.sky-clear {
-  background-image: url("/skies/clear.webp"), linear-gradient(180deg, #3d6a99 0%, #78a1c6 55%, #c4d6e2 100%);
-}
-.sky-haze {
-  background-image: url("/skies/haze.webp"), linear-gradient(180deg, #3f4b58 0%, #76818b 55%, #c3bcae 100%);
-}
-.sky-dusk {
-  background-image: url("/skies/dusk.webp"), linear-gradient(180deg, #1d2c48 0%, #4c5f84 55%, #d4917a 100%);
-}
-.sky-ocean {
-  background-image: url("/skies/ocean.webp"), linear-gradient(180deg, #2c5a86 0%, #5f8db3 55%, #a9c6d8 100%);
+
+/* The frame a shot is drawn in: the app's sheet, ringed like a modal. */
+.shot-rim {
+  border-radius: 16px;
+  padding: 0;
+  background: var(--frame);
+  box-shadow: var(--shot-shadow);
 }
 
 /*

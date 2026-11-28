@@ -78,7 +78,7 @@ export type MarkShardsProps = {
 
 const isRect = (r: Stencil["rect"]): r is Rect => typeof (r as Rect).w === "number";
 
-export const MarkShards = ({ placement, shards = {}, only = SHARD_IDS, red, color = C.red, stencil, flood, style }: MarkShardsProps) => {
+export const MarkShards = ({ placement, shards = {}, only = SHARD_IDS, red, color = C.ink, stencil, flood, style }: MarkShardsProps) => {
   const uid = safeId(useId());
   const redOpacity = red ?? (stencil && !flood ? 0 : 1);
   const center = flood?.center ?? rScreen(placement);
