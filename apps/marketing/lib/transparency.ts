@@ -1,6 +1,6 @@
 /**
  * The figures on /transparency, from the three places they live: GitHub (the
- * code and community), PostHog (visits and usage), Autumn (customers and
+ * code and community), PostHog (visits, Cloud usage and self-hosted telemetry), Autumn (customers and
  * revenue) and Railway (the self-host template's deploys and kickbacks). Each source fails on its own: a missing key or a slow API leaves
  * its section without numbers, never the page down.
  *
@@ -38,6 +38,15 @@ export type Transparency = {
     visitors30d: number;
     signups30d: number;
     activeUsers30d: number;
+  } | null;
+  selfHosted: {
+    activeByMonth: Month[];
+    installsByMonth: Month[];
+    installs: number;
+    active30d: number;
+    active7d: number;
+    /** Still sending heartbeats, and first did more than 90 days ago. */
+    longRunning: number;
   } | null;
   business: {
     customers: number;
@@ -237,6 +246,48 @@ async function usage(): Promise<Transparency["usage"]> {
   };
 }
 
+/**
+ * Self-hosted servers, from their anonymous telemetry (apps/api/src/utils/
+ * telemetry.ts): `instance_started` once per install, `daily_heartbeat` every
+ * 24h while running. distinct_id is the instance id. Servers with telemetry
+ * off aren't counted, so these are floors.
+ */
+async function selfHosted(): Promise<Transparency["selfHosted"]> {
+  const months = lastMonths(12);
+  const [byMonth, totals] = await Promise.all([
+    hogql(`
+      SELECT toStartOfMonth(timestamp) AS m,
+        uniqIf(distinct_id, event = 'daily_heartbeat'),
+        uniqIf(distinct_id, event = 'instance_started')
+      FROM events
+      WHERE event IN ('daily_heartbeat', 'instance_started')
+        AND timestamp >= toStartOfMonth(now() - INTERVAL 11 MONTH)
+      GROUP BY m ORDER BY m`),
+    hogql(`
+      SELECT
+        uniqIf(distinct_id, event = 'instance_started'),
+        uniqIf(distinct_id, event = 'daily_heartbeat' AND last_seen >= now() - INTERVAL 30 DAY),
+        uniqIf(distinct_id, event = 'daily_heartbeat' AND last_seen >= now() - INTERVAL 7 DAY),
+        uniqIf(distinct_id, event = 'daily_heartbeat' AND last_seen >= now() - INTERVAL 30 DAY AND first_seen < now() - INTERVAL 90 DAY)
+      FROM (
+        SELECT distinct_id, event, min(timestamp) AS first_seen, max(timestamp) AS last_seen
+        FROM events
+        WHERE event IN ('daily_heartbeat', 'instance_started') AND timestamp >= now() - INTERVAL 3 YEAR
+        GROUP BY distinct_id, event
+      )`),
+  ]);
+  const column = (i: number) => new Map(byMonth.map((r) => [monthOf(String(r[0])), Number(r[i])]));
+  const t = totals[0] ?? [];
+  return {
+    activeByMonth: series(column(1), months),
+    installsByMonth: series(column(2), months),
+    installs: Number(t[0] ?? 0),
+    active30d: Number(t[1] ?? 0),
+    active7d: Number(t[2] ?? 0),
+    longRunning: Number(t[3] ?? 0),
+  };
+}
+
 // ---- Autumn ----
 
 async function autumnSql(sql: string): Promise<unknown[][]> {
@@ -340,9 +391,10 @@ async function railway(): Promise<Transparency["railway"]> {
 }
 
 export async function getTransparency(): Promise<Transparency> {
-  const [gitHub, usageData, businessData, railwayData] = await Promise.all([
+  const [gitHub, usageData, selfHostedData, businessData, railwayData] = await Promise.all([
     cached("github-v1", HOUR, () => settle("github", github)),
     cached("usage-v2", HOUR, () => settle("posthog", usage)),
+    cached("selfhosted-v1", HOUR, () => settle("posthog self-hosted", selfHosted)),
     cached("business-v2", HOUR, () => settle("autumn", business)),
     cached("railway-v1", HOUR, () => settle("railway", railway)),
   ]);
@@ -350,6 +402,7 @@ export async function getTransparency(): Promise<Transparency> {
     updatedAt: new Date().toISOString(),
     github: gitHub,
     usage: usageData,
+    selfHosted: selfHostedData,
     business: businessData,
     railway: railwayData,
   };

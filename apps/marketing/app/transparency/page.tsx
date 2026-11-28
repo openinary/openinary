@@ -9,7 +9,7 @@ import { getTransparency, type Month } from "@/lib/transparency";
 export const metadata: Metadata = {
   title: "Transparency | Openinary",
   description:
-    "Openinary's numbers in the open: GitHub activity, visitors, sign-ups, customers and revenue, refreshed every hour.",
+    "Openinary's numbers in the open: GitHub activity, self-hosted servers, visitors, sign-ups, customers and revenue, refreshed every hour.",
   alternates: { canonical: "/transparency" },
 };
 
@@ -25,7 +25,7 @@ const monthName = (m: string) =>
   new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
 
 export default async function TransparencyPage() {
-  const { github, usage, business, railway } = await getTransparency();
+  const { github, usage, selfHosted, business, railway } = await getTransparency();
   const noRevenue = business?.revenueByMonth.every((m) => m.value === 0) ?? false;
 
   return (
@@ -64,9 +64,26 @@ export default async function TransparencyPage() {
       </Section>
 
       <Section
+        title="Self-hosted."
+        muted="From telemetry."
+        aside="Each server sends one anonymous heartbeat a day: version and storage type, no content, no IPs. Servers with OPENINARY_TELEMETRY=false aren't counted, so these are floors."
+      >
+        <Tiles>
+          <Stat label="Servers installed" value={selfHosted && number.format(selfHosted.installs)} />
+          <Stat label="Running, last 30 days" value={selfHosted && number.format(selfHosted.active30d)} />
+          <Stat label="Running, last 7 days" value={selfHosted && number.format(selfHosted.active7d)} />
+          <Stat label="Running for over 90 days" value={selfHosted && number.format(selfHosted.longRunning)} />
+        </Tiles>
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <Chart title="Servers running" note="Per month" data={selfHosted?.activeByMonth} format={number.format} />
+          <Chart title="New installs" note="Per month" data={selfHosted?.installsByMonth} format={number.format} />
+        </div>
+      </Section>
+
+      <Section
         title="Usage."
         muted="From PostHog and Railway."
-        aside="People who read about Openinary and use Cloud. Self-hosted servers report nothing, except the ones deployed from our Railway template."
+        aside="People who read about Openinary and use Cloud, plus the servers deployed from our Railway template."
       >
         <Tiles>
           <Stat label="Visitors, last 30 days" value={usage && number.format(usage.visitors30d)} />
