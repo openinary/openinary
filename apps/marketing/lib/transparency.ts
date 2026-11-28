@@ -253,7 +253,8 @@ async function usage(): Promise<Transparency["usage"]> {
  * off aren't counted, so these are floors.
  */
 async function selfHosted(): Promise<Transparency["selfHosted"]> {
-  const months = lastMonths(12);
+  // Telemetry shipped in July 2026: earlier months would only be empty bars.
+  const months = lastMonths(12).filter((m) => m >= "2026-07");
   const [byMonth, totals] = await Promise.all([
     hogql(`
       SELECT toStartOfMonth(timestamp) AS m,
@@ -394,7 +395,7 @@ export async function getTransparency(): Promise<Transparency> {
   const [gitHub, usageData, selfHostedData, businessData, railwayData] = await Promise.all([
     cached("github-v1", HOUR, () => settle("github", github)),
     cached("usage-v2", HOUR, () => settle("posthog", usage)),
-    cached("selfhosted-v1", HOUR, () => settle("posthog self-hosted", selfHosted)),
+    cached("selfhosted-v2", HOUR, () => settle("posthog self-hosted", selfHosted)),
     cached("business-v2", HOUR, () => settle("autumn", business)),
     cached("railway-v1", HOUR, () => settle("railway", railway)),
   ]);
