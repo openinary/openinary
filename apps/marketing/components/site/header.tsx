@@ -40,6 +40,12 @@ export function SiteHeader() {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
   const starCount = useGitHubStars();
+  // Hint cookie written by the Cloud app on .openinary.dev: signed in there,
+  // so "Sign in" becomes a straight link to the dashboard.
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    setSignedIn(/(?:^|; )openinary_signed_in=1(?:;|$)/.test(document.cookie));
+  }, []);
 
   // A new page closes whatever was open on the last one (reset during render,
   // React's pattern for state that follows a prop).
@@ -169,11 +175,11 @@ export function SiteHeader() {
             href={APP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            data-track-event="sign_in_clicked"
+            data-track-event={signedIn ? "dashboard_clicked" : "sign_in_clicked"}
             data-track-prop-location="header"
             className={buttonClass("secondary", "hidden sm:inline-flex")}
           >
-            Sign in
+            {signedIn ? "Dashboard" : "Sign in"}
           </Link>
           <Link
             href={APP_URL}
@@ -197,7 +203,7 @@ export function SiteHeader() {
         </div>
       </nav>
 
-      {mobile ? <MobileMenu onNavigate={() => setMobile(false)} /> : null}
+      {mobile ? <MobileMenu signedIn={signedIn} onNavigate={() => setMobile(false)} /> : null}
     </header>
   );
 }
@@ -240,7 +246,7 @@ const mobileLinkClass = cn(
   focusRing,
 );
 
-function MobileMenu({ onNavigate }: { onNavigate: () => void }) {
+function MobileMenu({ signedIn, onNavigate }: { signedIn: boolean; onNavigate: () => void }) {
   return (
     // Fixed below the header so it is the page's only scroll area. Any link tap
     // closes it, including same-page hash links that don't change the pathname.
@@ -274,7 +280,7 @@ function MobileMenu({ onNavigate }: { onNavigate: () => void }) {
         <li><Link href="/pricing" className={mobileLinkClass}>Pricing</Link></li>
         <li><Link href="/transparency" className={mobileLinkClass}>Transparency</Link></li>
         <li><Link href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className={mobileLinkClass}>Open source</Link></li>
-        <li><Link href={APP_URL} target="_blank" rel="noopener noreferrer" className={mobileLinkClass}>Sign in</Link></li>
+        <li><Link href={APP_URL} target="_blank" rel="noopener noreferrer" className={mobileLinkClass}>{signedIn ? "Dashboard" : "Sign in"}</Link></li>
       </ul>
     </div>
   );
