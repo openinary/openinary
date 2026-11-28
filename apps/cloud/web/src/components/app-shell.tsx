@@ -110,6 +110,11 @@ export function AppShell({
   useEffect(() => {
     if (isPending && !sessionKnown.current) return;
     document.cookie = `signed_in=${signedIn ? 1 : 0}; path=/; max-age=31536000; samesite=lax`;
+    // Same hint for the marketing site (openinary.dev), which swaps "Sign in"
+    // for "Dashboard". Prod only: preprod would overwrite it.
+    if (location.hostname === "app.openinary.dev") {
+      document.cookie = `openinary_signed_in=${signedIn ? 1 : 0}; domain=.openinary.dev; path=/; max-age=31536000; samesite=lax; secure`;
+    }
   }, [signedIn, isPending]);
 
   // No session (yet): the sign-in form, except on the very first check after
