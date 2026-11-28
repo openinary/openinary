@@ -63,12 +63,16 @@ await upsertFeature(CREDIT_FEATURE_ID, {
 });
 
 const { list: plans } = await autumn.plans.list();
-async function upsertPlan(
-  planId: string,
-  body: Omit<Parameters<typeof autumn.plans.create>[0], "planId">,
-) {
+type PlanBody = Omit<Parameters<typeof autumn.plans.create>[0], "planId"> & {
+  basePlanId?: null;
+};
+async function upsertPlan(planId: string, { basePlanId, ...body }: PlanBody) {
   if (plans.some((p) => p.id === planId)) {
-    await autumn.plans.update({ planId, ...body });
+    await autumn.plans.update({
+      planId,
+      ...(body as Omit<Parameters<typeof autumn.plans.update>[0], "planId">),
+      ...(basePlanId === null && { basePlanId }),
+    });
     console.log("updated plan", planId);
   } else {
     await autumn.plans.create({ planId, ...body });
