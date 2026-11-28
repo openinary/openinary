@@ -17,16 +17,15 @@ assert.equal(free.planUrl, "https://app.openinary.dev/?settings=plan");
 // A metered account must never be sold the plan it already has, whichever plan
 // that is - the Free call-to-action must never appear on a paid body.
 for (const paid of [
-  quotaErrorBody("image_transformations", "cloud", "Cloud"),
-  quotaErrorBody("cdn_requests", "early_access", "Alpha"),
+  quotaErrorBody("cdn_requests", "early_access", "Pay as you go"),
   quotaErrorBody("video_processing_seconds", "enterprise", "Enterprise"),
 ]) {
   assert.doesNotMatch(paid.error, /Upgrade|Free/);
   assert.ok(!paid.error.includes(UPGRADE_PLAN.cta));
 }
 assert.match(
-  quotaErrorBody("image_transformations", "cloud", "Cloud").error,
-  /on the Cloud plan/,
+  quotaErrorBody("image_transformations", "early_access", "Pay as you go").error,
+  /on the Pay as you go plan/,
 );
 
 // Storage never resets, so it must not promise it will.

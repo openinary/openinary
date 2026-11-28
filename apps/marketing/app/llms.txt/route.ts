@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getRepoStats } from '@/lib/github'
-import { freeQuotas } from '@/lib/pricing'
+import { freeQuotas, freeStorageLabel, paidPlan } from '@/lib/pricing'
 import { REPO_URL, SITE_URL } from '@/lib/site'
 
 export async function GET() {
@@ -51,7 +51,7 @@ Quick start (Docker): docker run --platform linux/amd64 -d -p 3000:3000 -v openi
 
 S3-compatible storage is configured via environment variables: STORAGE_REGION, STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET_NAME, STORAGE_PUBLIC_URL. For Cloudflare R2 or any S3-compatible provider, also set STORAGE_ENDPOINT.
 
-Frequently asked questions. Is Openinary free? The self-hosted open-source version is free with no usage fees, no transformation limits, and no paywalled features. Openinary Cloud, the managed version, has a free plan with ${freeQuotas.storageGb} GB of storage, ${freeQuotas.transformations.toLocaleString('en-US')} image transformations, ${freeQuotas.videoMinutes} minutes of video processing and ${freeQuotas.cdnRequests.toLocaleString('en-US')} CDN requests per month, no credit card required, and pay-as-you-go pricing beyond it. Does it have usage limits? The self-hosted version has no usage limits beyond your own server and storage capacity. Is it GDPR compliant? When self-hosted, your media files never leave your own infrastructure, making GDPR and data residency compliance straightforward. Is it suitable for production? Openinary is actively deployed in production environments. It is pre-1.0, meaning full backward compatibility is not yet guaranteed. Best suited for teams comfortable with open-source software and self-managed infrastructure.
+Frequently asked questions. Is Openinary free? The self-hosted open-source version is free with no usage fees, no transformation limits, and no paywalled features. Openinary Cloud, the managed version, has a free plan with ${freeStorageLabel} of storage, ${freeQuotas.transformations.toLocaleString('en-US')} image transformations, ${freeQuotas.videoMinutes} minutes of video processing and ${freeQuotas.cdnRequests.toLocaleString('en-US')} CDN requests per month, no credit card required, then a pay-as-you-go plan: $${paidPlan.monthlyUsd} minimum usage a month, which includes $${paidPlan.creditUsd} of usage credits, with every resource at a published per-unit price and only extra usage billed after the credits are used. Does it have usage limits? The self-hosted version has no usage limits beyond your own server and storage capacity. Is it GDPR compliant? When self-hosted, your media files never leave your own infrastructure, making GDPR and data residency compliance straightforward. Is it suitable for production? Openinary is actively deployed in production environments. It is pre-1.0, meaning full backward compatibility is not yet guaranteed. Best suited for teams comfortable with open-source software and self-managed infrastructure.
 
 ## Docs
 

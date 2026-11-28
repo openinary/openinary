@@ -12,6 +12,7 @@ import {
   cloudinaryCost,
   freeQuotas,
   openinaryCloudCost,
+  paidPlan,
   plans,
   selfHostedCost,
   usageForPlan,
@@ -35,17 +36,41 @@ assert.equal(
 );
 assert.equal(openinaryCloudCost(atQuota).planName, "Free plan");
 
-// Past a quota it must actually bill, on each dimension independently.
-for (const [key, bump] of [
-  ["storageGb", 10],
-  ["transformations", 10000],
-  ["videoMinutes", 60],
-  ["cdnRequests", 100000],
+// One unit past Free moves to Pay as you go, which never costs less than its
+// minimum: a small workload pays exactly the minimum.
+for (const key of Object.keys(atQuota)) {
+  assert.equal(
+    openinaryCloudCost({ ...atQuota, [key]: atQuota[key] + 1 }).monthlyUsd,
+    paidPlan.monthlyUsd,
+    `${key} just past Free must cost the minimum`,
+  );
+}
+
+// Railway's rule, max(minimum, usage): once usage passes the included credit,
+// the bill is the usage itself, on each resource independently.
+// 50,000 transformations at $0.40 / 1,000 = $20.
+const busy = { storageGb: 0, transformations: 50_000, videoMinutes: 0, cdnRequests: 0 };
+assert.ok(
+  Math.abs(openinaryCloudCost(busy).monthlyUsd - 20) < 1e-9,
+  "usage past the credit is billed at the unit price",
+);
+for (const [key, value] of [
+  ["storageGb", 200],
+  ["transformations", 20_000],
+  ["videoMinutes", 600],
+  ["cdnRequests", 2_000_000],
 ]) {
   assert.ok(
-    openinaryCloudCost({ ...atQuota, [key]: atQuota[key] + bump }).monthlyUsd > 0,
-    `${key} past its quota must be billed`,
+    openinaryCloudCost({ ...atQuota, [key]: value }).monthlyUsd > paidPlan.monthlyUsd,
+    `${key} past the included credit must be billed`,
   );
+}
+
+// The breakdown adds up to the bill, the unused minimum included.
+for (const usage of [busy, { ...atQuota, storageGb: 2 }]) {
+  const cost = openinaryCloudCost(usage);
+  const sum = cost.lines.reduce((total, line) => total + line.usd, 0);
+  assert.ok(Math.abs(sum - cost.monthlyUsd) < 1e-9, "line items must sum to the bill");
 }
 
 // A tiny workload lands on Cloudinary's free tier, not a paid one.
@@ -70,14 +95,22 @@ for (const plan of plans) {
   );
 }
 
+// Cloudinary Free's preset is our own Free allowance, so it must be free on
+// both sides: if either free tier changes without the other, this fails.
+assert.equal(
+  openinaryCloudCost(usageForPlan("free")).monthlyUsd,
+  0,
+  "the Cloudinary Free preset must fit Openinary's Free plan",
+);
+
 // The presets are what the calculator opens on, so they have to look like
-// numbers a person would type: leading digit, then zeros.
+// numbers a person would type: leading digit, then zeros (0.5 GB included).
 for (const plan of plans) {
   for (const [key, value] of Object.entries(usageForPlan(plan.id))) {
     const digits = `${value}`;
     assert.match(
       digits,
-      /^0$|^[1-9]5?0*$/,
+      /^0$|^0\.5$|^[1-9]5?0*$/,
       `${plan.name}'s ${key} preset is not a round number (${digits})`,
     );
   }

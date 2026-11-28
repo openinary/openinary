@@ -507,21 +507,23 @@ const upgrade: Sequence = {
     },
     {
       email: {
-        subject: "Double your limits for $0 a month",
+        subject: "Lift your limits from $5 a month",
         previewText:
-          "Alpha has no base price. You are only charged if you go past what is included.",
+          "$5 minimum usage, which includes $5 of usage every month. After that, you only pay for extra usage.",
         format: "styled",
         lmx: `${STYLED_STYLE}
-<H1>Double your limits, no base price</H1>
+<H1>Lift your limits from $5 a month</H1>
 <Paragraph>Hi {contact.firstName}, 👋</Paragraph>
 <Paragraph>You have been running on Openinary for three weeks, so you know by now whether it works for you.</Paragraph>
-<Paragraph>The Alpha plan has no monthly fee. Everything included doubles, and you are only charged if you go past it:</Paragraph>
+<Paragraph>Pay as you go works like this:</Paragraph>
 <UnorderedList>
-  <ListItem>2 buckets instead of 1</ListItem>
-  <ListItem>2 GB storage, 1,000 image transformations, 30 minutes of video, 50,000 CDN requests</ListItem>
-  <ListItem>Past those, service keeps running and is billed by usage instead of cut off</ListItem>
+  <ListItem>$5 minimum usage per month</ListItem>
+  <ListItem>Includes $5 of usage every month</ListItem>
+  <ListItem>After that, you only pay for extra usage, never cut off</ListItem>
+  <ListItem>5 buckets and 5 team members instead of 1</ListItem>
   <ListItem>Direct email support, from me</ListItem>
 </UnorderedList>
+<Paragraph>Each resource has its own price: $0.40 per 1,000 image transformations, $0.50 per 100,000 CDN requests, $0.01 per minute of video, $0.05 per GB stored per month.</Paragraph>
 <Button href="${APP}/?settings=plan" bgColor="#000000" textColor="#ffffff" borderRadius="10">Enable pay as you go</Button>
 <Paragraph>P.S. Questions about the pricing? Reply and I will do the math on your numbers.</Paragraph>
 ${SIGNOFF}`,
@@ -546,13 +548,13 @@ ${SIGNOFF}`,
 <H1>The problem with Free is not the price</H1>
 <Paragraph>Hi {contact.firstName},</Paragraph>
 <Paragraph>On Free, hitting a limit stops the service until your monthly allowance resets. Requests get refused and images stop loading. That is the real cost.</Paragraph>
-<Paragraph>On Alpha there is no ceiling to hit. You are billed for what you go over:</Paragraph>
+<Paragraph>On Pay as you go there is no ceiling to hit. It is $5 minimum usage, which includes $5 of usage every month at these prices:</Paragraph>
 <UnorderedList>
-  <ListItem>$0.03 per extra GB of storage</ListItem>
   <ListItem>$0.40 per 1,000 image transformations</ListItem>
   <ListItem>$0.50 per 100,000 CDN requests</ListItem>
+  <ListItem>$0.05 per GB stored per month</ListItem>
 </UnorderedList>
-<Paragraph>For most projects at this stage that is a few dollars a month. What changes is that a page doing well stops being a problem.</Paragraph>
+<Paragraph>For most projects at this stage, the $5 covers everything. What changes is that a page doing well stops being a problem.</Paragraph>
 <Button href="${APP}/?settings=plan" bgColor="#000000" textColor="#ffffff" borderRadius="10">See your usage</Button>
 ${SIGNOFF}`,
       },
@@ -592,11 +594,11 @@ const nearLimit: Sequence = {
 <Paragraph>Hi {contact.firstName}, 👋</Paragraph>
 <Paragraph>Thanks for giving Openinary Cloud a real try. You are at {event.usagePercent}% of your Free limits, and your monthly allowances reset in {event.resetsInDays} days.</Paragraph>
 <Paragraph>Until then, anything past a limit is refused. Requests fail and images stop loading.</Paragraph>
-<Paragraph>Alpha removes that ceiling and still has no monthly fee:</Paragraph>
+<Paragraph>Pay as you go removes that ceiling:</Paragraph>
 <UnorderedList>
-  <ListItem>2 buckets</ListItem>
-  <ListItem>2 GB storage, 1,000 image transformations, 30 minutes of video, 50,000 CDN requests</ListItem>
-  <ListItem>Past those, billed by usage instead of blocked</ListItem>
+  <ListItem>$5 minimum usage per month, which includes $5 of usage</ListItem>
+  <ListItem>After that, you only pay for extra usage instead of being blocked</ListItem>
+  <ListItem>5 buckets and 5 team members</ListItem>
   <ListItem>Direct email support</ListItem>
 </UnorderedList>
 <Button href="${APP}/?settings=plan" bgColor="#000000" textColor="#ffffff" borderRadius="10">Enable pay as you go</Button>
@@ -637,7 +639,7 @@ ${SIGNOFF}`,
 <H1>Still close to the ceiling</H1>
 <Paragraph>Hi {contact.firstName},</Paragraph>
 <Paragraph>You were at {event.usagePercent}% when I wrote a few days ago, and you are still up there. At this rate the ceiling is not a question of if, only of which week.</Paragraph>
-<Paragraph>Your dashboard shows which limit runs out first, and what this month would have cost you on Alpha instead.</Paragraph>
+<Paragraph>Your dashboard shows which limit runs out first, and what this month would have cost you on Pay as you go instead.</Paragraph>
 <Button href="${APP}/?settings=plan" bgColor="#000000" textColor="#ffffff" borderRadius="10">See your usage</Button>
 <Paragraph>P.S. If the pricing is not clear, reply and I will run the numbers on your actual usage.</Paragraph>
 ${SIGNOFF}`,
@@ -666,14 +668,14 @@ const paidWelcome: Sequence = {
   steps: [
     {
       email: {
-        subject: "You are on Alpha. Welcome aboard",
+        subject: "You are on Pay as you go. Welcome aboard",
         previewText:
           "What changed on your account, and how to reach me now that you are paying for this.",
         format: "styled",
         lmx: `${STYLED_STYLE}
 <H1>{contact.firstName}, welcome aboard</H1>
-<Paragraph>You are now on the Openinary Cloud Alpha plan.</Paragraph>
-<Paragraph>Your limits just doubled and the ceiling is gone: past what is included you are billed by usage instead of being cut off. There is no base price, so a quiet month costs you nothing. It renews monthly and you can cancel at any time.</Paragraph>
+<Paragraph>You are now on the Openinary Cloud Pay as you go plan.</Paragraph>
+<Paragraph>The ceiling is gone. Your $5 a month covers the first $5 of usage, and past that you only pay for extra usage instead of being cut off. A quiet month costs $5. It renews monthly and you can cancel at any time.</Paragraph>
 <Button href="${APP}/?settings=plan" bgColor="#000000" textColor="#ffffff" borderRadius="10">Manage subscription</Button>
 <Paragraph>You can reach me by replying to this email. That is the support channel, and it is me on the other end of it.</Paragraph>
 <Paragraph>Thank you, sincerely.<Br />Florian</Paragraph>`,
@@ -688,7 +690,7 @@ const paidWelcome: Sequence = {
         format: "plain",
         lmx: `${PLAIN_STYLE}
 <Paragraph>Hi {contact.firstName},</Paragraph>
-<Paragraph>One week on Alpha. Is it doing what you hoped it would?</Paragraph>
+<Paragraph>One week on Pay as you go. Is it doing what you hoped it would?</Paragraph>
 <Paragraph>You are paying for Openinary now, which means your opinion on what comes next outranks mine. What is the biggest thing missing for you today? Bring-your-own-bucket, more video options, something I have not thought of?</Paragraph>
 <Paragraph>Reply and it goes straight into the roadmap.</Paragraph>
 ${SIGNOFF}`,

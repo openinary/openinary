@@ -35,10 +35,11 @@ export const homeFaqs: Faq[] = [
   },
   {
     question: "What does the Cloud free plan include?",
-    text: `${free}, no credit card required. The Cloud plan doubles those allowances and bills only what goes past them.`,
+    text: `${free}, no credit card required. Pay as you go is $5 minimum usage, which includes $5 of usage every month at each resource's published price; past that, you only pay for extra usage.`,
     answer: (
       <>
-        {free}, no credit card required. The Cloud plan doubles those allowances and bills only what goes past them.{" "}
+        {free}, no credit card required. Pay as you go is $5 minimum usage, which includes $5 of usage every month at each
+        resource's published price; past that, you only pay for extra usage.{" "}
         <a href={APP_URL}>Create your account</a> to start.
       </>
     ),

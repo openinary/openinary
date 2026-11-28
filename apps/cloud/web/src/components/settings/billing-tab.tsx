@@ -12,14 +12,13 @@ import {
 } from "@openinary/dashboard/ui/tooltip";
 import {
   type Balance,
-  CLOUD_AVAILABLE,
-  CLOUD_MONTHLY,
   FEATURES,
   formatUsd,
   isMeteredPlan,
+  overageUsd,
   overUnits,
   planMonthly,
-  usageCost,
+  usageUsd,
 } from "@/lib/usage";
 import { useAccount } from "@/hooks/use-account";
 import { cn } from "@/lib/utils";
@@ -31,16 +30,23 @@ import { orpc } from "@/utils/orpc";
 const BUCKET_ROW = {
   label: "Buckets",
   free: String(PLANS.free.buckets),
-  early: String(PLANS.early_access.buckets),
-  cloud: String(PLANS.cloud.buckets),
+  price: String(PLANS.early_access.buckets),
 };
 
 const SEATS_ROW = {
   label: "Team members",
   free: String(PLANS.free.seats),
-  early: String(PLANS.early_access.seats),
-  cloud: String(PLANS.cloud.seats),
+  price: String(PLANS.early_access.seats),
 };
+
+const PAID = PLANS[UPGRADE_PLAN.id];
+// How Pay as you go is sold everywhere (Railway's framing): what the minimum
+// is, that it is spent as usage, and that only usage past it is billed.
+const PAID_PITCH = [
+  `$${PAID.monthlyUsd} minimum usage`,
+  `Includes $${PAID.creditUsd} of usage every month`,
+  "After that, you only pay for extra usage",
+];
 
 // CDN hits still reach the billing ledger on a one-minute timer so serving an
 // asset never waits on a usage write, but the figure shown here folds in the
@@ -271,33 +277,18 @@ export function BillingTab() {
   const canBill = useAccount().can("billing");
   const planId = data?.planId ?? null;
   const isMetered = isMeteredPlan(planId);
-  const monthly = planMonthly(planId);
+  // What this account's own subscription costs, which differs from the
+  // catalog for an account still on an older plan version.
+  const monthly = data?.monthlyUsd ?? planMonthly(planId);
+  const credits = data?.credits ?? null;
   const planName = data?.planName ?? "Free";
-  // The one paid plan this account can see: the column it gets in the
-  // comparison, and what the upgrade button offers. While Cloud is off sale
-  // that is always Alpha, and it stays Alpha for an account already on it,
-  // since showing Cloud would price something it can't reach from there.
-  const paidPlan =
-    CLOUD_AVAILABLE && planId !== "early_access"
-      ? {
-          name: PLANS.cloud.name,
-          column: "cloud" as const,
-          price: `$${CLOUD_MONTHLY} / mo`,
-          cta: UPGRADE_PLAN.cta,
-        }
-      : {
-          name: PLANS.early_access.name,
-          column: "early" as const,
-          // Not just "$0": the card is what checkout collects, so the price
-          // has to say usage is billed rather than imply nothing is.
-          price: "$0 + usage",
-          cta: "Enable pay as you go",
-        };
-  const planColumn = !isMetered
-    ? ("free" as const)
-    : planId === "cloud"
-      ? ("cloud" as const)
-      : ("early" as const);
+  // The one paid plan: its column in the comparison, and what the upgrade
+  // button offers.
+  const paidPlan = {
+    name: PAID.name,
+    price: `$${PAID.monthlyUsd} minimum`,
+    cta: UPGRADE_PLAN.cta,
+  };
   const cancelsAt = data?.cancelsAt ?? null;
   const renewsAt = cancelsAt ? null : (data?.renewsAt ?? null);
 
@@ -326,16 +317,24 @@ export function BillingTab() {
       ? (usage.used / elapsedDays) * totalDays
       : usage.used;
 
-  const spent = monthly + usageCost(data?.features);
-  const projectedSpend =
-    monthly +
-    FEATURES.reduce((total, feature) => {
-      const usage = data?.features[feature.id];
-      if (!usage) return total;
-      return (
-        total + overUnits({ ...usage, used: project(usage) }) * feature.rate
-      );
-    }, 0);
+  const spent = data ? monthly + overageUsd(data) : monthly;
+  // On a credit plan the whole credit balance is projected at its own pace;
+  // on an older per-feature plan, each feature past its grant.
+  const projectedSpend = credits
+    ? monthly +
+      Math.max(
+        0,
+        (canProject ? (credits.usedUsd / elapsedDays) * totalDays : credits.usedUsd) -
+          credits.grantedUsd,
+      )
+    : monthly +
+      FEATURES.reduce((total, feature) => {
+        const usage = data?.features[feature.id];
+        if (!usage) return total;
+        return (
+          total + overUnits({ ...usage, used: project(usage) }) * feature.rate
+        );
+      }, 0);
 
   const rows = FEATURES.map((feature) => {
     const usage = data?.features[feature.id];
@@ -401,27 +400,31 @@ export function BillingTab() {
     : rows
         .filter((row) => row.capped && row.usage?.resetsAt !== null)
         .sort((a, b) => b.ratio - a.ratio)[0];
-  // Storage has no daily history (see getUsageHistory), so its share of the
-  // bill is held at today's figure across the whole curve.
+  // On an older per-feature plan storage has no daily history, so its share
+  // of the bill is held at today's figure across the whole curve. On a credit
+  // plan it does: storage_mb_days is billed day by day.
   const storageCost =
-    isMetered && STORAGE
+    isMetered && !credits && STORAGE
       ? overUnits(data?.features.storage_mb) * STORAGE.rate
       : 0;
   const valueAt = (used: Partial<Record<string, number>>) =>
-    isMetered
-      ? monthly +
-        storageCost +
-        FEATURES.reduce((total, feature) => {
-          const usage = data?.features[feature.id];
-          if (!usage || feature.id === "storage_mb") return total;
-          return (
-            total +
-            overUnits({ ...usage, used: used[feature.id] ?? 0 }) * feature.rate
-          );
-        }, 0)
-      : chartRow
-        ? (used[chartRow.feature.id] ?? 0)
-        : 0;
+    credits
+      ? monthly + Math.max(0, usageUsd(used) - credits.grantedUsd)
+      : isMetered
+        ? monthly +
+          storageCost +
+          FEATURES.reduce((total, feature) => {
+            const usage = data?.features[feature.id];
+            if (!usage || feature.id === "storage_mb") return total;
+            return (
+              total +
+              overUnits({ ...usage, used: used[feature.id] ?? 0 }) *
+                feature.rate
+            );
+          }, 0)
+        : chartRow
+          ? (used[chartRow.feature.id] ?? 0)
+          : 0;
   let chartPoints: { t: number; v: number }[] | null = null;
   if (periodStart !== null && history.data) {
     const used: Record<string, number> = {};
@@ -532,10 +535,29 @@ export function BillingTab() {
             </dl>
           </div>
 
-          {!isLoading && monthly > 0 && (
-            <p className="mt-4 text-muted-foreground text-sm tabular-nums">
-              {formatUsd(monthly)} plan + {formatUsd(spent - monthly)} usage
-            </p>
+          {!isLoading && credits ? (
+            <div className="mt-4">
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {formatUsd(Math.min(credits.usedUsd, credits.grantedUsd))} of{" "}
+                {formatUsd(credits.grantedUsd)} included usage
+                {spent > monthly && ` · ${formatUsd(spent - monthly)} extra`}
+              </p>
+              <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all"
+                  style={{
+                    width: `${Math.min(100, (credits.usedUsd / Math.max(credits.grantedUsd, 0.01)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            !isLoading &&
+            monthly > 0 && (
+              <p className="mt-4 text-muted-foreground text-sm tabular-nums">
+                {formatUsd(monthly)} plan + {formatUsd(spent - monthly)} usage
+              </p>
+            )
           )}
 
           {chartPoints && periodStart !== null && periodEnd !== null && (
@@ -587,6 +609,11 @@ export function BillingTab() {
                 On pace for {formatUsd(projectedSpend)} by{" "}
                 {periodEnd ? shortDate(periodEnd) : "the end of the period"}.
               </span>
+            ) : credits ? (
+              <span className="text-muted-foreground">
+                Nothing stops past the included usage: the extra is billed at the
+                end of the period.
+              </span>
             ) : isMetered ? (
               <span className="text-muted-foreground">
                 Nothing stops past an allowance: the extra is billed at the end
@@ -609,11 +636,13 @@ export function BillingTab() {
               {planName}
             </span>
             <span className="text-muted-foreground text-sm">
-              {isMetered
-                ? monthly > 0
-                  ? `$${monthly} a month`
-                  : "$0 + usage"
-                : "$0"}
+              {credits
+                ? `$${monthly} minimum usage`
+                : isMetered
+                  ? monthly > 0
+                    ? `$${monthly} a month`
+                    : "$0 + usage"
+                  : "$0"}
             </span>
           </p>
           <p className="mt-1 text-muted-foreground text-[13px]">
@@ -650,24 +679,24 @@ export function BillingTab() {
 
           <div className="mt-4 border-t pt-4">
             <p className="text-sm">
-              {isMetered
-                ? "Included each month, then billed per use:"
-                : `${paidPlan.name} ${paidPlan.column === "early" ? "doubles" : "raises"} every allowance and keeps things running past it:`}
+              {credits
+                ? "How this plan bills:"
+                : isMetered
+                  ? "Past the included allowance, each unit is billed at:"
+                  : `${paidPlan.name} keeps things running past the Free limits:`}
             </p>
             <ul className="mt-3 space-y-2 text-sm">
-              {[...FEATURES, BUCKET_ROW, SEATS_ROW].map((feature) => (
-                <li key={feature.label} className="flex items-center gap-2">
-                  <Check className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="tabular-nums">
-                    {perMonth(
-                      isMetered
-                        ? feature[planColumn]
-                        : feature[paidPlan.column],
-                    )}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {inSentence(feature.label)}
-                  </span>
+              {(isMetered && !credits
+                ? // An older plan version, still on per-feature allowances.
+                  FEATURES.map((feature) => `${feature.label}: ${feature.price}`)
+                : [
+                    ...PAID_PITCH,
+                    `${PAID.buckets} buckets and ${PAID.seats} team members`,
+                  ]
+              ).map((line) => (
+                <li key={line} className="flex items-start gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <span>{line}</span>
                 </li>
               ))}
             </ul>
@@ -677,8 +706,7 @@ export function BillingTab() {
                   The account owner manages the plan.
                 </p>
               ) : isMetered ? (
-                // Alpha has a $0 base price but still bills usage, so the
-                // portal is the only way it can put a card on file.
+                // Card, invoices and cancellation all live in Stripe's portal.
                 <Button
                   size="sm"
                   variant="outline"
@@ -782,6 +810,9 @@ export function BillingTab() {
                     </span>
                   </div>
 
+                  {/* On a credit plan a feature has no allowance of its own to
+                      fill: the credit bar on the spend card is the gauge. */}
+                  {!credits && (
                   <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                     {projectedPct > usedPct && (
                       <div
@@ -818,6 +849,7 @@ export function BillingTab() {
                       />
                     )}
                   </div>
+                  )}
 
                   <div className="mt-1.5 flex justify-between gap-3 text-muted-foreground text-xs">
                     <span className={cn(overUsed > 0 && TONE_TEXT[tone])}>
@@ -834,10 +866,15 @@ export function BillingTab() {
                                 : `Projected ${feature.format(projected)}`}
                     </span>
                     <span className="shrink-0 text-right">
-                      {isMetered && overUsed > 0
-                        ? `${formatUsd(overUsed * feature.rate)} at ${feature.overage.replace(" / ", " per ")}`
+                      {credits && usage
+                        ? feature.id === "storage_mb"
+                          ? // Held, not consumed: what a month of it costs.
+                            `${formatUsd(usage.used * feature.rate)} / month at ${feature.price.replace(" / ", " per ")}`
+                          : `${formatUsd(usage.used * feature.rate)} at ${feature.price.replace(" / ", " per ")}`
+                        : isMetered && overUsed > 0
+                        ? `${formatUsd(overUsed * feature.rate)} at ${feature.price.replace(" / ", " per ")}`
                         : isMetered
-                          ? feature.overage.replace(" / ", " per ")
+                          ? feature.price.replace(" / ", " per ")
                           : ratio >= 1
                             ? "Paused until reset"
                             : "Pauses at the limit"}
@@ -853,13 +890,15 @@ export function BillingTab() {
         <Card className="self-start">
           <p className="font-medium text-sm">Plans</p>
           <p className="mt-1 text-muted-foreground text-[13px]">
-            Allowances are monthly, except storage and buckets.
+            Free includes a small monthly allowance and pauses at it.{" "}
+            {paidPlan.name} bills each unit at its price, and the first $
+            {PAID.creditUsd} of usage each month is covered by the minimum.
           </p>
           <div className="mt-4 text-sm">
             <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 border-b pb-2 text-muted-foreground">
               <span />
               <span className="w-16 text-right">Free</span>
-              <span className="w-20 text-right">{paidPlan.name}</span>
+              <span className="w-28 text-right">{paidPlan.name}</span>
             </div>
             {[...FEATURES, BUCKET_ROW, SEATS_ROW].map((feature) => (
               <div
@@ -870,31 +909,20 @@ export function BillingTab() {
                 <span className="w-16 text-right text-muted-foreground tabular-nums">
                   {perMonth(feature.free)}
                 </span>
-                <span className="w-20 text-right tabular-nums">
-                  {perMonth(feature[paidPlan.column])}
+                <span className="w-28 text-right tabular-nums">
+                  {feature.price}
                 </span>
               </div>
             ))}
             <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 pt-2 font-medium">
               <span>Price</span>
               <span className="w-16 text-right text-muted-foreground">$0</span>
-              <span className="w-20 text-right">{paidPlan.price}</span>
+              <span className="w-28 text-right">{paidPlan.price}</span>
             </div>
           </div>
-          <p className="mt-5 font-medium text-sm">Past the allowance</p>
-          <p className="mt-1 text-muted-foreground text-[13px]">
-            {isMetered
-              ? "Nothing stops; the extra is billed at the end of the period."
-              : `On ${paidPlan.name}, nothing stops; the extra is billed at the end of the period. Free simply pauses.`}
-          </p>
-          <ul className="mt-3 space-y-1.5 text-sm">
-            {FEATURES.map((feature) => (
-              <li key={feature.id} className="flex justify-between gap-4">
-                <span className="truncate">{feature.label}</span>
-                <span className="shrink-0 text-muted-foreground tabular-nums">
-                  {feature.overage}
-                </span>
-              </li>
+          <ul className="mt-4 space-y-1.5 text-muted-foreground text-[13px]">
+            {PAID_PITCH.map((line) => (
+              <li key={line}>{line}.</li>
             ))}
           </ul>
         </Card>

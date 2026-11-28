@@ -14,7 +14,7 @@ import {
   SidebarMenuItem,
 } from "@openinary/dashboard/ui/sidebar";
 import { useHydrated } from "@openinary/dashboard";
-import { CLOUD_AVAILABLE, FEATURES, isMeteredPlan } from "@/lib/usage";
+import { FEATURES, isMeteredPlan } from "@/lib/usage";
 import { client, orpc } from "@/utils/orpc";
 
 const pct = (used: number, granted: number) =>

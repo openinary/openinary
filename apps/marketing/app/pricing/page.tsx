@@ -3,8 +3,9 @@ import { Check, Minus } from "lucide-react";
 
 import { TalkToUs } from "@/components/site/enterprise-form";
 import { Calculator } from "@/components/home/calculator/calculator";
-import pricing from "@/data/pricing.json";
+import { PLANS } from "@openinary/plans";
 import { EveryPlan, PlanCard, PlanStrip, plans, rateLines } from "@/components/site/plans";
+import { creditBuysLines, freeQuotas, freeStorageLabel, paidPlan } from "@/lib/pricing";
 import { FaqBlock, FinalCta, PageHero, SiteShell, SplitHeading } from "@/components/site/shell";
 import { Container, DOCS_URL, Sky, StartButtons, buttonClass } from "@/components/site/ui";
 
@@ -15,26 +16,31 @@ export const metadata: Metadata = {
   alternates: { canonical: "/pricing" },
 };
 
-const { free, included } = pricing.openinaryCloud;
+const free = freeQuotas;
 const n = (v: number) => v.toLocaleString("en-US");
+const freeAllowance = [
+  freeStorageLabel,
+  `${n(free.transformations)} / month`,
+  `${free.videoMinutes} min / month`,
+  `${n(free.cdnRequests)} / month`,
+];
 
 type Cell = string | boolean;
 const table: { group: string; sub: string; rows: [string, Cell, Cell, Cell][] }[] = [
   {
-    group: "Included every month",
-    sub: "Storage is cumulative, the rest resets monthly.",
+    group: "What it costs",
+    sub: `Free includes a small allowance and stops at it. ${paidPlan.name} charges each unit at its price, and the first $${paidPlan.creditUsd} of usage each month is covered by the minimum.`,
     rows: [
-      ["Storage", `${free.storageGb} GB`, `${included.storageGb} GB`, "Your bucket"],
-      ["Image transformations", n(free.transformations), n(included.transformations), "Unlimited"],
-      ["Video processing", `${free.videoMinutes} min`, `${included.videoMinutes} min`, "Unlimited"],
-      ["CDN requests", n(free.cdnRequests), n(included.cdnRequests), "Unlimited"],
-      ["Buckets", "1", "2", "Your choice"],
+      ["Price", "$0", `$${paidPlan.monthlyUsd} minimum usage / month`, "$0, your servers"],
+      ["Usage included", false, `$${paidPlan.creditUsd} / month`, false],
+      ...rateLines.map(
+        (r, i) =>
+          [r.label, freeAllowance[i], r.value, i === 0 ? "Your bucket" : "Your hardware"] as [string, Cell, Cell, Cell],
+      ),
+      ["Past what is included", "Stops with a 402", "Billed per unit", "Your hardware"],
+      ["Buckets", String(PLANS.free.buckets), String(paidPlan.buckets), "Your choice"],
+      ["Team members", String(PLANS.free.seats), String(paidPlan.seats), "Your choice"],
     ],
-  },
-  {
-    group: "Past the allowance",
-    sub: "Free stops with a 402 until the month resets. Cloud keeps going.",
-    rows: rateLines.map((r) => [r.label, false, r.value, "Your hardware"] as [string, Cell, Cell, Cell]),
   },
   {
     group: "Delivery and API",
@@ -63,7 +69,7 @@ const billingFaqs = [
   {
     question: "What happens when I hit the Free limits?",
     answer:
-      "Requests that would go past them return 402 until the monthly allowance resets. Storage is cumulative and does not reset. Move to Cloud from Settings, Plan, to keep serving past the allowance.",
+      "Requests that would go past them return 402 until the monthly allowance resets. Storage is cumulative and does not reset. Enable pay as you go from Settings, Plan, to keep serving past the allowance.",
   },
   {
     question: "How is video metered?",
@@ -71,9 +77,12 @@ const billingFaqs = [
       "On how long the transform ran, not on how long the video is. Cached deliveries never count as transformations, so a popular video costs one encode.",
   },
   {
-    question: "Is there a monthly fee on Cloud?",
-    answer:
-      "No. Cloud doubles the Free allowances and bills only what goes past them, at the rates on this page. A card is collected at checkout so that usage can be billed.",
+    question: "What does pay as you go cost?",
+    answer: `$${paidPlan.monthlyUsd} minimum usage a month, which includes $${paidPlan.creditUsd} of usage. Every resource is charged at the price in the table, in dollars. Past $${paidPlan.creditUsd}, you only pay for the extra usage. A quiet month costs $${paidPlan.monthlyUsd} and nothing more.`,
+  },
+  {
+    question: `What does $${paidPlan.creditUsd} of usage cover?`,
+    answer: `Any mix of resources at their listed prices. Spent on one alone, it covers ${creditBuysLines.join(", or ")}. Storage is charged by the day it is held, so a file kept for half the month costs half.`,
   },
   {
     question: "Can I self-host for free?",
@@ -219,7 +228,7 @@ export default function PricingPage() {
         <SplitHeading
           title="Leaving Cloudinary?"
           muted="See both bills."
-          aside="Start from the Cloudinary plan you pay for, then move the sliders to what you actually use. Openinary Cloud is costed on the Cloud plan."
+          aside="Start from the Cloudinary plan you pay for, then move the sliders to what you actually use. Openinary Cloud is costed on Free when the workload fits, otherwise on Pay as you go."
         />
         <div className="mt-10 overflow-hidden rounded-lg bg-tile p-2">
           <div className="overflow-hidden rounded-lg shadow-rule">
@@ -242,7 +251,7 @@ export default function PricingPage() {
                 <th className="w-[34%] p-4 font-normal text-ink-10" />
                 {[
                   ["Free", "$0/month"],
-                  ["Cloud", "No monthly fee, usage"],
+                  [paidPlan.name, `$${paidPlan.monthlyUsd} minimum usage`],
                   ["Self-hosted", "$0, your servers"],
                 ].map(([name, sub]) => (
                   <th key={name} className="p-4 font-normal">
